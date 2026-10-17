@@ -1,6 +1,6 @@
 {
   "name": "sf2e-tactical-starship-combat",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "private": true,
   "type": "module",
   "description": "Tactical starship combat for Foundry VTT v14 / Starfinder Second Edition (sf2e)",
