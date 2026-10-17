@@ -36,3 +36,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$RELEASE_TAG" dist/module.json dist/module.zip dist/SHA256SUMS.txt --clobber
+      - name: Verify the uploaded release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release download "$RELEASE_TAG" --pattern module.json --pattern module.zip --pattern SHA256SUMS.txt --dir dist/published --clobber
+          node tools/verify-release.mjs dist/published "$RELEASE_TAG"

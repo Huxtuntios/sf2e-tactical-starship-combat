@@ -48,6 +48,20 @@ export function releaseManifest(source, repo) {
   };
 }
 
+/** Validate explicit release declarations; this does not run Foundry or certify compatibility. */
+export function validateReleaseCompatibility(manifest) {
+  const check = (compatibility, label) => {
+    for (const field of ["minimum", "verified"]) {
+      if (typeof compatibility?.[field] !== "string" || !/^\d+(?:\.\d+)*$/.test(compatibility[field]))
+        throw new Error(`${label}.${field} must be an explicit version before packaging.`);
+    }
+  };
+  check(manifest.compatibility, "compatibility");
+  const system = manifest.relationships?.systems?.find((entry) => entry.id === "sf2e" && entry.type === "system");
+  if (!system) throw new Error("An explicit sf2e system relationship is required.");
+  check(system.compatibility, "relationships.systems.sf2e.compatibility");
+}
+
 function collect(root, relative, entries) {
   const file = path.join(root, relative);
   const stat = fs.lstatSync(file);
@@ -73,6 +87,7 @@ export function buildRelease({
   if (pkg.version !== source.version || lock.version !== source.version || lock.packages[""].version !== source.version)
     throw new Error("Manifest, package and lockfile versions must match.");
   const manifest = releaseManifest(source, repo);
+  validateReleaseCompatibility(manifest);
   for (const pack of manifest.packs) {
     const packPath = path.join(root, pack.path);
     const current = path.join(packPath, "CURRENT");

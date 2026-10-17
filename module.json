@@ -2,7 +2,7 @@
   "id": "sf2e-tactical-starship-combat",
   "title": "SF2e Tactical Starship Combat",
   "description": "Tactical starship combat for Starfinder Second Edition: player and NPC starships, battle stations, a zone-based Sensor Map, starship hazards and a data-driven action engine. Every PC keeps their normal initiative and turn; the player ship gets no extra turn.",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "authors": [
     {
       "name": "Huxtuntios",
@@ -23,7 +23,8 @@
         "id": "sf2e",
         "type": "system",
         "compatibility": {
-          "minimum": "1.6.0"
+          "minimum": "1.6.0",
+          "verified": "1.6.1"
         }
       }
     ],
@@ -171,7 +172,7 @@
   },
   "url": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat",
   "manifest": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/latest/download/module.json",
-  "download": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.14.0/module.zip",
+  "download": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.14.1/module.zip",
   "bugs": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues",
   "changelog": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/CHANGELOG.md"
 }

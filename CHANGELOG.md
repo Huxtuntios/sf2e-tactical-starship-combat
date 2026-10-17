@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.1 — Compatibility declarations and release integrity
+
+- Declared Foundry v14 and SF2e compatibility explicitly, without widening support to Foundry v13 or PF2e worlds.
+- Added packaging guards against missing compatibility declarations.
+- Added an installer-archive verifier and a post-upload check of the actual GitHub release assets.
+- Bumped the release version so existing 0.14.0 installations can receive the corrected manifest.
+- No gameplay-rule changes. Compatibility declarations do not replace live-world testing.
+
 ## 0.14.0 — Repository and release preparation
 
 - Added English/Russian project pages, contributor conventions and a GitHub Desktop publishing guide.

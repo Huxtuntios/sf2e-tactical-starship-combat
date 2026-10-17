@@ -1,5 +1,9 @@
 # Testing
 
+## 0.14.1 compatibility-release checks
+
+`npm run check` passes 315 Node tests with no skips. Four new tests cover core/system declarations, rejection of missing metadata, equality of the external/ZIP manifests, and the post-upload verification workflow. This validates packaging, not live Foundry activation. The module still requires Foundry v14 and an SF2e 1.6.0+ world; no v13/PF2e compatibility is claimed.
+
 ## Current automated checks (0.14.0)
 
 - `npm run check`: Prettier-supported source files, ESLint with zero warnings, content/reference validation, 11 compiled packs and **311 Node tests**. Pack tests reopen all packs with the actual LevelDB reader.
