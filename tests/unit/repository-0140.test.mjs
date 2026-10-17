@@ -19,7 +19,17 @@ test("release manifest has a stable update channel and a pinned versioned downlo
   assert.equal(manifest.download, `https://github.com/${repo}/releases/download/v${source.version}/module.zip`);
   assert.equal(manifest.bugs, `https://github.com/${repo}/issues`);
   assert.deepEqual(source, before);
-  assert.equal(manifest.compatibility.verified, undefined);
+  assert.deepEqual(manifest.compatibility, source.compatibility);
+  // Compatibility declarations belong to the maintainer, not the release packager.
+  for (const compatibility of [
+    { minimum: "14.361", maximum: "14" },
+    { minimum: "14.361", verified: "14.367", maximum: "14" }
+  ]) {
+    const input = { ...source, compatibility };
+    const snapshot = structuredClone(input);
+    assert.deepEqual(releaseManifest(input, repo).compatibility, compatibility);
+    assert.deepEqual(input, snapshot);
+  }
 });
 
 test("release builder rejects invalid repository and version inputs", () => {
