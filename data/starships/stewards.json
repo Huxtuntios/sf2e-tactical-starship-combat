@@ -1,0 +1,514 @@
+{
+ "faction": "Stewards",
+ "ships": [
+  {
+   "id": "bastion-driller",
+   "name": "Bastion Driller",
+   "level": 1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Stewards",
+   "family": "Stewards",
+   "perception": 7,
+   "sensorRange": 3,
+   "speed": 5,
+   "skills": {
+    "computers": 8,
+    "piloting": 6
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 2,
+    "int": 1,
+    "wis": 1,
+    "cha": -3
+   },
+   "ac": 16,
+   "fort": 7,
+   "ref": 10,
+   "will": 4,
+   "hp": 18,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "mental, starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "sting",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Stinging Drill",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Latch Claw",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Control Unit"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "sting",
+     "kind": "melee",
+     "attack": 6,
+     "traits": [
+      "tech"
+     ],
+     "damage": "1d4+4 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Autonomous Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Latch Claw",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Driller’s last action was a successful sting Strike; Effect The Driller latches onto the required Strike’s target. Whenever the target moves, the Driller moves with it, and the Driller gains a +2 circumstance bonus to its AC. Both effects last until the Driller Strikes a different target or leaves the target’s zone, or until the target succeeds at a DC 17 Piloting check as a single action, whichever happens first."
+    },
+    {
+     "name": "Stinging Drill",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Requirements The Driller is latched onto a starship with Latch Claw; Effect The target takes 1d6 piercing damage. This damage ignores SP and damages HP."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 230
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "ringworks-scout",
+   "name": "Ringworks Scout",
+   "level": 4,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Stewards",
+   "family": "Stewards",
+   "perception": 14,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 12,
+    "piloting": 10
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 5,
+    "con": 3,
+    "int": 2,
+    "wis": 4,
+    "cha": 3
+   },
+   "ac": 20,
+   "fort": 8,
+   "ref": 14,
+   "will": 11,
+   "hp": 60,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Deploy Maglocks",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "light laser",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Scanning Pulse",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Scramble Systems",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser",
+     "kind": "ranged",
+     "attack": 14,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d6+6 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Deploy Maglocks",
+     "cost": "two-actions",
+     "traits": [
+      "incapacitation"
+     ],
+     "text": "Frequency once per hour; Effect The Scout deploys a set of magnetic clamps that latch onto the engines of an enemy starship within 2 zones, preventing the target from escaping. The target must succeed at a DC 20 Piloting check or be immobilized for 1 minute. It can attempt a new Piloting check as a single action with the attack trait to end the effect early."
+    },
+    {
+     "name": "Scanning Pulse",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Scout’s scanners release a high-intensity pulse, highlighting potential targets. Enemy starships within sensor range must attempt a DC 20 Will save. Critical Success The starship is unaffected. Success The starship is immune to the concealed condition for 1 round. Failure The starship is off-guard and immune to the concealed condition for 1 round. Critical Failure As failure, but the effect lasts for 1 minute."
+    },
+    {
+     "name": "Scramble Systems",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Scout targets an enemy starship within sensor range with a blast of comms static. It attempts a Computers check against the target’s Will DC; on a success, one of the target’s battle stations of the Scout’s choice begins malfunctioning, and it takes 2d6 electricity damage. On a critical success, the electricity damage increases to 4d6."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 230
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "steward-ambassador",
+   "name": "Steward Ambassador",
+   "level": 8,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Stewards",
+   "family": "Stewards",
+   "perception": 16,
+   "sensorRange": 3,
+   "speed": 5,
+   "skills": {
+    "computers": 14,
+    "piloting": 18
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 7,
+    "con": 2,
+    "int": 3,
+    "wis": 4,
+    "cha": 5
+   },
+   "ac": 25,
+   "fort": 13,
+   "ref": 19,
+   "will": 16,
+   "hp": 100,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Jousting Charge",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "warlance",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Dramatic Wheel",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Jousting Charge",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Raise Holo-Banner",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "warlance",
+     "kind": "melee",
+     "attack": 20,
+     "traits": [
+      "analog"
+     ],
+     "damage": "2d8+12 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Dramatic Wheel",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger The Ambassador is reduced to 0 Shield Points; Effect The Ambassador wheels around in a dramatic display, shaking off the blow by showing its skill. It attempts a DC 26 Piloting check; on a success, it Changes Heading and Boosts Thrusters."
+    },
+    {
+     "name": "Jousting Charge",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Ambassador flares its thrusters and tears through foes with its lance. It Boosts Thrusters twice; at any point during this movement, it can make a warlance Strike. If it moved at least 2 zones before making this Strike, it gains a +2 circumstance bonus to the attack roll, and the Strike deals an additional 1d8 piercing damage."
+    },
+    {
+     "name": "Raise Holo-Banner",
+     "cost": "one-action",
+     "traits": [
+      "visual"
+     ],
+     "text": "The Ambassador displays a heroic holo-banner featuring the Stewards’ colors, declaring an enemy within sensor range as its foe. If it hits its foe with a Strike before the start of its next turn, the Ambassador and its allies within sensor range gain a +1 status bonus to attack rolls for 1 round. If it doesn’t, the Ambassador (but not its allies) takes a –1 status penalty instead."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 231
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "steward-sentinel",
+   "name": "Steward Sentinel",
+   "level": 10,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Stewards",
+   "family": "Stewards",
+   "perception": 19,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "computers": 17,
+    "piloting": 19
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 3,
+    "con": 7,
+    "int": 3,
+    "wis": 4,
+    "cha": 5
+   },
+   "ac": 29,
+   "fort": 22,
+   "ref": 16,
+   "will": 19,
+   "hp": 160,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Boost Shields",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Heroic Defense",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "Stellar Bastion",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "heavy laser",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Laser Fusillade",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Heroic Defense",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "heavy laser",
+     "kind": "ranged",
+     "attack": 21,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+16 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Heroic Defense",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger An ally within 1 zone would take damage; Requirements The Sentinel has at least 1 Shield Point; Effect The Sentinel Boosts Thrusters to the same zone as the triggering ally, Changing Heading first if it needs to. The ally gains resistance 10 to the triggering damage, and the Sentinel takes the same amount of damage that was reduced by this resistance."
+    },
+    {
+     "name": "Boost Shields",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Sentinel has at least 1 Shield Point; Effect The Sentinel gains a +2 circumstance bonus to its AC until the start of its next turn or until it’s reduced to 0 Shield Points."
+    },
+    {
+     "name": "Laser Fusillade",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The Sentinel unleashes a fusillade of laser blasts. It makes four Strikes with its heavy laser, each with its current multiple attack penalty. It takes a –5 circumstance penalty to its attack roll for each of these Strikes."
+    },
+    {
+     "name": "Stellar Bastion",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Sentinel sends its shields to its allies, protecting them at the cost of its own defenses. It loses Shield Points equal to its current Shield Points, and each ally within sensor range gains half that many Shield Points."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 231
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

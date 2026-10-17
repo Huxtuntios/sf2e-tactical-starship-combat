@@ -1,0 +1,537 @@
+{
+ "faction": "Knights of Golarion",
+ "ships": [
+  {
+   "id": "inheritorworks-surestrike",
+   "name": "Inheritorworks Surestrike",
+   "level": -1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "construct",
+    "tech"
+   ],
+   "faction": "Knights of Golarion",
+   "family": "Knights of Golarian",
+   "perception": 5,
+   "sensorRange": 2,
+   "speed": 5,
+   "skills": {
+    "computers": 4,
+    "piloting": 5
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 3,
+    "con": 1,
+    "int": 0,
+    "wis": -1,
+    "cha": -3
+   },
+   "ac": 15,
+   "fort": 5,
+   "ref": 8,
+   "will": 2,
+   "hp": 15,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "mental, starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "hardlight dagger",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Control Unit"
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Buzzing Storm",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "hardlight dagger",
+     "kind": "melee",
+     "attack": 6,
+     "traits": [
+      "boost 1d4",
+      "tech"
+     ],
+     "damage": "1d4 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Autonomous Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Buzzing Storm",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Requirements Two or more other Surestrikes are within 0 zones; Effect The Surestrike links with other Surestrike units, unleashing a storm of electrical interference. A starship within 0 zones must attempt a DC 16 Will save. That starship then becomes immune to Buzzing Storm for 10 minutes. Critical Success The target is unaffected. Success Any of the target’s battle stations that are unhelmed become malfunctioning for 1 round. Failure All of the target’s battle stations that are unhelmed become malfunctioning. Each creature helming one of the target’s battle stations must succeed at a DC 16 Will save or their battle station becomes malfunctioning. Critical Failure As failure, but creatures helming the target’s battle stations take a –2 circumstance penalty to their saves."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 222
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "inheritorworks-brightsword",
+   "name": "Inheritorworks Brightsword",
+   "level": 3,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Knights of Golarion",
+   "family": "Knights of Golarian",
+   "perception": 10,
+   "sensorRange": 3,
+   "speed": 5,
+   "skills": {
+    "computers": 7,
+    "piloting": 9
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 3,
+    "int": 0,
+    "wis": 1,
+    "cha": 1
+   },
+   "ac": 18,
+   "fort": 9,
+   "ref": 12,
+   "will": 6,
+   "hp": 45,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Flying Blade",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "hardlight blade",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Flying Blade",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "hardlight blade",
+     "kind": "melee",
+     "attack": 12,
+     "traits": [
+      "tech"
+     ],
+     "damage": "1d10+6 slashing"
+    },
+    {
+     "name": "light cannon",
+     "kind": "ranged",
+     "attack": 10,
+     "traits": [
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "1d6+6 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Flying Blade",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Brightsword either Changes Heading and Boosts Thrusters, or Boosts Thrusters twice. At any point during this movement, it can make a hardlight blade Strike."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 222
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "inheritorworks-shieldcraft",
+   "name": "Inheritorworks Shieldcraft",
+   "level": 6,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Knights of Golarion",
+   "family": "Knights of Golarian",
+   "perception": 11,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "computers": 13,
+    "piloting": 13
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 2,
+    "con": 5,
+    "int": 2,
+    "wis": 4,
+    "cha": 1
+   },
+   "ac": 22,
+   "fort": 17,
+   "ref": 11,
+   "will": 14,
+   "hp": 90,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Boost Shields",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Shield Wall",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "ramming prow",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Ramming Speed",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Shield Wall",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Ramming Speed",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "ramming prow",
+     "kind": "melee",
+     "attack": 15,
+     "traits": [
+      "analog"
+     ],
+     "damage": "2d10+6 piercing"
+    },
+    {
+     "name": "light cannon",
+     "kind": "ranged",
+     "attack": 17,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d6+6 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Boost Shields",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Shieldcraft has at least 1 Shield Point; Effect The Shieldcraft gains a +2 circumstance bonus to its AC until the start of its next turn or until it’s reduced to 0 Shield Points."
+    },
+    {
+     "name": "Ramming Speed",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Shieldcraft flies at a target and crashes into it with an ornate, hardlight ramming prow. The Shieldcraft Boosts Thrusters twice, then makes a ramming prow Strike."
+    },
+    {
+     "name": "Shield Wall",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "Requirements The Shieldcraft has a circumstance bonus to its AC from Boost Shields; Effect With a ritual prayer to Iomedae, the Shieldcraft extends its shields to cover its compatriots. Allies within 0 zones gain a +1 circumstance bonus to their AC for the duration of Boost Shields. status bonus to attack rolls and AC until the end of its next turn. The effect can be Sustained up to 1 minute."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 222
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "inheritorworks-cathedralship",
+   "name": "Inheritorworks Cathedralship",
+   "level": 14,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Knights of Golarion",
+   "family": "Knights of Golarian",
+   "perception": 25,
+   "sensorRange": 8,
+   "speed": 2,
+   "skills": {
+    "computers": 26,
+    "piloting": 23
+   },
+   "abilities": {
+    "str": 8,
+    "dex": 4,
+    "con": 9,
+    "int": 5,
+    "wis": 5,
+    "cha": 3
+   },
+   "ac": 35,
+   "fort": 28,
+   "ref": 22,
+   "will": 25,
+   "hp": 230,
+   "sp": 40,
+   "fortify": 20,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "heavy cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Spiritual Armory",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Blessing Beacon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Echoes of Golarion",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Spiritual Armory",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "Ultimate Divine Lance",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "heavy cannon",
+     "kind": "ranged",
+     "attack": 29,
+     "traits": [
+      "range increment 5 zones",
+      "tech"
+     ],
+     "damage": "3d10+12 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Blessing Beacon",
+     "cost": "two-actions",
+     "traits": [
+      "divine"
+     ],
+     "text": "The Cathedralship ignites a burning beacon of divine power, invigorating its crew and allies. The Cathedralship and allies within 1 zone gain a +1"
+    },
+    {
+     "name": "Echoes of Golarion",
+     "cost": "two-actions",
+     "traits": [
+      "divine"
+     ],
+     "text": "The cathedral conjures echoes of ancient heroes from Golarion on a starship within its sensor range. Each creature helming a battle station on the target starship takes 4d12 spirit damage (DC 34 basic Reflex save); enemies with starship immunities aren’t immune to this damage.",
+     "relocated": true
+    },
+    {
+     "name": "Ultimate Divine Lance",
+     "cost": "three-actions",
+     "traits": [
+      "divine",
+      "holy"
+     ],
+     "text": "Each spire on the Cathedralship illuminates in turn before releasing a colossal blast of holy light in a 2-zone burst within sensor range. Enemies in the area take 15d6 spirit damage (DC 34 basic Will save); enemies with starship immunities aren’t immune to this damage.",
+     "relocated": true
+    },
+    {
+     "name": "Spiritual Armory",
+     "cost": "three-actions",
+     "traits": [
+      "divine"
+     ],
+     "text": "The Cathedralship conjures countless ghostly echoes of its heavy cannon, unleashing a deadly broadside. It makes four heavy cannon Strikes at its current multiple attack penalty, each with a –5 circumstance penalty to the attack roll.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 223
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

@@ -1,0 +1,176 @@
+{
+  "id": "sf2e-tactical-starship-combat",
+  "title": "SF2e Tactical Starship Combat",
+  "description": "Tactical starship combat for Starfinder Second Edition: player and NPC starships, battle stations, a zone-based Sensor Map, starship hazards and a data-driven action engine. Every PC keeps their normal initiative and turn; the player ship gets no extra turn.",
+  "version": "0.14.0",
+  "authors": [
+    {
+      "name": "Huxtuntios",
+      "url": "https://github.com/Huxtuntios"
+    },
+    {
+      "name": "SF2e Tactical Starship Combat contributors"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14.361",
+    "maximum": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "sf2e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "1.6.0"
+        }
+      }
+    ],
+    "requires": [],
+    "recommends": [],
+    "conflicts": []
+  },
+  "esmodules": ["scripts/main.mjs"],
+  "styles": ["styles/main.css", "styles/tracker.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "lang/ru.json"
+    }
+  ],
+  "socket": true,
+  "license": "LICENSE",
+  "readme": "README.md",
+  "packs": [
+    {
+      "name": "guide",
+      "label": "Guide / Руководство",
+      "path": "packs/guide",
+      "type": "JournalEntry",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-combat-rules",
+      "label": "Tactical Starship Combat Rules / Правила космического боя",
+      "path": "packs/starship-combat-rules",
+      "type": "JournalEntry",
+      "system": "sf2e"
+    },
+    {
+      "name": "starships",
+      "label": "Starships (Tech Core) / Звездолёты",
+      "path": "packs/starships",
+      "type": "Actor",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-hazards",
+      "label": "Starship Hazards (Tech Core) / Космические угрозы",
+      "path": "packs/starship-hazards",
+      "type": "Actor",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-actions",
+      "label": "Starship Actions / Действия кораблей",
+      "path": "packs/starship-actions",
+      "type": "Item",
+      "system": "sf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "starship-weapons",
+      "label": "Starship Weapons / Орудия кораблей",
+      "path": "packs/starship-weapons",
+      "type": "Item",
+      "system": "sf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "battle-stations",
+      "label": "Battle Stations / Боевые станции",
+      "path": "packs/battle-stations",
+      "type": "JournalEntry",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-frames",
+      "label": "Starship Frames / Каркасы звездолётов",
+      "path": "packs/starship-frames",
+      "type": "JournalEntry",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-equipment",
+      "label": "Starship Equipment / Снаряжение звездолётов",
+      "path": "packs/starship-equipment",
+      "type": "JournalEntry",
+      "system": "sf2e"
+    },
+    {
+      "name": "starship-exploration",
+      "label": "Starship Exploration Activities / Исследование на звездолёте",
+      "path": "packs/starship-exploration",
+      "type": "Item",
+      "system": "sf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "starship-upgrades",
+      "label": "Starship Upgrades / Улучшения звездолётов",
+      "path": "packs/starship-upgrades",
+      "type": "Item",
+      "system": "sf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "Tactical Starship Combat",
+      "sorting": "a",
+      "color": "#1d4ed8",
+      "packs": [
+        "guide",
+        "starship-combat-rules",
+        "starships",
+        "starship-hazards",
+        "starship-actions",
+        "starship-weapons",
+        "battle-stations",
+        "starship-frames",
+        "starship-equipment",
+        "starship-exploration",
+        "starship-upgrades"
+      ]
+    }
+  ],
+  "flags": {
+    "hotReload": {
+      "extensions": ["css", "hbs", "json"],
+      "paths": ["styles", "templates", "lang"]
+    }
+  },
+  "url": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat",
+  "manifest": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/latest/download/module.json",
+  "download": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.14.0/module.zip",
+  "bugs": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues",
+  "changelog": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/CHANGELOG.md"
+}

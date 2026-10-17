@@ -1,0 +1,25 @@
+<section class="tsc-appearance-fields">
+{{#if objectMode}}
+  <h3>{{objectName}}</h3>
+  <p>{{localize 'SF2eTSC.mapAppearance.objectHint'}}</p>
+  <label>{{localize 'SF2eTSC.mapAppearance.image'}}<span class="tsc-image-field"><input type="text" name="art" value="{{art}}"><button type="button" data-action="browseImage" data-field="art" aria-label="{{localize 'SF2eTSC.mapAppearance.browse'}}"><i class="fa-solid fa-folder-open"></i></button></span></label>
+{{else}}
+  <label>{{localize 'SF2eTSC.mapAppearance.theme'}}<select name="theme">{{#each themes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+  <label>{{localize 'SF2eTSC.mapAppearance.mode'}}<select name="mode">{{#each modes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+  <label>{{localize 'SF2eTSC.mapAppearance.artSize'}}<input type="number" name="artSize" min="32" max="128" step="1" value="{{a.artSize}}"></label>
+  <fieldset><legend>{{localize 'SF2eTSC.mapAppearance.colors'}}</legend>
+    <label>{{localize 'SF2eTSC.mapAppearance.customColors'}}<input type="checkbox" name="customColors" {{#if customColors}}checked{{/if}}></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.textColor'}}<input type="color" name="textColor" value="{{textColor}}"></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.mutedColor'}}<input type="color" name="mutedColor" value="{{mutedColor}}"></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.accentColor'}}<input type="color" name="accentColor" value="{{accentColor}}"></label>
+  </fieldset>
+  <fieldset><legend>{{localize 'SF2eTSC.mapAppearance.background'}}</legend>
+    <label>{{localize 'SF2eTSC.mapAppearance.image'}}<span class="tsc-image-field"><input type="text" name="background" value="{{a.background}}"><button type="button" data-action="browseImage" data-field="background" aria-label="{{localize 'SF2eTSC.mapAppearance.browse'}}"><i class="fa-solid fa-folder-open"></i></button></span></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.opacity'}}<input type="number" name="opacity" min="0" max="1" step="0.05" value="{{a.opacity}}"></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.fade'}}<input type="number" name="fade" min="0" max="1" step="0.05" value="{{a.fade}}"></label>
+    <label>{{localize 'SF2eTSC.mapAppearance.blur'}}<input type="number" name="blur" min="0" max="20" step="1" value="{{a.blur}}"></label>
+    <p>{{localize 'SF2eTSC.mapAppearance.backgroundHint'}}</p>
+  </fieldset>
+{{/if}}
+  <footer class="tsc-detail-actions"><button type="submit"><i class="fa-solid fa-check"></i> {{localize 'SF2eTSC.ui.save'}}</button><button type="button" data-action="resetAppearance">{{localize 'SF2eTSC.mapAppearance.reset'}}</button></footer>
+</section>

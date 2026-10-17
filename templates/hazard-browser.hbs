@@ -1,0 +1,16 @@
+<section class="tsc-browser">
+  <nav class="tsc-tabs"><button type="button" class="{{#if hazards}}active{{/if}}" data-action="setMode" data-mode="hazards">{{localize "SF2eTSC.ui.hazards"}}</button><button type="button" class="{{#unless hazards}}active{{/unless}}" data-action="setMode" data-mode="ships">{{localize "SF2eTSC.ui.starships"}}</button>
+    {{#if isGM}}<span class="tsc-spacer"></span><button type="button" data-action="importAll"><i class="fa-solid fa-download"></i> {{localize "SF2eTSC.ui.importAll"}}</button> <button type="button" data-action="updateAll" title="{{localize 'SF2eTSC.update.hint'}}"><i class="fa-solid fa-rotate"></i> {{localize "SF2eTSC.update.all"}}</button>{{/if}}</nav>
+  <div class="tsc-row-inputs tsc-filters">
+    <input type="search" data-filter="text" value="{{f.text}}" placeholder="{{localize 'SF2eTSC.ui.search'}}" aria-label="{{localize 'SF2eTSC.ui.search'}}">
+    <label>{{localize "SF2eTSC.ui.level"}} <input type="number" data-filter="min" value="{{f.min}}" min="-1" max="25"> – <input type="number" data-filter="max" value="{{f.max}}" min="-1" max="25"></label>
+    {{#if hazards}}<select data-filter="complexity" aria-label="{{localize 'SF2eTSC.hazards.complexity'}}"><option value="">{{localize "SF2eTSC.hazards.any"}}</option><option value="simple" {{#if (eq f.complexity "simple")}}selected{{/if}}>{{localize "SF2eTSC.hazards.simple"}}</option><option value="complex" {{#if (eq f.complexity "complex")}}selected{{/if}}>{{localize "SF2eTSC.hazards.complex"}}</option></select>{{/if}}
+    <select data-filter="trait" aria-label="{{localize 'SF2eTSC.ui.traits'}}"><option value="">{{localize "SF2eTSC.ui.allTraits"}}</option>{{#each traits}}<option value="{{id}}" {{#if (eq id ../f.trait)}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+    <button type="button" data-action="resetFilters">{{localize "SF2eTSC.ui.reset"}}</button><span class="tsc-dim">{{count}}</span>
+  </div>
+  <table class="tsc-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.ui.level"}}</th><th>{{localize "SF2eTSC.ui.type"}}</th><th>{{localize "SF2eTSC.ui.traits"}}</th><th>{{localize "SF2eTSC.ui.page"}}</th><th></th></tr></thead>
+  <tbody>{{#each rows}}<tr><td>{{#if img}}<img src="{{img}}" alt="" width="28" height="28" class="tsc-row-img">{{/if}}<strong>{{name}}</strong>{{#if review}} <span class="tsc-pill warn" title="{{localize 'SF2eTSC.ui.needsReview'}}">⚠</span>{{/if}}<div class="tsc-dim">{{{summary}}}</div></td><td>{{level}}</td><td>{{type}}</td><td>{{traits}}</td><td>{{page}}</td>
+    <td>{{#if inWorld}}<button type="button" data-action="openActor" data-uuid="{{inWorld}}"><i class="fa-solid fa-file-lines"></i></button>{{else}}<button type="button" data-action="importOne" data-id="{{id}}" title="{{localize 'SF2eTSC.ui.importOne'}}"><i class="fa-solid fa-download"></i></button>{{/if}}
+    {{#if @root.isGM}}<button type="button" data-action="editImage" data-id="{{id}}" title="{{localize 'SF2eTSC.edit.changeImage'}}"><i class="fa-solid fa-image"></i></button>{{/if}}
+    {{#if @root.canPlace}}<button type="button" data-action="place" data-id="{{id}}" title="{{localize 'SF2eTSC.hazards.place'}}"><i class="fa-solid fa-crosshairs"></i></button>{{/if}}</td></tr>{{/each}}</tbody></table>
+</section>

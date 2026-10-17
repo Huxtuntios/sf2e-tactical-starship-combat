@@ -1,0 +1,122 @@
+{{!-- Full starship editor (player + NPC sheets). Every input saves on change through the GM (permission: configureShip). --}}
+<div class="tsc-editor">
+  <div class="tsc-gm-box tsc-edit-basics">
+    <div class="tsc-edit-img">
+      <img src="{{actor.img}}" alt="" data-action="editImage" data-target="img" title="{{localize 'SF2eTSC.edit.changeImage'}}">
+      <button type="button" data-action="editImage" data-target="img"><i class="fa-solid fa-image"></i> {{localize "SF2eTSC.edit.changeImage"}}</button>
+      <button type="button" data-action="editImage" data-target="token"><i class="fa-solid fa-chess-pawn"></i> {{localize "SF2eTSC.edit.changeToken"}}</button>
+    </div>
+    <div class="tsc-row-inputs">
+      <label>{{localize "SF2eTSC.ui.name"}} <input type="text" data-actor-field="name" value="{{actor.name}}"></label>
+      <label>{{localize "SF2eTSC.ui.level"}} <input type="number" data-field="level" value="{{ship.level}}" min="-1" max="25"></label>
+      <label>{{localize "SF2eTSC.edit.size"}} <select data-field="size">{{#each edit.sizes}}<option value="{{id}}" {{#if sel}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
+      <label>{{localize "SF2eTSC.ui.starshipType"}} <select data-field="role">{{#each catalog.shipRoles}}<option value="{{id}}" {{#if sel}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+      <label>{{localize "SF2eTSC.ui.heading"}} <select data-field="heading"><option value="left" {{#if (eq ship.heading "left")}}selected{{/if}}>← {{localize "SF2eTSC.heading.left"}}</option><option value="right" {{#if (eq ship.heading "right")}}selected{{/if}}>→ {{localize "SF2eTSC.heading.right"}}</option></select></label>
+      <label class="wide">{{localize "SF2eTSC.ui.traits"}} <input type="text" data-field="traits" data-type="csv" value="{{edit.traits}}"></label>
+      {{#if isNpc}}<label class="wide">{{localize "SF2eTSC.edit.faction"}} <input type="text" data-field="faction" value="{{ship.faction}}"></label>{{/if}}
+    </div>
+  </div>
+
+  {{#unless isNpc}}
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.ui.frame"}}</h4>
+    <div class="tsc-row-inputs"><select name="frameSelect">{{#each catalog.frames}}<option value="{{id}}" {{#if sel}}selected{{/if}}>{{name}}</option>{{/each}}</select>
+      <label>{{localize "SF2eTSC.ui.level"}} <input type="number" name="frameLevel" value="{{ship.level}}" min="1" max="20"></label>
+      <label><input type="checkbox" name="autoGrades" checked> {{localize "SF2eTSC.ui.autoGrades"}}</label>
+      <button type="button" data-action="applyFrame">{{localize "SF2eTSC.ui.applyFrame"}}</button></div>
+    <p class="tsc-dim">{{localize "SF2eTSC.ui.frameHint"}}</p></div>
+  {{/unless}}
+
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.edit.statistics"}}</h4>
+    <div class="tsc-row-inputs">
+      <label>{{localize "SF2eTSC.ui.hullPoints"}} <input type="number" data-field="hp.value" value="{{ship.hp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="hp.max" value="{{ship.hp.max}}" min="1" {{#unless isGM}}disabled{{/unless}}></label>
+      <label>{{localize "SF2eTSC.ui.shieldPoints"}} <input type="number" data-field="sp.value" value="{{ship.sp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="sp.max" value="{{ship.sp.max}}" min="0" {{#unless isGM}}disabled{{/unless}}></label>
+      <label>{{localize "SF2eTSC.ui.ac"}} <input type="number" data-field="ac" value="{{ship.ac}}"></label>
+      <label>{{localize "SF2eTSC.ui.fortitude"}} <input type="number" data-field="fort" value="{{ship.fort}}"></label>
+      <label>{{localize "SF2eTSC.ui.reflex"}} <input type="number" data-field="reflex" value="{{ship.reflex}}"></label>
+      <label>{{localize "SF2eTSC.ui.will"}} <input type="number" data-field="will" value="{{ship.will}}"></label>
+      <label>{{localize "SF2eTSC.ui.perception"}} <input type="number" data-field="perception" value="{{ship.perception}}"></label>
+      <label>{{localize "SF2eTSC.ui.speed"}} <input type="number" data-field="speed" value="{{ship.speed}}" min="0"></label>
+      <label>{{localize "SF2eTSC.ui.sensorRange"}} <input type="number" data-field="sensorRange" value="{{ship.sensorRange}}" min="0"></label>
+      <label>{{localize "SF2eTSC.chat.hardness"}} <input type="number" data-field="hardness" value="{{ship.hardness}}" min="0"></label>
+      <label>{{localize "SF2eTSC.edit.fortify"}} <input type="number" data-field="fortify" value="{{ship.fortify}}" min="0"></label>
+    </div>
+    {{#if isGM}}<div class="tsc-row-inputs">
+      <label>{{localize "SF2eTSC.ui.compromised"}} <input type="number" data-field="compromised" value="{{ship.compromised}}" min="0" max="10"></label>
+      <label>{{localize "SF2eTSC.ui.wrecked"}} <input type="number" data-field="wrecked" value="{{ship.wrecked}}" min="0"></label>
+      <label><input type="checkbox" data-field="inoperable" {{#if ship.inoperable}}checked{{/if}}> {{localize "SF2eTSC.status.inoperable"}}</label>
+      <label><input type="checkbox" data-field="offKilter" {{#if ship.offKilter}}checked{{/if}}> {{localize "SF2eTSC.status.off-kilter"}}</label>
+      <label><input type="checkbox" data-field="destroyed" {{#if ship.destroyed}}checked{{/if}}> {{localize "SF2eTSC.status.destroyed"}}</label>
+    </div>{{/if}}
+    <div class="tsc-row-inputs">
+      <label class="wide">{{localize "SF2eTSC.edit.immunities"}} <input type="text" data-field="immunities" data-type="csv" value="{{edit.immunities}}"></label>
+      <label class="wide">{{localize "SF2eTSC.chat.resistance"}} <input type="text" data-field="resistances" data-type="kv" value="{{edit.resistances}}" placeholder="{{localize 'SF2eTSC.edit.ph.resistances'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
+      <label class="wide">{{localize "SF2eTSC.chat.weakness"}} <input type="text" data-field="weaknesses" data-type="kv" value="{{edit.weaknesses}}" placeholder="{{localize 'SF2eTSC.edit.ph.weaknesses'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
+      <label class="wide">{{localize "SF2eTSC.edit.skills"}} <input type="text" data-field="skills" data-type="kv" value="{{edit.skills}}" placeholder="{{localize 'SF2eTSC.edit.ph.skills'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
+    </div>
+  </div>
+
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.tabs.stations"}}</h4>
+    <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.ui.type"}}</th><th>{{localize "SF2eTSC.ui.grade"}}</th><th>{{localize "SF2eTSC.edit.stationActions"}}</th><th></th></tr></thead>
+    <tbody>{{#each edit.stations}}<tr>
+      <td><input type="text" data-station-field="name" data-station-id="{{id}}" value="{{name}}"></td>
+      <td><select data-station-field="type" data-station-id="{{id}}">{{#each ../catalog.stationTypes}}<option value="{{id}}" {{#if (eq id ../type)}}selected{{/if}}>{{name}}</option>{{/each}}</select></td>
+      <td><select data-station-field="grade" data-station-id="{{id}}">{{#each ../catalog.grades}}<option value="{{id}}" {{#if (eq id ../grade)}}selected{{/if}}>{{name}}</option>{{/each}}</select></td>
+      <td><input type="text" data-station-field="actions" data-type="csv" data-station-id="{{id}}" value="{{actionsText}}"></td>
+      <td><button type="button" class="danger" data-action="removeStation" data-station-id="{{id}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>{{/each}}</tbody></table>
+    <button type="button" data-action="addStation"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addStation"}}</button>
+  </div>
+
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.tabs.weapons"}}</h4>
+    <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.edit.die"}}</th><th>{{localize "SF2eTSC.ui.damageType"}}</th><th>{{localize "SF2eTSC.ui.range"}}</th><th>{{localize "SF2eTSC.ui.traits"}}</th><th></th></tr></thead>
+    <tbody>{{#each edit.weapons}}<tr>
+      <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="name" value="{{name}}"></td>
+      <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="die" value="{{die}}" size="5"></td>
+      <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="damageType" value="{{damageType}}"></td>
+      <td><input type="number" data-list="weapons" data-index="{{@index}}" data-key="range" data-type="number" value="{{range}}" min="0"></td>
+      <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="traits" data-type="csv" value="{{traitsText}}"></td>
+      <td><button type="button" class="danger" data-action="removeListItem" data-list="weapons" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>{{/each}}</tbody></table>
+    <div class="tsc-row-inputs"><select name="weaponCatalog">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>
+  </div>
+
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.ui.strikes"}}</h4>
+    <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.edit.kind"}}</th><th>{{localize "SF2eTSC.edit.attack"}}</th><th>{{localize "SF2eTSC.chat.damage"}}</th><th>{{localize "SF2eTSC.ui.traits"}}</th><th></th></tr></thead>
+    <tbody>{{#each edit.strikes}}<tr>
+      <td><input type="text" data-list="strikes" data-index="{{@index}}" data-key="name" value="{{name}}"></td>
+      <td><select data-list="strikes" data-index="{{@index}}" data-key="kind"><option value="ranged" {{#if (eq kind "ranged")}}selected{{/if}}>{{localize "SF2eTSC.ui.ranged"}}</option><option value="melee" {{#if (eq kind "melee")}}selected{{/if}}>{{localize "SF2eTSC.ui.melee"}}</option></select></td>
+      <td><input type="number" data-list="strikes" data-index="{{@index}}" data-key="attack" data-type="number" value="{{attack}}"></td>
+      <td><input type="text" data-list="strikes" data-index="{{@index}}" data-key="damage" value="{{damage}}" placeholder="{{localize 'SF2eTSC.edit.damagePlaceholder'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></td>
+      <td><input type="text" data-list="strikes" data-index="{{@index}}" data-key="traits" data-type="csv" value="{{traitsText}}" placeholder="{{localize 'SF2eTSC.edit.traitsPlaceholder'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></td>
+      <td><button type="button" class="danger" data-action="removeListItem" data-list="strikes" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>{{/each}}</tbody></table>
+    <button type="button" data-action="addListItem" data-list="strikes"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.edit.addStrike"}}</button>
+  </div>
+
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.edit.abilities"}}</h4>
+    {{#each edit.npcActions}}<div class="tsc-edit-ability">
+      <div class="tsc-row-inputs">
+        <input type="text" data-list="npcActions" data-index="{{@index}}" data-key="name" value="{{name}}" aria-label="{{localize 'SF2eTSC.ui.name'}}">
+        <select data-list="npcActions" data-index="{{@index}}" data-key="cost">{{#each ../edit.costs}}<option value="{{id}}" {{#if (eq id ../cost)}}selected{{/if}}>{{name}}</option>{{/each}}</select>
+        <input type="text" data-list="npcActions" data-index="{{@index}}" data-key="traits" data-type="csv" value="{{traitsText}}" placeholder="{{localize 'SF2eTSC.ui.traits'}}">
+        <button type="button" class="danger" data-action="removeListItem" data-list="npcActions" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button>
+      </div>
+      <textarea rows="3" data-list="npcActions" data-index="{{@index}}" data-key="text">{{text}}</textarea>
+    </div>{{/each}}
+    <button type="button" data-action="addListItem" data-list="npcActions"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.edit.addAbility"}}</button>
+    <p class="tsc-dim">{{localize "SF2eTSC.edit.abilityHint"}}</p>
+  </div>
+
+  {{#unless isNpc}}
+  <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.ui.expansionBays"}}</h4>
+    <ul class="tsc-list">{{#each bays}}<li><input type="text" value="{{name}}" data-bay-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.expansionBays'}}"> <button type="button" class="danger" data-action="removeListItem" data-list="expansionBays" data-index="{{@index}}"><i class="fa-solid fa-trash"></i></button></li>{{/each}}</ul>
+    <button type="button" data-action="addListItem" data-list="expansionBays"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.edit.addBay"}}</button>
+  </div>
+  {{/unless}}
+
+  <div class="tsc-btn-row">
+    <button type="button" data-action="exportJson"><i class="fa-solid fa-file-export"></i> {{localize "SF2eTSC.ui.exportJson"}}</button>
+    <button type="button" data-action="importJson"><i class="fa-solid fa-file-import"></i> {{localize "SF2eTSC.ui.importJson"}}</button>
+    {{#if isGM}}<button type="button" data-action="editJson"><i class="fa-solid fa-code"></i> {{localize "SF2eTSC.edit.rawJson"}}</button>{{/if}}
+  </div>
+</div>

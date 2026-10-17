@@ -1,0 +1,7 @@
+<section class="tsc-crew-root">
+<label class="tsc-sheet-theme-picker">{{localize "SF2eTSC.settings.starshipSheetTheme.name"}} <select data-sheet-theme-select>{{#each sheetThemes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+{{#if empty}}<p class="tsc-hint">{{localize "SF2eTSC.crew.noShips"}}</p>{{/if}}
+{{#each ships}}
+{{> "modules/sf2e-tactical-starship-combat/templates/crew-ship.hbs"}}
+{{/each}}
+</section>

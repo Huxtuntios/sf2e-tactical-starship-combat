@@ -1,0 +1,356 @@
+{
+ "weapons": [
+  {
+   "id": "acid-capsule-launcher",
+   "name": "Acid capsule launcher",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "acid",
+   "range": 4,
+   "upgradeSlots": 1,
+   "group": "corrosive",
+   "traits": [
+    "analog"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "asteroid-breacher",
+   "name": "Asteroid breacher",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d6",
+   "damageType": "piercing",
+   "range": 3,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "concussive",
+    "razing",
+    "tech",
+    "unwieldy"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "coilgun",
+   "name": "Coilgun",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d6",
+   "damageType": "piercing",
+   "range": 3,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "agile",
+    "analog"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "fragment-launcher",
+   "name": "Fragment launcher",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "piercing",
+   "range": 2,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "analog",
+    "area (cone)",
+    "concussive"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "light-laser-cannon",
+   "name": "Light laser cannon",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "fire",
+   "range": 5,
+   "upgradeSlots": 1,
+   "group": "laser",
+   "traits": [
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "pulsecaster-cannon",
+   "name": "Pulsecaster cannon",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d6",
+   "damageType": "electricity",
+   "range": 3,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "agile",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "starballista",
+   "name": "Starballista",
+   "category": "simple",
+   "itemLevel": 0,
+   "die": "1d10",
+   "damageType": "piercing",
+   "range": 6,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "analog",
+    "ordinance",
+    "unwieldy"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "chain-repeater",
+   "name": "Chain repeater",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "piercing",
+   "range": 2,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "analog",
+    "automatic"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "disruptor-rifle",
+   "name": "Disruptor rifle",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d10",
+   "damageType": "electricity",
+   "range": 8,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "tech",
+    "volley 2 zones"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "farseeker-missiles",
+   "name": "Farseeker missiles",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "piercing",
+   "range": 6,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "area (burst 1 zone)",
+    "razing",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "hypervelocity-macron-accelerator",
+   "name": "Hypervelocity macron accelerator",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d10",
+   "damageType": "electricity",
+   "range": 2,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "area (cone)",
+    "concussive",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "polarizing-beam",
+   "name": "Polarizing beam",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "electricity",
+   "range": 2,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "boost d8",
+    "ordnance",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "pulse-beam-cannon",
+   "name": "Pulse beam cannon",
+   "category": "martial",
+   "itemLevel": 0,
+   "die": "1d8",
+   "damageType": "electricity",
+   "range": 3,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "area (line)",
+    "nonlethal",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "aeon-cannon",
+   "name": "Aeon cannon",
+   "category": "advanced",
+   "itemLevel": 0,
+   "die": "1d6",
+   "damageType": "fire",
+   "range": 4,
+   "upgradeSlots": 0,
+   "group": "laser",
+   "traits": [
+    "aeon",
+    "agile",
+    "caster",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "artillery-cannon",
+   "name": "Artillery cannon",
+   "category": "advanced",
+   "itemLevel": 0,
+   "die": "1d10",
+   "damageType": "fire",
+   "range": 6,
+   "upgradeSlots": 1,
+   "group": "laser",
+   "traits": [
+    "critical (flame)",
+    "forceful",
+    "razing",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "gravity-cannon",
+   "name": "Gravity cannon",
+   "category": "advanced",
+   "itemLevel": 0,
+   "die": "1d10",
+   "damageType": "bludgeoning",
+   "range": 5,
+   "upgradeSlots": 1,
+   "group": "shock",
+   "traits": [
+    "area (line)",
+    "ordnance",
+    "tech"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  },
+  {
+   "id": "magnetar-rail",
+   "name": "Magnetar rail",
+   "category": "advanced",
+   "itemLevel": 0,
+   "die": "1d12",
+   "damageType": "piercing",
+   "range": 6,
+   "upgradeSlots": 1,
+   "group": "projectile",
+   "traits": [
+    "analog",
+    "automatic",
+    "ordnance"
+   ],
+   "kind": "ranged",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 191
+   }
+  }
+ ]
+}

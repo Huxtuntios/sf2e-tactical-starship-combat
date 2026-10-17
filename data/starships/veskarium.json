@@ -1,0 +1,563 @@
+{
+ "faction": "Veskarium",
+ "ships": [
+  {
+   "id": "bmc-mauler",
+   "name": "BMC Mauler",
+   "level": 3,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Veskarium",
+   "family": "Veskarium",
+   "perception": 9,
+   "sensorRange": 4,
+   "speed": 5,
+   "skills": {
+    "computers": 5,
+    "piloting": 9
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 4,
+    "con": 3,
+    "int": 0,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 19,
+   "fort": 8,
+   "ref": 11,
+   "will": 7,
+   "hp": 48,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "farseeker missiles",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Gunnery A"
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Gunnery B"
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Engage Lateral Thrusters",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Merciless Aim",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 12,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8+3 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "farseeker missiles",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range increment 6 zones, razing, tech), Damage 1d10+3 piercing (DC 20 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "farseeker missiles"
+    },
+    {
+     "name": "Engage Lateral Thrusters",
+     "cost": "one-action",
+     "traits": [
+      "move"
+     ],
+     "text": "Frequency once per turn; Effect The Mauler moves up to its Speed in any direction."
+    },
+    {
+     "name": "Merciless Aim",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The BMC Mauler locks onto a starship in sensor range. While locked-on, the target takes a –1 status penalty to its AC and Reflex saves against the BMC Mauler until the end of the BMC Mauler’s next turn or until it’s targeted by an attack from one of the BMC Mauler’s gunneries, whichever happens first."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 234
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "norikama-dropship",
+   "name": "Norikama Dropship",
+   "level": 8,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Veskarium",
+   "family": "Veskarium",
+   "perception": 17,
+   "sensorRange": 6,
+   "speed": 4,
+   "skills": {
+    "computers": 14,
+    "piloting": 15
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 5,
+    "con": 4,
+    "int": 3,
+    "wis": 4,
+    "cha": 0
+   },
+   "ac": 25,
+   "fort": 19,
+   "ref": 18,
+   "will": 17,
+   "hp": 122,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Electromagnetic Pulse",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "disruptor rifle",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Electromagnetic Pulse",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "Merciless Aim",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "disruptor rifle",
+     "kind": "ranged",
+     "attack": 18,
+     "traits": [
+      "range increment 10 zones",
+      "tech",
+      "volley 2 zones"
+     ],
+     "damage": "2d8+9 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Electromagnetic Pulse",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Norikama Dropship releases a disrupting pulse that targets enemy scanners. All other starships in the Norikama Dropship’s zone take 4d4 electricity damage based on the results of a DC 23 Will save. Critical Success The target is unaffected and is immune to Electromagnetic Pulse for 24 hours. Success The target takes half damage. Failure The target takes full damage, and the target’s scanner is malfunctioning for 1 round. Critical Failure The target takes double damage, and the target’s scanner is malfunctioning for 1 minute."
+    },
+    {
+     "name": "Merciless Aim",
+     "cost": "one-action",
+     "traits": [],
+     "text": "As BMC Mauler. — [BMC Mauler: The BMC Mauler locks onto a starship in sensor range. While locked-on, the target takes a –1 status penalty to its AC and Reflex saves against the BMC Mauler until the end of the BMC Mauler’s next turn or until it’s targeted by an attack from one of the BMC Mauler’s gunneries, whichever happens first.]"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 234
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "bmc-devastator",
+   "name": "BMC Devastator",
+   "level": 13,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Veskarium",
+   "family": "Veskarium",
+   "perception": 25,
+   "sensorRange": 10,
+   "speed": 5,
+   "skills": {
+    "computers": 25,
+    "piloting": 23
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 6,
+    "con": 5,
+    "int": 8,
+    "wis": 8,
+    "cha": 2
+   },
+   "ac": 33,
+   "fort": 24,
+   "ref": 25,
+   "will": 27,
+   "hp": 201,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Deploy Maulers",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "On Your Six",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Hangar Bay"
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Heavy Laser Cannon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "ramming prow",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Sensor Sweep",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "ramming prow",
+     "kind": "melee",
+     "attack": 26,
+     "traits": [
+      "analog"
+     ],
+     "damage": "3d10+19 bludgeoning"
+    },
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 27,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "3d8+14 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "On Your Six",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A BMC Devastator would take damage; Effect A small allied starship flies in and out to intercept the incoming damage. The BMC Devastator has resistance 10 to the triggering attack."
+    },
+    {
+     "name": "Deploy Maulers",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Effect The BMC Devastator deploys up to two BMC Maulers (page 234) with the summoned and minion traits in its zone. It can have only two BMC Maulers summoned at a time. It can Command both Maulers as a single action that’s a scanners station action."
+    },
+    {
+     "name": "Heavy Laser Cannon",
+     "cost": "two-actions",
+     "traits": [
+      "attack"
+     ],
+     "text": "The BMC Devastator fires a concentrated laser beam at a target within sensor range. The starship takes 7d6 fire damage with a DC 33 basic Reflex save."
+    },
+    {
+     "name": "Sensor Sweep",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The BMC Devastator scans a zone in sensor range. Invisible starships in the zone become concealed instead. Concealed starships in the zone are no longer concealed. Starships in the affected zone must attempt a DC 33 Fortitude save. On a failure, the BMC Devastator’s scanners tag the target, making it off-guard to the Devastator and all its allies in sensor range for 1 round. The Devastator can Sustain this effect."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 235
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "vindicas-tyrant",
+   "name": "Vindicas Tyrant",
+   "level": 19,
+   "size": "rare",
+   "rarity": "common",
+   "traits": [
+    "gargantuan",
+    "tech"
+   ],
+   "faction": "Veskarium",
+   "family": "Veskarium",
+   "perception": 33,
+   "sensorRange": 6,
+   "speed": 4,
+   "skills": {
+    "computers": 29,
+    "piloting": 29
+   },
+   "abilities": {
+    "str": 8,
+    "dex": 6,
+    "con": 10,
+    "int": 8,
+    "wis": 8,
+    "cha": 5
+   },
+   "ac": 39,
+   "fort": 38,
+   "ref": 32,
+   "will": 34,
+   "hp": 278,
+   "sp": 80,
+   "fortify": 40,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Heavy Torpedo Launcher",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "polarizing beam",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Will of Damoritosh",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Merciless Aim",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "ramming prow",
+     "kind": "melee",
+     "attack": 36,
+     "traits": [
+      "analog"
+     ],
+     "damage": "4d10+27 bludgeoning"
+    },
+    {
+     "name": "polarizing beam",
+     "kind": "ranged",
+     "attack": 34,
+     "traits": [
+      "boost 4d8",
+      "ordnance",
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "4d8+19 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Heavy Torpedo Launcher",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The Vindicas Tyrant launches heavy torpedoes at a target in sensor range, dealing 10d8 fire and 10d8 piercing damage to all starships in the target’s zone with a DC 42 basic Reflex save."
+    },
+    {
+     "name": "Merciless Aim",
+     "cost": "one-action",
+     "traits": [],
+     "text": "As BMC Mauler. — [BMC Mauler: The BMC Mauler locks onto a starship in sensor range. While locked-on, the target takes a –1 status penalty to its AC and Reflex saves against the BMC Mauler until the end of the BMC Mauler’s next turn or until it’s targeted by an attack from one of the BMC Mauler’s gunneries, whichever happens first.]"
+    },
+    {
+     "name": "Will of Damoritosh",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "The Conqueror lends his might to loyal soldiers of the Veskarium. A Vindicas Tyrant and its allies within sensor range each deal an additional 1d10 piercing damage with their attacks for 1 minute. Affected starships also ignore penalties to Speed and forced movement effects."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 235
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

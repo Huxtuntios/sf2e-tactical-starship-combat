@@ -1,0 +1,1647 @@
+{
+ "actions": [
+  {
+   "id": "boost-thrusters",
+   "slug": "boost-thrusters",
+   "name": "Boost Thrusters",
+   "station": "pilot",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "The starship moves up to its Speed in the direction of its current heading.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "frequency": {
+    "per": "round",
+    "uses": 1
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "requirements": [
+    {
+     "type": "notOffKilter"
+    },
+    {
+     "type": "notInoperable"
+    }
+   ],
+   "effects": [
+    {
+     "type": "moveAlongHeading",
+     "zones": "speed"
+    }
+   ]
+  },
+  {
+   "id": "evade",
+   "slug": "evade",
+   "name": "Evade",
+   "station": "pilot",
+   "minGrade": "commercial",
+   "cost": [
+    1,
+    2
+   ],
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Your starship gains a +1 circumstance bonus to AC for 1 round. The bonus increases to +2 if you spend 2 actions.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "effects": [
+    {
+     "type": "applyEffect",
+     "target": "self",
+     "effect": {
+      "slug": "evade",
+      "label": "Evade",
+      "duration": {
+       "unit": "round",
+       "value": 1
+      },
+      "modifiers": [
+       {
+        "selector": "ac",
+        "type": "circumstance",
+        "value": "actions"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "change-heading",
+   "slug": "change-heading",
+   "name": "Change Heading",
+   "station": "pilot",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "The starship reverses its heading and is no longer off-kilter.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "requirements": [
+    {
+     "type": "notImmobilized"
+    }
+   ],
+   "effects": [
+    {
+     "type": "reverseHeading"
+    },
+    {
+     "type": "clearOffKilter"
+    }
+   ]
+  },
+  {
+   "id": "juke",
+   "slug": "juke",
+   "name": "Juke",
+   "station": "pilot",
+   "minGrade": "tactical",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Attempt a Piloting check against the target’s Perception DC.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "piloting"
+    ],
+    "dc": {
+     "type": "targetPerception"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "off-guard",
+       "label": "Off-Guard",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "conditions": [
+        "off-guard"
+       ]
+      }
+     },
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "off-kilter-juke",
+       "label": "Off-Kilter",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "conditions": [
+        "off-kilter"
+       ]
+      }
+     },
+     {
+      "type": "setOffKilter",
+      "target": "target",
+      "value": true
+     }
+    ],
+    "success": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "off-guard",
+       "label": "Off-Guard",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "conditions": [
+        "off-guard"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "stick-to-cover",
+   "slug": "stick-to-cover",
+   "name": "Stick to Cover",
+   "station": "pilot",
+   "minGrade": "tactical",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Your starship gains a +2 circumstance bonus to AC and Reflex saves against attacks originating in your zone or in a zone in the direction of your choice. You lose this bonus if your starship isn’t in the same zone as its cover.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "requirements": [
+    {
+     "type": "sameZoneLargerObject"
+    }
+   ],
+   "effects": [
+    {
+     "type": "applyEffect",
+     "target": "self",
+     "effect": {
+      "slug": "stick-to-cover",
+      "label": "Stick to Cover",
+      "duration": {
+       "unit": "until-moved"
+      },
+      "modifiers": [
+       {
+        "selector": "ac",
+        "type": "circumstance",
+        "value": 2
+       },
+       {
+        "selector": "reflex",
+        "type": "circumstance",
+        "value": 2
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "clear-a-path",
+   "slug": "clear-a-path",
+   "name": "Clear a Path",
+   "station": "pilot",
+   "minGrade": "advanced",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "With a risky maneuver, you rush the enemy. Attempt a Piloting check against the target starship’s Reflex DC.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "frequency": {
+    "per": "round",
+    "uses": 1
+   },
+   "targeting": {
+    "type": "starship",
+    "range": 0
+   },
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "piloting"
+    ],
+    "dc": {
+     "type": "targetReflex"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "clear-a-path",
+       "label": "Clear a Path (+2)",
+       "duration": {
+        "unit": "until-turn-start"
+       },
+       "modifiers": [
+        {
+         "selector": "ac-against-strikes",
+         "type": "circumstance",
+         "value": -2
+        }
+       ]
+      }
+     },
+     {
+      "type": "manual",
+      "text": "One of your allies can make a Strike against the target as a reaction, or the next Strike against the target before the start of your next turn gains a +2 circumstance bonus to its attack roll."
+     }
+    ],
+    "success": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "clear-a-path",
+       "label": "Clear a Path (+1)",
+       "duration": {
+        "unit": "until-turn-start"
+       },
+       "modifiers": [
+        {
+         "selector": "ac-against-strikes",
+         "type": "circumstance",
+         "value": -1
+        }
+       ]
+      }
+     },
+     {
+      "type": "manual",
+      "text": "As critical success, but the Strike made as a reaction has a -1 circumstance penalty to its attack roll (or the next Strike has a +1 circumstance bonus)."
+     }
+    ]
+   }
+  },
+  {
+   "id": "smoke-and-mirrors",
+   "slug": "smoke-and-mirrors",
+   "name": "Smoke and Mirrors",
+   "station": "pilot",
+   "minGrade": "advanced",
+   "cost": "reaction",
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Trigger: A Strike misses your starship. The triggering Strike is rerolled against another starship of your choice within 0 zones.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "requirements": [
+    {
+     "type": "otherStarshipInZone"
+    }
+   ],
+   "effects": [
+    {
+     "type": "manual",
+     "text": "Reroll the triggering Strike against another starship of your choice within 0 zones."
+    }
+   ]
+  },
+  {
+   "id": "boost-battle-station",
+   "slug": "boost-battle-station",
+   "name": "Boost Battle Station",
+   "station": "generator",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Station actions at a battle station of your choice gain a +1 status bonus to checks and damage rolls for 1 round.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "targeting": {
+    "type": "station",
+    "scope": "own"
+   },
+   "effects": [
+    {
+     "type": "applyEffect",
+     "target": "station",
+     "effect": {
+      "slug": "boost-battle-station",
+      "label": "Boost Battle Station",
+      "duration": {
+       "unit": "round",
+       "value": 1
+      },
+      "modifiers": [
+       {
+        "selector": "station-check",
+        "type": "status",
+        "value": 1
+       },
+       {
+        "selector": "station-damage",
+        "type": "status",
+        "value": 1
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "generate-shields",
+   "slug": "generate-shields",
+   "name": "Generate Shields",
+   "station": "generator",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Generate power to gain 1d4 Shield Points. At 3rd level and every 2 levels thereafter, increase the Shield Points gained by 1d4.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "effects": [
+    {
+     "type": "restoreShields",
+     "dice": {
+      "count": 1,
+      "faces": 4,
+      "scaling": {
+       "from": 3,
+       "step": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "reposition-shield",
+   "slug": "reposition-shield",
+   "name": "Reposition Shield",
+   "station": "generator",
+   "minGrade": "tactical",
+   "cost": "reaction",
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Trigger: Your starship is hit by a Strike. Requirement: at least 1 Shield Point. Attempt a Crafting or Perception check against the Reflex DC of the starship that made the Strike.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "requirements": [
+    {
+     "type": "hasShields"
+    }
+   ],
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "crafting",
+     "perception"
+    ],
+    "dc": {
+     "type": "manualReflexDC"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "manual",
+      "text": "The shield absorbs damage up to its remaining Shield Points without consuming them. Your starship takes any excess damage."
+     }
+    ],
+    "success": [
+     {
+      "type": "manual",
+      "text": "As critical success, but up to half its remaining Shield Points instead."
+     }
+    ],
+    "criticalFailure": [
+     {
+      "type": "manual",
+      "text": "The Strike’s damage is dealt to the Hull Points directly (bypassing shields)."
+     }
+    ]
+   }
+  },
+  {
+   "id": "vent-power",
+   "slug": "vent-power",
+   "name": "Vent Power",
+   "station": "generator",
+   "minGrade": "advanced",
+   "cost": 2,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Another starship of your choice within 0 zones takes 1d10 fire damage with a basic Reflex save against your Crafting DC. At 6th level and every 2 levels thereafter, the damage increases by 1d10.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "frequency": {
+    "per": "round",
+    "uses": 1
+   },
+   "targeting": {
+    "type": "starship",
+    "range": 0,
+    "excludeSelf": true
+   },
+   "effects": [
+    {
+     "type": "damage",
+     "dice": {
+      "count": 1,
+      "faces": 10,
+      "scaling": {
+       "from": 6,
+       "step": 2
+      }
+     },
+     "damageType": "fire",
+     "save": {
+      "type": "reflex",
+      "basic": true,
+      "dcSkill": "crafting"
+     }
+    }
+   ]
+  },
+  {
+   "id": "strike",
+   "slug": "strike",
+   "name": "Strike",
+   "station": "gunnery",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "attack",
+    "station"
+   ],
+   "text": "Make a Strike with the installed starship weapon against a target within its range.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "weapon"
+   },
+   "builtin": "strike"
+  },
+  {
+   "id": "area-fire",
+   "slug": "area-fire",
+   "name": "Area Fire",
+   "station": "gunnery",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "attack",
+    "station"
+   ],
+   "text": "Fire an area weapon; each starship in the area attempts a basic Reflex save against your class DC.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "targeting": {
+    "type": "area",
+    "range": "weapon"
+   },
+   "builtin": "area-fire",
+   "requirements": [
+    {
+     "type": "weaponTrait",
+     "trait": "area"
+    }
+   ]
+  },
+  {
+   "id": "auto-fire",
+   "slug": "auto-fire",
+   "name": "Auto-Fire",
+   "station": "gunnery",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "attack",
+    "station"
+   ],
+   "text": "Fire an automatic weapon in a cone; each starship in the area attempts a basic Reflex save against your class DC.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "targeting": {
+    "type": "area",
+    "range": "weapon"
+   },
+   "builtin": "auto-fire",
+   "requirements": [
+    {
+     "type": "weaponTrait",
+     "trait": "automatic"
+    }
+   ]
+  },
+  {
+   "id": "lock-on",
+   "slug": "lock-on",
+   "name": "Lock On",
+   "station": "gunnery",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Until the end of your turn, a target within sensor range takes a -1 status penalty to AC against your Strikes and a -1 circumstance penalty to Reflex saves against your Area Fire and Auto-Fire.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "effects": [
+    {
+     "type": "applyEffect",
+     "target": "target",
+     "effect": {
+      "slug": "lock-on",
+      "label": "Lock On",
+      "duration": {
+       "unit": "until-turn-end"
+      },
+      "modifiers": [
+       {
+        "selector": "ac-against-strikes",
+        "type": "status",
+        "value": -1
+       },
+       {
+        "selector": "reflex-against-area",
+        "type": "circumstance",
+        "value": -1
+       }
+      ],
+      "against": "source"
+     }
+    }
+   ]
+  },
+  {
+   "id": "target-battle-station",
+   "slug": "target-battle-station",
+   "name": "Target Battle Station",
+   "station": "gunnery",
+   "minGrade": "tactical",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "incapacitation",
+    "manipulate",
+    "station"
+   ],
+   "text": "You focus your targeting systems on a specific battle station on the target starship. Your next Strike against the target before the end of your next turn gains the following effects. Critical Success: If the Strike damages the target’s Hull Points, the battle station becomes malfunctioning, and the target is stunned 1. Success: If the Strike damages Hull Points, the battle station becomes malfunctioning.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "requirements": [
+    {
+     "type": "identifiedStation"
+    }
+   ],
+   "effects": [
+    {
+     "type": "applyEffect",
+     "target": "self",
+     "effect": {
+      "slug": "target-battle-station",
+      "label": "Target Battle Station",
+      "duration": {
+       "unit": "until-next-turn-end"
+      },
+      "rider": {
+       "kind": "targetStation"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "counter-magic",
+   "slug": "counter-magic",
+   "name": "Counter Magic",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "You disrupt the magic behind a spell or effect within sensor range. Attempt a counteract check against the target. Your counteract rank is half your level rounded up, and your counteract modifier is your spellcasting attribute plus your spellcasting proficiency bonus. If you successfully counteract a magical hazard, you disable it.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "effects": [
+    {
+     "type": "manual",
+     "text": "Resolve the counteract check manually (rank = half starship level, rounded up)."
+    }
+   ]
+  },
+  {
+   "id": "scan-for-magic",
+   "slug": "scan-for-magic",
+   "name": "Scan for Magic",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "You send out a pulse that reflects off heavy concentrations of magic within sensor range. You receive no information beyond the presence or absence of magic.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "effects": [
+    {
+     "type": "manual",
+     "text": "GM reveals whether heavy concentrations of magic are within sensor range."
+    }
+   ]
+  },
+  {
+   "id": "cosmic-bombardment",
+   "slug": "cosmic-bombardment",
+   "name": "Cosmic Bombardment",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": [
+    1,
+    2,
+    3
+   ],
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station",
+    "spell"
+   ],
+   "text": "You fire a missile of concentrated magical energy that automatically hits the target starship and deals 1d4+1 force damage. For each additional action, increase the number of missiles by one (maximum 3). Heightened (+2): one additional missile with each action. This is a rank 1 spell: the caster expends a spell slot of the rank they choose.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "spell": true,
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "effects": [
+    {
+     "type": "damage",
+     "dice": {
+      "count": "missiles",
+      "faces": 4,
+      "bonus": "missiles"
+     },
+     "damageType": "force",
+     "autoHit": true
+    }
+   ]
+  },
+  {
+   "id": "cosmic-cannon",
+   "slug": "cosmic-cannon",
+   "name": "Cosmic Cannon",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "attack",
+    "concentrate",
+    "manipulate",
+    "station",
+    "cantrip"
+   ],
+   "text": "Make a ranged spell attack roll against the target’s AC. If you hit, you deal 2d4 force damage (double on a critical success). Heightened (+1): the damage increases by 1d4. This is a cantrip: casting it does not expend a spell slot.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "spell": true,
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "builtin": "spell-attack",
+   "spellAttack": {
+    "damage": {
+     "count": 2,
+     "faces": 4,
+     "perRank": {
+      "count": 1,
+      "faces": 4
+     }
+    },
+    "damageType": "force"
+   }
+  },
+  {
+   "id": "cosmic-fortification",
+   "slug": "cosmic-fortification",
+   "name": "Cosmic Fortification",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station",
+    "spell"
+   ],
+   "text": "You grant 1d4+4 Shield Points to the target. Heightened (+1): the SP restored increases by 1d4+4. This is a rank 1 spell: the caster expends a spell slot of the rank they choose.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "spell": true,
+   "targeting": {
+    "type": "starship",
+    "range": "sensor",
+    "allowSelf": true
+   },
+   "effects": [
+    {
+     "type": "restoreShields",
+     "dice": {
+      "count": "rank",
+      "faces": 4,
+      "bonus": "rank*4"
+     }
+    }
+   ]
+  },
+  {
+   "id": "cosmic-repairs",
+   "slug": "cosmic-repairs",
+   "name": "Cosmic Repairs",
+   "station": "magic-conduit",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "concentrate",
+    "healing",
+    "manipulate",
+    "station",
+    "spell"
+   ],
+   "text": "You restore 1d8+8 Hull Points to the target. Heightened (+1): the HP restored increases by 1d8+8. This is a rank 1 spell: the caster expends a spell slot of the rank they choose.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "spell": true,
+   "targeting": {
+    "type": "starship",
+    "range": "sensor",
+    "allowSelf": true
+   },
+   "effects": [
+    {
+     "type": "restoreHull",
+     "dice": {
+      "count": "rank",
+      "faces": 8,
+      "bonus": "rank*8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "hack-comms",
+   "slug": "hack-comms",
+   "name": "Hack Comms",
+   "station": "scanners",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Forcibly open a channel of communication between your starship and a tech starship within sensor range. This lasts for 1 minute or until you end the communication as a free action.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "requirements": [
+    {
+     "type": "techTarget"
+    }
+   ],
+   "effects": [
+    {
+     "type": "manual",
+     "text": "A communication channel is open for 1 minute. Crew helming battle stations can use auditory/verbal actions against the target."
+    }
+   ]
+  },
+  {
+   "id": "seek-starships",
+   "slug": "seek-starships",
+   "name": "Seek Starships",
+   "station": "scanners",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Scan within sensor range. The GM attempts a secret Computers or Perception check for you (your choice) and compares the result to the Stealth DCs of hidden or undetected starships and the DCs to detect hazards in the area.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "targeting": {
+    "type": "none"
+   },
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "computers",
+     "perception"
+    ],
+    "secret": true,
+    "dc": {
+     "type": "none"
+    }
+   },
+   "builtin": "seek"
+  },
+  {
+   "id": "target-lock",
+   "slug": "target-lock",
+   "name": "Target Lock",
+   "station": "scanners",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "You focus the scanners on a starship within sensor range to determine its trajectory and weaknesses for your gunners. The target attempts a Will save against your Computers DC.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "check": {
+    "kind": "targetSave",
+    "save": "will",
+    "dcSkill": "computers"
+   },
+   "outcomes": {
+    "success": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "target-lock",
+       "label": "Target Lock (off-guard to your next Strike)",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "conditions": [
+        "off-guard"
+       ],
+       "against": "source",
+       "consumeOn": "strike"
+      }
+     }
+    ],
+    "failure": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "target-lock-failure",
+       "label": "Off-guard to your starship",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "conditions": [
+        "off-guard"
+       ],
+       "against": "source"
+      }
+     }
+    ],
+    "criticalFailure": [
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "target-lock-crit",
+       "label": "Off-guard to your starship, no cover",
+       "duration": {
+        "unit": "round",
+        "value": 2
+       },
+       "conditions": [
+        "off-guard"
+       ],
+       "against": "source"
+      }
+     },
+     {
+      "type": "manual",
+      "text": "The target can't benefit from cover against your starship while off-guard in this way (cover is not modelled automatically)."
+     }
+    ]
+   }
+  },
+  {
+   "id": "hack-battle-station",
+   "slug": "hack-battle-station",
+   "name": "Hack Battle Station",
+   "station": "scanners",
+   "minGrade": "tactical",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "flourish",
+    "manipulate",
+    "station"
+   ],
+   "text": "You hack into the systems of a tech starship within sensor range, causing the systems to rupture. Attempt a Computers check against the Fortitude DC of the target and choose a battle station you’ve identified.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 183
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "requirements": [
+    {
+     "type": "techTarget"
+    },
+    {
+     "type": "identifiedStation"
+    }
+   ],
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "computers"
+    ],
+    "dc": {
+     "type": "targetFortitude"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "malfunction",
+      "target": "chosen-station"
+     },
+     {
+      "type": "applyEffect",
+      "target": "target",
+      "effect": {
+       "slug": "hacked",
+       "label": "Hacked (-1 Will)",
+       "duration": {
+        "unit": "until-station-repaired"
+       },
+       "modifiers": [
+        {
+         "selector": "will",
+         "type": "circumstance",
+         "value": -1
+        }
+       ]
+      }
+     }
+    ],
+    "success": [
+     {
+      "type": "malfunction",
+      "target": "chosen-station"
+     }
+    ],
+    "failure": [
+     {
+      "type": "malfunction",
+      "target": "chosen-station",
+      "until": "target-turn-start"
+     }
+    ]
+   },
+   "notes": "0.2.0: the critical-failure backlash (-1 Will) printed next to Hack Battle Station in some extractions belongs to Hack Munition (Tech Core p.183, column flow); Hack Battle Station has no critical-failure effect."
+  },
+  {
+   "id": "scan-target",
+   "slug": "scan-target",
+   "name": "Scan Target",
+   "station": "scanners",
+   "minGrade": "tactical",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "You scan the structure of a starship to locate its vulnerabilities and record the data in your starship’s computers. Attempt a Computers check against the Will DC of a starship within sensor range.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 183
+   },
+   "targeting": {
+    "type": "starship",
+    "range": "sensor"
+   },
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "computers"
+    ],
+    "dc": {
+     "type": "targetWill"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "identify",
+      "scope": "all"
+     }
+    ],
+    "success": [
+     {
+      "type": "identify",
+      "scope": "all"
+     }
+    ],
+    "failure": [
+     {
+      "type": "identify",
+      "scope": "names-and-one"
+     }
+    ]
+   }
+  },
+  {
+   "id": "hack-munition",
+   "slug": "hack-munition",
+   "name": "Hack Munition",
+   "station": "scanners",
+   "minGrade": "advanced",
+   "cost": "reaction",
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Trigger: You would be hit by a Strike from a tech starship within sensor range. Attempt a Computers check against the Will DC of the target. Success: the Strike takes a -2 circumstance penalty to its attack roll. Failure: -1. Critical Success: as success, and the battle station that granted the Strike becomes malfunctioning. Critical Failure: your starship takes a -1 circumstance penalty to its Will saves for 1 round.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 183
+   },
+   "requirements": [
+    {
+     "type": "techTarget"
+    }
+   ],
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "computers"
+    ],
+    "dc": {
+     "type": "targetWill"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "manual",
+      "text": "The Strike takes a -2 circumstance penalty to its attack roll (may change the outcome) and the battle station that granted the Strike becomes malfunctioning."
+     }
+    ],
+    "success": [
+     {
+      "type": "manual",
+      "text": "The Strike takes a -2 circumstance penalty to its attack roll, potentially changing the outcome."
+     }
+    ],
+    "failure": [
+     {
+      "type": "manual",
+      "text": "The Strike takes a -1 circumstance penalty to its attack roll, potentially changing the outcome."
+     }
+    ],
+    "criticalFailure": [
+     {
+      "type": "applyEffect",
+      "target": "self",
+      "effect": {
+       "slug": "hack-backlash",
+       "label": "Hack backlash (-1 Will)",
+       "duration": {
+        "unit": "round",
+        "value": 1
+       },
+       "modifiers": [
+        {
+         "selector": "will",
+         "type": "circumstance",
+         "value": -1
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "deploy-drone",
+   "slug": "deploy-drone",
+   "name": "Deploy Drone",
+   "station": "drone-console",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Deploy a drone that’s docked on your starship.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "effects": [
+    {
+     "type": "manual",
+     "text": "A docked drone is deployed."
+    }
+   ]
+  },
+  {
+   "id": "drone-block",
+   "slug": "drone-block",
+   "name": "Drone Block",
+   "station": "drone-console",
+   "minGrade": "commercial",
+   "cost": "reaction",
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Trigger: Your starship would be hit by a Strike. Requirement: at least one drone deployed. Your starship gains resistance against the triggering Strike equal to half your level. The drone is retrieved and can’t be deployed again for 10 minutes.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "requirements": [
+    {
+     "type": "drone"
+    }
+   ],
+   "effects": [
+    {
+     "type": "manual",
+     "text": "Your starship gains resistance equal to half its level (round up) against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes."
+    }
+   ]
+  },
+  {
+   "id": "retrieve-drone",
+   "slug": "retrieve-drone",
+   "name": "Retrieve Drone",
+   "station": "drone-console",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate",
+    "station"
+   ],
+   "text": "Retrieve a deployed drone, returning it to the starship.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "requirements": [
+    {
+     "type": "drone"
+    }
+   ],
+   "effects": [
+    {
+     "type": "manual",
+     "text": "A deployed drone returns to the starship."
+    }
+   ]
+  },
+  {
+   "id": "jump-start",
+   "slug": "jump-start",
+   "name": "Jump Start",
+   "station": "any",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": [
+    "concentrate",
+    "healing",
+    "manipulate",
+    "station"
+   ],
+   "text": "You use your battle station’s minimal functionality to shock the starship’s systems back to life. Attempt a DC 15 check (Crafting at the generator; Arcana, Occultism, Nature or Religion at the magic conduit; Computers at the scanners).",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 183
+   },
+   "frequency": {
+    "per": "hour",
+    "uses": 1
+   },
+   "requirements": [
+    {
+     "type": "inoperable"
+    },
+    {
+     "type": "helmingAny",
+     "stations": [
+      "generator",
+      "magic-conduit",
+      "scanners"
+     ]
+    }
+   ],
+   "check": {
+    "kind": "skill",
+    "skillsByStation": {
+     "generator": [
+      "crafting"
+     ],
+     "magic-conduit": [
+      "arcana",
+      "occultism",
+      "nature",
+      "religion"
+     ],
+     "scanners": [
+      "computers"
+     ]
+    },
+    "dc": {
+     "type": "fixed",
+     "value": 15
+    },
+    "dcOptions": [
+     {
+      "rank": 2,
+      "dc": 20,
+      "bonus": 8
+     },
+     {
+      "rank": 3,
+      "dc": 30,
+      "bonus": 24
+     },
+     {
+      "rank": 4,
+      "dc": 40,
+      "bonus": 40
+     }
+    ]
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "clearMalfunction",
+      "target": "all"
+     },
+     {
+      "type": "restoreHull",
+      "dice": {
+       "count": 4,
+       "faces": 6,
+       "bonusFromCheck": true
+      }
+     },
+     {
+      "type": "restoreShields",
+      "dice": {
+       "count": 4,
+       "faces": 6,
+       "bonusFromCheck": true
+      }
+     }
+    ],
+    "success": [
+     {
+      "type": "clearMalfunction",
+      "target": "all"
+     },
+     {
+      "type": "restoreHull",
+      "dice": {
+       "count": 2,
+       "faces": 6,
+       "bonusFromCheck": true
+      }
+     },
+     {
+      "type": "restoreShields",
+      "dice": {
+       "count": 2,
+       "faces": 6,
+       "bonusFromCheck": true
+      }
+     }
+    ],
+    "failure": [
+     {
+      "type": "clearMalfunction",
+      "target": "all"
+     }
+    ]
+   }
+  },
+  {
+   "id": "repair-station",
+   "slug": "repair-station",
+   "name": "Repair Station",
+   "station": "any",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "concentrate",
+    "manipulate"
+   ],
+   "text": "Attempt a Computers or Crafting check against the DC of the effect that caused the battle station to become malfunctioning (typically the effect’s save DC or a level-based DC set by the GM). On a success the battle station stops malfunctioning; on a critical success it is also immune to malfunctioning for 1 round. On a critical failure it is immune to Repair Station until the start of your next turn.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 183
+   },
+   "requirements": [
+    {
+     "type": "helmingMalfunctioning"
+    }
+   ],
+   "check": {
+    "kind": "skill",
+    "skills": [
+     "computers",
+     "crafting"
+    ],
+    "dc": {
+     "type": "levelBased"
+    }
+   },
+   "outcomes": {
+    "criticalSuccess": [
+     {
+      "type": "clearMalfunction",
+      "target": "own-station",
+      "immuneRounds": 1
+     }
+    ],
+    "success": [
+     {
+      "type": "clearMalfunction",
+      "target": "own-station"
+     }
+    ],
+    "criticalFailure": [
+     {
+      "type": "repairLockout",
+      "target": "own-station"
+     }
+    ]
+   }
+  },
+  {
+   "id": "repair-self",
+   "slug": "repair-self",
+   "name": "Repair Self",
+   "station": "npc",
+   "minGrade": "commercial",
+   "cost": 3,
+   "npcOnly": true,
+   "traits": [],
+   "text": "The crew stops a battle station from malfunctioning and regains Hull Points equal to its level.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 208
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "effects": [
+    {
+     "type": "clearMalfunction",
+     "target": "one-station"
+    },
+    {
+     "type": "restoreHull",
+     "dice": {
+      "flat": "level"
+     }
+    }
+   ]
+  },
+  {
+   "id": "seek-starships-npc",
+   "slug": "seek-starships-npc",
+   "name": "Seek Starships (NPC)",
+   "station": "npc",
+   "minGrade": "commercial",
+   "cost": 1,
+   "npcOnly": true,
+   "traits": [],
+   "text": "The starship attempts a Perception check against the Stealth DCs of any undetected or hidden starships or hazards within sensor range.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 208
+   },
+   "targeting": {
+    "type": "none"
+   },
+   "check": {
+    "kind": "perception",
+    "secret": true,
+    "dc": {
+     "type": "none"
+    }
+   },
+   "builtin": "seek"
+  },
+  {
+   "id": "fortify-shield-points",
+   "slug": "fortify-shield-points",
+   "name": "Fortify Shield Points",
+   "station": "generator",
+   "minGrade": "commercial",
+   "cost": 1,
+   "npcOnly": true,
+   "traits": [],
+   "text": "The starship regains Shield Points equal to the listed fortify value.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 208
+   },
+   "targeting": {
+    "type": "self"
+   },
+   "requirements": [
+    {
+     "type": "npcFortify"
+    }
+   ],
+   "effects": [
+    {
+     "type": "restoreShields",
+     "dice": {
+      "flat": "fortify"
+     }
+    }
+   ]
+  },
+  {
+   "id": "engaged-strike",
+   "slug": "engaged-strike",
+   "name": "Engaged Strike",
+   "station": "npc",
+   "minGrade": "commercial",
+   "cost": "reaction",
+   "npcOnly": true,
+   "traits": [],
+   "text": "Trigger: A starship in the same zone moves to another zone. Effect: This starship attempts the specified Strike against the triggering starship.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 208
+   },
+   "targeting": {
+    "type": "starship",
+    "range": 0
+   },
+   "builtin": "npc-strike"
+  }
+ ]
+}

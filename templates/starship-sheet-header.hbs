@@ -1,0 +1,41 @@
+  <header class="tsc-sheet-head">
+    <img src="{{actor.img}}" alt="" class="tsc-sheet-img{{#if perms.configureShip}} editable{{/if}}" {{#if perms.configureShip}}data-action="editImage" data-target="img" title="{{localize 'SF2eTSC.edit.changeImage'}}"{{/if}}>
+    <div class="tsc-sheet-title">
+      <h2>{{actor.name}}</h2>
+      <div class="tsc-badges">
+        <span class="tsc-pill">{{localize "SF2eTSC.ui.level"}} {{ship.level}}</span><span class="tsc-pill">{{ship.frameName}}</span><span class="tsc-pill">{{ship.sizeLabel}}</span><span class="tsc-pill">{{ship.roleLabel}}</span>
+        <span class="tsc-pill st-{{ship.status}}">{{ship.statusLabel}}</span>
+        {{#if ship.compromised}}<span class="tsc-pill bad">{{localize "SF2eTSC.ui.compromised"}} {{ship.compromised}}</span>{{/if}}
+        {{#if ship.wrecked}}<span class="tsc-pill warn">{{localize "SF2eTSC.ui.wrecked"}} {{ship.wrecked}}</span>{{/if}}
+        {{#if stats.offKilter}}<span class="tsc-pill warn">{{localize "SF2eTSC.status.off-kilter"}}</span>{{/if}}
+        {{#if smallCrew}}<span class="tsc-pill warn">⚠ {{localize "SF2eTSC.ui.smallCrew"}}</span>{{/if}}
+      </div>
+      <div class="tsc-vitals" role="group" aria-label="{{localize 'SF2eTSC.ui.vitals'}}">
+        <div class="tsc-vital">
+          <div class="tsc-bars"><div class="bar hp" role="progressbar" aria-valuemin="0" aria-valuemax="{{ship.hp.max}}" aria-valuenow="{{ship.hp.value}}"><span style="width:{{ship.hpPct}}%"></span><em>{{localize "SF2eTSC.ui.hullPoints"}} {{ship.hp.value}} / {{ship.hp.max}}</em></div></div>
+          {{#if perms.adjustVitals}}<input type="number" data-field="hp.value" value="{{ship.hp.value}}" min="0" max="{{ship.hp.max}}" aria-label="{{localize 'SF2eTSC.ui.hullPoints'}}">{{/if}}
+        </div>
+        <div class="tsc-vital">
+          <div class="tsc-bars"><div class="bar sp" role="progressbar" aria-valuemin="0" aria-valuemax="{{ship.sp.max}}" aria-valuenow="{{ship.sp.value}}"><span style="width:{{ship.spPct}}%"></span><em>{{localize "SF2eTSC.ui.shieldPoints"}} {{ship.sp.value}} / {{ship.sp.max}}</em></div></div>
+          {{#if perms.adjustVitals}}<input type="number" data-field="sp.value" value="{{ship.sp.value}}" min="0" max="{{ship.sp.max}}" aria-label="{{localize 'SF2eTSC.ui.shieldPoints'}}">{{/if}}
+        </div>
+        {{#if perms.adjustVitals}}
+        <div class="tsc-vital-btns">
+          <button type="button" data-action="gmDamage" title="{{localize 'SF2eTSC.ui.gmDamage'}}" aria-label="{{localize 'SF2eTSC.ui.gmDamage'}}"><i class="fa-solid fa-burst"></i></button>
+          <button type="button" data-action="gmRepair" title="{{localize 'SF2eTSC.ui.repair'}}" aria-label="{{localize 'SF2eTSC.ui.repair'}}"><i class="fa-solid fa-wrench"></i></button>
+          {{#if hullCheckable}}<button type="button" data-action="hullCheck" title="{{localize 'SF2eTSC.chat.hullIntegrity'}} (DC {{ship.hullDC}})" aria-label="{{localize 'SF2eTSC.chat.hullIntegrity'}}"><i class="fa-solid fa-dice-d20"></i></button>{{/if}}
+        </div>
+        {{/if}}
+      </div>
+    </div>
+    <div class="tsc-head-actions">
+      {{#if isGM}}<button type="button" data-action="openHistory">{{localize "SF2eTSC.qol.history"}}</button>{{/if}}
+      <label class="tsc-sheet-theme-picker" title="{{localize 'SF2eTSC.settings.starshipSheetTheme.hint'}}">
+        <span>{{localize "SF2eTSC.settings.starshipSheetTheme.short"}}</span>
+        <select data-sheet-theme-select aria-label="{{localize 'SF2eTSC.settings.starshipSheetTheme.name'}}">{{#each sheetThemeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+      </label>
+      <button type="button" data-action="openMap"><i class="fa-solid fa-satellite"></i> {{localize "SF2eTSC.ui.sensorMap"}}</button>
+      {{#if isNpc}}{{#if isGM}}<button type="button" data-action="updateFromContent" title="{{localize 'SF2eTSC.update.hint'}}"><i class="fa-solid fa-rotate"></i> {{localize "SF2eTSC.update.button"}}</button>{{/if}}{{/if}}
+      {{#if holodock}}<button type="button" data-action="openHolodock"><i class="fa-solid fa-ship"></i> {{localize "SF2eTSC.integrations.openHolodock"}}</button>{{/if}}
+    </div>
+  </header>

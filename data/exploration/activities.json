@@ -1,0 +1,96 @@
+{
+  "source": "Starfinder Tech Core p. 174–175",
+  "activities": [
+    {
+      "id": "emergency-repairs",
+      "page": 174,
+      "traits": ["exploration", "manipulate"],
+      "en": {
+        "name": "Emergency Repairs",
+        "description": "<p>You spend 1 hour performing emergency repairs to a starship. The Crafting check DC is 15 (@Check[crafting|dc:15]) when the starship is docked at a port, way station, or other major settlement. Attempting onboard repairs far from a port, such as when docked on an uninhabited planet or traveling in Vast space or the Drift, increases the DC to 20 (@Check[crafting|dc:20]). The GM might adjust the DC based on the circumstances.</p><p>If you're an expert in Crafting, you can instead attempt a DC 20 check (DC 25 in a remote location) to increase the Hull Points regained by 10; if you're a master in Crafting, you can instead attempt a DC 30 check (DC 35 in a remote location) to increase the Hull Points regained by 30; and if you're legendary, you can instead attempt a DC 40 check (DC 45 in a remote location) to increase the Hull Points regained by 50. The damage dealt on a critical failure remains the same.</p><p>If you succeed at your check, you can continue repairing the target to grant additional Hull Points. If you repair it for a total of 1 day instead of 1 hour, double the Hull Points it regains from Emergency Repairs.</p><p>The result of your Crafting check determines how many Hull Points the target regains.</p><hr /><p><strong>Critical Success</strong> The target regains [[/r 4d8]]{4d8 Hull Points} and loses the wrecked condition.</p>\n<p><strong>Success</strong> The target regains [[/r 2d8]]{2d8 Hull Points} and loses the wrecked condition.</p>\n<p><strong>Critical Failure</strong> The target takes [[/r 1d8]]{1d8 damage}.</p>"
+      },
+      "ru": {
+        "name": "Аварийный ремонт",
+        "description": "<p>Вы тратите 1 час на аварийный ремонт звездолёта. КС проверки Ремесла равен 15 (@Check[crafting|dc:15]), если корабль пристыкован в порту, на путевой станции или в другом крупном поселении. Ремонт на борту вдали от порта — например, при посадке на необитаемой планете или в полёте через Бескрайний космос или Дрейф — повышает КС до 20 (@Check[crafting|dc:20]). Ведущий может изменить КС в зависимости от обстоятельств.</p><p>Если вы эксперт в Ремесле, вместо этого можете совершить проверку с КС 20 (КС 25 вдали от порта), чтобы увеличить восстановленные Очки корпуса на 10; если вы мастер в Ремесле — проверку с КС 30 (КС 35 вдали от порта), чтобы увеличить их на 30; если вы легенда — проверку с КС 40 (КС 45 вдали от порта), чтобы увеличить их на 50. Урон при критическом провале остаётся прежним.</p><p>Если проверка успешна, вы можете продолжить ремонт, чтобы восстановить дополнительные Очки корпуса. Если вы ремонтируете корабль в общей сложности 1 день вместо 1 часа, удвойте Очки корпуса, восстановленные Аварийным ремонтом.</p><p>Результат проверки Ремесла определяет, сколько Очков корпуса восстанавливает цель.</p><hr /><p><strong>Критический успех</strong> Цель восстанавливает [[/r 4d8]]{4d8 Очков корпуса} и теряет состояние «разрушен».</p>\n<p><strong>Успех</strong> Цель восстанавливает [[/r 2d8]]{2d8 Очков корпуса} и теряет состояние «разрушен».</p>\n<p><strong>Критический провал</strong> Цель получает [[/r 1d8]]{1d8 урона}.</p>"
+      }
+    },
+    {
+      "id": "fly-the-ship",
+      "page": 174,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Fly the Ship",
+        "description": "<p><strong>Requirements</strong> You're helming the pilot's console.</p><hr /><p>When you roll initiative, you can {{action:evade|Evade}} as a free action, gaining a +2 circumstance bonus to your starship's AC until the start of your first turn. During your first turn in combat, if you Evade, increase the circumstance bonus to your starship's AC from that action by 1 (increasing it from +1 to +2 if you use a 1-action Evade, or from +2 to +3 if you use a 2-action Evade).</p>"
+      },
+      "ru": {
+        "name": "Вести корабль",
+        "description": "<p><strong>Требования</strong> Вы управляете пультом пилота.</p><hr /><p>Когда вы бросаете инициативу, вы можете совершить {{action:evade|Уклонение}} бесплатным действием, получая бонус обстоятельства +2 к КД звездолёта до начала вашего первого хода. Если в свой первый ход в бою вы совершаете Уклонение, бонус обстоятельства к КД звездолёта от этого действия увеличивается на 1 (с +1 до +2 при Уклонении за 1 действие или с +2 до +3 при Уклонении за 2 действия).</p>"
+      }
+    },
+    {
+      "id": "lock-and-load",
+      "page": 175,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Lock and Load",
+        "description": "<p><strong>Requirements</strong> You're helming the gunnery.</p><hr /><p>When you roll initiative, you can {{action:lock-on|Lock On}} as a free action.</p>"
+      },
+      "ru": {
+        "name": "Зарядить и навести",
+        "description": "<p><strong>Требования</strong> Вы управляете орудийной станцией.</p><hr /><p>Когда вы бросаете инициативу, вы можете совершить {{action:lock-on|Захват цели}} бесплатным действием.</p>"
+      }
+    },
+    {
+      "id": "power-up",
+      "page": 175,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Power Up",
+        "description": "<p><strong>Requirements</strong> You're helming the generator.</p><hr /><p>You spend time tending to the starship's generator, ensuring that its engines and reactor are primed for battle. When you roll initiative, you can {{action:boost-battle-station|Boost Battle Station}} as a free action.</p>"
+      },
+      "ru": {
+        "name": "Разогрев систем",
+        "description": "<p><strong>Требования</strong> Вы управляете генератором.</p><hr /><p>Вы присматриваете за генератором звездолёта, следя, чтобы двигатели и реактор были готовы к бою. Когда вы бросаете инициативу, вы можете совершить {{action:boost-battle-station|Усилить боевую станцию}} бесплатным действием.</p>"
+      }
+    },
+    {
+      "id": "operate-drone",
+      "page": 175,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Operate Drone",
+        "description": "<p><strong>Requirements</strong> You're helming the drone station.</p><hr /><p>When you roll initiative, you can {{action:deploy-drone|Deploy Drone}} as a free action.</p>"
+      },
+      "ru": {
+        "name": "Управление дроном",
+        "description": "<p><strong>Требования</strong> Вы управляете пультом дронов.</p><hr /><p>Когда вы бросаете инициативу, вы можете совершить {{action:deploy-drone|Развернуть дрона}} бесплатным действием.</p>"
+      }
+    },
+    {
+      "id": "scan-for-magic",
+      "page": 175,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Scan for Magic",
+        "description": "<p><strong>Requirements</strong> You're helming the magic conduit.</p><hr /><p>You {{action:scan-for-magic|Scan for Magic}} at regular intervals, with no chance of accidentally overlooking a magical aura during your starship's travels.</p>"
+      },
+      "ru": {
+        "name": "Сканирование магии",
+        "description": "<p><strong>Требования</strong> Вы управляете магическим проводником.</p><hr /><p>Вы регулярно совершаете {{action:scan-for-magic|Сканирование магии}} и не можете случайно пропустить магическую ауру во время полёта звездолёта.</p>"
+      }
+    },
+    {
+      "id": "scan-surroundings",
+      "page": 175,
+      "traits": ["exploration"],
+      "en": {
+        "name": "Scan Surroundings",
+        "description": "<p><strong>Requirements</strong> You're helming the scanners.</p><hr /><p>You constantly scan the surrounding space for activity within your starship's sensor range. At the start of an encounter, you can {{action:seek-starships|Seek Starships}}, and then {{action:scan-target|Scan Target}} (if able) against one starship within sensor range.</p>"
+      },
+      "ru": {
+        "name": "Сканирование окрестностей",
+        "description": "<p><strong>Требования</strong> Вы управляете сканерами.</p><hr /><p>Вы постоянно сканируете окружающее пространство в пределах дальности сенсоров звездолёта. В начале сцены вы можете совершить {{action:seek-starships|Поиск кораблей}}, а затем (если можете) {{action:scan-target|Сканирование цели}} против одного звездолёта в пределах дальности сенсоров.</p>"
+      }
+    }
+  ]
+}

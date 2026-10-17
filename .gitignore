@@ -1,0 +1,13 @@
+node_modules/
+packs/
+packs-src/
+dist/
+.work/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.log

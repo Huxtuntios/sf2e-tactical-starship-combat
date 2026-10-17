@@ -1,0 +1,6 @@
+# Source audit
+
+- **SF2e 1.6.0** (compiled bundle `sf2e.mjs`, `template.json`, packs dumped with `classic-level`): no starship content exists in the system (no ships, stations, hazards, station actions); Tech Core _character_ options already present (480 equipment, 323 feats, 30 actions) are **not** duplicated. Actor types: army, familiar, hazard, loot, party, vehicle (+character, npc) — no `starship`, so flags on `vehicle`/`npc` are used. Reused: `Statistic.check.roll`, `game.pf2e.Modifier`, native NPC initiative/XP (`EncounterPF2e.analyze` counts npc + hazard), hazard initiative via Stealth, `flags.sf2e.overridePriority` tie-breaking. Vehicles have only Fortitude and no initiative — reason NPC starships are `npc` actors.
+- **Tech Core text**: chapters 6–7 read in full (zones, areas, initiative, HP/SP/compromised/wrecked, battle stations & grades, weapons, creating starships, NPC starships, hazards).
+- **Causodes sf2e/core**: studied adapter abstraction, flags-based ship data, sheets, sockets, popups, tests; rejected: custom actor sub-types (lose native rolls/XP/initiative), AppV1 bridge (not needed), simultaneous crew turn.
+- **Aztec**: crew/station roles, token interaction, HUD ownership; flag `isSiegeWeapon`. **HoloDock/holosuite-core**: profile/loadout API shape; `game.holodock`.

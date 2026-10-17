@@ -1,0 +1,12 @@
+<section class="tsc-history-body">
+  <p class="tsc-hint">{{localize "SF2eTSC.qol.undoHint"}}</p>
+  <input type="search" data-qol-search placeholder="{{localize 'SF2eTSC.qol.search'}}" aria-label="{{localize 'SF2eTSC.qol.search'}}">
+  <select data-qol-filter aria-label="{{localize 'SF2eTSC.qol.filter'}}"><option value="all">{{localize "SF2eTSC.qol.all"}}</option><option value="undo">{{localize "SF2eTSC.qol.reversible"}}</option></select>
+  <ol class="tsc-history-list">{{#each entries}}<li data-qol-row data-filter-undo="{{canUndo}}">
+    <div><button type="button" data-action="historyLink" data-uuid="{{shipUuid}}">{{shipName}}</button> <small>{{time}}</small></div>
+    <p>{{summary}} {{localize "SF2eTSC.qol.reason"}}: {{reason}}</p><small>{{fieldsText}}</small>
+    {{#each stations}}<button type="button" data-action="historyLink" data-uuid="{{../shipUuid}}" data-station="{{id}}">{{name}}</button>{{/each}}
+    {{#each effects}}<button type="button" data-action="historyLink" data-uuid="{{../shipUuid}}" data-effect="{{id}}">{{label}}</button>{{/each}}
+    {{#if canUndo}}<button type="button" data-action="undo" data-id="{{id}}">{{localize "SF2eTSC.qol.undo"}}</button>{{else}}<small>{{#if undone}}{{localize "SF2eTSC.qol.undone"}}{{else}}{{localize "SF2eTSC.qol.auditOnly"}}{{/if}}</small>{{/if}}
+  </li>{{else}}<li>{{localize "SF2eTSC.qol.empty"}}</li>{{/each}}</ol>
+</section>

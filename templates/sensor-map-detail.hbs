@@ -1,0 +1,49 @@
+<aside class="tsc-detail" aria-live="polite" {{#if noCombat}}hidden{{/if}}>
+{{#unless noCombat}}
+    {{#if detail}}
+      <h3>{{detail.label}}</h3>
+      <dl>{{#each detail.rows}}<dt>{{k}}</dt><dd>{{v}}</dd>{{/each}}</dl>
+      {{#if detail.vitals}}
+      <div class="tsc-vitals-edit">
+        <label>{{localize "SF2eTSC.ui.hullPoints"}} <span><input type="number" min="0" max="{{detail.vitals.hpMax}}" value="{{detail.vitals.hp}}" data-gm-ship="hp" data-ship="{{detail.vitals.shipUuid}}" data-key="{{detail.key}}" data-max="{{detail.vitals.hpMax}}"> / {{detail.vitals.hpMax}}</span></label>
+        <label>{{localize "SF2eTSC.ui.shieldPoints"}} <span><input type="number" min="0" max="{{detail.vitals.spMax}}" value="{{detail.vitals.sp}}" data-gm-ship="sp" data-ship="{{detail.vitals.shipUuid}}" data-key="{{detail.key}}" data-max="{{detail.vitals.spMax}}"> / {{detail.vitals.spMax}}</span></label>
+      </div>
+      {{/if}}
+      <div class="tsc-detail-actions">
+        {{#if detail.canOpen}}<button type="button" data-action="openSheet" data-key="{{detail.key}}"><i class="fa-solid fa-file-lines"></i> {{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
+        {{#if detail.canMove}}
+          <button type="button" data-action="moveLeft" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}" title="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
+          <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>
+        {{/if}}
+      </div>
+      {{#if @root.isGM}}
+      <details class="tsc-gm-tools" {{#if gmToolsOpen}}open{{/if}}>
+        <summary><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> {{localize "SF2eTSC.ui.gmTools"}}</summary>
+        {{#if detail.typeOptions}}<label>{{localize "SF2eTSC.ui.type"}} <select data-object-type="{{detail.key}}">{{#each detail.typeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/if}}
+        {{#if detail.gm}}
+        <div class="tsc-gm-edit">
+          {{#if detail.gm.heading}}<label>{{localize "SF2eTSC.ui.heading"}} <select data-gm-ship="heading" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}" data-current="{{detail.gm.heading}}">{{#each detail.gm.headings}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/if}}
+          <label>{{localize "SF2eTSC.ui.status"}} <select data-gm-ship="status" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}">{{#each detail.gm.statuses}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+        </div>
+        {{/if}}
+        <div class="tsc-detail-actions">
+          <button type="button" data-action="objectArt" data-key="{{detail.key}}"><i class="fa-solid fa-image"></i> {{localize "SF2eTSC.mapAppearance.objectArt"}}</button>
+          <button type="button" data-action="flipHeading" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.flipHeading"}}</button>
+          <button type="button" data-action="toggleHidden" data-key="{{detail.key}}">{{#if detail.hidden}}{{localize "SF2eTSC.ui.reveal"}}{{else}}{{localize "SF2eTSC.ui.hide"}}{{/if}}</button>
+          {{#if detail.isHazard}}
+            <button type="button" data-action="triggerHazard" data-key="{{detail.key}}"><i class="fa-solid fa-bolt"></i> {{localize "SF2eTSC.hazards.trigger"}}</button>
+            <button type="button" data-action="toggleHazard" data-key="{{detail.key}}">{{#if detail.hazardDisabled}}{{localize "SF2eTSC.hazards.enable"}}{{else}}{{localize "SF2eTSC.hazards.disable"}}{{/if}}</button>
+          {{/if}}
+          <button type="button" class="danger" data-action="removeObj" data-key="{{detail.key}}" title="{{localize 'SF2eTSC.ui.removeObject'}}" aria-label="{{localize 'SF2eTSC.ui.removeObject'}}"><i class="fa-solid fa-trash"></i></button>
+        </div>
+        <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">
+          {{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="setDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}
+        </div>
+      </details>
+      {{/if}}
+    {{else}}
+      <p class="tsc-hint">{{localize "SF2eTSC.ui.selectObject"}}</p>
+    {{/if}}
+    <ol class="tsc-mini-log">{{#each log}}<li>{{this}}</li>{{/each}}</ol>
+{{/unless}}
+</aside>

@@ -1,0 +1,1894 @@
+/* SF2e Tactical Starship Combat - shared styles (self-contained; system CSS does not style AppV2 windows) */
+.sf2e-tsc {
+  --tsc-bg: #0e1522;
+  --tsc-panel: #162133;
+  --tsc-line: #2c3e5c;
+  --tsc-text: #d8e4f5;
+  --tsc-dim: #8aa0c0;
+  --tsc-accent: #38bdf8;
+  --tsc-ok: #34d399;
+  --tsc-warn: #fbbf24;
+  --tsc-bad: #f87171;
+  font-size: 13px;
+  color: var(--tsc-text);
+}
+.sf2e-tsc .window-content {
+  background: var(--tsc-bg);
+  padding: 8px;
+  gap: 8px;
+  overflow: auto;
+}
+.sf2e-tsc button {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.sf2e-tsc button:hover:not(:disabled),
+.sf2e-tsc button:focus-visible {
+  border-color: var(--tsc-accent);
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tsc-accent) 55%, transparent);
+}
+.sf2e-tsc button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sf2e-tsc button.danger {
+  color: var(--tsc-bad);
+}
+.sf2e-tsc button.active {
+  background: var(--tsc-accent);
+  color: #04121f;
+}
+.sf2e-tsc h3,
+.sf2e-tsc h4 {
+  margin: 0 0 4px;
+  color: var(--tsc-text);
+  border: 0;
+}
+.sf2e-tsc dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0 0 8px;
+}
+.sf2e-tsc dt {
+  color: var(--tsc-dim);
+}
+.sf2e-tsc dd {
+  margin: 0;
+  text-align: right;
+}
+.sf2e-tsc .tsc-pill {
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 999px;
+  padding: 1px 10px;
+}
+.sf2e-tsc .tsc-spacer {
+  flex: 1;
+}
+.sf2e-tsc .tsc-empty,
+.sf2e-tsc .tsc-hint {
+  color: var(--tsc-dim);
+  text-align: center;
+  padding: 20px;
+}
+.sf2e-tsc input,
+.sf2e-tsc select,
+.sf2e-tsc textarea {
+  background: #0b111b;
+  color: var(--tsc-text);
+  border: 1px solid var(--tsc-line);
+}
+
+/* sensor map */
+.tsc-map-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+.tsc-map-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tsc-map-body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+.tsc-zones {
+  flex: 1;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  gap: 2px;
+  overflow: auto;
+  align-items: stretch;
+}
+.tsc-zone {
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  min-height: 130px;
+  background-image: linear-gradient(180deg, rgba(56, 189, 248, 0.06), transparent);
+}
+.tsc-zone.has-cover {
+  box-shadow: inset 0 0 0 1px var(--tsc-warn);
+}
+.tsc-zone.has-concealment {
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0 6px, transparent 6px 12px);
+}
+.tsc-zone-head {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 5px;
+  border-bottom: 1px solid var(--tsc-line);
+  color: var(--tsc-dim);
+  font-size: 11px;
+}
+.tsc-zone-num {
+  font-weight: 700;
+  color: var(--tsc-accent);
+  letter-spacing: 0.08em;
+  margin-right: auto;
+}
+.tsc-zone-objects {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  flex: 1;
+}
+/* contact chip: icon + heading on the first row, the full name below it (wraps instead of being cut), then the bars and the target hint */
+.tsc-obj {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 2px 4px;
+  text-align: left;
+  font-size: 11px;
+  padding: 3px 4px;
+  align-items: center;
+}
+.tsc-obj-icon {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 16px;
+  line-height: 1;
+}
+.tsc-obj-arrow {
+  grid-column: 3;
+  grid-row: 1;
+}
+.tsc-obj-name {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+.tsc-obj-bars {
+  grid-column: 1 / -1;
+}
+.tsc-obj-tgt {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tsc-obj.selected {
+  outline: 2px solid var(--tsc-accent);
+}
+.tsc-obj.current {
+  box-shadow: 0 0 0 2px var(--tsc-warn);
+}
+.tsc-obj.gm-hidden {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.tsc-obj.type-hazard {
+  border-color: var(--tsc-warn);
+}
+.tsc-obj.type-contact,
+.tsc-obj.type-unknown {
+  border-style: dotted;
+}
+/* status is never conveyed by colour alone: the label text and icon below accompany it */
+.tsc-obj.st-off-kilter {
+  border-color: var(--tsc-warn);
+}
+.tsc-obj.st-compromised,
+.tsc-obj.st-inoperable {
+  border-color: var(--tsc-bad);
+  background: #2a1620;
+}
+.tsc-obj.st-wrecked {
+  border-color: #a16207;
+}
+.tsc-obj.st-destroyed {
+  border-color: #6b7280;
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.tsc-obj.st-compromised::after,
+.tsc-obj.st-inoperable::after {
+  content: "⚠";
+  grid-column: 4;
+  grid-row: 1;
+}
+.tsc-obj.tgt-valid,
+.tsc-obj.tgt-same-zone {
+  border-color: var(--tsc-ok);
+}
+.tsc-obj.tgt-valid .tsc-obj-tgt::before {
+  content: "✔ ";
+}
+.tsc-obj.tgt-out-of-range,
+.tsc-obj.tgt-invalid,
+.tsc-obj.tgt-undetected,
+.tsc-obj.tgt-hidden {
+  border-color: var(--tsc-bad);
+  opacity: 0.75;
+}
+.tsc-obj[class*="tgt-out"] .tsc-obj-tgt::before,
+.tsc-obj.tgt-invalid .tsc-obj-tgt::before {
+  content: "✖ ";
+}
+.tsc-targeting-banner {
+  background: #10283a;
+  border: 1px solid var(--tsc-accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tsc-preview.ok {
+  color: var(--tsc-ok);
+}
+.tsc-preview.bad {
+  color: var(--tsc-bad);
+}
+.tsc-detail {
+  width: 220px;
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 8px;
+  overflow: auto;
+}
+.tsc-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tsc-detect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 6px;
+  width: 100%;
+}
+.tsc-mini-log {
+  margin: 10px 0 0;
+  padding-left: 16px;
+  color: var(--tsc-dim);
+  font-size: 11px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tsc-obj {
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+}
+
+/* chat cards */
+.sf2e-tsc-card header {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #8884;
+  margin-bottom: 4px;
+}
+.sf2e-tsc-card header h3 {
+  margin: 0;
+  font-size: 1.05em;
+}
+.sf2e-tsc-card header span {
+  opacity: 0.8;
+}
+.sf2e-tsc-card .tsc-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sf2e-tsc-card .tsc-label {
+  opacity: 0.75;
+}
+.sf2e-tsc-card .tsc-degree {
+  font-weight: 700;
+  margin: 2px 0;
+}
+.sf2e-tsc-card .tsc-alert {
+  color: #b91c1c;
+  font-weight: 600;
+  margin: 2px 0;
+}
+.sf2e-tsc-card .tsc-destroyed {
+  font-size: 1.1em;
+}
+.sf2e-tsc-card .tsc-manual {
+  border-left: 3px solid #d97706;
+  padding-left: 6px;
+  margin-top: 4px;
+}
+.sf2e-tsc-card.hazard header h3 {
+  color: #b45309;
+}
+
+/* station HUD */
+.tsc-hud-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tsc-hud-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.tsc-hud-tabs button {
+  font-size: 11px;
+}
+.tsc-hud-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tsc-hud-head > i {
+  font-size: 22px;
+  color: var(--tsc-accent);
+}
+.tsc-hud-head h3 {
+  margin: 0;
+}
+.tsc-hud-head div {
+  flex: 1;
+}
+.tsc-dim {
+  color: var(--tsc-dim);
+  font-size: 11px;
+}
+.tsc-bars .bar {
+  position: relative;
+  height: 16px;
+  background: #0b111b;
+  border: 1px solid var(--tsc-line);
+  border-radius: 3px;
+  margin-bottom: 3px;
+  overflow: hidden;
+}
+.tsc-bars .bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--tsc-ok);
+  opacity: 0.55;
+}
+.tsc-bars .bar.sp span {
+  background: var(--tsc-accent);
+}
+.tsc-bars .bar em {
+  position: relative;
+  font-style: normal;
+  font-size: 11px;
+  padding-left: 5px;
+  line-height: 14px;
+}
+.tsc-pips {
+  display: flex;
+  gap: 4px;
+  font-size: 18px;
+}
+.tsc-pips .pip.spent {
+  color: var(--tsc-dim);
+}
+.tsc-pips .pip.react {
+  margin-left: 8px;
+}
+.tsc-malfunction {
+  background: #3a1a12;
+  border: 1px solid var(--tsc-warn);
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--tsc-warn);
+  font-weight: 700;
+}
+.tsc-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tsc-actions button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3.4em 1fr auto;
+  text-align: left;
+  align-items: center;
+  gap: 2px 6px;
+}
+.tsc-actions .cost {
+  color: var(--tsc-accent);
+  font-weight: 700;
+}
+.tsc-actions .why {
+  grid-column: 2 / -1;
+  color: var(--tsc-bad);
+}
+.tsc-actions small {
+  color: var(--tsc-dim);
+}
+.tsc-passive {
+  margin: 0;
+}
+
+/* sheets */
+.tsc-sheet-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tsc-sheet-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.tsc-sheet-img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  background: #0b111b;
+}
+.tsc-sheet-title {
+  flex: 1;
+}
+.tsc-sheet-title h2 {
+  margin: 0;
+  border: 0;
+  color: var(--tsc-text);
+}
+.tsc-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+.tsc-pill.bad {
+  border-color: var(--tsc-bad);
+  color: var(--tsc-bad);
+}
+.tsc-pill.warn {
+  border-color: var(--tsc-warn);
+  color: var(--tsc-warn);
+}
+.tsc-head-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tsc-tabs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--tsc-line);
+}
+.tsc-tabs button {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.tsc-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+.tsc-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.tsc-stat-grid div {
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+}
+.tsc-stat-grid label {
+  color: var(--tsc-dim);
+  font-size: 11px;
+}
+.tsc-stat-grid strong {
+  font-size: 16px;
+}
+.tsc-gm-box {
+  border: 1px dashed var(--tsc-line);
+  border-radius: 4px;
+  padding: 6px;
+}
+.tsc-row-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.tsc-row-inputs input[type="number"] {
+  width: 64px;
+}
+.tsc-btn-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.tsc-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tsc-table th,
+.tsc-table td {
+  border-bottom: 1px solid var(--tsc-line);
+  padding: 3px 5px;
+  text-align: left;
+  font-size: 12px;
+}
+.tsc-list {
+  margin: 0;
+  padding-left: 16px;
+}
+.tsc-inline-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--tsc-dim);
+}
+.tsc-station-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 6px;
+}
+.tsc-station {
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 6px;
+}
+.tsc-station.occ {
+  border-color: var(--tsc-ok);
+}
+.tsc-station.malf {
+  border-color: var(--tsc-warn);
+  background: #2a2110;
+}
+.tsc-station header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tsc-station h4 {
+  margin: 0;
+  flex: 1;
+}
+.tsc-warn-box {
+  background: #2a2110;
+  border: 1px solid var(--tsc-warn);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--tsc-warn);
+}
+.tsc-sheet textarea {
+  width: 100%;
+}
+
+/* wizard / builder / browser / forms */
+.tsc-wizard fieldset,
+.tsc-builder fieldset {
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+}
+.tsc-wizard legend,
+.tsc-builder legend {
+  color: var(--tsc-accent);
+  padding: 0 4px;
+  font-weight: 700;
+}
+.tsc-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 2px 0;
+}
+.tsc-check input {
+  margin: 0;
+}
+.tsc-wizard footer,
+.tsc-builder footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.tsc-filters {
+  padding: 4px 0;
+}
+.tsc-filters input[type="search"] {
+  min-width: 180px;
+}
+.tsc-sub td {
+  background: #0e1a2b;
+}
+.sf2e-tsc :focus-visible {
+  outline: 2px solid var(--tsc-accent);
+  outline-offset: 1px;
+}
+
+/* 0.3.0 — editor, images, check links, create button */
+.sf2e-tsc .tsc-sheet-img.editable {
+  cursor: pointer;
+}
+.sf2e-tsc .tsc-sheet-img.editable:hover {
+  outline: 2px solid #38bdf8;
+}
+.sf2e-tsc .tsc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sf2e-tsc .tsc-edit-basics {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.sf2e-tsc .tsc-edit-img {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  width: 140px;
+  flex: 0 0 140px;
+}
+.sf2e-tsc .tsc-edit-img img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  cursor: pointer;
+  border: 1px solid #334155;
+  border-radius: 6px;
+}
+.sf2e-tsc .tsc-edit-img button {
+  width: 100%;
+  font-size: 0.8em;
+}
+.sf2e-tsc .tsc-row-inputs label.wide {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.sf2e-tsc .tsc-row-inputs label.wide input {
+  flex: 1;
+}
+.sf2e-tsc .tsc-edit-table input,
+.sf2e-tsc .tsc-edit-table select {
+  width: 100%;
+  min-width: 50px;
+}
+.sf2e-tsc .tsc-edit-ability {
+  border-top: 1px dashed #334155;
+  padding: 4px 0;
+}
+.sf2e-tsc .tsc-edit-ability textarea {
+  width: 100%;
+}
+.sf2e-tsc .tsc-action-text {
+  font-size: 0.85em;
+  margin: 2px 0 6px 24px;
+}
+.sf2e-tsc .tsc-action-text summary {
+  cursor: pointer;
+  opacity: 0.75;
+}
+.sf2e-tsc .tsc-muted {
+  opacity: 0.55;
+}
+.sf2e-tsc .tsc-row-img {
+  vertical-align: middle;
+  margin-right: 4px;
+  border: none;
+}
+a.tsc-check {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  cursor: pointer;
+  white-space: nowrap;
+}
+a.tsc-check:hover {
+  background: rgba(56, 189, 248, 0.3);
+}
+.tsc-create-starship {
+  flex: 1 1 100%;
+  margin-top: 4px;
+}
+
+/* 0.4.0 — station occupant portraits (sheet, HUD, crew manager share one partial) */
+.tsc-occupant {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.tsc-occupant .tsc-occ-img {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid var(--tsc-ok, #34d399);
+  background: #0b111b;
+}
+.tsc-occupant.is-empty .tsc-occ-img {
+  border-style: dashed;
+  border-color: var(--tsc-line, #2c3e5c);
+  opacity: 0.8;
+}
+.tsc-occupant.is-missing .tsc-occ-img {
+  border-color: var(--tsc-bad, #f87171);
+}
+.tsc-occupant.is-empty .tsc-occ-name {
+  color: var(--tsc-dim, #8aa0c0);
+  font-style: italic;
+}
+.tsc-occupant.is-missing .tsc-occ-name {
+  color: var(--tsc-bad, #f87171);
+}
+.tsc-occupant .tsc-occ-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsc-occ-sm .tsc-occ-img {
+  width: 22px;
+  height: 22px;
+}
+.tsc-occ-md .tsc-occ-img {
+  width: 32px;
+  height: 32px;
+}
+.tsc-occ-lg .tsc-occ-img {
+  width: 44px;
+  height: 44px;
+}
+.tsc-station header .tsc-occupant {
+  margin-left: auto;
+  max-width: 45%;
+}
+.tsc-post-strip {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 6px;
+  padding: 0;
+}
+.tsc-post-strip li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  align-items: center;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 3px 6px;
+  border: 1px solid var(--tsc-line, #2c3e5c);
+  border-radius: 4px;
+}
+.tsc-post-strip li.malf {
+  border-color: var(--tsc-warn, #fbbf24);
+}
+.tsc-post-strip li .tsc-occupant {
+  grid-row: 1 / 3;
+}
+.tsc-post-strip .tsc-post-name,
+.tsc-post-strip .tsc-post-occ {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 0.4.0 — attack declaration / result chat cards */
+.tsc-attack-card .tsc-ac-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tsc-attack-card .tsc-ac-head img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid #888;
+}
+.tsc-attack-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 8px;
+  margin: 4px 0;
+}
+.tsc-attack-card dt {
+  opacity: 0.75;
+}
+.tsc-attack-card dd {
+  margin: 0;
+}
+.tsc-attack-card .tsc-ac-targets {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tsc-attack-card .tsc-ac-targets button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.tsc-attack-card .tsc-ac-targets .tsc-ac-off {
+  opacity: 0.55;
+  font-size: 0.9em;
+  padding: 2px 4px;
+}
+.tsc-attack-card .tsc-ac-status {
+  font-weight: bold;
+  margin-top: 4px;
+}
+.tsc-attack-card .tsc-ac-status.done {
+  color: #15803d;
+}
+.tsc-attack-card .tsc-ac-status.void {
+  color: #b91c1c;
+}
+.tsc-attack-card .tsc-ac-mods {
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.tsc-sensor-map .tsc-obj.tsc-draggable {
+  cursor: grab;
+}
+.tsc-sensor-map .tsc-zone.tsc-drop {
+  outline: 2px dashed var(--color-border-highlight, #ff6400);
+  outline-offset: -2px;
+}
+
+/* 0.6.4 */
+.sf2e-tsc .tsc-action-desc {
+  margin: 0 0 4px 30px;
+  font-size: 0.85em;
+}
+.sf2e-tsc .tsc-action-desc summary {
+  cursor: pointer;
+  opacity: 0.75;
+}
+.sf2e-tsc .tsc-action-desc .tsc-desc-body {
+  padding: 4px 6px;
+  border-left: 2px solid rgba(120, 160, 255, 0.4);
+}
+.tsc-wizard .tsc-zone-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tsc-wizard .tsc-zone-in input {
+  width: 70px;
+}
+.tsc-wizard .tsc-obj-row input[type="text"] {
+  flex: 2;
+}
+.tsc-wizard .tsc-obj-row input[type="number"] {
+  width: 70px;
+  flex: 0 0 70px;
+}
+.tsc-wizard footer {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tsc-wizard footer input[type="text"] {
+  flex: 1;
+}
+
+/* 0.7.0: MAP buttons */
+.tsc-map-btns {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  vertical-align: middle;
+}
+.tsc-map-btns button {
+  width: auto;
+  padding: 1px 6px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.tsc-map-btns button small {
+  opacity: 0.75;
+}
+.tsc-attack-card .tsc-map-btn.active {
+  border-color: #5aa0ff;
+  box-shadow: 0 0 0 1px #5aa0ff inset;
+  background: rgba(90, 160, 255, 0.18);
+}
+
+/* 0.8.1 sensor map parts */
+.tsc-sensor-map .window-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+.tsc-sensor-map .tsc-map-top {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tsc-sensor-map .tsc-zones {
+  min-height: 0;
+}
+.tsc-sensor-map .tsc-detail {
+  width: auto;
+  min-height: 0;
+}
+.tsc-sensor-map .tsc-zones[hidden],
+.tsc-sensor-map .tsc-detail[hidden] {
+  display: none;
+}
+
+/* 0.8.1 sheet parts */
+.tsc-sheet .window-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tsc-sheet .tsc-sheet-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tsc-sheet .tsc-tab-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 0.8.2 threat badges (encounter builder) */
+.sf2e-tsc .tsc-threat {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.85em;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+.sf2e-tsc .tsc-threat-minor {
+  color: #888;
+}
+.sf2e-tsc .tsc-threat-trivial {
+  color: #4a8f5a;
+}
+.sf2e-tsc .tsc-threat-low {
+  color: #3f7fb5;
+}
+.sf2e-tsc .tsc-threat-moderate {
+  color: #b58a1f;
+}
+.sf2e-tsc .tsc-threat-severe {
+  color: #c0621f;
+}
+.sf2e-tsc .tsc-threat-extreme {
+  color: #b52a2a;
+  font-weight: bold;
+}
+
+/* 0.8.3 sensor map: object spacing, GM editor */
+.tsc-sensor-map .tsc-zone-objects {
+  gap: 8px;
+  padding: 6px;
+}
+.tsc-sensor-map .tsc-zone-objects > .tsc-obj {
+  height: auto;
+  min-height: 0;
+  line-height: 1.25;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 6px;
+}
+.tsc-sensor-map .tsc-gm-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  padding: 4px 6px;
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+}
+.tsc-sensor-map .tsc-gm-edit legend {
+  font-size: 11px;
+  color: var(--tsc-dim);
+  padding: 0 4px;
+}
+.tsc-sensor-map .tsc-gm-edit label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+}
+.tsc-sensor-map .tsc-gm-edit input[type="number"] {
+  width: 56px;
+}
+.tsc-sensor-map .tsc-gm-edit select {
+  max-width: 120px;
+}
+
+/* 0.8.5 crew station select */
+.sf2e-tsc select[data-station-select] {
+  min-width: 180px;
+}
+.sf2e-tsc .tsc-post-occ.tsc-free {
+  color: var(--color-level-success, #3a7d44);
+}
+.sf2e-tsc .tsc-copy-zones,
+.tsc-copy-zones {
+  width: 90px;
+}
+.tsc-area-exclude {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tsc-post-claim {
+  padding: 0 4px;
+  line-height: 1.4;
+}
+
+/* 0.8.9: sheet toolbar (open Station Actions / Crew Manager) */
+.sf2e-tsc .tsc-sheet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+.sf2e-tsc .tsc-sheet-toolbar button {
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+}
+.sf2e-tsc .tsc-sheet-crew .tsc-station {
+  margin: 0;
+}
+
+/* 0.9.0 inline damage / condition links */
+.tsc-cond,
+span.tsc-condition {
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+  white-space: nowrap;
+}
+span.tsc-condition {
+  cursor: default;
+}
+a.tsc-damage {
+  white-space: nowrap;
+}
+
+/* 0.9.1: starship upgrades (station cards, Upgrades tab, ship-level escape pods) */
+.sf2e-tsc .tsc-upgrades {
+  margin-top: 6px;
+  border-top: 1px dashed var(--tsc-line);
+  padding-top: 4px;
+}
+.sf2e-tsc .tsc-upgrades-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--tsc-dim);
+  border: 0;
+}
+.sf2e-tsc .tsc-upgrades-head .tsc-pill {
+  margin-left: auto;
+}
+.sf2e-tsc .tsc-upgrades .tsc-hint {
+  text-align: left;
+  padding: 2px 0 4px;
+  font-size: 11px;
+}
+.sf2e-tsc .tsc-upgrade-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sf2e-tsc .tsc-upgrade {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.sf2e-tsc .tsc-upgrade.has-warning,
+.sf2e-tsc .tsc-upgrade.over {
+  border-color: var(--tsc-warn);
+}
+.sf2e-tsc .tsc-upgrade details {
+  flex: 1;
+  min-width: 0;
+}
+.sf2e-tsc .tsc-upgrade summary {
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.sf2e-tsc .tsc-upgrade-body {
+  padding: 4px 2px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.sf2e-tsc .tsc-upgrade-body p {
+  margin: 0 0 4px;
+}
+.sf2e-tsc .tsc-upgrade-body hr {
+  border: 0;
+  border-top: 1px solid var(--tsc-line);
+  margin: 4px 0;
+}
+.sf2e-tsc .tsc-upgrade-body h3 {
+  font-size: 12px;
+  margin: 6px 0 2px;
+  color: var(--tsc-accent);
+}
+.sf2e-tsc .tsc-upgrade-detail {
+  padding-left: 10px;
+}
+.sf2e-tsc .tsc-upgrade-review,
+.sf2e-tsc .tsc-upgrade-noauto {
+  color: var(--tsc-dim);
+}
+.sf2e-tsc .tsc-warn,
+.sf2e-tsc .tsc-warn-inline {
+  color: var(--tsc-warn);
+  font-size: 11px;
+}
+.sf2e-tsc p.tsc-warn {
+  margin: 2px 0;
+}
+.sf2e-tsc .tsc-upgrade-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.sf2e-tsc .tsc-upgrade-picker input[type="search"] {
+  flex: 1 1 100px;
+  min-width: 80px;
+}
+.sf2e-tsc .tsc-upgrade-picker select {
+  flex: 2 1 160px;
+  min-width: 120px;
+}
+.sf2e-tsc .tsc-upgrade-assign {
+  display: flex;
+  gap: 4px;
+  padding-left: 12px;
+}
+.sf2e-tsc .tsc-upgrade-body .action-glyph {
+  font-family: "Pathfinder2eActions", sans-serif;
+}
+
+/* ------------------------------------------------------------------ 0.9.2 interface pass */
+.sf2e-tsc .tsc-warn {
+  color: var(--tsc-warn);
+}
+.sf2e-tsc .tsc-chip {
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 11px;
+}
+.sf2e-tsc details > summary {
+  cursor: pointer;
+  color: var(--tsc-dim);
+  user-select: none;
+}
+.sf2e-tsc details[open] > summary {
+  margin-bottom: 4px;
+}
+
+/* Sensor Map: GM tool icons, mini bars on contacts, action dock */
+.tsc-sensor-map {
+  --tsc-dock-h: auto;
+}
+.tsc-sensor-map .window-content {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.tsc-sensor-map .tsc-map-tools {
+  display: inline-flex;
+  gap: 3px;
+}
+.tsc-sensor-map .tsc-map-tools button {
+  min-width: 28px;
+}
+.tsc-obj-bars {
+  display: grid;
+  gap: 2px;
+  margin-top: 1px;
+}
+.tsc-obj-bars .b {
+  display: block;
+  height: 4px;
+  background: #0b111b;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tsc-obj-bars .b i {
+  display: block;
+  height: 100%;
+  background: var(--tsc-ok);
+}
+.tsc-obj-bars .b.sp i {
+  background: var(--tsc-accent);
+}
+.tsc-sensor-map .tsc-vitals-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.tsc-sensor-map .tsc-vitals-edit label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+}
+.tsc-sensor-map .tsc-vitals-edit input[type="number"] {
+  width: 56px;
+}
+.tsc-sensor-map .tsc-gm-tools {
+  margin-top: 6px;
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.tsc-sensor-map .tsc-gm-tools .tsc-gm-edit {
+  border: 0;
+  padding: 0;
+  margin: 0 0 4px;
+}
+.tsc-sensor-map .tsc-gm-tools .tsc-detect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+.tsc-sensor-map .tsc-dock {
+  grid-column: 1 / -1;
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tsc-sensor-map .tsc-dock[hidden] {
+  display: none;
+}
+.tsc-sensor-map .tsc-dock:not(:has(*)) {
+  display: none;
+}
+.tsc-dock-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tsc-dock-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.tsc-dock-pick {
+  display: inline-flex;
+  gap: 3px;
+}
+.tsc-dock-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tsc-dock-actions button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.tsc-dock-actions .cost {
+  color: var(--tsc-accent);
+  font-weight: 700;
+}
+.tsc-dock-actions button.has-warning {
+  border-color: var(--tsc-warn);
+}
+.tsc-dock-empty {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* Starship sheet: persistent vitals strip, compact overview, collapsible sections */
+.tsc-vitals {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0 2px;
+}
+.tsc-vitals .tsc-bars .bar {
+  margin: 0;
+  height: 20px;
+}
+.tsc-vitals .tsc-bars .bar em {
+  line-height: 18px;
+}
+.tsc-vitals .tsc-vital {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tsc-vitals .tsc-vital .tsc-bars {
+  flex: 1;
+}
+.tsc-vitals input[type="number"] {
+  width: 4.2em;
+}
+.tsc-vitals .tsc-vital-btns {
+  display: inline-flex;
+  gap: 3px;
+}
+.tsc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+.tsc-chips li {
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 999px;
+  padding: 1px 4px 1px 10px;
+  font-size: 12px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.tsc-chips li button {
+  padding: 0 6px;
+  border-radius: 999px;
+}
+.tsc-sheet-section {
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 6px 0;
+  background: color-mix(in srgb, var(--tsc-panel) 70%, transparent);
+}
+.tsc-sheet-section > summary {
+  font-weight: 600;
+  color: var(--tsc-text);
+}
+.tsc-sheet-body-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px;
+}
+.tsc-sheet-rolls ul.tsc-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.tsc-toolbox {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.tsc-toolbox button {
+  padding: 8px;
+  text-align: left;
+}
+@media (max-width: 760px) {
+  .tsc-vitals {
+    grid-template-columns: 1fr;
+  }
+}
+.tsc-toolbox-dialog .form-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.tsc-diag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tsc-diag.ok i {
+  color: var(--tsc-ok);
+}
+.tsc-diag.warn i {
+  color: var(--tsc-warn);
+}
+.tsc-diag.bad i {
+  color: var(--tsc-bad, #e5484d);
+}
+.tsc-diag.info i {
+  color: var(--tsc-dim);
+}
+.tsc-diag pre {
+  margin: 2px 0 0 22px;
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: var(--tsc-dim);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* 0.10.1 overview: rollable save / perception cells, piloting DC with its chat-save buttons */
+.tsc-stat-grid .tsc-stat-roll {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  cursor: pointer;
+  background: var(--tsc-panel);
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  height: auto;
+  line-height: inherit;
+  color: inherit;
+}
+.tsc-stat-grid .tsc-stat-roll:hover,
+.tsc-stat-grid .tsc-stat-roll:focus-visible {
+  border-color: var(--tsc-accent);
+}
+.tsc-stat-grid .tsc-stat-roll strong i {
+  color: var(--tsc-accent);
+  font-size: 11px;
+  margin-left: 2px;
+}
+.tsc-stat-grid .tsc-pdc strong {
+  display: inline;
+}
+.tsc-pdc-saves {
+  display: inline-flex;
+  gap: 3px;
+  margin-top: 3px;
+}
+.tsc-pdc-saves button {
+  padding: 0 6px;
+  height: 20px;
+  line-height: 18px;
+  font-size: 11px;
+}
+.tsc-roll-dc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.tsc-roll-dc input {
+  width: 4.5em;
+}
+
+/* 0.11.0: a fixed viewport background; scrolling zones never scroll or tile the image. */
+.tsc-sensor-map .tsc-map-viewport {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--tsc-bg);
+}
+.tsc-sensor-map .tsc-map-viewport[hidden] {
+  display: none;
+}
+.tsc-sensor-map .tsc-map-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.tsc-sensor-map .tsc-map-viewport .tsc-zones {
+  background: transparent;
+  grid-auto-columns: minmax(96px, 1fr);
+}
+.tsc-sensor-map .has-background .tsc-zone {
+  background-color: color-mix(in srgb, var(--tsc-panel) 55%, transparent);
+}
+.tsc-sensor-map .tsc-object-art {
+  width: var(--tsc-art-size, 64px);
+  height: var(--tsc-art-size, 64px);
+  max-width: 100%;
+  object-fit: contain;
+  border: 0;
+  border-radius: 4px;
+  display: block;
+  pointer-events: none;
+}
+.tsc-sensor-map .tsc-object-art[hidden] {
+  display: none;
+}
+.tsc-sensor-map[data-map-theme="light"] input,
+.tsc-sensor-map[data-map-theme="light"] select {
+  background: var(--tsc-bg);
+}
+.tsc-sensor-map[data-map-theme="light"] .tsc-targeting-banner {
+  background: #dceefb;
+}
+.tsc-sensor-map[data-map-theme="light"] .tsc-obj.st-compromised,
+.tsc-sensor-map[data-map-theme="light"] .tsc-obj.st-inoperable {
+  background: #fce8ec;
+}
+.tsc-map-appearance .tsc-appearance-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tsc-map-appearance .tsc-appearance-fields > label,
+.tsc-map-appearance fieldset > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0;
+}
+.tsc-map-appearance .tsc-image-field {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.tsc-map-appearance .tsc-image-field input {
+  flex: 1;
+  min-width: 0;
+}
+.tsc-map-appearance input[type="number"] {
+  width: 90px;
+}
+.tsc-map-appearance input[type="color"] {
+  width: 70px;
+  height: 28px;
+  padding: 2px;
+}
+.tsc-map-appearance p {
+  color: var(--tsc-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tsc-sensor-map[data-map-mode="art"] .tsc-map-viewport .tsc-zones {
+  grid-auto-columns: minmax(max(96px, calc(var(--tsc-art-size, 64px) + 48px)), 1fr);
+}
+.tsc-sensor-map .tsc-obj-icon:has(.tsc-object-art:not([hidden])) {
+  width: var(--tsc-art-size, 64px);
+}
+
+/* 0.11.1: sheet-only client theme. Deliberately does not target the Sensor Map or other app roots. */
+.tsc-sheet .tsc-sheet-theme-picker {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--tsc-dim);
+  font-size: 11px;
+}
+.tsc-sheet .tsc-sheet-theme-picker select {
+  width: auto;
+  min-width: 92px;
+}
+.tsc-sheet[data-sheet-theme] {
+  color-scheme: dark;
+}
+.tsc-sheet[data-sheet-theme="light"] {
+  color-scheme: light;
+}
+.tsc-sheet[data-sheet-theme="light"] input,
+.tsc-sheet[data-sheet-theme="light"] select,
+.tsc-sheet[data-sheet-theme="light"] textarea,
+.tsc-sheet[data-sheet-theme="light"] .tsc-sheet-img,
+.tsc-sheet[data-sheet-theme="light"] .tsc-occ-img,
+.tsc-sheet[data-sheet-theme="light"] .tsc-bars .bar {
+  background: var(--tsc-bg);
+}
+.tsc-sheet[data-sheet-theme="light"] .tsc-station.malf,
+.tsc-sheet[data-sheet-theme="light"] .tsc-warn-box {
+  background: #fff4ce;
+}
+.tsc-sheet[data-sheet-theme="light"] .tsc-malfunction {
+  background: #fff0e2;
+}
+.tsc-sheet[data-sheet-theme="light"] .tsc-sub td {
+  background: #e2ebf5;
+}
+.tsc-sheet[data-sheet-theme="light"] button.active {
+  background: var(--tsc-accent);
+  color: #ffffff;
+}
+.tsc-sheet[data-sheet-theme="light"] .tsc-bars .bar span {
+  opacity: 0.18;
+}
+.tsc-sheet[data-sheet-theme] .tsc-bars .bar em {
+  color: var(--tsc-text);
+}
+.tsc-sheet[data-sheet-theme] .tsc-edit-img img,
+.tsc-sheet[data-sheet-theme] .tsc-edit-ability {
+  border-color: var(--tsc-line);
+}
+.tsc-sheet[data-sheet-theme] .tsc-sheet-img.editable:hover {
+  outline-color: var(--tsc-accent);
+}
+.tsc-sheet[data-sheet-theme] a {
+  color: var(--tsc-accent);
+}
+.tsc-sheet[data-sheet-theme] .tsc-post-occ.tsc-free {
+  color: var(--tsc-ok);
+}
+.tsc-sheet[data-sheet-theme] .window-header {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  border-bottom: 1px solid var(--tsc-line);
+}
+.tsc-sheet[data-sheet-theme] .window-content,
+.tsc-sheet[data-sheet-theme] .tsc-table {
+  color: var(--tsc-text);
+}
+.tsc-sheet[data-sheet-theme] .tsc-table {
+  background: var(--tsc-panel);
+}
+
+/* History filtering: hidden rows remain hidden in flex/grid lists. */
+.sf2e-tsc [hidden] {
+  display: none !important;
+}
+.sf2e-tsc .tsc-history-list {
+  padding-left: 20px;
+}
+.sf2e-tsc .tsc-history-list > li {
+  border-bottom: 1px solid var(--tsc-line, #405574);
+  padding: 8px 0;
+}
+.sf2e-tsc .tsc-history-list p {
+  margin: 4px 0;
+}
+.sf2e-tsc .tsc-chips li small {
+  display: block;
+}
+.sf2e-tsc .tsc-journal-focus {
+  outline: 2px solid var(--tsc-accent, #38bdf8);
+  outline-offset: 2px;
+}
+.sf2e-tsc .tsc-effect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sf2e-tsc .tsc-effect-list > li {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  border-radius: 6px;
+  padding: 7px;
+}
+.sf2e-tsc .tsc-effect-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sf2e-tsc .tsc-effect-actions button {
+  width: auto;
+  flex: 0 1 auto;
+  border-radius: 4px;
+}
+
+/* Client themes: explicit heading and table colors override the system sheet skin. */
+.sf2e-tsc[data-sheet-theme] :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--tsc-text);
+  text-shadow: none;
+}
+.tsc-sheet[data-sheet-theme] .tsc-sheet-head h2 {
+  color: var(--tsc-text);
+}
+.tsc-sheet[data-sheet-theme] table :is(thead, th) {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  text-shadow: none;
+}
+.tsc-sheet .tsc-stat-grid > :is(div, button) {
+  text-align: center;
+  align-items: center;
+}
+.tsc-hud[data-sheet-theme] {
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+  color-scheme: dark;
+}
+.tsc-hud[data-sheet-theme="light"] {
+  color-scheme: light;
+}
+.tsc-hud[data-sheet-theme] :is(.window-content, .window-header, input, select, button) {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  border-color: var(--tsc-line);
+}
+.tsc-station-dcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--tsc-dim);
+}
+.tsc-inline-list button {
+  height: auto;
+  padding: 2px 4px;
+  white-space: normal;
+}
+.tsc-obj-row [data-f="art"] {
+  flex: 1 1 160px;
+}
+
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme] {
+  color-scheme: dark;
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+}
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme="light"] {
+  color-scheme: light;
+}
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme]
+  :is(
+    .window-content,
+    .window-header,
+    .sheet-header,
+    .sheet-body,
+    .tab,
+    .editor,
+    .editor-content,
+    .item-description,
+    .item-summary,
+    header,
+    aside,
+    section,
+    article,
+    nav,
+    footer
+  ) {
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+  background-image: none;
+}
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme] :is(input, select, textarea, button, thead, th, .tag) {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  border-color: var(--tsc-line);
+}
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme] :is(label, p, li, strong, .item-name) {
+  color: var(--tsc-text);
+}
+.sf2e-tsc.tsc-action-sheet[data-sheet-theme] a {
+  color: var(--tsc-accent);
+}
+.sf2e-tsc.tsc-action-sheet .tsc-action-theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 100%;
+  padding: 4px;
+}
+.sf2e-tsc.tsc-action-sheet .tsc-action-theme-picker select {
+  width: auto;
+}
+
+/* Crew Manager uses the same client-local palette as ship sheets and Station Actions. */
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] {
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+  color-scheme: dark;
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme="light"] {
+  color-scheme: light;
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] :is(.window-header, .window-content, input, select, textarea, button, table, thead, th) {
+  background: var(--tsc-panel);
+  color: var(--tsc-text);
+  border-color: var(--tsc-line);
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] :is(thead, th) {
+  text-shadow: none;
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme="light"] .tsc-sub td {
+  background: #e2ebf5;
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme="light"] :is(.tsc-station.malf, .tsc-warn-box, .tsc-malfunction) {
+  background: #fff4ce;
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] .tsc-post-occ.tsc-free {
+  color: var(--tsc-ok);
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] button.danger {
+  color: var(--tsc-bad);
+}
+.sf2e-tsc.tsc-crew-manager[data-sheet-theme] a {
+  color: var(--tsc-accent);
+}

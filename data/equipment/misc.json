@@ -1,0 +1,66 @@
+{
+ "drones": [
+  {
+   "id": "pyrotechnics-drone",
+   "name": "Pyrotechnics Drone",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 192
+   },
+   "text": "This drone can drop mines that explode on command (starship mine: 2d8 fire or piercing damage, basic Reflex save against your class DC)."
+  },
+  {
+   "id": "scramble-drone",
+   "name": "Scramble Drone",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 192
+   },
+   "text": "A drone that launches flares that confuse enemy sensors; grants station actions to the drone console while deployed."
+  },
+  {
+   "id": "repair-drone",
+   "name": "Repair Drone",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 193
+   },
+   "text": "A drone that restores Hull Points; grants the Repair Hull station action to the drone console while deployed."
+  }
+ ],
+ "expansionBays": [
+  {
+   "id": "medical-bay",
+   "name": "Medical Bay",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 195
+   },
+   "text": "Universal expansion bay. See Tech Core p.195."
+  },
+  {
+   "id": "passenger-quarters",
+   "name": "Passenger Quarters",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 195
+   },
+   "text": "Universal expansion bay. See Tech Core p.195."
+  },
+  {
+   "id": "mess-bay",
+   "name": "Mess Bay",
+   "needsReview": true,
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 195
+   },
+   "text": "Universal expansion bay. See Tech Core p.195."
+  }
+ ]
+}

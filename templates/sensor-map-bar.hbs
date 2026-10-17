@@ -1,0 +1,52 @@
+<div class="tsc-map-top" aria-label="{{localize 'SF2eTSC.ui.sensorMap'}}">
+  {{#if noCombat}}
+    <p class="tsc-empty">{{localize "SF2eTSC.ui.noStarshipCombat"}}</p>
+  {{else}}
+    <header class="tsc-map-bar">
+      <span class="tsc-pill" title="{{localize 'SF2eTSC.ui.round'}}">{{localize "SF2eTSC.ui.round"}} {{combat.round}}</span>
+      <span class="tsc-pill" title="{{localize 'SF2eTSC.ui.currentTurn'}}">▶ {{combat.turn}}</span>
+      <span class="tsc-pill">{{zoneCount}} {{localize "SF2eTSC.ui.zones"}}</span>
+      {{#if isGM}}
+        <span class="tsc-spacer"></span>
+        <span class="tsc-map-tools" role="group" aria-label="{{localize 'SF2eTSC.ui.gmTools'}}">
+          <button
+            type="button"
+            data-action="mapAppearance"
+            title="{{localize 'SF2eTSC.mapAppearance.title'}}"
+            aria-label="{{localize 'SF2eTSC.mapAppearance.title'}}"
+          ><i class="fa-solid fa-palette"></i></button>
+          <button
+            type="button"
+            data-action="addObject"
+            title="{{localize 'SF2eTSC.ui.addObject'}}"
+            aria-label="{{localize 'SF2eTSC.ui.addObject'}}"
+          ><i class="fa-solid fa-plus"></i></button>
+          <button
+            type="button"
+            data-action="resizeZones"
+            title="{{localize 'SF2eTSC.ui.zoneCount'}}"
+            aria-label="{{localize 'SF2eTSC.ui.zoneCount'}}"
+          ><i class="fa-solid fa-table-cells"></i></button>
+          <button
+            type="button"
+            data-action="openCrew"
+            title="{{localize 'SF2eTSC.ui.crewManager'}}"
+            aria-label="{{localize 'SF2eTSC.ui.crewManager'}}"
+          ><i class="fa-solid fa-users"></i></button>
+        </span>
+      {{/if}}
+    </header>
+    {{#if targeting}}
+      <div class="tsc-targeting-banner" role="status">
+        <strong>{{targeting.label}}</strong>
+        —
+        {{targeting.hint}}
+        ({{localize "SF2eTSC.ui.range"}}
+        {{targeting.range}})
+        <span class="tsc-preview" data-tsc-preview hidden></span>
+        <button type="button" data-action="cancelTargeting" title="Esc"><i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          {{localize "SF2eTSC.ui.cancel"}}</button>
+      </div>
+    {{/if}}
+  {{/if}}
+</div>

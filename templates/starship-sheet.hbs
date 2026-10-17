@@ -1,0 +1,119 @@
+<div class="tsc-tab-body">
+  {{#if (eq tab "overview")}}
+    {{#if effects.length}}
+    <ul class="tsc-chips tsc-effect-list" aria-label="{{localize 'SF2eTSC.ui.activeEffects'}}">
+      {{#each effects}}<li data-qol-row data-effect-link="{{id}}" title="{{text}}">
+        <div><strong>{{label}}</strong>{{#if timingText}}<small>{{timingText}}</small>{{/if}}</div>
+        {{#if @root.isGM}}<div class="tsc-effect-actions">
+          <button type="button" data-action="editEffectTiming" data-id="{{id}}">{{localize "SF2eTSC.qol.effectTiming"}}</button>
+          {{#if condition}}<button type="button" data-action="completeEffect" data-id="{{id}}">{{localize "SF2eTSC.qol.complete"}}</button>{{/if}}
+          {{#if sustain}}<button type="button" data-action="sustainEffect" data-id="{{id}}">{{localize "SF2eTSC.qol.sustain"}}</button>{{/if}}
+          <button type="button" data-action="removeEffect" data-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.remove'}}"><i class="fa-solid fa-xmark"></i></button>
+        </div>{{/if}}
+      </li>{{/each}}
+    </ul>
+    {{/if}}
+    <div class="tsc-stat-grid">
+      <div><label>{{localize "SF2eTSC.ui.ac"}}</label><strong>{{stats.ac}}</strong></div>
+      {{#unless isNpc}}
+      <div class="tsc-pdc" title="{{localize 'SF2eTSC.ui.pilotingDCHint'}}"><label>{{localize "SF2eTSC.ui.pilotingDC"}}</label><strong>{{#if stats.pilotingDC}}{{stats.pilotingDC}}{{else}}—{{/if}}</strong>
+        {{#if stats.pilotingDC}}{{#if canRoll}}<span class="tsc-pdc-saves" role="group" aria-label="{{localize 'SF2eTSC.rolls.pilotingSaveGroup'}}">{{#each pilotingSaves}}<button type="button" data-action="pilotingSave" data-save="{{slug}}" title="{{title}}" aria-label="{{title}}">{{short}}</button>{{/each}}</span>{{/if}}{{else}}<small class="tsc-dim">{{localize "SF2eTSC.ui.noPilot"}}</small>{{/if}}
+      </div>
+      {{/unless}}
+      {{#each statCells}}{{#if rollable}}<button type="button" class="tsc-stat-roll" data-action="rollShipCheck" data-slug="{{slug}}" title="{{localize 'SF2eTSC.rolls.roll'}} {{label}}" aria-label="{{localize 'SF2eTSC.rolls.roll'}} {{label}} {{modText}}"><label>{{label}}</label><strong>{{modText}} <i class="fa-solid fa-dice-d20" aria-hidden="true"></i></strong></button>{{else}}<div><label>{{label}}</label><strong>{{modText}}</strong></div>{{/if}}{{/each}}
+      <div><label>{{localize "SF2eTSC.ui.speed"}}</label><strong>{{stats.speed}}</strong></div>
+      <div><label>{{localize "SF2eTSC.ui.sensorRange"}}</label><strong>{{stats.sensorRange}}</strong></div>
+      <div><label>{{localize "SF2eTSC.ui.heading"}}</label><strong>{{ship.headingArrow}} {{ship.headingLabel}}</strong></div>
+      <div><label>{{localize "SF2eTSC.ui.zone"}}</label><strong>{{#if ship.zone}}{{ship.zone}}{{else}}—{{/if}}</strong></div>
+    </div>
+    {{#if canRoll}}<label class="tsc-dim tsc-roll-dc">{{localize "SF2eTSC.rolls.dcOptional"}} <input type="number" name="tscRollDC" min="1" step="1" placeholder="—"></label>{{/if}}
+    {{#if shipChecks.length}}
+    <section class="tsc-sheet-rolls">
+      <h4>{{localize "SF2eTSC.rolls.checksTitle"}}</h4>
+      <ul class="tsc-list">{{#each shipChecks}}<li><strong>{{label}}</strong> {{modText}} <button type="button" data-action="rollShipCheck" data-slug="{{slug}}" aria-label="{{localize 'SF2eTSC.rolls.roll'}} {{label}}"><i class="fa-solid fa-dice-d20"></i> {{localize "SF2eTSC.rolls.roll"}}</button></li>{{/each}}</ul>
+    </section>
+    {{/if}}
+    {{#if sheetAttacks.length}}
+    <section class="tsc-sheet-rolls">
+      <h4>{{localize "SF2eTSC.rolls.attacksTitle"}}</h4>
+      <p class="tsc-dim">{{localize "SF2eTSC.rolls.attacksHint"}}</p>
+      <ul class="tsc-list">{{#each sheetAttacks}}<li><strong>{{name}}</strong> {{bonusText}} <span class="tsc-dim">{{typeLabel}} · {{rangeText}}{{#if traitsText}} · {{traitsText}}{{/if}} · {{damageText}}{{#if crewName}} · {{crewName}}{{/if}}</span>
+        <span class="tsc-map-btns" role="group" aria-label="{{localize 'SF2eTSC.ui.map'}}">{{#each attackButtons}}<button type="button" data-action="sheetAttack" data-key="{{../key}}" data-map="{{choice}}" {{#unless ../enabled}}disabled{{/unless}} title="{{#if ../enabled}}{{label}}{{else}}{{../reason}}{{/if}}"><i class="fa-solid fa-crosshairs"></i> {{total}}{{#if penalty}} <small>({{penalty}})</small>{{/if}}</button>{{/each}}</span>
+        <button type="button" data-action="sheetDamage" data-key="{{key}}"><i class="fa-solid fa-burst"></i> {{localize "SF2eTSC.rolls.damage"}}</button>
+        <button type="button" data-action="sheetDamage" data-key="{{key}}" data-crit="true"><i class="fa-solid fa-star"></i> {{localize "SF2eTSC.rolls.critical"}}</button></li>{{/each}}</ul>
+    </section>
+    {{/if}}
+    {{#if log.length}}<details class="tsc-sheet-section"><summary>{{localize "SF2eTSC.ui.combatLog"}}</summary><ol class="tsc-mini-log">{{#each log}}<li>{{this}}</li>{{/each}}</ol></details>{{/if}}
+    {{#if isGM}}
+    <details class="tsc-sheet-section tsc-gm-box"><summary>{{localize "SF2eTSC.ui.gmControls"}}</summary>
+      <div class="tsc-row-inputs">
+        <label>{{localize "SF2eTSC.ui.maxHull"}} <input type="number" data-field="hp.max" value="{{ship.hp.max}}" min="1"></label>
+        <label>{{localize "SF2eTSC.ui.maxShield"}} <input type="number" data-field="sp.max" value="{{ship.sp.max}}" min="0"></label>
+        <label>{{localize "SF2eTSC.ui.compromised"}} <input type="number" data-field="compromised" value="{{ship.compromised}}" min="0" max="10"></label>
+        <label>{{localize "SF2eTSC.ui.wrecked"}} <input type="number" data-field="wrecked" value="{{ship.wrecked}}" min="0"></label>
+        <label><input type="checkbox" data-field="inoperable" {{#if ship.inoperable}}checked{{/if}}> {{localize "SF2eTSC.status.inoperable"}}</label>
+        <label><input type="checkbox" data-field="offKilter" {{#if ship.offKilter}}checked{{/if}}> {{localize "SF2eTSC.status.off-kilter"}}</label>
+      </div>
+    </details>
+    {{/if}}
+  {{/if}}
+
+  {{#if (eq tab "actions")}}
+    <h4>{{localize "SF2eTSC.ui.actions"}}</h4>
+    <ul class="tsc-actions">{{#each npcActions}}<li><button type="button" data-action="runAction" data-action-id="{{id}}" {{#unless enabled}}disabled{{/unless}} title="{{#if warnings}}⚠ {{warnings}} — {{/if}}{{text}}"><span class="cost">{{icon}}</span><span class="name">{{name}}</span>{{#unless enabled}}<small class="why">{{reasons}}</small>{{/unless}}{{#if warnings}}<small class="why tsc-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{warnings}}</small>{{/if}}</button></li>{{/each}}</ul>
+    {{#if strikes.length}}<h4>{{localize "SF2eTSC.ui.strikes"}}</h4><ul class="tsc-list">{{#each strikes}}<li><strong>{{name}}</strong> {{{html}}}</li>{{/each}}</ul>{{/if}}
+    {{#if isGM}}<details class="tsc-sheet-section tsc-gm-box"><summary>{{localize "SF2eTSC.ui.manualResolution"}}</summary><textarea name="manualText" rows="2"></textarea><button type="button" data-action="manualResolve">{{localize "SF2eTSC.chat.manualResolve"}}</button></details>{{/if}}
+  {{/if}}
+
+  {{#if (eq tab "stations")}}
+    {{#unless isNpc}}<div class="tsc-sheet-toolbar"><button type="button" data-action="openStationHud"><i class="fa-solid fa-gamepad"></i> {{localize "SF2eTSC.ui.stationHud"}}</button><button type="button" data-action="openCrewManager"><i class="fa-solid fa-users"></i> {{localize "SF2eTSC.ui.crewManager"}}</button></div>{{/unless}}
+    {{#unless isNpc}}<p class="tsc-hint"><i class="fa-solid fa-circle-info"></i> {{localize "SF2eTSC.stationItems.sheetHint"}}</p>{{/unless}}
+    <div class="tsc-station-list">{{#each stations}}
+      <article data-station-link="{{id}}" class="tsc-station {{#if malfunctioning}}malf{{/if}} {{#if occupied}}occ{{/if}}">
+        <header><i class="{{icon}}" aria-hidden="true"></i><h4>{{name}}</h4><span class="tsc-pill">{{gradeLabel}}</span>
+          {{#if malfunctioning}}<span class="tsc-pill bad">⚠ {{localize "SF2eTSC.ui.malfunctioning"}}</span>{{/if}}
+          {{> tscOccupant occupant size="md"}}</header>
+        <div class="tsc-btn-row">
+          {{#unless occupied}}<button type="button" data-action="claim" data-station-id="{{id}}"><i class="fa-solid fa-hand"></i> {{localize "SF2eTSC.crew.claim"}}</button>{{/unless}}
+          {{#if occupied}}{{#if claimedByMe}}<button type="button" data-action="unhelm" data-station-id="{{id}}" data-crew-uuid="{{helmedBy}}">{{localize "SF2eTSC.crew.release"}}</button>{{/if}}{{/if}}
+          {{#if @root.isGM}}<button type="button" data-action="forceClaim" data-station-id="{{id}}" data-crew-uuid="">{{localize "SF2eTSC.crew.forceHelm"}}</button>{{#if occupied}}<button type="button" data-action="unhelm" data-station-id="{{id}}" data-crew-uuid="{{helmedBy}}">{{localize "SF2eTSC.crew.unhelm"}}</button>{{/if}}
+            <button type="button" data-action="toggleMalf" data-station-id="{{id}}" data-value="{{malfunctioning}}">{{#if malfunctioning}}{{localize "SF2eTSC.ui.clearMalfunction"}}{{else}}{{localize "SF2eTSC.ui.setMalfunction"}}{{/if}}</button>{{/if}}
+          {{#if canConfig}}
+            <select data-station-field="grade" data-station-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.grade'}}">{{#each ../catalog.grades}}<option value="{{id}}" {{#if (eq id ../grade)}}selected{{/if}}>{{name}}</option>{{/each}}</select>
+            <button type="button" class="danger" data-action="removeStation" data-station-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
+        </div>
+        {{> tscStationUpgrades upgradeSection}}
+        {{#if isGunnery}}{{#if canConfig}}<label>{{localize "SF2eTSC.ui.weapon"}} <select data-station-field="weaponId" data-station-id="{{id}}"><option value="">—</option>{{#each @root.weapons}}<option value="{{id}}" {{#if (eq id ../weaponId)}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>{{/if}}{{/if}}
+        {{#if dcRows.length}}<details><summary>{{localize "SF2eTSC.rolls.stationDCs"}}</summary><div class="tsc-station-dcs" aria-label="{{localize 'SF2eTSC.rolls.stationDCs'}}">{{#each dcRows}}<span>{{label}}: {{value}}</span>{{/each}}</div></details>{{/if}}
+        <ul class="tsc-inline-list">{{#each actionList}}<li><details><summary><button type="button" data-action="runAction" data-action-id="{{id}}" data-station-id="{{../id}}" {{#unless enabled}}disabled{{/unless}} title="{{reasons}}">{{icon}} {{name}}</button></summary><div class="tsc-action-desc">{{{html}}}</div></details></li>{{/each}}</ul>
+      </article>{{/each}}
+    </div>
+    {{#if perms.configureShip}}<button type="button" data-action="addStation"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addStation"}}</button>{{/if}}
+    {{#unless isNpc}}
+    <details class="tsc-sheet-section" open><summary>{{localize "SF2eTSC.tabs.crew"}}</summary>
+      <p class="tsc-hint">{{localize "SF2eTSC.crew.dropHint"}}</p>
+      {{#if crewShip}}<div class="tsc-crew-root tsc-sheet-crew">{{> "modules/sf2e-tactical-starship-combat/templates/crew-ship.hbs" crewShip}}</div>{{else}}<p class="tsc-hint">{{localize "SF2eTSC.crew.empty"}}</p>{{/if}}
+    </details>
+    {{/unless}}
+  {{/if}}
+
+  {{#if (eq tab "equipment")}}
+    <h4>{{localize "SF2eTSC.tabs.weapons"}}</h4>
+    <ul class="tsc-list">{{#each weapons}}<li><strong>{{name}}</strong> — {{die}} {{damageLabel}}, {{localize "SF2eTSC.ui.range"}} {{range}} <span class="tsc-dim">{{traitsLabel}}</span>{{#if @root.perms.editEquipment}} <button type="button" class="danger" data-action="removeWeapon" data-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}</li>{{else}}<li class="tsc-dim">—</li>{{/each}}</ul>
+    {{#if perms.editEquipment}}<div class="tsc-row-inputs"><select name="weaponCatalog">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>{{/if}}
+    <h4>{{localize "SF2eTSC.upgrades.title"}}</h4>
+    {{> tscShipUpgrades shipUpgrades}}
+    <h4>{{localize "SF2eTSC.ui.expansionBays"}}</h4>
+    <ul class="tsc-list">{{#each bays}}<li>{{@index}} <input type="text" value="{{name}}" data-bay-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.expansionBays'}}" {{#unless @root.perms.editEquipment}}disabled{{/unless}}></li>{{/each}}</ul>
+  {{/if}}
+
+  {{#if (eq tab "notes")}}
+    <label>{{localize "SF2eTSC.ui.publicNotes"}}<textarea name="notes" rows="6">{{ship.notes}}</textarea></label>
+    {{#if isGM}}<label>{{localize "SF2eTSC.ui.gmNotes"}}<textarea name="gmNotes" rows="6">{{ship.gmNotes}}</textarea></label>{{/if}}
+    <button type="button" data-action="saveNotes"><i class="fa-solid fa-floppy-disk"></i> {{localize "SF2eTSC.ui.save"}}</button>
+  {{/if}}
+
+  {{#if (eq tab "config")}}
+    {{#if perms.configureShip}}{{> "modules/sf2e-tactical-starship-combat/templates/ship-editor.hbs"}}{{/if}}
+  {{/if}}
+</div>

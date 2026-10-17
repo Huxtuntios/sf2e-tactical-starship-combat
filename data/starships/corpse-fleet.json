@@ -1,0 +1,630 @@
+{
+ "faction": "Corpse Fleet",
+ "ships": [
+  {
+   "id": "dutybound-necrofighter",
+   "name": "Dutybound Necrofighter",
+   "level": 0,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech",
+    "undead"
+   ],
+   "faction": "Corpse Fleet",
+   "family": "Corpse Fleet",
+   "perception": 4,
+   "sensorRange": 2,
+   "speed": 4,
+   "skills": {
+    "athletics": 6,
+    "computers": 5,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 4,
+    "con": 2,
+    "int": 2,
+    "wis": 1,
+    "cha": -1
+   },
+   "ac": 17,
+   "fort": 5,
+   "ref": 7,
+   "will": 6,
+   "hp": 16,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities (except spirit, vitality, void)",
+   "hpNote": "void healing (Starfinder Alien Core 210)",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Grave Interception",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Grave Interception",
+     "cost": "reaction",
+     "traits": [
+      "move"
+     ],
+     "text": "Trigger A starship within 0 zones would take damage from a Strike; Effect The Dutybound Necrofighter rushes forth to intercept the attack. It reduces the triggering damage by its remaining Hull Points and takes damage equal to the amount it reduced. If it’s destroyed by this damage, the starship it protected takes the remaining damage."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 214
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "barrow-dirgesinger",
+   "name": "Barrow Dirgesinger",
+   "level": 3,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech",
+    "undead"
+   ],
+   "faction": "Corpse Fleet",
+   "family": "Corpse Fleet",
+   "perception": 9,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 8,
+    "intimidation": 6,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 2,
+    "con": 4,
+    "int": 1,
+    "wis": 2,
+    "cha": -1
+   },
+   "ac": 17,
+   "fort": 11,
+   "ref": 7,
+   "will": 9,
+   "hp": 37,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities (except spirit, vitality, void)",
+   "hpNote": "void healing (Starfinder Alien Core 210)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "fragment launcher",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Gnashing Fragments",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Horrifying Clanging",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [],
+   "actions": [
+    {
+     "name": "fragment launcher",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone cone, analog, concussive, tech), Damage 1d8+3 piercing (DC 17 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "fragment launcher"
+    },
+    {
+     "name": "Clinging Flesh",
+     "cost": "free-action",
+     "traits": [],
+     "text": "Trigger The Barrow Dirgesinger Area Fires with its fragment launcher; Effect The launched fragments of flesh cling to the hull of their targets. Each starship that took damage to its Hull Points from the triggering Area Fire becomes infested with undead. Once per round, when an infested starship moves at least 1 zone, it can attempt a DC 17 Piloting check, shaking off the infestation of undead on a success."
+    },
+    {
+     "name": "Gnashing Fragments",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Effect The Barrow Dirgesinger sends out a pulse to starships infested by Clinging Flesh within sensor range. An affected starship takes 4d6 bludgeoning damage to its Hull Points, bypassing its Shield Points, with a DC 17 basic Fortitude save."
+    },
+    {
+     "name": "Horrifying Clanging",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Barrow Dirgesinger’s last action on this turn was Gnashing Fragments, and the starship targeted by it is still infested with undead; Effect The Barrow Dirgesinger attempts to Demoralize each enemy creature on the required starship."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 214
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "soul-harvest-necrofighter",
+   "name": "Soul Harvest Necrofighter",
+   "level": 5,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech",
+    "undead"
+   ],
+   "faction": "Corpse Fleet",
+   "family": "Corpse Fleet",
+   "perception": 14,
+   "sensorRange": 6,
+   "speed": 2,
+   "skills": {
+    "computers": 8,
+    "piloting": 10
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 1,
+    "con": 3,
+    "int": 1,
+    "wis": 5,
+    "cha": 4
+   },
+   "ac": 20,
+   "fort": 10,
+   "ref": 10,
+   "will": 14,
+   "hp": 65,
+   "sp": 16,
+   "fortify": 8,
+   "immunities": "bleed, death effects, disease, drained, fatigued, paralyzed, poison, sickened",
+   "hpNote": "void healing (Starfinder Alien Core 210)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Steal Life",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "grave disruptor rifle",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Harvest Soul",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Steal Life",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "grave disruptor rifle",
+     "kind": "ranged",
+     "attack": 12,
+     "traits": [
+      "range increment 10 zones",
+      "tech",
+      "volley 2 zones"
+     ],
+     "damage": "2d10+5 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Harvest Soul",
+     "cost": "reaction",
+     "traits": [
+      "arcane"
+     ],
+     "text": "Frequency once per hour; Trigger A living creature dies on a starship within sensor range; Effect The Soul Harvest Necrofighter immediately performs the create undead ritual on the triggering creature, as if it were a 2nd-rank spell with a casting time of a reaction and the Soul Harvest Necrofighter rolled a critical success on the ritual."
+    },
+    {
+     "name": "Steal Life",
+     "cost": "one-action",
+     "traits": [
+      "magical",
+      "void"
+     ],
+     "text": "Requirements The Soul Harvest Necrofighter’s last action this turn was a successful grave disruptor rifle Strike against a starship within sensor range; Effect Each creature helming a battle station on the required starship takes 2d6 void damage (DC 22 basic Will save). It can restore Shield Points equal to the half the damage it dealt this way, distributing it among starships within 0 zones."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 215
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "barrow-eulogy",
+   "name": "Barrow Eulogy",
+   "level": 9,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech",
+    "undead"
+   ],
+   "faction": "Corpse Fleet",
+   "family": "Corpse Fleet",
+   "perception": 21,
+   "sensorRange": 8,
+   "speed": 2,
+   "skills": {
+    "computers": 13,
+    "piloting": 15
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 4,
+    "con": 5,
+    "int": 0,
+    "wis": 6,
+    "cha": 5
+   },
+   "ac": 25,
+   "fort": 21,
+   "ref": 16,
+   "will": 18,
+   "hp": 129,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities (except spirit, vitality, void)",
+   "hpNote": "void healing (Starfinder Alien Core 210)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "grave precision rail",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Command Infantry",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Invigorate Infantry",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "grave precision rail",
+     "kind": "ranged",
+     "attack": 20,
+     "traits": [
+      "analog",
+      "boost 2d6",
+      "range increment 4 zones"
+     ],
+     "damage": "2d6+9 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Command Infantry",
+     "cost": "one-action",
+     "traits": [
+      "arcane",
+      "mental"
+     ],
+     "text": "The Barrow Eulogy emits void energy at a starship within sensor range. Each undead creature on board the target starship can Stride as a reaction. (gunnery) Piercing Harpoon ʚʖ The Free Captain starship launches a harpoon at another starship within 1 zone. The target starship takes the listed piercing damage and attempts a Fortitude save against the listed DC. Critical Success The target is unaffected. Success The target takes half damage. Failure The target takes full damage, and the Free Captain starship chooses a battle station on the target starship to become malfunctioning. Critical Failure The target takes double damage, and the Free Captain starship chooses a battle station on the target to become malfunctioning. Additionally, the harpoon causes a Hull Breach hazard (page 251) to appear in a space adjacent to the malfunctioning battle station. (pilot’s console) Chainsaw Prow Ȱɵ The Free Captain starship sinks its rotating blades into the hull of a starship within 0 zones. The target takes the listed slashing damage with a basic Fortitude save against the listed DC. If Chainsaw Prow deals damage to the target’s Hull Points, and the target is larger than the Free Captain starship, the Free Captain starship clings to the target. Until the start of the Free Captain starship’s next turn, it moves with the target whenever the target moves. (scanner) Wave Holo-Roger Ȱɵ (mental, visual) A Free Captain starship’s holo-roger is a sight that gives rise to courage in the hearts of its allies. Allied creatures and starships within sensor range of the starship gain a +2 circumstance bonus to Will saves against fear effects for 1 round."
+    },
+    {
+     "name": "Invigorate Infantry",
+     "cost": "one-action",
+     "traits": [
+      "arcane",
+      "healing",
+      "void"
+     ],
+     "text": "Frequency once per hour; Effect The Eulogy restores 2d6 Hit Points to each undead creature on board a starship within sensor range.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 215
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "barrow-cenotaph",
+   "name": "Barrow Cenotaph",
+   "level": 18,
+   "size": "unique",
+   "rarity": "common",
+   "traits": [
+    "gargantuan",
+    "tech",
+    "undead"
+   ],
+   "faction": "Corpse Fleet",
+   "family": "Corpse Fleet",
+   "perception": 32,
+   "sensorRange": 11,
+   "speed": 1,
+   "skills": {
+    "computers": 27,
+    "intimidation": 32,
+    "piloting": 18
+   },
+   "abilities": {
+    "str": 6,
+    "dex": -2,
+    "con": 10,
+    "int": 5,
+    "wis": 8,
+    "cha": 8
+   },
+   "ac": 38,
+   "fort": 39,
+   "ref": 23,
+   "will": 35,
+   "hp": 344,
+   "sp": 50,
+   "fortify": 25,
+   "immunities": "starship immunities (except spirit, vitality, void)",
+   "hpNote": "void healing (Starfinder Alien Core 210)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Death Accumulation Cannon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "grave rail cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Command Dutybound",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Kill Battle Station",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Crush Obstacle",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "grave rail cannon",
+     "kind": "ranged",
+     "attack": 30,
+     "traits": [
+      "range increment 6 zones",
+      "tech"
+     ],
+     "damage": "3d12+18 void"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Command Dutybound",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger The Barrow Cenotaph would take damage from an attack; Effect The Barrow Cenotaph gains resistance 16 to the triggering damage."
+    },
+    {
+     "name": "Crush Obstacle",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Barrow Cenotaph Boosts Thrusters, and if it moves at least 1 zone, it can select an enemy starship within 0 zones at any point along its movement. The target takes 9d12 bludgeoning damage (DC 40 basic Fortitude save). On a failure, the target is off-kilter."
+    },
+    {
+     "name": "Death Accumulation Cannon",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The Barrow Cenotaph fires an 11-zone line beam in the direction of its heading. Affected starships take 6d12 force damage (DC 38 basic Reflex save)."
+    },
+    {
+     "name": "Kill Battle Station",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Barrow Cenotaph deploys cyberattacks at a starship within sensor range. The target starship takes 3d12+18 force damage (DC 38 basic Will save). On a failure, the Barrow Cenotaph chooses a battle station on the target starship to become malfunctioning."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 215
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

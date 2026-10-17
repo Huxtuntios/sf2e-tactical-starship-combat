@@ -1,0 +1,808 @@
+{
+ "faction": "Starships of Near Space",
+ "ships": [
+  {
+   "id": "sword-class-attack-vessel",
+   "name": "Sword-class Attack Vessel",
+   "level": 2,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Gideron Authority Starships",
+   "perception": 7,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 7,
+    "intimidation": 8,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 1,
+    "dex": 3,
+    "con": 2,
+    "int": 3,
+    "wis": 1,
+    "cha": 2
+   },
+   "ac": 17,
+   "fort": 9,
+   "ref": 9,
+   "will": 5,
+   "hp": 30,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "resistances": "piercing 4",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "coilgun",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Ambush from Hell",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "ramming prow",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "ramming prow",
+     "kind": "melee",
+     "attack": 9,
+     "traits": [
+      "analog"
+     ],
+     "damage": "1d6+3 piercing"
+    },
+    {
+     "name": "coilgun",
+     "kind": "ranged",
+     "attack": 11,
+     "traits": [
+      "agile",
+      "analog",
+      "range increment 3 zones"
+     ],
+     "damage": "1d6+3 piercing"
+    },
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 11,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8+3 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "coilgun (page 208)"
+    },
+    {
+     "name": "Ambush from Hell",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Sword-Class Attack Vessel efficiently stores and recycles the ambient magical energy in Hell while traveling with its Helldrive. Surrounded by Hellish imagery and fire, it rushes forward and assails a foe. It Boosts Thrusters and makes a Strike against a starship."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 239
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "flint-class-mining-vessel",
+   "name": "Flint-class Mining Vessel",
+   "level": 3,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Marixah Republic Starships",
+   "perception": 8,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "computers": 10,
+    "piloting": 9
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 2,
+    "con": 3,
+    "int": 3,
+    "wis": 3,
+    "cha": 1
+   },
+   "ac": 18,
+   "fort": 10,
+   "ref": 9,
+   "will": 8,
+   "hp": 30,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "resistances": "bludgeoning 3",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "hardlight net",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "coilgun",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "mining lasers",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "starmetal sensors",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "mining lasers",
+     "kind": "melee",
+     "attack": 12,
+     "traits": [
+      "razing",
+      "tech"
+     ],
+     "damage": "1d6+7 slashing"
+    },
+    {
+     "name": "coilgun",
+     "kind": "ranged",
+     "attack": 8,
+     "traits": [
+      "agile",
+      "analog",
+      "range increment 3 zones"
+     ],
+     "damage": "1d6+5 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Starmetal Sensors",
+     "cost": "passive",
+     "traits": [],
+     "text": "The Flint-Class Mining Vessel uses this sensor array to detect metals and minerals, but it also passively scans starship hulls within sensor range and automatically discerns their immunities, weaknesses, and resistances."
+    },
+    {
+     "name": "hardlight net",
+     "cost": "one-action",
+     "traits": [],
+     "text": "(1-zone burst, range 4 zones, tech), Damage 1d6+7 bludgeoning (DC 20 basic Reflex save); on a failure, targets take a –2-zone status penalty to Speed for 1 round (2 rounds on a critical failure)",
+     "mode": "area-fire",
+     "weapon": "hardlight net"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 240
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "sc-jackknife",
+   "name": "SC Jackknife",
+   "level": 3,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Szandite Collective Starships",
+   "perception": 12,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 9,
+    "piloting": 9
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 4,
+    "con": 2,
+    "int": 4,
+    "wis": 3,
+    "cha": 2
+   },
+   "ac": 19,
+   "fort": 7,
+   "ref": 11,
+   "will": 10,
+   "hp": 26,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "resistances": "piercing 2, slashing 2",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "hypervelocity macron accelerator",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 12,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8+3 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Szandite Crystal Comms",
+     "cost": "passive",
+     "traits": [],
+     "text": "The SC Jackknife can communicate with other Szandite Collective starships or settlements at any distance using its onboard szandite crystals, which allow for instant mental communication to other szandite crystals."
+    },
+    {
+     "name": "hypervelocity macron accelerator",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(2-zone cone, concussive, tech), Damage 1d10+3 electricity (DC 20 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "hypervelocity macron accelerator"
+    },
+    {
+     "name": "Fan of Knives",
+     "cost": "passive",
+     "traits": [],
+     "text": "While it’s within 0 zones of another SC Jackknife, the SC Jackknife’s Strikes and Area Fire attacks deal an additional 1d4 precision damage, and it gains a +1 circumstance bonus to AC."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 241
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "harpoon-class-blockade-vessel",
+   "name": "Harpoon-class Blockade Vessel",
+   "level": 4,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Gideron Authority Starships",
+   "perception": 10,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 10,
+    "intimidation": 12,
+    "piloting": 10
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 3,
+    "con": 3,
+    "int": 3,
+    "wis": 2,
+    "cha": 3
+   },
+   "ac": 20,
+   "fort": 11,
+   "ref": 11,
+   "will": 8,
+   "hp": 40,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "resistances": "piercing 4",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "gravity cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "heavy laser cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Tethered Harpoon",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Ambush from Hell",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "ramming prow",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "ramming prow",
+     "kind": "melee",
+     "attack": 12,
+     "traits": [
+      "analog"
+     ],
+     "damage": "2d6+4 piercing"
+    },
+    {
+     "name": "heavy laser cannon",
+     "kind": "ranged",
+     "attack": 14,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d10+4 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "gravity cannon",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "gravity cannon, 2d10+4 bludgeoning (DC 20 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "gravity cannon",
+     "source": "aon"
+    },
+    {
+     "name": "Ambush from Hell",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "As Sword-Class Attack Vessel. — [Sword-Class Attack Vessel: The Sword-Class Attack Vessel efficiently stores and recycles the ambient magical energy in Hell while traveling with its Helldrive. Surrounded by Hellish imagery and fire, it rushes forward and assails a foe. It Boosts Thrusters and makes a Strike against a starship.]",
+     "relocated": true
+    },
+    {
+     "name": "Tethered Harpoon",
+     "cost": "one-action",
+     "traits": [
+      "attack"
+     ],
+     "text": "Frequency once per round; Effect The Harpoon-Class Blockade Vessel fires a massive harpoon attached to a cable at a target within 4 zones. The target must attempt a DC 20 Reflex save; it gains a +2 status bonus to this save if it has any Shield Points. On a failure, the harpoon attaches to the target, which takes a –2-zone circumstance penalty to its Speed and a –2 circumstance penalty to Piloting checks and DCs until it detaches the harpoon. The target can detach the harpoon by succeeding at a DC 20 Piloting check; it can attempt this check as a single action that’s a pilot’s console station action or as a free action it can take whenever it moves at least 1 zone.",
+     "relocated": true
+    },
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "ramming prow (page 208)",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 239
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "cloak-class-ambassador-vessel",
+   "name": "Cloak-class Ambassador Vessel",
+   "level": 5,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Marixah Republic Starships",
+   "perception": 12,
+   "sensorRange": 6,
+   "speed": 4,
+   "skills": {
+    "computers": 13,
+    "piloting": 14,
+    "stealth": 16
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 5,
+    "con": 3,
+    "int": 4,
+    "wis": 4,
+    "cha": 5
+   },
+   "ac": 21,
+   "fort": 10,
+   "ref": 14,
+   "will": 13,
+   "hp": 45,
+   "sp": 16,
+   "fortify": 8,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Raise Cloak",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Run Blockade",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "pulse beam cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+5 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "pulse beam cannon",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(3-zone line, nonlethal, tech), Damage 2d8+3 electricity (DC 22 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "pulse beam cannon"
+    },
+    {
+     "name": "Raise Cloak",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Requirements The Cloak-Class Ambassador Vessel has at least 1 Shield Point; Effect; The Cloak-Class Ambassador Vessel charges its shields with a field of concealing energy. It’s invisible to other starships’ sensors until the end of its next turn or until it takes a hostile action, whichever happens first."
+    },
+    {
+     "name": "Run Blockade",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "As BD Freighter. — [BD Freighter: The BD Freighter diverts power to its generator and Boosts Thrusters while performing evasive maneuvers. This movement doesn’t trigger reactions, and the BD Freighter gains a +1 circumstance bonus to AC and Reflex saves until the start of its next turn.]"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 240
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "sc-vaultship",
+   "name": "SC Vaultship",
+   "level": 7,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of Near Space",
+   "family": "Szandite Collective Starships",
+   "perception": 18,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 16,
+    "piloting": 12
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 7,
+    "int": 6,
+    "wis": 4,
+    "cha": 4
+   },
+   "ac": 22,
+   "fort": 18,
+   "ref": 12,
+   "will": 15,
+   "hp": 100,
+   "sp": 24,
+   "fortify": 12,
+   "immunities": "starship immunities",
+   "resistances": "fire 10, piercing 10",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "hypervelocity macron accelerator",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "mining lasers",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "mining lasers",
+     "kind": "melee",
+     "attack": 17,
+     "traits": [
+      "razing",
+      "tech"
+     ],
+     "damage": "2d6+11 slashing"
+    },
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 16,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+7 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Szandite Crystal Comms",
+     "cost": "passive",
+     "traits": [],
+     "text": "As SC Jackknife. — [SC Jackknife: The SC Jackknife can communicate with other Szandite Collective starships or settlements at any distance using its onboard szandite crystals, which allow for instant mental communication to other szandite crystals.]"
+    },
+    {
+     "name": "Slow and Steady",
+     "cost": "passive",
+     "traits": [],
+     "text": "The SC Vaultship is immune to penalties to its Speed and to the immobilized condition, and it ignores effects that increase its movement cost."
+    },
+    {
+     "name": "hypervelocity macron accelerator",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(2-zone cone, concussive, tech), Damage 2d10+4 electricity (DC 26 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "hypervelocity macron accelerator"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 241
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

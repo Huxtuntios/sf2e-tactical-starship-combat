@@ -1,0 +1,30 @@
+<div class="tsc-map-viewport" {{#if noCombat}}hidden{{/if}}>
+<div class="tsc-map-background" aria-hidden="true"></div>
+<div class="tsc-zones" role="grid" title="{{localize 'SF2eTSC.ui.dragHint'}}" {{#if noCombat}}hidden{{/if}}>
+{{#unless noCombat}}
+      {{#each zones}}
+      <div class="tsc-zone {{#if cover}}has-cover{{/if}} {{#if concealment}}has-concealment{{/if}} {{#if crowded}}crowded{{/if}}" role="gridcell" data-zone="{{zone}}" data-action="pickZone" aria-label="{{localize 'SF2eTSC.ui.zone'}} {{label}}">
+        <div class="tsc-zone-head"><span class="tsc-zone-num">{{label}}</span>
+          {{#if cover}}<i class="fa-solid fa-shield" title="{{localize 'SF2eTSC.ui.cover'}}"></i>{{/if}}
+          {{#if concealment}}<i class="fa-solid fa-cloud" title="{{localize 'SF2eTSC.ui.concealment'}}"></i>{{/if}}
+          {{#if special}}<i class="fa-solid fa-star" title="{{special}}"></i>{{/if}}
+          {{#if hasNotes}}<i class="fa-solid fa-note-sticky" title="{{publicNotes}}"></i>{{/if}}
+          {{#if @root.isGM}}<a data-action="editZone" data-zone="{{zone}}" aria-label="{{localize 'SF2eTSC.ui.editZone'}}"><i class="fa-solid fa-pen"></i></a>{{/if}}
+        </div>
+        <div class="tsc-zone-objects">
+        {{#each objects}}
+          <button type="button" class="tsc-obj type-{{type}} st-{{status}} {{#if selected}}selected{{/if}} {{#if current}}current{{/if}} {{#if target}}tgt-{{target}}{{/if}} {{#if hiddenObj}}gm-hidden{{/if}}" data-action="selectObject" data-object-key="{{key}}" title="{{label}} — {{statusLabel}}{{#if hp}} — {{localize 'SF2eTSC.ui.hp'}} {{hp}}{{#if sp}} · {{localize 'SF2eTSC.ui.sp'}} {{sp}}{{/if}}{{/if}}{{#if targetLabel}} — {{targetLabel}}{{/if}}" aria-label="{{label}} {{statusLabel}}">
+            <span class="tsc-obj-icon">{{#if art}}<img class="tsc-object-art" src="{{art}}" alt="" draggable="false"><span hidden>{{icon}}</span>{{else}}{{icon}}{{/if}}</span>
+            <span class="tsc-obj-name">{{label}}</span>
+            {{#if arrow}}<span class="tsc-obj-arrow" aria-label="{{heading}}">{{arrow}}</span>{{/if}}
+            {{#if hp}}<span class="tsc-obj-bars" aria-hidden="true"><span class="b hp"><i style="width:{{hpPct}}%"></i></span>{{#if sp}}<span class="b sp"><i style="width:{{spPct}}%"></i></span>{{/if}}</span>{{/if}}
+            {{#if targetLabel}}<span class="tsc-obj-tgt">{{targetLabel}}</span>{{/if}}
+          </button>
+        {{/each}}
+        </div>
+      </div>
+      {{/each}}
+{{/unless}}
+</div>
+
+</div>

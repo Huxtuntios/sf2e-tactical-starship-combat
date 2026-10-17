@@ -1,0 +1,45 @@
+{
+  "name": "sf2e-tactical-starship-combat",
+  "version": "0.14.0",
+  "private": true,
+  "type": "module",
+  "description": "Tactical starship combat for Foundry VTT v14 / Starfinder Second Edition (sf2e)",
+  "scripts": {
+    "test": "node --test \"tests/unit/*.test.mjs\" \"tests/architecture/*.test.mjs\"",
+    "test:full": "node tools/build-packs.mjs && npm test",
+    "lint": "eslint scripts tools tests --max-warnings 0",
+    "lint:fix": "eslint scripts --fix",
+    "format:check": "prettier --check .",
+    "validate": "node tools/validate-content.mjs",
+    "build:packs": "node tools/build-packs.mjs",
+    "package": "node tools/build-release.mjs",
+    "format": "prettier --write .",
+    "check": "npm run format:check && npm run lint && npm run validate && npm run build:packs && npm test",
+    "build:release": "npm run build:packs && node tools/build-release.mjs",
+    "test:ui": "node tools/test-ui.mjs"
+  },
+  "license": "ORC",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@foundryvtt/foundryvtt-cli": "^3.0.5",
+    "eslint": "10.0.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "fflate": "0.8.3",
+    "globals": "^17.13.0",
+    "handlebars": "^4.7.10",
+    "playwright": "1.63.0",
+    "prettier": "^3.9.10"
+  },
+  "author": "Huxtuntios",
+  "homepage": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

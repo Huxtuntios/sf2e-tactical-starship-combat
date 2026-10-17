@@ -1,0 +1,28 @@
+name: Bug report / Ошибка
+description: Report a reproducible module problem without private world data.
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions / Версии
+      description: Module, Foundry VTT and SF2e system versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps / Как повторить
+      description: Include GM/player role, expected result and actual result.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console error / Ошибка консоли
+      description: Paste relevant errors. Remove tokens, private URLs and character/world data.
+      render: text
+  - type: textarea
+    id: modules
+    attributes:
+      label: Other modules / Другие модули
+      description: Does the problem reproduce in a test world with only this module enabled?

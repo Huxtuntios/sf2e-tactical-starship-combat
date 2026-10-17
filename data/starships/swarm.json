@@ -1,0 +1,527 @@
+{
+ "faction": "Swarm",
+ "ships": [
+  {
+   "id": "hivebound-clustership",
+   "name": "Hivebound Clustership",
+   "level": 2,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "kucharn"
+   ],
+   "faction": "Swarm",
+   "family": "Swarm",
+   "perception": 5,
+   "sensorRange": 3,
+   "speed": 5,
+   "skills": {
+    "athletics": 11,
+    "piloting": 5
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 1,
+    "con": 3,
+    "int": -3,
+    "wis": 2,
+    "cha": -2
+   },
+   "ac": 17,
+   "fort": 11,
+   "ref": 5,
+   "will": 8,
+   "hp": 28,
+   "sp": 0,
+   "fortify": 0,
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "biocannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "cluster maw",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Motor Aggression Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "distributed hive mind",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Natural Senses"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "cluster maw",
+     "kind": "melee",
+     "attack": 11,
+     "traits": [
+      "unarmed"
+     ],
+     "damage": "1d10+4 piercing"
+    },
+    {
+     "name": "biocannon",
+     "kind": "ranged",
+     "attack": 9,
+     "traits": [
+      "range increment 2 zones",
+      "unarmed"
+     ],
+     "damage": "1d6+3 acid"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "cluster maw (page 208)"
+    },
+    {
+     "name": "Distributed Hive Mind",
+     "cost": "passive",
+     "traits": [],
+     "text": "The Clustership treats all starships in its zone or in the same zone as another Clustership as off-guard."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 232
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "hivebound-propagator",
+   "name": "Hivebound Propagator",
+   "level": 4,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "kucharn"
+   ],
+   "faction": "Swarm",
+   "family": "Swarm",
+   "perception": 11,
+   "sensorRange": 5,
+   "speed": 2,
+   "skills": {
+    "nature": 9,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 5,
+    "dex": 1,
+    "con": 3,
+    "int": 2,
+    "wis": 3,
+    "cha": -2
+   },
+   "ac": 22,
+   "fort": 11,
+   "ref": 8,
+   "will": 10,
+   "hp": 74,
+   "sp": 0,
+   "fortify": 0,
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "swarming gun",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Dislodge Clustership",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Cluster Network"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Feeding Frenzy",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Natural Senses"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "swarming gun",
+     "kind": "ranged",
+     "attack": 14,
+     "traits": [
+      "agile",
+      "range increment 4 zones"
+     ],
+     "damage": "2d6+5 bludgeoning"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Dislodge Clustership",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Propagator shudders as it dislodges a smaller component. It reduces its maximum and current HP each by 28 and becomes clumsy 1 for 1 round. A Hivebound Clustership (see above) appears in the same zone and rolls initiative, taking its turn during the next round of combat; the Clustership is stunned 1 when it appears."
+    },
+    {
+     "name": "Feeding Frenzy",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Propagator disperses a haze of pheromones in a zone within sensor range that lasts for 1 round, provoking other swarm ships into a feeding frenzy. Kucharn starships in the zone get a +1 status bonus to melee attack rolls."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 232
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "converted-dreadnought",
+   "name": "Converted Dreadnought",
+   "level": 10,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "kucharn",
+    "tech"
+   ],
+   "faction": "Swarm",
+   "family": "Swarm",
+   "perception": 16,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "computers": 16,
+    "piloting": 18
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 3,
+    "con": 7,
+    "int": 4,
+    "wis": 5,
+    "cha": -2
+   },
+   "ac": 30,
+   "fort": 22,
+   "ref": 16,
+   "will": 19,
+   "hp": 160,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities (except poison and void)",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Discharge Swarmlings",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Hundredfold Laser Barrage",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "swarming fusillade",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Ultimate Mindwarp Cannon",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "swarming fusillade",
+     "kind": "ranged",
+     "attack": 14,
+     "traits": [
+      "agile",
+      "range increment 4 zones"
+     ],
+     "damage": "2d6+10 bludgeoning plus 1d6 acid"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Discharge Swarmlings",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Dreadnought releases a swarm of tiny, short-lived components from the hives that clog its fighter bays. Starships in a 1-zone emanation take 4d8 acid damage (DC 28 basic Fortitude save). On a failed save, they’re also off-guard until the end of the Dreadnought’s next turn."
+    },
+    {
+     "name": "Hundredfold Laser Barrage",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Dreadnought’s commandeered laser cannons unleash a fusillade of fire. Starships in a 2-zone cone take 6d6 fire damage (DC 28 basic Reflex save)."
+    },
+    {
+     "name": "Ultimate Mindwarp Cannon",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The Dreadnought concentrates the full force of its colony mind through its spinal weapon, releasing a wave of psychic force in a 6-zone line in the direction of its heading. Starships in the area take 12d8 mental damage with a DC 30 basic Will save. On a failure, each member of the starship’s crew becomes frightened 1 (frightened 2 on a critical failure); this is an emotion, fear, and mental effect. within the szynegator swarm’s comm occlusion aura are malfunctioning as long as they’re in the aura."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 232
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "hivebound-behemoth",
+   "name": "Hivebound Behemoth",
+   "level": 17,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "kucharn"
+   ],
+   "faction": "Swarm",
+   "family": "Swarm",
+   "perception": 32,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "nature": 33,
+    "piloting": 28
+   },
+   "abilities": {
+    "str": 10,
+    "dex": 6,
+    "con": 9,
+    "int": 4,
+    "wis": 5,
+    "cha": -2
+   },
+   "ac": 38,
+   "fort": 32,
+   "ref": 29,
+   "will": 26,
+   "hp": 400,
+   "sp": 0,
+   "fortify": 0,
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "devouring maw",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Psychic Scream",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "swarming fusillade",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Thrashing Charge",
+       "unique": true,
+       "shared": true
+      }
+     ],
+     "label": "Cluster Network"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Thrashing Charge",
+       "unique": true,
+       "shared": true
+      }
+     ],
+     "label": "Locomotion Organelle"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "devouring maw",
+     "kind": "melee",
+     "attack": 35,
+     "traits": [
+      "unarmed"
+     ],
+     "damage": "3d12+10 piercing plus 2d6 acid plus bilgebiters"
+    },
+    {
+     "name": "swarming fusillade",
+     "kind": "ranged",
+     "attack": 32,
+     "traits": [
+      "agile",
+      "range increment 4 zones"
+     ],
+     "damage": "3d8+10 bludgeoning plus 2d6 acid"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Bilgebiters",
+     "cost": "passive",
+     "traits": [],
+     "text": "When the Behemoth hits and deals damage to a starship with its devouring maw, it injects millions of tiny components into the targeted starship. A szynegator swarm (Starfinder Alien Core 183) appears in a space of the Behemoth’s choice inside the targeted starship, taking its turn immediately after the Behemoth."
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "devouring maw (page 208)"
+    },
+    {
+     "name": "Thrashing Charge",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect The Behemoth rushes recklessly at its prey, Boosting Thrusters then making a melee Strike. It becomes off-guard until the start of its next turn.",
+     "relocated": true
+    },
+    {
+     "name": "Psychic Scream",
+     "cost": "two-actions",
+     "traits": [
+      "emotion",
+      "fear",
+      "mental"
+     ],
+     "text": "The Behemoth howls through its colony mind. Each crew member of a non-kucharn starship in a 1-zone emanation must succeed at a DC 38 Will save or become frightened 2. The zone the Behemoth is in is filled with lingering psychic energy that lasts for 1 round; creatures on starships within the same zone as the Behemoth don’t reduce their frightened condition at the end of their turn, and starships that start their turn in the zone must succeed at a DC 38 Will save or be stunned 1.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 233
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

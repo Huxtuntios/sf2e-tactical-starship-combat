@@ -1,0 +1,38 @@
+name: Release
+on:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check automatic-upload compatibility
+        if: ${{ github.event.release.immutable }}
+        run: |
+          echo "::error::Cannot attach assets after publication to an immutable release. Attach prepared assets to a draft before publishing."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check tag and package versions
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node --input-type=module -e 'import fs from "node:fs"; const version = JSON.parse(fs.readFileSync("module.json")).version; if (process.env.RELEASE_TAG !== `v${version}`) throw new Error("Release tag must match module.json version");'
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - name: Build assets for this repository
+        run: node tools/build-release.mjs --repo "${{ github.repository }}"
+      - name: Attach assets to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" dist/module.json dist/module.zip dist/SHA256SUMS.txt --clobber

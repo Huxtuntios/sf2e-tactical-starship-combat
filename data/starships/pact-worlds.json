@@ -1,0 +1,1884 @@
+{
+ "faction": "Pact Worlds",
+ "ships": [
+  {
+   "id": "atech-gold-spacer-truck",
+   "name": "Atech Gold Spacer Truck",
+   "level": -1,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 5,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "computers": 4,
+    "piloting": 4
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 1,
+    "con": 2,
+    "int": 1,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 14,
+   "fort": 5,
+   "ref": 2,
+   "will": 7,
+   "hp": 7,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 4,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "1d4+1 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Cargo Ejection",
+     "cost": "passive",
+     "traits": [],
+     "text": "The cargo bay of an ATech Gold Spacer Truck instantly detaches and moves 1 zone away in the event the starship is destroyed, often ejecting at the same time and in the same direction as the starship’s escape pods."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 224
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "ringworks-sentinel",
+   "name": "Ringworks Sentinel",
+   "level": 0,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 6,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "computers": 4,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 3,
+    "con": 1,
+    "int": 2,
+    "wis": 2,
+    "cha": 2
+   },
+   "ac": 15,
+   "fort": 3,
+   "ref": 7,
+   "will": 6,
+   "hp": 8,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "resistances": "cold 2",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "asteroid breacher",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Starskim",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "asteroid breacher",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "concussive",
+      "range increment 2 zones",
+      "razing",
+      "tech",
+      "unwieldy"
+     ],
+     "damage": "1d6+1 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Starskim",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Sentinel has 5 SP; Effect The Sentinel uses its shields as sails. Increase its Speed to 5 zones, and it gains a +2 circumstance bonus to AC, but reduces its SP to 0. This effect ends when the Sentinel uses Fortify Shield Points."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 224
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "yolaku-canopyskipper",
+   "name": "Yolaku Canopyskipper",
+   "level": 1,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 7,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "computers": 5,
+    "piloting": 6
+   },
+   "abilities": {
+    "str": 1,
+    "dex": 3,
+    "con": 4,
+    "int": 2,
+    "wis": 2,
+    "cha": 2
+   },
+   "ac": 14,
+   "fort": 9,
+   "ref": 8,
+   "will": 5,
+   "hp": 22,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Dropship Cables",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "machine gun",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "machine gun",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "automatic",
+      "analog",
+      "range increment 4 zones"
+     ],
+     "damage": "2d4 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "machine gun",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(2-zone cone, analog), Damage 2d4 piercing (DC 17 basic Reflex save)",
+     "mode": "auto-fire",
+     "weapon": "machine gun"
+    },
+    {
+     "name": "Dropship Cables",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Canopyskipper can deploy or retrieve up to eight cables at once up to 300 feet downward, each of which can be held onto or Climbed with a successful DC 10 Athletics check. At the ends of each of these cables is a magnet capable of lifting up to 6 Bulk and are intended to affix to armor. They require a creature adjacent to the magnet to use an Interact action to attach the cable. Multiple cables can be used to lift larger loads, with each additional cable increasing the amount of Bulk that can be lifted by 6."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 224
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "kevolari-wanderlust",
+   "name": "Kevolari Wanderlust",
+   "level": 2,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 8,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 8,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 3,
+    "con": 3,
+    "int": 4,
+    "wis": 2,
+    "cha": 2
+   },
+   "ac": 17,
+   "fort": 9,
+   "ref": 9,
+   "will": 6,
+   "hp": 30,
+   "sp": 5,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Deploy Remote Turret",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Orbital Bombardment",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Shield Scramble",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 9,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d10+4 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Deploy Remote Turret",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Kevolari Wanderlust deploys a remote turret in its current zone. The turret is a tiny starship object with AC 18, 8 HP, Hardness 4, and object immunities. The Kevolari Wanderlust can have only two deployed remote turrets at a given time. If it would deploy a third, one of its previously deployed remote turret is destroyed."
+    },
+    {
+     "name": "Orbital Bombardment",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect Each remote turret of the Kevolari Wanderlust’s choice within sensor range targets a starship in its zone and fires a barrage of lasers. Multiple turrets can’t target the same starship. The targets take 2d6 fire damage with a DC 18 basic Reflex save."
+    },
+    {
+     "name": "Shield Scramble",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Requirements At least two remote turrets are currently deployed; Effect The satellites target a starship within the Wanderlust’s sensor range with a deluge of electromagnetic waves to disrupt the target’s shields. The target must succeed at a DC 18 Fortitude save or else its generator can’t use Fortify Shield Points until a creature helming the station uses an Interact action to restore shield generation capabilities with a successful DC 18 Crafting"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 225
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "skyfire-star-dragon",
+   "name": "Skyfire Star Dragon",
+   "level": 5,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "cosmic",
+    "divine",
+    "dragon"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 15,
+   "sensorRange": 4,
+   "speed": 3,
+   "skills": {
+    "acrobatics": 10,
+    "athletics": 12,
+    "diplomacy": 13,
+    "physical science lore": 13,
+    "piloting": 13,
+    "religion": 12,
+    "society": 12
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 2,
+    "con": 4,
+    "int": 2,
+    "wis": 5,
+    "cha": 4
+   },
+   "ac": 22,
+   "fort": 13,
+   "ref": 9,
+   "will": 14,
+   "hp": 75,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "drained, paralyzed, sleep",
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "cosmic attunement",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "cosmic blast",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "drift sense",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Stellar Breath",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Magic Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "claw",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Draconic Frenzy",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "jaws",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "tail",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Motor Organelle"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "jaws",
+     "kind": "melee",
+     "attack": 13,
+     "traits": [
+      "magical"
+     ],
+     "damage": "2d8+4 piercing plus cosmic attunement"
+    },
+    {
+     "name": "claw",
+     "kind": "melee",
+     "attack": 13,
+     "traits": [
+      "agile",
+      "magical"
+     ],
+     "damage": "2d6+4 slashing plus cosmic attunement"
+    },
+    {
+     "name": "tail",
+     "kind": "melee",
+     "attack": 11,
+     "traits": [
+      "magical"
+     ],
+     "damage": "2d10+8 bludgeoning plus cosmic attunement"
+    },
+    {
+     "name": "cosmic blast",
+     "kind": "ranged",
+     "attack": 11,
+     "traits": [
+      "divine",
+      "range increment 2 zones"
+     ],
+     "damage": "2d6+4 bludgeoning or fire (see cosmic attunement)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drift Sense",
+     "cost": "passive",
+     "traits": [],
+     "text": "The dragon can always sense the distance and direction to the nearest Drift beacon and to the Starstone on Absalom Station."
+    },
+    {
+     "name": "Attunement Aura",
+     "cost": "passive",
+     "traits": [
+      "aura",
+      "divine"
+     ],
+     "text": "1 zone. Allied starships in the aura gain a +1-zone status bonus to Speed (if dragon is photon-attuned), or enemies take a –1-zone status penalty to Speed (if dragon is graviton-attuned). These effects apply at the start of the starship’s turn and end at the start of its next turn."
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "claw (page 208)"
+    },
+    {
+     "name": "Cosmic Attunement",
+     "cost": "passive",
+     "traits": [
+      "divine"
+     ],
+     "text": "The dragon is always attuned to an underlying stellar force: either photons or gravitons. They can swap attunement as a free action once at the start of their turn in combat and is otherwise attuned to whichever force they choose at any time outside of combat. While photon-attuned, the dragon’s melee Strikes deal an additional 2d6 fire damage; while graviton-attuned, their melee Strikes deal additional 1d6 bludgeoning damage plus the target becomes off-guard until the end of the dragon’s current turn. The damage of their cosmic blast Strike is determined by their current attunement (fire for photons and bludgeoning for gravitons), as are the effects of some of their other abilities."
+    },
+    {
+     "name": "Draconic Frenzy",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The dragon makes two claw Strikes and one tail Strike in any order."
+    },
+    {
+     "name": "Draconic Momentum",
+     "cost": "passive",
+     "traits": [],
+     "text": "The dragon recharges their Stellar Breath whenever they score a critical hit with a Strike."
+    },
+    {
+     "name": "Stellar Breath",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "cold"
+     ],
+     "text": "The dragon unleashes divine power like that from the core of a star or black hole, dealing 4d10 cold damage in a 1-zone cone (DC 22 basic Will save). Starships immune to cold damage take bludgeoning or fire damage instead (see cosmic attunement). The dragon can’t use Stellar Breath for 1d4 rounds."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 225
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "sfs-moonhopper",
+   "name": "SFS Moonhopper",
+   "level": 6,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 17,
+   "sensorRange": 5,
+   "speed": 5,
+   "skills": {
+    "computers": 13,
+    "piloting": 15
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 2,
+    "con": 4,
+    "int": 4,
+    "wis": 4,
+    "cha": 2
+   },
+   "ac": 22,
+   "fort": 16,
+   "ref": 14,
+   "will": 14,
+   "hp": 49,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Overclock Shield",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "shield bash",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "shield bash",
+     "kind": "melee",
+     "attack": 17,
+     "traits": [
+      "tech"
+     ],
+     "damage": "2d6+8 bludgeoning plus shield drain"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "shield bash (page 208)"
+    },
+    {
+     "name": "Overclock Shield",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements The Moonhopper has 30 Shield Points; Effect Lower the number of Shield Points the Moonhopper has by 15. The next time this turn the Moonhopper makes a shield bash Strike, it deals an additional 3d6 electricity damage."
+    },
+    {
+     "name": "Shield Drain",
+     "cost": "passive",
+     "traits": [],
+     "text": "The Moonhopper’s iconic shield-draining technology makes it a powerful tool for Starfinders. The first time each turn that the Moonhopper successfully hits a target with its shield bash, it gains SP equal to the number of SP its target lost, up to the Moonhopper’s fortify value."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 226
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "aspis-moonlighter",
+   "name": "Aspis Moonlighter",
+   "level": 7,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 17,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 15,
+    "piloting": 15,
+    "stealth": 17
+   },
+   "abilities": {
+    "str": 1,
+    "dex": 6,
+    "con": 3,
+    "int": 2,
+    "wis": 4,
+    "cha": 3
+   },
+   "ac": 25,
+   "fort": 15,
+   "ref": 17,
+   "will": 13,
+   "hp": 80,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "gyrolaser",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "wraith torpedo ×2",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Cloak Starship",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "gyrolaser",
+     "kind": "ranged",
+     "attack": 16,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d8+8 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Smuggler Compartment",
+     "cost": "passive",
+     "traits": [],
+     "text": "The Moonlighter has a secure compartment below the main deck for cargo, which scanners have trouble detecting due to the hull’s shape. The compartment can hold up to 48 Bulk. Creatures gain a +4 circumstance bonus to Stealth checks and DCs to hide or conceal themselves or equipment in this compartment."
+    },
+    {
+     "name": "wraith torpedo ×2",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, consumable, range 3 zones, razing, tech), Damage 8d6 cold (DC 23 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "wraith torpedo"
+    },
+    {
+     "name": "Cloak Starship",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Frequency once per day; Effect The Aspis Moonlighter becomes invisible for 1 hour. This makes it undetected to all starships, though starships can attempt to Seek Starships against it, making it hidden to them instead. If the Moonlighter uses a hostile action, the invisibility ends after that hostile action is completed. Stealth Torpedo System These large missiles are invisible until they explode and firing them doesn’t end the Moonlighter’s Cloak Starship ability. As long as the Moonlighter is invisible, only enemies who can see the Moonlighter can use reactions against the Area Fire of a wraith torpedo."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 226
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "idaran-cantripper",
+   "name": "Idaran Cantripper",
+   "level": 7,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "magical",
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 16,
+   "sensorRange": 5,
+   "speed": 5,
+   "skills": {
+    "computers": 17,
+    "piloting": 15
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 4,
+    "con": 3,
+    "int": 6,
+    "wis": 3,
+    "cha": 2
+   },
+   "ac": 25,
+   "fort": 14,
+   "ref": 19,
+   "will": 16,
+   "hp": 88,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "resistances": "cold 5, fire 5",
+   "stations": [
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "arcane shot",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Nova Ball",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "arcane shot",
+     "kind": "ranged",
+     "attack": 17,
+     "traits": [
+      "magical",
+      "range increment 2 zones",
+      "versatile C"
+     ],
+     "damage": "4d6+6 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Nova Ball",
+     "cost": "two-actions",
+     "traits": [
+      "arcane",
+      "fire"
+     ],
+     "text": "Resistances three times per day; Effect The Cantripper creates an explosion mimicking the death of a star in a zone within sensor range. Starships in that zone take 6d6 fire damage (DC 24 basic Reflex save)."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 227
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "skyfire-galactic-dragon",
+   "name": "Skyfire Galactic Dragon",
+   "level": 8,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "cosmic",
+    "divine",
+    "dragon"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 15,
+   "sensorRange": 4,
+   "speed": 3,
+   "skills": {
+    "acrobatics": 15,
+    "athletics": 16,
+    "diplomacy": 18,
+    "physical science lore": 17,
+    "piloting": 17,
+    "religion": 18,
+    "society": 17
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 4,
+    "int": 3,
+    "wis": 6,
+    "cha": 4
+   },
+   "ac": 27,
+   "fort": 16,
+   "ref": 13,
+   "will": 20,
+   "hp": 102,
+   "sp": 14,
+   "fortify": 7,
+   "immunities": "drained, paralyzed, sleep",
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "cosmic attunement",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "cosmic blast",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "drift sense",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Stellar Breath",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Magic Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "claw",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Draconic Frenzy",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "jaws",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "tail",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Motor Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "machine gun",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Riding Adventurers"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "jaws",
+     "kind": "melee",
+     "attack": 18,
+     "traits": [
+      "magical"
+     ],
+     "damage": "2d8+7 piercing plus cosmic attunement"
+    },
+    {
+     "name": "claw",
+     "kind": "melee",
+     "attack": 18,
+     "traits": [
+      "agile",
+      "magical"
+     ],
+     "damage": "2d6+7 slashing plus cosmic attunement"
+    },
+    {
+     "name": "tail",
+     "kind": "melee",
+     "attack": 16,
+     "traits": [
+      "magical"
+     ],
+     "damage": "2d10+11 bludgeoning plus cosmic attunement"
+    },
+    {
+     "name": "cosmic blast",
+     "kind": "ranged",
+     "attack": 11,
+     "traits": [
+      "divine",
+      "range increment 2 zones"
+     ],
+     "damage": "2d6+4 bludgeoning or fire (see cosmic attunement)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drift Sense",
+     "cost": "passive",
+     "traits": [],
+     "text": "As Skyfire Star Dragon. — [Skyfire Star Dragon: The dragon can always sense the distance and direction to the nearest Drift beacon and to the Starstone on Absalom Station.]"
+    },
+    {
+     "name": "Attunement Aura",
+     "cost": "passive",
+     "traits": [
+      "aura",
+      "divine"
+     ],
+     "text": "As Skyfire Star Dragon. — [Skyfire Star Dragon: 1 zone. Allied starships in the aura gain a +1-zone status bonus to Speed (if dragon is photon-attuned), or enemies take a –1-zone status penalty to Speed (if dragon is graviton-attuned). These effects apply at the start of the starship’s turn and end at the start of its next turn.]"
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "claw (page 208)"
+    },
+    {
+     "name": "machine gun",
+     "cost": "one-action",
+     "traits": [],
+     "text": "(1-zone cone, analog), Damage 5d6 piercing (DC 26 basic Reflex save)",
+     "mode": "auto-fire",
+     "weapon": "machine gun"
+    },
+    {
+     "name": "Cosmic Attunement",
+     "cost": "passive",
+     "traits": [
+      "divine"
+     ],
+     "text": "As Skyfire Star Dragon. — [Skyfire Star Dragon: The dragon is always attuned to an underlying stellar force: either photons or gravitons. They can swap attunement as a free action once at the start of their turn in combat and is otherwise attuned to whichever force they choose at any time outside of combat. While photon-attuned, the dragon’s melee Strikes deal an additional 2d6 fire damage; while graviton-attuned, their melee Strikes deal additional 1d6 bludgeoning damage plus the target becomes off-guard until the end of the dragon’s current turn. The damage of their cosmic blast Strike is determined by their current attunement (fire for photons and bludgeoning for gravitons), as are the effects of some of their other abilities.]"
+    },
+    {
+     "name": "Draconic Frenzy",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "As Skyfire Star Dragon. — [Skyfire Star Dragon: The dragon makes two claw Strikes and one tail Strike in any order.]"
+    },
+    {
+     "name": "Draconic Momentum",
+     "cost": "passive",
+     "traits": [],
+     "text": "As Skyfire Star Dragon. — [Skyfire Star Dragon: The dragon recharges their Stellar Breath whenever they score a critical hit with a Strike.]"
+    },
+    {
+     "name": "Stellar Breath",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "cold"
+     ],
+     "text": "As Skyfire Star Dragon, but a 2-zone cone, 6d10 cold damage, and DC 26. — [Skyfire Star Dragon: The dragon unleashes divine power like that from the core of a star or black hole, dealing 4d10 cold damage in a 1-zone cone (DC 22 basic Will save). Starships immune to cold damage take bludgeoning or fire damage instead (see cosmic attunement). The dragon can’t use Stellar Breath for 1d4 rounds.]"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 227
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "skyfire-trident",
+   "name": "Skyfire Trident",
+   "level": 8,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 18,
+   "sensorRange": 4,
+   "speed": 6,
+   "skills": {
+    "computers": 14,
+    "piloting": 17
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 4,
+    "con": 1,
+    "int": 3,
+    "wis": 4,
+    "cha": 3
+   },
+   "ac": 27,
+   "fort": 11,
+   "ref": 19,
+   "will": 16,
+   "hp": 110,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "draconic javelin",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Drill Dive",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Stellar Breath",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "draconic javelin",
+     "kind": "ranged",
+     "attack": 20,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d8+8 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Engaged Strike",
+     "cost": "reaction",
+     "traits": [],
+     "text": "draconic javelin (page 208)"
+    },
+    {
+     "name": "Drill Dive",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Trident Boosts Thrusters, barreling toward its foe. If the Trident moves at least 1 zone, a starship within 0 zones takes 3d12 piercing damage and must attempt a DC 24 Fortitude save. Critical Success The target is unaffected. Success The target takes half damage and is off-guard to the next Strike the Trident makes against it for 1 round. Failure The target takes full damage. It’s off-kilter and off-guard while it’s off-kilter. Critical Failure The target takes double damage. It’s off-kilter and off-guard while it’s off-kilter. The Trident can push the target back 1 zone in the direction of the Trident’s heading."
+    },
+    {
+     "name": "Stellar Breath",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "cold"
+     ],
+     "text": "As Skyfire Star Dragon, but a 2-zone cone, 6d10 cold damage, and DC 26. — [Skyfire Star Dragon: The dragon unleashes divine power like that from the core of a star or black hole, dealing 4d10 cold damage in a 1-zone cone (DC 22 basic Will save). Starships immune to cold damage take bludgeoning or fire damage instead (see cosmic attunement). The dragon can’t use Stellar Breath for 1d4 rounds.]"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 228
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "symbiotic-oma",
+   "name": "Symbiotic Oma",
+   "level": 11,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "beast",
+    "cosmic",
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 21,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "athletics": 22,
+    "intimidation": 23,
+    "nature": 21,
+    "piloting": 21
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 3,
+    "con": 7,
+    "int": 3,
+    "wis": 4,
+    "cha": 5
+   },
+   "ac": 30,
+   "fort": 24,
+   "ref": 18,
+   "will": 21,
+   "hp": 190,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "cold, electricity",
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Cavatina",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "electrostatic discharge",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Magic Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Swallow Starship",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "tail",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Motor Organelle"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "tail",
+     "kind": "melee",
+     "attack": 22,
+     "traits": [
+      "unarmed"
+     ],
+     "damage": "2d12+20 bludgeoning"
+    },
+    {
+     "name": "electrostatic discharge",
+     "kind": "ranged",
+     "attack": 22,
+     "traits": [
+      "primal",
+      "range increment 1 zone"
+     ],
+     "damage": "2d12+8 electricity plus overloading strike"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Cavatina",
+     "cost": "two-actions",
+     "traits": [
+      "auditory",
+      "concentrate",
+      "mental",
+      "primal"
+     ],
+     "text": "See oma (Starfinder Alien Core 127), DC 30, range 1 zone."
+    },
+    {
+     "name": "Overloading Strike",
+     "cost": "passive",
+     "traits": [],
+     "text": "When an oma critically hits with its electrostatic discharge Strike, the target must succeed at a DC 30 basic Reflex save or one battle station on the starship of the oma’s choice becomes malfunctioning."
+    },
+    {
+     "name": "Swallow Starship",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The oma attempts to swallow whole another starship within 0 zones. The target must attempt a DC 30 Reflex save or become swallowed. While swallowed, the starship is immobilized, the oma is off-guard to it, it can target only the oma with any of its abilities, and it can’t be targeted by effects from starships that aren’t swallowed by the oma. Damage dealt against the oma by a starship it has swallowed doesn’t damage its SP but directly damages its HP instead. A creature helming the pilot’s console can attempt a DC 30 Piloting check as a single action that’s a pilot console station action to stop being swallowed. Alternatively, if the"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 229
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "aac-vigilance",
+   "name": "AAC Vigilance",
+   "level": 12,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 23,
+   "sensorRange": 5,
+   "speed": 6,
+   "skills": {
+    "computers": 21,
+    "piloting": 25
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 7,
+    "con": 5,
+    "int": 3,
+    "wis": 5,
+    "cha": 5
+   },
+   "ac": 33,
+   "fort": 21,
+   "ref": 25,
+   "will": 23,
+   "hp": 170,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "buster cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "plasma torpedo",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Hoist Petard",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "buster cannon",
+     "kind": "ranged",
+     "attack": 25,
+     "traits": [
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "3d10+14 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Hoist Petard",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger The Vigilance is targeted by missiles or torpedoes; Requirements There’s another target within range of the Vigilance’s Speed and the triggering attack’s range; Effect The Vigilance Boosts Thrusters and selects one other starship in a zone it passes through to become the new target of the attack, as long as that starship is also within range of the triggering effect. This can include the starship that made the triggering effect."
+    },
+    {
+     "name": "plasma torpedo",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range 5 zones, tech), Damage 5d8 fire (DC 29 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "plasma torpedo"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 228
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "opulus-drift-cruiser",
+   "name": "Opulus Drift Cruiser",
+   "level": 12,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 23,
+   "sensorRange": 10,
+   "speed": 5,
+   "skills": {
+    "computers": 22,
+    "piloting": 18
+   },
+   "abilities": {
+    "str": 5,
+    "dex": 4,
+    "con": 8,
+    "int": 4,
+    "wis": 5,
+    "cha": 6
+   },
+   "ac": 30,
+   "fort": 26,
+   "ref": 20,
+   "will": 23,
+   "hp": 216,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "EMP cannon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "flak thrower",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Emergency Reorientation",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "EMP cannon",
+     "kind": "ranged",
+     "attack": 24,
+     "traits": [
+      "nonlethal",
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "3d10+14 electricity plus system shock"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Emergency Reorientation",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger The Opulus Drift Cruiser would become off-kilter; Effect The Opulus Drift Cruiser automatically rights itself, losing the off-kilter condition."
+    },
+    {
+     "name": "flak thrower",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, concussive, range 5 zones, tech), Damage 5d8 bludgeoning (DC 29 basic Reflex save) plus micrometeor cloud Micrometeor Cloud The nearest zone to the Opulus Drift Cruiser affected by the flak thrower’s Area Fire becomes filled with flak for 1 round. The flak deals 5d4 piercing damage to Medium or smaller starships that move through that zone (DC 29 basic Reflex save). A starship that ends its movement in the zone or starts its movement in the zone is unaffected. System Shock A starship that takes damage from the Opulus Drift Cruiser’s EMP cannon must succeed at a DC 29 Fortitude save or its generator battle station becomes malfunctioning (DC 29 to Repair Station). On a critical hit, Repairing the Station requires a DC 31 Computers or Crafting check.",
+     "mode": "area-fire",
+     "weapon": "flak thrower"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 228
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "atech-gold-bazaar",
+   "name": "Atech Gold Bazaar",
+   "level": 14,
+   "size": "unique",
+   "rarity": "common",
+   "traits": [
+    "gargantuan",
+    "tech"
+   ],
+   "faction": "Pact Worlds",
+   "family": "Pact Worlds",
+   "perception": 24,
+   "sensorRange": 8,
+   "speed": 2,
+   "skills": {
+    "computers": 26,
+    "intimidation": 27,
+    "piloting": 25,
+    "religion": 25
+   },
+   "abilities": {
+    "str": 8,
+    "dex": 4,
+    "con": 9,
+    "int": 5,
+    "wis": 4,
+    "cha": 6
+   },
+   "ac": 35,
+   "fort": 28,
+   "ref": 22,
+   "will": 24,
+   "hp": 230,
+   "sp": 40,
+   "fortify": 20,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "starballista",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Charity Lance",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Contractual Obligations",
+       "unique": true,
+       "shared": true
+      },
+      {
+       "name": "Money is Time",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Profligate Prophecy",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Contractual Obligations",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "starballista",
+     "kind": "ranged",
+     "attack": 28,
+     "traits": [
+      "analog",
+      "ordnance",
+      "range increment 6 zones",
+      "unwieldy"
+     ],
+     "damage": "3d10+12 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Charity Lance",
+     "cost": "three-actions",
+     "traits": [
+      "divine",
+      "holy"
+     ],
+     "text": "The central spire of the Gold Bazaar fires a shimmering beam in a 6-zone line. Enemies in the area take 8d8 fire damage (DC 34 basic Will save). A starship that fails this save takes a –1-zone status penalty to its Speed for 1 round as spectral molten gold clings to its hull. Profligate Prophecy is immediately recharged."
+    },
+    {
+     "name": "Contractual Obligations",
+     "cost": "one-action",
+     "traits": [
+      "auditory",
+      "divine"
+     ],
+     "text": "The Gold Bazaar opens a one-way line of communication between one of its negotiators and a starship within sensor range. The Gold Bazaar attempts to Demoralize a creature helming a battle station on the target starship. On a success or critical success, the target must also choose one of the following. Non-Compete The Gold Bazaar gains resistance 10 to damage from the target starship as long as the target is frightened. Non-Disclosure The target’s frightened value doesn’t decrease at the end of their next turn."
+    },
+    {
+     "name": "Money is Time",
+     "cost": "two-actions",
+     "traits": [
+      "divine"
+     ],
+     "text": "The Gold Bazaar’s executive approves overtime pay for all employees on the starship. The Gold Bazaar is quickened for 1 minute and can use the additional action only to Boost Thrusters or Change Heading."
+    },
+    {
+     "name": "Profligate Prophecy",
+     "cost": "one-action",
+     "traits": [
+      "divine",
+      "fortune"
+     ],
+     "text": "Frequency once per day and recharges when the Gold Bazaar uses Charity Lance; Effect The Gold Bazaar’s pious residents trade a portion of the day’s profits for assistance from Abadar. The first time the Gold Bazaar succeeds at an attack roll this turn, that attack becomes a critical success."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 229
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

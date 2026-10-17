@@ -1,0 +1,31 @@
+<section class="tsc-hud-root">
+<label class="tsc-sheet-theme-picker">{{localize "SF2eTSC.settings.starshipSheetTheme.name"}} <select data-sheet-theme-select>{{#each sheetThemes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+{{#if none}}
+  <p class="tsc-hint">{{localize "SF2eTSC.ui.noStationHelmed"}}</p>
+{{else}}
+  {{#if selectors.[1]}}<nav class="tsc-hud-tabs" role="tablist">{{#each selectors}}<button type="button" role="tab" class="{{#if active}}active{{/if}}" data-action="pick" data-index="{{i}}">{{label}}</button>{{/each}}</nav>{{/if}}
+  <header class="tsc-hud-head">
+    {{> tscOccupant occupant size="lg" hideName=true}}
+    <div><h3><i class="{{stationIcon}}" aria-hidden="true"></i> {{station}} <small>({{grade}})</small></h3><span class="tsc-dim">{{ship}} — {{shipStatus}} · {{crew}}</span></div>
+    <button type="button" data-action="release" data-ship-uuid="{{shipUuid}}" data-station-id="{{stationId}}" data-crew-uuid="{{crewUuid}}" title="{{localize 'SF2eTSC.crew.release'}}" aria-label="{{localize 'SF2eTSC.crew.release'}}"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </header>
+  <div class="tsc-bars">
+    <div class="bar hp" role="progressbar" aria-valuenow="{{hp.value}}" aria-valuemax="{{hp.max}}" aria-label="{{localize 'SF2eTSC.ui.hullPoints'}}"><span style="width:{{hpPct}}%"></span><em>{{localize "SF2eTSC.ui.hullPoints"}} {{hp.value}}/{{hp.max}}</em></div>
+    <div class="bar sp" role="progressbar" aria-valuenow="{{sp.value}}" aria-valuemax="{{sp.max}}" aria-label="{{localize 'SF2eTSC.ui.shieldPoints'}}"><span style="width:{{spPct}}%"></span><em>{{localize "SF2eTSC.ui.shieldPoints"}} {{sp.value}}/{{sp.max}}</em></div>
+  </div>
+  {{#if noCombatant}}<div class="tsc-malfunction" role="alert">⚠ {{localize "SF2eTSC.errors.noCombatantHud"}}</div>{{/if}}
+  {{#if malfunctioning}}<div class="tsc-malfunction" role="alert">⚠ {{localize "SF2eTSC.ui.malfunctioning"}} — {{localize "SF2eTSC.actions.repair-station"}}</div>{{/if}}
+  <details><summary>{{localize "SF2eTSC.rolls.stationDCs"}}</summary>{{#if dcRows.length}}<div class="tsc-station-dcs">{{#each dcRows}}<span>{{label}}: {{value}}</span>{{/each}}</div>{{/if}}</details>
+<ul class="tsc-actions">
+  
+{{#each actions}}
+    <li><button type="button" data-action="act" data-action-id="{{id}}" {{#unless enabled}}disabled{{/unless}} title="{{#if enabled}}{{#if warnings}}⚠ {{warnings}} — {{/if}}{{text}}{{else}}{{reasons}}{{/if}}" aria-label="{{name}} {{icon}}">
+      <span class="cost">{{icon}}</span><span class="name">{{name}}</span>{{#if needsTarget}}<i class="fa-solid fa-bullseye" aria-hidden="true"></i>{{/if}}{{#if frequency}}<small>{{frequency}}</small>{{/if}}
+      {{#unless enabled}}<small class="why">{{reasons}}</small>{{/unless}}{{#if warnings}}<small class="why tsc-warn" role="note"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{warnings}}</small>{{/if}}
+    </button>
+    <details class="tsc-action-desc"><summary>{{localize "SF2eTSC.ui.actionDescription"}}</summary><div class="tsc-desc-body">{{{desc}}}</div></details></li>
+  {{/each}}
+  </ul>
+  {{#if passive}}<p class="tsc-dim tsc-passive">{{passive}}</p>{{/if}}
+{{/if}}
+</section>

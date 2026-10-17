@@ -1,0 +1,23 @@
+<section class="tsc-dock" aria-label="{{localize 'SF2eTSC.ui.stationHud'}}" {{#if noCombat}}hidden{{/if}}>
+{{#unless noCombat}}
+  {{#if dock.none}}
+    {{#unless isGM}}<p class="tsc-dim tsc-dock-empty"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> {{localize "SF2eTSC.ui.noStationHelmed"}}</p>{{/unless}}
+  {{else}}
+    <header class="tsc-dock-head">
+      <span class="tsc-dock-title"><i class="{{dock.stationIcon}}" aria-hidden="true"></i> <strong>{{dock.station}}</strong> <small class="tsc-dim">{{dock.crew}} · {{dock.ship}}</small></span>
+      {{#if dock.selectors.[1]}}<span class="tsc-dock-pick" role="tablist">{{#each dock.selectors}}<button type="button" role="tab" class="tsc-chip {{#if active}}active{{/if}}" data-action="dockPick" data-index="{{i}}" title="{{label}}">{{short}}</button>{{/each}}</span>{{/if}}
+      {{#if dock.malfunctioning}}<span class="tsc-pill bad" role="alert">⚠ {{localize "SF2eTSC.ui.malfunctioning"}}</span>{{/if}}
+      {{#if dock.noCombatant}}<span class="tsc-pill warn" role="alert">⚠ {{localize "SF2eTSC.errors.noCombatantHud"}}</span>{{/if}}
+    </header>
+    <details><summary>{{localize "SF2eTSC.rolls.stationDCs"}}</summary>{{#if dock.dcRows.length}}<div class="tsc-station-dcs">{{#each dock.dcRows}}<span>{{label}}: {{value}}</span>{{/each}}</div>{{/if}}</details>
+<ul class="tsc-dock-actions">
+      
+{{#each dock.actions}}
+      <li><button type="button" data-action="dockAct" data-action-id="{{id}}" {{#unless enabled}}disabled{{/unless}} class="{{#if warnings}}has-warning{{/if}}" title="{{#if enabled}}{{#if warnings}}⚠ {{warnings}} — {{/if}}{{text}}{{else}}{{reasons}}{{/if}}" aria-label="{{name}} {{icon}}">
+        <span class="cost">{{icon}}</span> <span class="name">{{name}}</span>{{#if needsTarget}} <i class="fa-solid fa-bullseye" aria-hidden="true"></i>{{/if}}{{#if warnings}} <i class="fa-solid fa-triangle-exclamation tsc-warn" aria-hidden="true"></i>{{/if}}
+      </button></li>
+      {{/each}}
+    </ul>
+  {{/if}}
+{{/unless}}
+</section>

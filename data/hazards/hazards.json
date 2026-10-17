@@ -1,0 +1,1489 @@
+{
+ "hazards": [
+  {
+   "id": "astral-barnacles",
+   "name": "Astral Barnacles",
+   "level": 0,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 247
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Attach",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves into the hazard’s zone; Effect The astral barnacles make a sucker Strike against the triggering starship. On a success, the barnacles cling to the triggering starship’s hull, and the starship takes a –1-zone status penalty to its Speed. The barnacles’ digestive fluids are caustic, dealing 1d6 acid damage to the starship at the end of the starship’s turn or until the barnacles are disabled or destroyed. The barnacles fall off automatically after 5 rounds."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Floating barnacles cling to the starship passing by.",
+   "stealthDC": 12,
+   "disable": "DC 13 Nature (trained; magic conduit) to repel, or DC 16 Piloting (trained; pilot’s console) to shake off the barnacles",
+   "ac": 13,
+   "fort": 6,
+   "ref": 4,
+   "hardness": 3,
+   "hp": 16,
+   "bt": 8,
+   "immunities": "critical hits, object immunities, precision damage",
+   "strikes": [
+    {
+     "name": "sucker",
+     "kind": "melee",
+     "attack": 11,
+     "traits": [],
+     "damage": "2d6+3 piercing"
+    }
+   ],
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "orbital-mine",
+   "name": "Orbital Mine",
+   "level": 0,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 249
+   },
+   "traits": [
+    "mechanical",
+    "starship",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Detonate",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves into the trap’s zone the mine is destroyed; Effect The mine detonates, dealing 1d6+2 piercing and 1d6+2 fire damage to all starships in its zone (DC 16 basic Reflex save)."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A mine packed with powerful explosives is concealed in plain sight.",
+   "stealthDC": 18,
+   "disable": "DC 15 Computers (trained; generator, scanners) to hack the mine, or DC 16 Crafting (trained; drone console) to rewire it",
+   "ac": 14,
+   "fort": 7,
+   "ref": 3,
+   "hardness": 5,
+   "hp": 14,
+   "bt": 7,
+   "immunities": "critical hits, object immunities, precision damage",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "boarding-pod",
+   "name": "Boarding Pod",
+   "level": 1,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 250
+   },
+   "traits": [
+    "mechanical",
+    "starship",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Detect Enemy",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger An enemy starship starts its turn within 3 zones of the boarding pod; Effect The boarding pod moves 1 zone toward the triggering starship, then rolls initiative."
+    },
+    {
+     "name": "Collide",
+     "cost": "one-action",
+     "traits": [],
+     "text": "This hazard flies toward a starship and attempts to collide with it. The target must succeed at a DC 17 Reflex save, or the hazard becomes embedded in the starship. It moves with the starship until it's destroyed or disabled."
+    },
+    {
+     "name": "Deploy Boarder",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Requirements The hazard is embedded in a starship; Effect This hazard unleashes its boarding party, determined when the hazard is created. The boarding creature rolls initiative and fights until destroyed. The boarding creature can use 3 actions each round and can use reactions."
+    },
+    {
+     "name": "Jet Propel",
+     "cost": "one-action",
+     "traits": [
+      "move"
+     ],
+     "text": "The hazard moves 2 zones."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A boarding pod containing a hostile boarding party launches through space.",
+   "stealthBonus": 7,
+   "stealthRank": "trained",
+   "disable": "DC 17 Computers (trained; scanners) to hack and disable the boarding pod before it collides (two successes are required to disable it in this way); DC 17 Piloting (trained; pilot’s console) to shake off a boarding pod that has collided with the starship",
+   "ac": 19,
+   "fort": 10,
+   "ref": 4,
+   "hardness": 5,
+   "hp": 24,
+   "bt": 12,
+   "immunities": "critical hits, object immunities, precision damage Boarding Party The hazard contains a specific 1st-level creature or two specific –1-level creatures. When a creature in the boarding party is Deployed as a Boarder, it’s removed from the hazard’s boarding party.",
+   "routine": {
+    "cost": "2 actions",
+    "text": "The hazard Jet Propels, then Collides against a starship in its zone. If the hazard has successfully Collided against a starship, it instead Deploys Boarder."
+   },
+   "reset": "Manually salvage the boarding pod and repair it.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "ionized-gas-cloud",
+   "name": "Ionized Gas Cloud",
+   "level": 1,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Ionize",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves into the hazard’s zone; Effect The hazard makes a lightning Strike against the triggering starship. If it hits, all tech creatures and items on board the starship are glitching 3, and all battle stations become malfunctioning; creatures that succeed at a DC 17 Fortitude save are unaffected, as are any battle stations they’re helming and any gear in their possession. These effects last for 1 minute."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A cloud of superheated gas crackles with electricity.",
+   "stealthDC": 17,
+   "stealthRank": "trained",
+   "disable": "DC 18 Nature (trained; any battle station) to find a safe route through it, or DC 17 Piloting (trained; pilot’s console) to ride the turbulence safely",
+   "strikes": [
+    {
+     "name": "lightning",
+     "kind": "melee",
+     "attack": 13,
+     "traits": [],
+     "damage": "2d6+5 electricity"
+    }
+   ],
+   "reset": "The gas particles ionize again in 1 hour.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "junkers-snare",
+   "name": "Junker’s Snare",
+   "level": 1,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "mechanical",
+    "starship",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Snare Starship",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves in or out of the trap’s zone; Effect The trap makes a towing hook Strike against the triggering starship. If it hits, the starship takes a –1-zone circumstance penalty to its Speed until the trap is disabled or the starship’s crew removes the towing hook, requiring 10 minutes of work on the exterior of the starship’s hull."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Space junk hides a jury-rigged yet ingenious snare.",
+   "stealthDC": 18,
+   "stealthRank": "expert",
+   "disable": "DC 17 Crafting (trained; drone console, pilot’s console) or Thievery (trained; drone console) to disable the mechanism",
+   "strikes": [
+    {
+     "name": "towing hook",
+     "kind": "melee",
+     "attack": 14,
+     "traits": [],
+     "damage": "2d6+5 piercing"
+    }
+   ],
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "cursed-relay",
+   "name": "Cursed Relay",
+   "level": 2,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 247
+   },
+   "traits": [
+    "haunt",
+    "tech"
+   ],
+   "actions": [
+    {
+     "name": "Sensor Scream",
+     "cost": "reaction",
+     "traits": [
+      "auditory",
+      "emotion",
+      "fear",
+      "mental",
+      "sonic"
+     ],
+     "text": "Trigger A starship targets the hazard with Hack Comms; Effect A cursed recording plays on every tech device inside the triggering starship. All creatures that can hear it must attempt a DC 18 Will save. Critical Success The creature is unaffected. Success The creature is frightened 1. Failure The creature takes 3d8 mental damage and is frightened 1. Critical Failure The creature takes 6d8 mental damage and is frightened 2."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthDC": 15,
+   "description": "Drifting through space, a garbled and eerie audio or holovid recording repeats the painful final moments of a cursed crew’s lives on tech devices.",
+   "disable": "DC 16 Computers (trained) to hack the relay, DC 14 Occultism (trained) to soothe the spirits, or DC 14 Religion (trained) to release the spirits Echoed Distress Beacon This hazard appears as a Small starship on the sensor map and can be targeted with Hack Comms.",
+   "reset": "The haunt resets in 24 hours unless the spirits are released.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "meteor-shower",
+   "name": "Meteor Shower",
+   "level": 2,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Cosmic Rain",
+     "cost": "free-action",
+     "traits": [],
+     "text": "Trigger A starship enters the hazard’s zone or ends its turn in the hazard’s zone; Effect Meteors pelt the triggering starship’s hull, dealing 1d10 cold damage and 1d10 fire damage (DC 19 basic Reflex save)."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Superheated chunks of debris move at high velocity through the area. Starships in the hazard’s zone are concealed from all starships outside the hazard’s zone.",
+   "stealthDC": 14,
+   "stealthRank": "expert",
+   "disable": "DC 20 Computers (trained) to calculate meteor trajectories, DC 20 Nature (trained) to anticipate meteor patterns, or DC 18 Piloting (trained) to evade the meteors",
+   "reset": "The hazard resets immediately.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "hacked-drift-beacon",
+   "name": "Hacked Drift Beacon",
+   "level": 3,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 251
+   },
+   "traits": [
+    "magical",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Spam Storm",
+     "cost": "reaction",
+     "traits": [
+      "emotion",
+      "incapacitation",
+      "mental",
+      "occult"
+     ],
+     "text": "Trigger A starship moves within 1 zone of the hazard or uses any scanners station action targeting the hazard’s zone; Effect The trap launches a targeted ad enticing viewers to spend credits on a product or service. All creatures that can see, hear, or sense the ad (including through starship sensors) must attempt a DC 17 Will save. The trap rolls initiative. Critical Success The creature is unaffected. Success The creature is dazzled. Failure The creature is dazzled and fascinated until the hazard is disabled. Critical Failure The creature is dazzled and fascinated, and it can’t take any actions except to access the nearest computer or comm unit and make purchases as directed by the ad; these effects last until the hazard is disabled."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 7,
+   "stealthRank": "trained",
+   "description": "A hijacked Drift beacon broadcasts obnoxious ads or some other repetitive message.",
+   "disable": "DC 20 Computers (trained) to repair the Drift beacon’s code, DC 22 Crafting (trained) to disassemble the trap, or DC 23 Religion (trained) to consecrate it for Triune",
+   "objectName": "Beacon",
+   "ac": 16,
+   "fort": 4,
+   "ref": 11,
+   "hardness": 5,
+   "hp": 24,
+   "bt": 12,
+   "immunities": "critical hits, object immunities, precision damage",
+   "routine": {
+    "cost": "1 action",
+    "text": "The hazard plays a new ad, forcing all creatures that can sense it to attempt a new save against Spam Storm."
+   },
+   "reset": "The trap deactivates and resets after 1 minute.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "hull-breach",
+   "name": "Hull Breach",
+   "level": 3,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 251
+   },
+   "traits": [
+    "environmental",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Hazardous Airflow",
+     "cost": "passive",
+     "traits": [],
+     "text": "All spaces within 10 feet of the hull breach are a vacuum (GM Core 96). The area is difficult terrain. A creature can ignore this difficult terrain while moving toward the hull breach."
+    },
+    {
+     "name": "Vacuum Breech",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A turn starts while the starship doesn’t have any remaining Shield Points; Requirements The starship is in a vacuum, and the inside of the starship isn’t a vacuum; Effect Air rapidly escapes through the breach. The hazardous fills every space within 10 feet of its current space, unless those spaces are blocked by an airlock or a similarly strong and airtight barrier. The trap then rolls initiative."
+    },
+    {
+     "name": "Pull Into Space",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Creatures in the spaces of hazardous airflow must attempt a DC 20 Fortitude save. On a failure, a creature is pulled 15 feet toward the hull breach along the shortest possible path (30 feet on critical failure). Untethered Large or smaller objects are also pulled and automatically fail. Creatures and objects pulled through the hull breach float into space. If they’re untethered, they move away from the starship’s zone, opposite of its heading, at a rate of 1 zone per minute."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 7,
+   "stealthRank": "expert",
+   "description": "A 5-foot breach in the airlock or hull sucks everything inside a starship into space.",
+   "disable": "DC 19 Crafting (trained) to patch up the hull, or restore 10 or more Hull Points to the starship; restoring 5 or more Shield Points to the starship suppresses the trap until the starship loses all its Shield Points but doesn’t disable the trap; DC 19 Acrobatics to Maneuver in Flight or Athletics to Grab a Ledge avoids or stops the effects of Pull Into Space (this doesn’t disable the trap)",
+   "routine": {
+    "cost": "1 action",
+    "text": "The trap Pulls Into Space."
+   },
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "pipe-breakage",
+   "name": "Pipe Breakage",
+   "level": 3,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 252
+   },
+   "traits": [
+    "mechanical",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Pipe Rupture",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A creature within 10 feet of the trap uses a station action; Effect The trap Scorches its surroundings. The trap then rolls initiative."
+    },
+    {
+     "name": "Scorch",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Creatures within 10 feet of the trap take 1d10+6 fire damage with a DC 20 basic Reflex save. Battle stations within the affected area become malfunctioning."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 5,
+   "stealthRank": "trained",
+   "description": "A pipe ruptures in the starship, creating a 5-foot space of scorching hot air on the ground within 10 feet of a battle station.",
+   "disable": "DC 16 Crafting (trained) to repair the pipe, or DC 18 Thievery (expert) to patch up the rupture",
+   "routine": {
+    "cost": "1 action",
+    "text": "The trap Scorches its surroundings."
+   },
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "slime-infestation",
+   "name": "Slime Infestation",
+   "level": 4,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 253
+   },
+   "traits": [
+    "environmental"
+   ],
+   "actions": [
+    {
+     "name": "Melt Through Hull",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A Medium or larger starship is within 0 zones of the hazard; Effect The hazard appears in a 5-foot square adjacent to an exterior (hull) wall inside a room on board the starship (determined randomly or by the GM). The hazard then rolls initiative."
+    },
+    {
+     "name": "Proliferate Slime",
+     "cost": "one-action",
+     "traits": [
+      "acid"
+     ],
+     "text": "Inching forward on prehensile tendrils, the hazard covers the ceiling, floor, and walls of a room with acidic slime. The hazard expands its slime to three adjacent 5-foot cubes. The affected area becomes difficult terrain. Battle stations become malfunctioning when they’re covered in slime due to Proliferate Slime. The hazard can Proliferate Slime through doors, bulkheads, hulls, and other features of a starship."
+    },
+    {
+     "name": "Spew Corrosive Vapor",
+     "cost": "one-action",
+     "traits": [
+      "acid"
+     ],
+     "text": "All creatures within 10 feet of the hazard takes 2d8 acid damage with a DC 19 basic Fortitude save. Additionally, a creature that fails its save is sickened 1 (sickened 2 on critical failure)."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 7,
+   "description": "An unwelcome infestation pollutes the decks with sticky slime that proliferates throughout a starship.",
+   "disable": "DC 18 Nature (trained) or Survival (trained) to denature the hazard with chemicals (destroys a 5-foot cone of slime on a success, or 10-foot cone on a critical success), or DC 25 Religion (expert; magic conduit) to purify the starship; two successes are required to disable the hazard, or destroy every infested square",
+   "ac": 10,
+   "fort": 8,
+   "ref": 2,
+   "hp": 6,
+   "bt": null,
+   "immunities": "critical hits, object immunities, poison, precision damage",
+   "weaknesses": "area 5, cold 5, fire 5",
+   "resistances": "bludgeoning 5, piercing 5 Cosmic Slime The slime is a Small starship object while in space. Slime Colony Any time the hazard takes damage, it can take a maximum of 6 damage per targeted 5-foot cube of slime. For every 6 Hit Points it’s missing after the damage is dealt, it loses 6 maximum Hit Points and one 5-foot cube of slime is destroyed.",
+   "routine": {
+    "cost": "2 actions",
+    "text": "The hazard uses Proliferate Slime each round, spreading to as many rooms as possible until the starship interior is covered or the hazard is destroyed. The hazard then uses Spew Corrosive Vapor."
+   },
+   "reset": "The slime returns and begins proliferating again in 24 hours unless the entire starship is completely cleansed, or the starship is restored to full Hull Points.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "asteroid-field",
+   "name": "Asteroid Field",
+   "level": 5,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 247
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Collide",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves through the hazard’s zone but doesn’t start or end its movement in that zone; Effect The hazard makes a collision Strike against the triggering starship. One asteroid is destroyed."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A sprawling field of floating rocks litters this part of space. The hazard is a Large starship object.",
+   "stealthDC": 18,
+   "stealthRank": "trained",
+   "disable": "DC 21 Computers (trained; scanners) to calculate a safe route, or DC 23 Piloting (trained; pilot’s console) to navigate around the hazard (these checks don’t disable the hazard)",
+   "ac": 19,
+   "fort": 14,
+   "ref": 8,
+   "hardness": 12,
+   "hp": 10,
+   "bt": 5,
+   "hpNote": "each object",
+   "immunities": "critical hits, object immunities, precision damage",
+   "weaknesses": "area damage 5",
+   "strikes": [
+    {
+     "name": "collision",
+     "kind": "melee",
+     "attack": 19,
+     "traits": [],
+     "damage": "2d8+7 bludgeoning"
+    }
+   ],
+   "reset": "The asteroid field resets automatically until at least 10 asteroids have been destroyed, eliminating the hazard.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "infernal-vice",
+   "name": "Infernal Vice",
+   "level": 5,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 251
+   },
+   "traits": [
+    "magical",
+    "starship",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Infernal Grasp",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship enters the trap’s zone; Effect The trap makes an infernal chain Strike against the triggering starship. The trap then rolls initiative."
+    },
+    {
+     "name": "Chain Wrap",
+     "cost": "passive",
+     "traits": [],
+     "text": "On a successful infernal chain Strike, the trap latches onto the targeted starship. While latched onto a starship, the trap moves along with it, sharing its zone."
+    },
+    {
+     "name": "Heat Up",
+     "cost": "one-action",
+     "traits": [
+      "divine",
+      "fire",
+      "unholy"
+     ],
+     "text": "The trap floods the starship with infernal heat. Crew members helming a battle station take 2d8 fire damage with a DC 22 basic Fortitude save. On a failure, the battle station they’re helming becomes malfunctioning until the trap is disabled or the station is repaired."
+    },
+    {
+     "name": "Hell’s Hush",
+     "cost": "one-action",
+     "traits": [
+      "divine",
+      "unholy"
+     ],
+     "text": "A starship within 4 zones must attempt a DC 22 Will save. On a failure, all magic and technological communications on board the starship cease to function. Comm units can’t send or receive data, and starships can’t Hack Comms. Crew helming battle stations in different rooms can’t use normal ship communications. Telepathy and other spells that allow creatures to communicate cease functioning. Creatures with innate telepathy from their ancestry or class features like group chat are temporarily blocked from psychic communication, receiving only vague emotional impressions from other creatures while within 4 zones of the hazard. A creature helming the starship’s magic conduit can use Counter Magic to counteract Hell Hush (3rd rank; DC 20)."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Massive starmetal jaws blaze with diabolical runes that reek of sulfur and brimstone.",
+   "stealthBonus": 10,
+   "stealthNote": "or DC 22 Religion (expert) to understand the divine magic at play, or Scan for Magic",
+   "disable": "DC 25 Legal Lore (expert; scanners) or Religion (expert; magic conduit) to rewrite the trap’s diabolical bindings, or Counter Magic (magic conduit; 3rd rank; /rules/448-counteracting DC 20) to counteract the trap",
+   "ac": 20,
+   "fort": 16,
+   "ref": 9,
+   "hardness": 14,
+   "hp": 58,
+   "bt": 29,
+   "weaknesses": "spirit 8",
+   "resistances": "fire 8",
+   "routine": {
+    "cost": "3 actions",
+    "text": "The trap moves up to 4 zones, then makes an infernal chain Strike against a starship in range. If it’s attached to a starship, it spends its final action to Heat Up. Otherwise, it spends its final action to block a target’s comms with Hell’s Hush to block the target’s comms."
+   },
+   "strikes": [
+    {
+     "name": "infernal chain",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "range 4 zones"
+     ],
+     "damage": "2d8+7 piercing plus chain wrap"
+    }
+   ],
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "orbital-mine-field",
+   "name": "Orbital Mine Field",
+   "level": 6,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 249
+   },
+   "traits": [
+    "mechanical",
+    "starship",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Detonate",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves into the trap’s zone or someone fails a check to rewire the mines; Effect The mines detonate, dealing 2d8 piercing and 2d8 fire damage to the triggering starship (DC 24 basic Reflex save)."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Mines packed with powerful explosives float in a concealed location.",
+   "stealthDC": 23,
+   "stealthRank": "expert",
+   "disable": "DC 19 Computers (trained; scanners) or Perception (expert; any battle station) to locate the mines, or DC 25 Crafting (trained; generator) or Thievery (expert; drone console) to rewire the mines",
+   "ac": 22,
+   "fort": 15,
+   "ref": 11,
+   "hardness": 14,
+   "hp": 54,
+   "bt": 27,
+   "immunities": "critical hits, object immunities, precision damage",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "planar-breach",
+   "name": "Planar Breach",
+   "level": 6,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 252
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Summon Elemental",
+     "cost": "reaction",
+     "traits": [
+      "arcane"
+     ],
+     "text": "Trigger A starship enters the hazard’s zone; Effect The hazard summons a specific 6th-level creature on board the triggering starship, determined when the hazard is created. The hazard then rolls initiative."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A planar breach oozes energy and spawns monsters.",
+   "stealthDC": 26,
+   "stealthRank": "expert",
+   "disable": "DC 24 Crafting (expert; generator) to disrupt the rift with an electromagnetic pulse, or DC 22 Nature (expert; magic conduit) or Occultism (expert; magic conduit) to seal the breach, or Counter Magic (magic conduit; 3rd rank; /rules/448-counteracting DC 24) to counteract the breach",
+   "routine": {
+    "cost": "1 action",
+    "text": "Energy flows through the planar breach to fuel the elemental. The elemental immediately takes its turn, using 3 actions, and can use reactions unlike most summoned creatures."
+   },
+   "reset": "The hazard resets in 10 minutes unless the planar breach is sealed permanently by counteracting it.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "wailing-rings",
+   "name": "Wailing Rings",
+   "level": 7,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 255
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Minor Chord",
+     "cost": "reaction",
+     "traits": [
+      "fear",
+      "primal"
+     ],
+     "text": "Trigger A starship enters the hazard’s zone; Effect The rings emit powerful dissonant vibrations. All starships and creatures on board starships in the hazard’s zone must attempt a DC 25 Will save. The hazard then rolls initiative. Critical Success The creature is unaffected. Success The creature is frightened 2. Failure The creature is frightened 4. Critical Failure The creature is frightened 4 and takes 1d10 persistent mental damage until someone disables the hazard or until the creature is at least 20 zones away from the hazard."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Glimmering rings of compressed ice and dust encircling a nearby planet emit a dreadful sound.",
+   "stealthBonus": 11,
+   "stealthRank": "expert",
+   "disable": "DC 30 Arcana (expert; magic conduit), Nature (expert; magic conduit) or Occultism (expert; magic conduit) to magically silence the wailing, DC 26 Music Lore (expert; generator, scanners) or Performance (expert; generator, scanners) to harmonize with the wailing; one success negates the hazard’s effects for that round (see Routine below)",
+   "routine": {
+    "cost": "1 action",
+    "text": "The hazard wails as one action, dealing 2d10+9 mental damage to all creatures in its zone (DC 23 basic Will save)."
+   },
+   "special": "The hazard can be temporarily disabled but not permanently disabled.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "micro-black-hole",
+   "name": "Micro Black Hole",
+   "level": 8,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 252
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Gravitational Anomaly",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship is within 3 zones of the hazard; Effect The hazard pulls all starships within 3 zones 1 zone closer. These hazards become trapped in the hazard’s gravity well. A trapped starship can’t move away from the hazard, and a starship that’s destroyed while trapped in this way is drawn irretrievably into the event horizon. The hazard then rolls initiative."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A mote of super-compressed matter pulls everything toward it.",
+   "stealthBonus": 13,
+   "stealthRank": "expert",
+   "disable": "DC 28 Piloting (expert; pilot’s console) to avoid the event horizon, DC 28 Crafting (expert; generator) to divert enough power to the engines to avoid being pulled in, DC 26 Computers (expert; scanners), Nature (expert; magic conduit), or Physical Science Lore (trained; scanners) to calculate a safe path around the hazard",
+   "routine": {
+    "cost": "1 action",
+    "text": "Each starship within 0 zones of the hazard and each creature on board those starships takes 2d10+11 bludgeoning damage with a DC 26 basic Fortitude save."
+   },
+   "special": "This hazard draws in any starship within 3 zones every round. It can’t be permanently disabled, only escaped, and resets immediately. Effects that would disable it instead make the disabling starship and creatures on board immune to the hazard for 1 round.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "quantum-crossover",
+   "name": "Quantum Crossover",
+   "level": 8,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 249
+   },
+   "traits": [
+    "starship",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Station Scramble!",
+     "cost": "reaction",
+     "traits": [
+      "occult",
+      "teleportation"
+     ],
+     "text": "Trigger A starship enters the same zone as the trap; Effect In another reality, familiar crew members have different roles. All creatures helming a battle station on board the starship must succeed at a DC 28 Will save. Each creature that fails is teleported at random to another battle station or a space adjacent to a different battle station if all of them are helmed. Once within the next hour, an affected creature can spend 1 action that has the concentrate trait to access knowledge from other timelines, allowing it to choose one of the following skills: Arcana, Computers, Crafting, Occultism, Nature, Piloting, or Religion. For 1 minute, the creature can use that skill in place of any different required skill when taking a station action at the station they were teleported to."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Another timeline collides with the present.",
+   "stealthDC": 27,
+   "stealthRank": "expert",
+   "stealthNote": "or Scan for Magic",
+   "disable": "DC 28 Arcana (expert; magic conduit) or Occultism (expert; magic conduit) to realign reality, or Counter Magic (magic conduit; 4th rank; /rules/448-counteracting DC 24) to counteract the trap",
+   "reset": "The trap resets automatically after 1 minute.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "extinct-astral-behemoth",
+   "name": "Extinct Astral Behemoth",
+   "level": 9,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Rotting Gurgle",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship ends its movement or takes an action in the hazard’s zone; Effect The carcass makes a caustic droplets Strike against the triggering starship. A starship that takes damage to its Hull Points from this attack is covered in decomposing slime that causes all starships to be concealed to it until the crew spends 1 hour cleaning the hull or until it gains 1 Shield Point."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "The hulking carcass of a primal beast floats in frozen chunks suspended in a spray of its brightly pigmented blood. The hazard is a Large starship object.",
+   "stealthDC": 23,
+   "stealthRank": "expert",
+   "disable": "DC 28 Nature (expert; gunnery) to release death gases and blood safely, or DC 26 Piloting (trained; pilot’s console) to evade the hazard’s secretions",
+   "ac": 25,
+   "fort": 21,
+   "ref": 15,
+   "hardness": 16,
+   "hp": 70,
+   "bt": 35,
+   "immunities": "critical hits, object immunities, precision damage",
+   "weaknesses": "bludgeoning 10",
+   "strikes": [
+    {
+     "name": "caustic droplets",
+     "kind": "melee",
+     "attack": 25,
+     "traits": [],
+     "damage": "4d10+16 acid"
+    }
+   ],
+   "reset": "The hazard resets over the course of the round and is ready to trigger again 1 round later.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "drift-beacon-malfunction",
+   "name": "Drift Beacon Malfunction",
+   "level": 10,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 247
+   },
+   "traits": [
+    "magical",
+    "starship",
+    "tech"
+   ],
+   "actions": [
+    {
+     "name": "Drift Crash",
+     "cost": "reaction",
+     "traits": [
+      "magical",
+      "teleportation"
+     ],
+     "text": "Trigger A starship attempts to travel through the Drift using the malfunctioning Drift beacon; Effect The triggering starship is sent to the wrong place by the Drift beacon and must attempt a DC 33 Will save. Critical Success The starship emerges near Absalom Station and is immune to the hazard for 1 day. Success The starship is lost in the Drift. It emerges in a random location in Near Space. Failure The starship is lost in the Drift. It emerges in a random location in the Vast."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "The Drift inexplicably teleports a starship to the wrong destination.",
+   "stealthDC": 35,
+   "stealthRank": "master",
+   "stealthNote": "or Scan for Magic",
+   "disable": "DC 32 Drift Lore (expert; pilot’s console, scanners) or Piloting (master; pilot’s console) to navigate the Drift without triggering a malfunction, or DC 34 Religion (master; any battle station) to call on Triune for guidance",
+   "reset": "The hazard resets immediately.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "tachyon-burst",
+   "name": "Tachyon Burst",
+   "level": 10,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 249
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Energy Overload",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship enters the hazard’s zone; Effect The hazard deals 4d12+26 electricity damage to the triggering starship (DC 29 basic Fortitude save). On a critical failure, the starship’s generator becomes malfunctioning."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Unstable faster-than-light particles released by a powerful energy emission penetrate the starship’s shields.",
+   "stealthDC": 26,
+   "stealthRank": "expert",
+   "disable": "DC 25 Arcana (expert; magic conduit) or Nature (master; magic conduit) to repel particles, or DC 27 Computers (expert; scanners) or Physical Science Lore (expert; scanners) to calculate evasion protocol",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "possessed-battle-stations",
+   "name": "Possessed Battle Stations",
+   "level": 11,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 253
+   },
+   "traits": [
+    "haunt"
+   ],
+   "actions": [
+    {
+     "name": "Spirit Invasion",
+     "cost": "reaction",
+     "traits": [
+      "occult",
+      "spirit"
+     ],
+     "text": "Trigger A creature starts helming a battle station or uses a station action on the affected starship; Effect The spirits attempt to repel the triggering creature and seize control of the battle station. The creature must attempt a DC 30 Will save with the following results. The haunt then rolls initiative. Critical Success The creature rebukes the spirit. Skill checks attempted by the creature to disable the haunt gain a +1 status bonus for 1 hour. Success The creature is unaffected. Failure The spirit takes control of the battle station, and the helming creature is frightened 1. Critical Failure The spirit takes control of the battle station, and the helming creature is frightened 2 and slowed 1 as it experiences memories of grisly deaths in deep space from the perspectives of the slain. The spirit controlling a battle station continuously attempts to repel any creature that tries to helm the battle station until the haunt is disabled. As long as it’s in control of a battle station, the haunt uses its routine to prioritize helming the battle stations it controls in the most destructive way possible."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 16,
+   "stealthRank": "master",
+   "description": "The tormented spirits of dead crewmates infest the starship’s battle stations and try to force the crew to reenact their catastrophic deaths.",
+   "disable": "DC 28 Arcana (expert; magic conduit), Nature (expert; magic conduit), Occultism (expert; magic conduit), or Religion (expert; magic conduit) to magically purify the station, or DC 28 Athletics (expert; gunnery) or Intimidation (expert; gunnery) to overpower the spirit, or DC 28 Computers (expert; scanners) to ban the spirit from the data matrix, or DC 28 Computers (expert; drone console) or Crafting (expert; drone console) to force reset the possessed drones, or DC 34 Computers (expert; magic conduit, scanners) to delete a spirit’s soul code, or DC 28 Crafting (expert; generator) to execute emergency countermeasures, or DC 28 Piloting (expert; pilot’s console) to disorient the spirit with ace maneuvers, or DC 31 Religion (expert; magic conduit) to exorcise a battle station; a success purges one battle station, and a number of successes equal to the number of battle stations on board the starship are required to disable the haunt",
+   "routine": {
+    "cost": "6 actions",
+    "text": "The haunt uses its actions to helm any battle stations it controls, prioritizing piloting console station actions to move the starship closer to danger. The haunt always takes harmful or useless actions, such as leaving cover or changing the starship’s heading in battle, putting the starship on a collision course, firing on allies, or neglecting the shields. After 6 rounds, if the haunt hasn’t been disabled, all creatures on board the starship experience a reenactment of the spirit crew’s annihilation and take 2d12+15 spirit damage (DC 30 basic Will save). On a critical failure, a creature is frightened 2. The haunt ends once the reenactment occurs."
+   },
+   "reset": "Unless exorcised or purged (see above), the spirits return to their battle stations over the course of 24 hours, after which the haunt can trigger again.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "spectral-sortie",
+   "name": "Spectral Sortie",
+   "level": 12,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 254
+   },
+   "traits": [
+    "haunt",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Attack Formation",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves within 4 zones of the haunt’s zone; Effect Four spectral vessels materialize in the haunt’s zone. The haunt attempts two spectral laser Strikes against the triggering starship, then rolls initiative."
+    },
+    {
+     "name": "Flyby Formation",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Requirements At least two spectral starships remain; Effect Two spectral starships move together up to 4 zones. Each attempts a spectral laser Strike against a target at any point during their movement; all targets are off-guard to these Strikes."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Ghostly starships battle ceaselessly in this sector.",
+   "stealthBonus": 27,
+   "stealthRank": "master",
+   "disable": "DC 36 Deception (master; scanners) to trick a spectral starship into believing its battle is won; DC 34 Religion (master; magic conduit) to exorcise one spectral starship; one success disables a spectral starship, and four successes are required to disable the haunt",
+   "ac": 33,
+   "fort": 19,
+   "ref": 25,
+   "hp": 25,
+   "bt": null,
+   "hpNote": "each object",
+   "immunities": "critical hits, object immunities, precision damage",
+   "weaknesses": "holy 15, spirit 15",
+   "routine": {
+    "cost": "1 action per spectral starship",
+    "text": "The spectral starships operate in pairs and maneuver to surround their targets whenever possible. On a typical round, one pair performs Flyby Formation, while the other pair opens fire, each of them firing one spectral laser Strikes. The haunt fights until all spectral starships are exorcised or temporarily destroyed."
+   },
+   "strikes": [
+    {
+     "name": "spectral laser",
+     "kind": "ranged",
+     "attack": 26,
+     "traits": [],
+     "damage": "(range increment 4 zones), 1d8+12 fire (no multiple attack penalty)"
+    }
+   ],
+   "reset": "The spectral starships can’t be permanently destroyed unless they’re exorcised. They reform over the course of 24 hours, after which the haunt can trigger again.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "logic-crucible",
+   "name": "Logic Crucible",
+   "level": 13,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "starship",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Failure!",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship’s crew fails to solve the problem from Ominous Request after 3 rounds, or a starship destroys the probe; Effect The probe explodes, sending its shards toward the triggering starship. The starship, if within 5 zones, takes 6d10+31 piercing damage (DC 33 basic Reflex save). Ominous Request [reaction] Trigger A starship moves within 5 zones of the trap; Effect The trap opens comms with the triggering starship and presents a logic problem. The starship’s crew has 3 rounds to correctly solve the problem, or the trap uses Failure! If the trap is disabled by disarming the probe or solving the equation, the trap deactivates and disassembles harmlessly."
+    },
+    {
+     "name": "Ominous Request",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves within 5 zones of the trap; Effect The trap opens comms with the triggering starship and presents a logic problem. The starship’s crew has 3 rounds to correctly solve the problem, or the trap uses Failure! If the trap is disabled by disarming the probe or solving the equation, the trap deactivates and disassembles harmlessly.",
+     "source": "pdf"
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A mysterious probe appears with a simple but deadly task: solve its equation or be destroyed.",
+   "stealthDC": 29,
+   "stealthRank": "trained",
+   "disable": "DC 35 Computers, Crafting, or Thievery (expert) to disarm the probe, or DC 37 Arcana or any Science Lore (expert) to solve the equation",
+   "ac": 31,
+   "fort": 20,
+   "ref": 28,
+   "hardness": 22,
+   "hp": 90,
+   "bt": 45,
+   "immunities": "critical hits, object immunities, precision damage",
+   "needsReview": false,
+   "review": [
+    "action Ominous Request only in PDF"
+   ]
+  },
+  {
+   "id": "rip-in-reality",
+   "name": "Rip in Reality",
+   "level": 13,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 253
+   },
+   "traits": [
+    "magical",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Void’s Embrace",
+     "cost": "reaction",
+     "traits": [
+      "emotion",
+      "fear",
+      "incapacitation",
+      "mental",
+      "void"
+     ],
+     "text": "Trigger A starship enters the trap’s zone; Effect The trap attempts to pull all creatures on board the triggering starship into the reality breach. Each creature on the starship must attempt a DC 33 Will save. The trap then rolls initiative. Critical Success The creature is unaffected. Success The creature claws out from the breach. The creature is frightened 1. Failure The creature is pulled into the breach. The creature is slowed 1 and frightened 2. Critical Failure The creature is pulled into the breach. The creature is frightened 2 and immobilized, and it can’t escape from the breach until the trap is disabled."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 19,
+   "stealthRank": "master",
+   "description": "Gnashing, toothy mouths and spiny tentacles grope and writhe inside a pit that just appeared out of nowhere.",
+   "disable": "DC 38 Occultism (master) or Religion (master) to seal the pit (two successes are required to disable the trap), or dispel magic (7th rank; counteract DC 37) or planar seal or planar tether (7th rank; counteract DC 33) to counteract the trap",
+   "routine": {
+    "cost": "1 action",
+    "text": "As an action, the trap manifests mind-rending visions of eldritch creatures from another reality. Each creature inside the reality breach takes 3d10+16 mental damage (DC 35 basic Will save). A creature can attempt an Arcana or Occultism check in place of their saving throw, if desired."
+   },
+   "reset": "The trap resets after 1 hour.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "ancient-bombardment",
+   "name": "Ancient Bombardment",
+   "level": 14,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 249
+   },
+   "traits": [
+    "mechanical",
+    "starship",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Target Acquired",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship moves within 6 zones of the hazard; Effect The hazard launches four seeking missiles at it. The missiles begin 6 zones away from the triggering starship. The trap then rolls initiative."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Stray munitions from an ancient battle hurtle across space and time, seeking targets they were never intended for.",
+   "stealthBonus": 18,
+   "disable": "DC 33 Computers (expert; scanners) to hack a missile, or DC 37 Piloting (trained; pilot’s console) to evade a missile lock (doesn’t disable the trap, but each success destroys one missile); destroying all of the missiles disables the hazard",
+   "ac": 36,
+   "fort": 22,
+   "ref": 28,
+   "hardness": 5,
+   "hp": 20,
+   "bt": 10,
+   "hpNote": "each object",
+   "immunities": "critical hits, object immunities, precision damage",
+   "routine": {
+    "cost": "1 action",
+    "text": "Each missile moves 2 zones toward the triggering starship. When a missile reaches the starship’s zone, it explodes, dealing 3d10 fire damage and 3d10 piercing damage to the starship (DC 38 basic Reflex save). Each missile pursues the triggering starship until it explodes or is disabled or destroyed."
+   },
+   "reset": "The hazard resets after 1 day.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "time-loop",
+   "name": "Time Loop",
+   "level": 14,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "rare",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 254
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Repeating Scene",
+     "cost": "reaction",
+     "traits": [
+      "occult"
+     ],
+     "text": "Trigger A starship enters the hazard’s zone; Effect The hazard sends the starship into a time loop. The events of the last 10 minutes on board the affected starship overlap with ongoing events, causing reality to distort. Creatures can hear and see the looping events. The hazard then rolls initiative."
+    },
+    {
+     "name": "Distort Reality",
+     "cost": "one-action",
+     "traits": [
+      "occult"
+     ],
+     "text": "The loop’s superposition with reality starts to strain space and time. Each creature on the affected starship takes 3d10+18 force damage with a DC 37 basic Fortitude save. Every five times the hazard uses Distort Reality, creatures on board the starship take 6d10+36 mental damage and are stupefied 2 for 1 day."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "Stuck in an endless time loop, the same scene plays out over and over again in redundant detail.",
+   "stealthBonus": 22,
+   "stealthRank": "master",
+   "stealthNote": "or Scan for Magic",
+   "disable": "DC 38 Occultism (expert; magic conduit, scanners) or Religion (expert; magic conduit, scanners) to find the right timeline, DC 40 Arcana (expert; any battle station) or Society (expert; any battle station) to introduce enough paradoxes to shut down the loop; four successes are required to disable the hazard",
+   "routine": {
+    "cost": "1 action",
+    "text": "The hazard uses Distort Reality on its turn every round until someone disables it."
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "black-hole",
+   "name": "Black Hole",
+   "level": 15,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 250
+   },
+   "traits": [
+    "environmental",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Inescapable Gravity",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship or creature on board a starship starts its turn within 10 zones of the hazard; Effect The triggering starship is pulled 1 zone toward the hazard and is trapped in the hazard’s orbit. While trapped, the starship can’t Change Heading or take any actions to move any number of zones except toward the hazard until someone disables the hazard each round. The hazard rolls initiative."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A dark orb of super-compressed matter pulls everything toward it.",
+   "stealthDC": 42,
+   "stealthRank": "master",
+   "disable": "DC 35 Computers (expert; scanners), Nature (expert; scanners), or Physical Science Lore (trained; scanners) to calculate a safe path around the hazard, or DC 40 Piloting (expert; pilot’s console) to avoid the event horizon; a success doesn’t disable the hazard (see below)",
+   "routine": {
+    "cost": "1 action",
+    "text": "The hazard pulls the starship 1 zone toward it and continues to trap the starship. The starship experiences additional effects depending on how close it is to the hazard. A starship’s speed cannot be reduced below 1 from this hazard."
+   },
+   "reset": "This hazard can’t be permanently disabled, only escaped, and resets immediately.",
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "ominous-planetoid",
+   "name": "Ominous Planetoid",
+   "level": 16,
+   "complexity": "simple",
+   "isComplex": false,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 248
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Did You See That?",
+     "cost": "reaction",
+     "traits": [
+      "emotion",
+      "fear",
+      "mental"
+     ],
+     "text": "Trigger A starship uses a station action granted by its scanners while the hazard is within the starship’s sensor range; Effect The scanners pick up a wriggling mass of tentacles shaped like a planet. All creatures on board the triggering starship take 3d12+18 mental damage (DC 38 basic Will save). On a failure, the creature is frightened 2; on a critical failure, it’s also stupefied 2."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthDC": 33,
+   "stealthRank": "expert",
+   "stealthNote": "or Scan for Magic",
+   "description": "This planet looks like a wriggling mass of tentacles.",
+   "disable": "DC 36 Arcana (master; magic conduit), Nature (master; magic conduit), Occultism (master; magic conduit), or Religion (master; magic conduit) to ward against the hazard",
+   "reset": "The hazard resets immediately, but it can’t affect the same starship again for the next 24 hours. Disabling the hazard protects the starship that disabled it from being affected by it again, but doing so doesn’t permanently destroy the planetoid.",
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "unstable-munition",
+   "name": "Unstable Munition",
+   "level": 17,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 255
+   },
+   "traits": [
+    "mechanical",
+    "tech",
+    "trap"
+   ],
+   "actions": [
+    {
+     "name": "Prime Munition",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger A starship enters the trap’s zone; Effect The trap’s detonation value is set to 0, then the trap rolls initiative."
+    },
+    {
+     "name": "Detonate",
+     "cost": "free-action",
+     "traits": [],
+     "text": "Trigger (radiation) The detonation value reaches 5, someone fails a check to disarm or reprogram the explosive, or a starship leaves the trap’s zone; Effect The trap explodes, dealing 6d12+37 fire damage to all starships within 1 zone (DC 38 basic Reflex save) and exposing all creatures on board to incredible radiation (GM Core 91). Starships up to 2 zones away take 4d12+26 fire damage, and creatures on board those starships are exposed to severe radiation (GM Core 91)."
+    }
+   ],
+   "textSource": "pdf",
+   "stealthBonus": 28,
+   "stealthRank": "expert",
+   "description": "A stray munition packed with powerful explosives is primed to detonate.",
+   "disable": "DC 38 Computers (expert) to reprogram the explosive, or DC 34 Crafting (expert) to disarm the explosive, or DC 43 Religion (master) to pray for a miracle; three successes required to disable the trap",
+   "ac": 37,
+   "fort": 30,
+   "ref": 26,
+   "hardness": 27,
+   "hp": 110,
+   "bt": 55,
+   "immunities": "critical hits, object immunities, precision damage",
+   "weaknesses": "fire 20",
+   "routine": {
+    "cost": "1 action",
+    "text": "The trap’s detonation value goes up by 1. When the detonation value reaches 5, the trap emits a red light before it Detonates."
+   },
+   "needsReview": false,
+   "review": [
+    "not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"
+   ]
+  },
+  {
+   "id": "unholy-vortex",
+   "name": "Unholy Vortex",
+   "level": 19,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "common",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 255
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Cosmic Insignificance",
+     "cost": "passive",
+     "traits": [
+      "divine",
+      "fear",
+      "emotion",
+      "mental"
+     ],
+     "text": "Creatures and starships must attempt a DC 44 Will save when they first observe the hazard within their sensor range. On a success, a creature or starship is frightened 1. On a failure, the creature or starship is frightened 3 and overwhelmed with existential ennui (frightened 4 on a critical failure)."
+    },
+    {
+     "name": "Inescapable Void",
+     "cost": "reaction",
+     "traits": [
+      "occult",
+      "unholy"
+     ],
+     "text": "Trigger A starship moves within 10 zones of the hazard; Effect The triggering starship is pulled 1 zone toward the hazard and is trapped in the hazard’s orbit. While trapped, the starship can’t Change Heading or take any actions to move any number of zones except toward the hazard until someone disables it each round. The hazard Spawns Undead, then rolls initiative."
+    },
+    {
+     "name": "Spawn Undead",
+     "cost": "one-action",
+     "traits": [
+      "occult",
+      "unholy"
+     ],
+     "text": "This hazard summons a specific 17th-level undead creature on board a starship, within 10 zones. The creature is determined when the hazard is created. The creature rolls initiative and remains until defeated or recalled. The creature also disappears if someone disables the hazard. If the hazard already has an undead present, the hazard instead directs the creature to take its turn immediately after the hazard or recalls the undead. The summoned undead can use 3 actions each round and reactions, unlike most summoned creatures.",
+     "source": "pdf"
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A supernatural black hole sucks all heat and light into its maw.",
+   "stealthBonus": 39,
+   "stealthRank": "legendary",
+   "disable": "DC 47 Computers (expert; scanners), Nature (expert; magic conduit), or Physical Science Lore (trained; generator or scanners) to take protective measures, or DC 50 Piloting (expert; pilot’s console) to avoid the gravitational pull; one success is required per round for the triggering starship to act normally (see below)",
+   "routine": {
+    "cost": "2 action actions",
+    "text": "The hazard Spawns Undead, then pulls the starship 1 zone toward it and continues to trap the starship. The starship experiences additional effects depending on how close it is to the hazard. A starship’s speed cannot be reduced below 1 from this hazard."
+   },
+   "reset": "This hazard can’t be permanently disabled, only escaped, and resets immediately.",
+   "needsReview": false,
+   "review": [
+    "action Spawn Undead only in PDF"
+   ]
+  },
+  {
+   "id": "deific-star",
+   "name": "Deific Star",
+   "level": 20,
+   "complexity": "complex",
+   "isComplex": true,
+   "rarity": "rare",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 250
+   },
+   "traits": [
+    "environmental",
+    "magical",
+    "starship"
+   ],
+   "actions": [
+    {
+     "name": "Divine Adoration",
+     "cost": "reaction",
+     "traits": [
+      "divine",
+      "incapacitation",
+      "mental"
+     ],
+     "text": "Trigger A starship moves within 10 zones of the hazard ; Effect The deific star compels lesser creatures to worship it. Creatures within 10 zones must attempt a DC 47 Will save. On a failure, creatures are fascinated and must spend all their actions worshipping the hazard as a god until the beginning of the hazard’s next turn and can’t use reactions during this time. Creatures with strong faith in another god gain a +1 status bonus to their save. The hazard then rolls initiative."
+    },
+    {
+     "name": "Direct Herald",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "This hazard summons a specific 18th-level or lower creature on board a starship within 10 zones. The creature is determined when the hazard is created. The creature might be a celestial, fiend, prismeni, or any other creature type associated with the deific star. The creature rolls initiative and remains until defeated or recalled. The creature also disappears if someone disables the hazard. If the hazard already has a herald present, the hazard instead directs the creature to take its turn immediately after the hazard or recalls the herald. The summoned herald can use 3 actions each round and reactions, unlike most summoned creatures."
+    },
+    {
+     "name": "Stellar Blessing",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "The hazard blesses a target. If the target is a starship, its HP and SP are fully restored, and all malfunctioning battle stations are repaired. If the target is a creature, its HP is fully restored, and all negative conditions affecting it are removed."
+    },
+    {
+     "name": "Stellar Smite",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "The hazard smites a target, dealing 4d10+22 fire damage and 4d10+22 spirit damage with a DC 47 basic Fortitude save. Any creature that dies from damage caused by Stellar Smite can’t be brought back from the dead by any means other than a miraculous favor from a deity."
+    }
+   ],
+   "textSource": "aon+pdf",
+   "description": "A sacred or profane entity with tremendous godlike power manifests as a living star.",
+   "stealthBonus": 41,
+   "stealthRank": "legendary",
+   "disable": "DC 48 Deception (legendary; any battle station) or Diplomacy (legendary; any battle station) to earn the entity’s favor, DC 48 Performance (legendary; any battle station) to challenge it to a contest and win, or DC 48 Religion (legendary; any battle station) to worship it or overwhelm it with another deity’s power; four successes are required to disable the hazard",
+   "routine": {
+    "cost": "3 actions",
+    "text": "If the hazard is hostile to any starships within 10 zones, it Directs Herald and orders it to attack all targets the hazard has judged unworthy. Then, it uses Stellar Smite to punish targets and Stellar Blessing to reward others, depending on how the deific star’s edicts and anathemas align with present targets. The hazard’s edicts and anathemas should be determined when the hazard is created."
+   },
+   "reset": "This hazard can’t be destroyed except by a god or godlike entity and can reform at any time.",
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+<div class="tsc-sheet-tabs">
+  <nav class="tsc-tabs" role="tablist">{{#each tabs}}{{#if visible}}<button type="button" role="tab" aria-selected="{{active}}" class="{{#if active}}active{{/if}}" data-action="tscTab" data-tab="{{id}}">{{label}}</button>{{/if}}{{/each}}</nav>
+  {{#if warnings.length}}<div class="tsc-warn-box" role="alert">{{#each warnings}}<div>⚠ {{this}}</div>{{/each}}</div>{{/if}}
+</div>
