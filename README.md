@@ -10,7 +10,7 @@ Tactical starship combat for **Starfinder Second Edition** in **Foundry VTT 14**
 
 Each character keeps their own initiative and spends their normal actions. By default, the player starship does not gain a separate turn; compromised ships have the rules-specific hull-integrity exception.
 
-> **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available, but the complete module has not been validated in a live Foundry world. Back up your world and test a copy before using it in a campaign. No system files are modified.
+> **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
 ## Requirements
 
