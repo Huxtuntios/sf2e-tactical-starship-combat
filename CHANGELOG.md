@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 — PF2e with SF2e Anachronism
+
+- Added conditional support for PF2e 8.6.0+ with active SF2e Anachronism 2.4.0+; standalone SF2e behavior and requirements are retained.
+- Added startup validation and localized messages for missing/outdated Anachronism and unavailable Computers/Piloting skills.
+- Added eleven system-scoped PF2e compendiums, derived reproducibly with matching IDs, native icon paths, system provenance and remapped internal UUIDs. Existing SF2e packs keep their names and IDs.
+- Adapted damage chat flags, Toolbelt damage context, compromised initiative priority, hazard/action images and installed-upgrade lookup to the active system.
+- Extended condition lookup to include available Anachronism conditions after native PF2e conditions.
+- Added regression tests for both environments and pack transformations. This is not a world-conversion tool.
+
 ## 0.14.3 — Toolbelt ship damage controls
 
 - Added optional Toolbelt controls for damage through ship shields or directly to hull; native positive damage buttons in ship rows use the same engine.

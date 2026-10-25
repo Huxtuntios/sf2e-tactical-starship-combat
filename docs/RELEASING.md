@@ -1,6 +1,6 @@
 # Windows: GitHub Desktop и автоматический релиз
 
-Модуль: **sf2e-tactical-starship-combat**. Версия: **0.14.0**. Владелец: **Huxtuntios**.
+Модуль: **sf2e-tactical-starship-combat**. Версия: **0.15.0**. Владелец: **Huxtuntios**.
 
 Порядок такой же, как у приложенного Animist Apparition Manager: добавляете распакованную папку в Desktop, публикуете репозиторий, создаёте Release на сайте. **GitHub Actions сам собирает и прикрепляет module.json, module.zip и SHA256SUMS.txt. Вручную загружать их не нужно. Node.js на вашем компьютере для публикации тоже не нужен.**
 
@@ -91,15 +91,15 @@ https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0
 ## Следующие обновления
 
 1. Вносите изменения в файлы.
-2. Для нового релиза, например **0.14.3**, укажите один и тот же номер в:
+2. Для нового релиза, например **0.15.0**, укажите один и тот же номер в:
    - `module.json → version`;
    - `package.json → version`;
    - `package-lock.json → version`;
    - `package-lock.json → packages → "" → version`.
-3. Обновите `module.json → download` на `.../releases/download/v0.14.3/module.zip`. Постоянный `manifest` не меняйте. Сборщик дополнительно формирует правильные ссылки автоматически.
-4. Обновите `CHANGELOG.md`, добавьте `docs/releases/0.14.3.md`.
+3. Обновите `module.json → download` на `.../releases/download/v0.15.0/module.zip`. Постоянный `manifest` не меняйте. Сборщик дополнительно формирует правильные ссылки автоматически.
+4. Обновите `CHANGELOG.md`, добавьте `docs/releases/0.15.0.md`.
 5. В Desktop: **Commit to main → Push origin**. Дождитесь зелёного **CI**.
-6. На сайте создайте Release с тегом **`v0.14.3`**, нажмите **Publish release** и дождитесь зелёного **Release**. Новые файлы появятся автоматически.
+6. На сайте создайте Release с тегом **`v0.15.0`**, нажмите **Publish release** и дождитесь зелёного **Release**. Новые файлы появятся автоматически.
 
 Локальный Node.js для публикации не требуется. Для проверки до отправки установите Node.js 22.13+ и выполните:
 

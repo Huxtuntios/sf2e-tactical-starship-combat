@@ -18,8 +18,21 @@ Each character keeps their own initiative and spends their normal actions. By de
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
 | Foundry Virtual Tabletop                  | v14, minimum 14.361                                                              |
 | Starfinder Second Edition system (`sf2e`) | 1.6.0 or newer; newer system releases still need compatibility testing           |
-| Other modules                             | None required                                                                    |
+| Other modules                             | SF2e: none; PF2e: active SF2e Anachronism 2.4.0+ required                        |
 | Optional integrations                     | HoloDock; coexistence checks for Aztec's Engines of War and Causodes Ship Combat |
+
+## PF2e + SF2e Anachronism
+
+The same module can run in **PF2e 8.6.0+** with **SF2e Anachronism 2.4.0+ installed and active**, on Foundry v14. Anachronism is required only for PF2e; standalone SF2e needs no additional module. The manifest lists both systems, while the conditional dependency is enforced at startup rather than forcing a PF2e-only module into SF2e worlds.
+
+1. Install the official SF2e Anachronism release from the [system repository](https://github.com/foundryvtt/pf2e/releases).
+2. Enable Anachronism and this module, then reload the world.
+3. Use the **Tactical Starship Combat (PF2e)** compendium folder. PF2e packs have a `-pf2e` suffix and retain corresponding document IDs. Native SF2e packs and existing SF2e UUIDs remain unchanged.
+4. Create ships through the module or import from the PF2e packs. Select PF2e characters as crew; Computers and Piloting are supplied by Anachronism’s additional skills. If those skills are unavailable, the module reports the problem instead of substituting unrelated skills.
+
+Ship sheets, stations, Sensor Map, checks, damage, compromised initiative and the optional Toolbelt damage bridge use the active system namespace. Images and internal links in PF2e packs point to the PF2e variants. Native PF2e conditions are preferred, with additional Anachronism conditions available when present.
+
+This does **not** convert a world between systems or migrate already imported SF2e documents into a PF2e world. Back up each world and use its matching packs. Coverage includes static checks and mocks; a live PF2e + Anachronism session still needs in-world verification.
 
 ## Toolbelt and Workbench
 

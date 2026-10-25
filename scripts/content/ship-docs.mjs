@@ -3,6 +3,7 @@ import { stationGradeForLevel } from "../engine/advancement.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { linkInline } from "./inline-links.mjs";
 import { schemaStamp } from "./action-docs.mjs";
+import { nativeSystemId } from "../utils/system.mjs";
 
 export const ICONS = {
   player: `modules/${MODULE_ID}/assets/icons/starship.svg`,
@@ -306,7 +307,7 @@ export function parseStrikeDamage(text) {
 const traitSlugs = (list) => [
   ...new Set((list ?? []).map((t) => String(t).toLowerCase().trim()).filter((t) => /^[a-z][a-z0-9-]*$/.test(t)))
 ];
-export function buildHazardItems(h, { i18n = null, systemId = "sf2e" } = {}) {
+export function buildHazardItems(h, { i18n = null, systemId = nativeSystemId() } = {}) {
   const { tr, label, trList } = docI18n(i18n ?? {});
   const pub = hazardPublication(h),
     stamp = schemaStamp();

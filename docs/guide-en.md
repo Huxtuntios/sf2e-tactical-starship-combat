@@ -2,7 +2,7 @@
 
 ## 1. Install and enable
 
-- Unzip into `Data/modules/` (folder `sf2e-tactical-starship-combat`), restart Foundry and enable the module in a world running the **sf2e** system.
+- Unzip into `Data/modules/` (folder `sf2e-tactical-starship-combat`), restart Foundry and enable the module in **SF2e**, or in **PF2e 8.6.0+ with active SF2e Anachronism 2.4.0+**. In PF2e, use the **Tactical Starship Combat (PF2e)** packs; Anachronism supplies Computers and Piloting. This does not convert existing worlds between systems.
 - The compendium folder **Tactical Starship Combat** contains the Tech Core starships, starship hazards, station action items, starship weapons, station/frame/equipment references, the tactical starship combat rules (EN/RU), the starship exploration activities (EN/RU, reference items without automation) and this guide. The starship, hazard, action, weapon, upgrade and exploration packs have _English_ and _Русский_ folders.
 - Module tools are in the **Token** controls (left): **Sensor Map**, **Station HUD**, and for the GM **Start Combat** and a **Toolbox** (Crew manager, Hazard Browser, Starship Builder, Encounter Builder, Diagnostics).
 

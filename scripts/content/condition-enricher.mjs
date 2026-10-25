@@ -4,6 +4,7 @@
  * Falls back to a plain styled span when the condition is not found.
  */
 import { CONDITION_TOKEN } from "./inline-links.mjs";
+import { ANACHRONISM_ID, nativeSystemId } from "../utils/system.mjs";
 
 const ALIASES = { "off-guard": ["off-guard", "flat-footed"] };
 let cache = null;
@@ -27,11 +28,14 @@ async function loadIndex() {
   if (cache) return cache;
   cache = new Map();
   const pack = conditionPack();
-  if (!pack) return cache;
-  const idx = await pack.getIndex({ fields: ["system.slug"] });
-  for (const e of idx) {
-    const uuid = e.uuid ?? `Compendium.${pack.collection}.Item.${e._id}`;
-    for (const k of [e.system?.slug, slugify(e.name)]) if (k && !cache.has(k)) cache.set(k, { uuid, name: e.name });
+  const extra =
+    nativeSystemId() === "pf2e" && game.modules?.get(ANACHRONISM_ID)?.active ? game.packs.get(`${ANACHRONISM_ID}.conditions`) : null;
+  for (const current of new Set([pack, extra].filter(Boolean))) {
+    const idx = await current.getIndex({ fields: ["system.slug"] });
+    for (const e of idx) {
+      const uuid = e.uuid ?? `Compendium.${current.collection}.Item.${e._id}`;
+      for (const k of [e.system?.slug, slugify(e.name)]) if (k && !cache.has(k)) cache.set(k, { uuid, name: e.name });
+    }
   }
   return cache;
 }

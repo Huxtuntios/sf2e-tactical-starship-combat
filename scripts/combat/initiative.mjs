@@ -2,6 +2,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { log } from "../utils/logging.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { moduleSetting } from "../utils/foundry.mjs";
+import { nativeSystemId } from "../utils/system.mjs";
 
 /**
  * Initiative integration. The native Combat Tracker is never replaced:
@@ -10,12 +11,12 @@ import { moduleSetting } from "../utils/foundry.mjs";
  *    to 0 HP and wins ties (rules: Tech Core, Compromised) so its hull integrity check happens first.
  *  - enemy ships (npc actors) and complex hazards are ordinary combatants that roll native initiative.
  */
-const SYSTEM = "sf2e";
-
 function priorityFlag(combat, initiative) {
   // lower number acts first on ties (system convention); beat the lowest existing priority at that count
   const same = combat.combatants.filter((c) => c.initiative === initiative);
-  const existing = same.map((c) => c.flags?.[SYSTEM]?.overridePriority?.[initiative] ?? c.actor?.initiative?.tiebreakPriority ?? 3);
+  const existing = same.map(
+    (c) => c.flags?.[nativeSystemId()]?.overridePriority?.[initiative] ?? c.actor?.initiative?.tiebreakPriority ?? 3
+  );
   return Math.min(3, ...existing) - 1;
 }
 
@@ -43,7 +44,7 @@ export const Initiative = {
           hidden: false,
           flags: {
             [MODULE_ID]: { compromisedEntry: true, shipUuid: shipActor.uuid },
-            [SYSTEM]: { overridePriority: { [initiative]: priority } }
+            [nativeSystemId()]: { overridePriority: { [initiative]: priority } }
           }
         }
       ]);

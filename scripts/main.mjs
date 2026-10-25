@@ -35,6 +35,7 @@ import { UPGRADE_USAGE } from "./engine/upgrades.mjs";
 import { registerUpgradePartials } from "./ui/sheet/sheet-upgrades.mjs";
 import { OCCUPANT_PARTIAL, isCrewMember, invalidateCrewIndex } from "./crew/occupant.mjs";
 import { moduleSetting, isActiveGM, T } from "./utils/foundry.mjs";
+import { systemSupport, missingStarfinderSkills } from "./utils/system.mjs";
 
 let enabled = false;
 
@@ -58,8 +59,9 @@ const TEMPLATES = [
 ].map((n) => `modules/${MODULE_ID}/templates/${n}.hbs`);
 
 Hooks.once("init", () => {
-  if (game.system.id !== "sf2e") {
-    log.warn(`This module only supports the sf2e system (found "${game.system.id}"). It stays inactive.`);
+  const support = systemSupport();
+  if (!support.supported) {
+    log.warn(`Unsupported environment (${game.system.id}): ${support.key}. Module stays inactive.`);
     return;
   }
   enabled = true;
@@ -91,7 +93,16 @@ function registerUpgradeUsages() {
 }
 
 Hooks.once("ready", async () => {
-  if (!enabled) return;
+  const support = systemSupport();
+  if (!enabled || !support.supported) {
+    if (!support.supported) ui.notifications.error(T(`SF2eTSC.compatibility.${support.key}`));
+    return;
+  }
+  const missing = missingStarfinderSkills();
+  if (missing.length) {
+    ui.notifications.error(T("SF2eTSC.compatibility.skillsMissing", { skills: missing.join(", ") }));
+    return;
+  }
   await guarded("content", () => loadContent());
   await guarded("content-i18n", () => loadContentTranslations(game.i18n.lang));
   await guarded("starship statistics", () => registerStarshipStatistics());
@@ -139,7 +150,7 @@ async function stampSystemSchema() {
     .map((a) => ({ _id: a.id, "system._migration": stamp }));
   if (updates.length) {
     await Actor.updateDocuments(updates);
-    log.info(`stamped sf2e schema ${stamp.version} on ${updates.length} module actors`);
+    log.info(`stamped ${game.system.id} schema ${stamp.version} on ${updates.length} module actors`);
   }
 }
 

@@ -25,6 +25,7 @@ import { sheetPartsFor, escHTML } from "./sheet-model.mjs";
 import { upgradeCatalog } from "../../content/loader.mjs";
 import { stationUpgradeStatus } from "../../engine/upgrades.mjs";
 import { SHIP_TARGET } from "./sheet-upgrades.mjs";
+import { modulePackId } from "../../utils/system.mjs";
 
 export function switchTab(e, t) {
   this.tab = t.dataset.tab;
@@ -336,7 +337,7 @@ export async function manualResolve() {
 
 /** Resolve by stable catalog key, not translated names or guessed document ids. */
 export async function openUpgrade(e, target) {
-  const pack = game.packs.get("sf2e-tactical-starship-combat.starship-upgrades");
+  const pack = game.packs.get(modulePackId("starship-upgrades"));
   if (!pack) return;
   const index = await pack.getIndex({
     fields: ["flags.sf2e-tactical-starship-combat.upgrade.key", "flags.sf2e-tactical-starship-combat.upgrade.lang"]

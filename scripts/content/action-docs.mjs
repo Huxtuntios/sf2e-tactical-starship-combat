@@ -5,6 +5,7 @@
  * automatic station-item synchronisation never deletes copies that a GM or player dragged onto a sheet.
  */
 import { MODULE_ID, STARSHIP_TAG } from "../constants.mjs";
+import { nativeSystemId } from "../utils/system.mjs";
 
 /** sf2e / pf2e system schema version written into module-created documents (sf2e 1.6.0: 0.959). */
 export const SF2E_SCHEMA_VERSION = 0.959;
@@ -53,7 +54,7 @@ const esc = (s) =>
 export function buildActionItemData(
   a,
   {
-    systemId = "sf2e",
+    systemId = nativeSystemId(),
     stationName = "",
     runLabel = "Выполнить на корабле / Perform on the ship",
     tr = (x) => x,

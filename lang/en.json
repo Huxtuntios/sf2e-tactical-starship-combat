@@ -1225,6 +1225,13 @@
       "mixedTargets": "Apply ship damage separately from ordinary actors, or use individual Toolbelt target rows.",
       "useShipShields": "Shield Block is for a personal shield. Use Damage through shields or Direct hull damage for a starship.",
       "applied": "Ship damage applied."
+    },
+    "compatibility": {
+      "unsupported": "This module requires SF2e, or PF2e with active SF2e Anachronism.",
+      "pf2eVersion": "PF2e 8.6.0 or newer is required for the Anachronism integration.",
+      "anachronismRequired": "Enable SF2e Anachronism in this PF2e world, then reload. The starship module stays inactive without it.",
+      "anachronismVersion": "SF2e Anachronism 2.4.0 or newer is required in PF2e. Update it and reload.",
+      "skillsMissing": "Anachronism skills are unavailable: {skills}. Check the active module and additional skill settings, then reload. Starship automation has not started."
     }
   }
 }

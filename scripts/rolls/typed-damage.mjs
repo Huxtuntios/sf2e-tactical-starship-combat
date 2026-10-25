@@ -2,6 +2,7 @@
 import { DAMAGE_TOKEN } from "../content/inline-links.mjs";
 import { T } from "../utils/foundry.mjs";
 import { MODULE_ID } from "../constants.mjs";
+import { nativeSystemId } from "../utils/system.mjs";
 export function typedDamageFormula(parts) {
   if (!Array.isArray(parts) || !parts.length) throw new Error(T("SF2eTSC.rolls.noSuchWeapon"));
   return `{${parts
@@ -24,7 +25,7 @@ export async function rollTypedDamage(formula, { actor = null, speaker = null, f
     speaker: speaker ?? ChatMessage.getSpeaker({ actor }),
     flavor,
     flags: {
-      sf2e: { context: { type: "damage-roll" }, ...(attackCardId ? { suppressDamageButtons: true } : {}) },
+      [nativeSystemId()]: { context: { type: "damage-roll" }, ...(attackCardId ? { suppressDamageButtons: true } : {}) },
       ...(attackCardId ? { [MODULE_ID]: { attackCardDamage: attackCardId } } : {})
     }
   });

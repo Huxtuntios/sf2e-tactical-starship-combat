@@ -1,8 +1,8 @@
 {
   "id": "sf2e-tactical-starship-combat",
   "title": "SF2e Tactical Starship Combat",
-  "description": "Tactical starship combat for Starfinder Second Edition: player and NPC starships, battle stations, a zone-based Sensor Map, starship hazards and a data-driven action engine. Every PC keeps their normal initiative and turn; the player ship gets no extra turn.",
-  "version": "0.14.3",
+  "description": "Tactical starship combat for Starfinder Second Edition: player and NPC starships, battle stations, a zone-based Sensor Map, starship hazards and a data-driven action engine. Every PC keeps their normal initiative and turn; the player ship gets no extra turn. Also supports PF2e with active SF2e Anachronism.",
+  "version": "0.15.0",
   "authors": [
     {
       "name": "Huxtuntios",
@@ -25,6 +25,14 @@
         "compatibility": {
           "minimum": "1.6.0",
           "verified": "1.6.1"
+        }
+      },
+      {
+        "id": "pf2e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "8.6.0",
+          "verified": "8.6.1"
         }
       }
     ],
@@ -142,6 +150,99 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "guide-pf2e",
+      "label": "Guide / Руководство (PF2e)",
+      "path": "packs/guide-pf2e",
+      "type": "JournalEntry",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-combat-rules-pf2e",
+      "label": "Tactical Starship Combat Rules / Правила космического боя (PF2e)",
+      "path": "packs/starship-combat-rules-pf2e",
+      "type": "JournalEntry",
+      "system": "pf2e"
+    },
+    {
+      "name": "starships-pf2e",
+      "label": "Starships (Tech Core) / Звездолёты (PF2e)",
+      "path": "packs/starships-pf2e",
+      "type": "Actor",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-hazards-pf2e",
+      "label": "Starship Hazards (Tech Core) / Космические угрозы (PF2e)",
+      "path": "packs/starship-hazards-pf2e",
+      "type": "Actor",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-actions-pf2e",
+      "label": "Starship Actions / Действия кораблей (PF2e)",
+      "path": "packs/starship-actions-pf2e",
+      "type": "Item",
+      "system": "pf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "starship-weapons-pf2e",
+      "label": "Starship Weapons / Орудия кораблей (PF2e)",
+      "path": "packs/starship-weapons-pf2e",
+      "type": "Item",
+      "system": "pf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "battle-stations-pf2e",
+      "label": "Battle Stations / Боевые станции (PF2e)",
+      "path": "packs/battle-stations-pf2e",
+      "type": "JournalEntry",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-frames-pf2e",
+      "label": "Starship Frames / Каркасы звездолётов (PF2e)",
+      "path": "packs/starship-frames-pf2e",
+      "type": "JournalEntry",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-equipment-pf2e",
+      "label": "Starship Equipment / Снаряжение звездолётов (PF2e)",
+      "path": "packs/starship-equipment-pf2e",
+      "type": "JournalEntry",
+      "system": "pf2e"
+    },
+    {
+      "name": "starship-exploration-pf2e",
+      "label": "Starship Exploration Activities / Исследование на звездолёте (PF2e)",
+      "path": "packs/starship-exploration-pf2e",
+      "type": "Item",
+      "system": "pf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "starship-upgrades-pf2e",
+      "label": "Starship Upgrades / Улучшения звездолётов (PF2e)",
+      "path": "packs/starship-upgrades-pf2e",
+      "type": "Item",
+      "system": "pf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
@@ -162,6 +263,24 @@
         "starship-exploration",
         "starship-upgrades"
       ]
+    },
+    {
+      "name": "Tactical Starship Combat (PF2e)",
+      "sorting": "a",
+      "color": "#1d4ed8",
+      "packs": [
+        "guide-pf2e",
+        "starship-combat-rules-pf2e",
+        "starships-pf2e",
+        "starship-hazards-pf2e",
+        "starship-actions-pf2e",
+        "starship-weapons-pf2e",
+        "battle-stations-pf2e",
+        "starship-frames-pf2e",
+        "starship-equipment-pf2e",
+        "starship-exploration-pf2e",
+        "starship-upgrades-pf2e"
+      ]
     }
   ],
   "flags": {
@@ -172,7 +291,7 @@
   },
   "url": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat",
   "manifest": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/latest/download/module.json",
-  "download": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.14.3/module.zip",
+  "download": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.15.0/module.zip",
   "bugs": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues",
   "changelog": "https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/CHANGELOG.md"
 }

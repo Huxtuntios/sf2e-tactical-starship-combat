@@ -1,5 +1,6 @@
 // node tools/build-packs.mjs  — builds the LevelDB compendium packs from data/*.json (requires @foundryvtt/foundryvtt-cli)
 import { STARSHIP_TAG } from "../scripts/constants.mjs";
+import { pf2ePackDocument } from "./pf2e-packs.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -588,7 +589,7 @@ for (const [lang, title] of [
   write("starship-combat-rules", "!journal!{id}", stableId(`j:rules:${lang}`), journal(title, pages, `j:rules:${lang}`));
 }
 
-for (const pack of [
+const BASE_PACKS = [
   "starships",
   "starship-hazards",
   "starship-actions",
@@ -600,10 +601,28 @@ for (const pack of [
   "starship-combat-rules",
   "starship-exploration",
   "starship-upgrades"
-]) {
+];
+for (const pack of BASE_PACKS) {
   const dest = path.join(root, "packs", pack);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(dest, { recursive: true });
   await compilePack(path.join(SRC, pack), dest, { log: false, recursive: false });
   console.log("built", pack, fs.readdirSync(path.join(SRC, pack)).length, "source docs");
+}
+
+// PF2e-копии сохраняют ID и игровые данные; ссылки ведут только в PF2e-варианты паков.
+for (const pack of BASE_PACKS) {
+  const name = `${pack}-pf2e`;
+  const source = path.join(SRC, name);
+  const dest = path.join(root, "packs", name);
+  fs.rmSync(source, { recursive: true, force: true });
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(source, { recursive: true });
+  fs.mkdirSync(dest, { recursive: true });
+  for (const file of fs.readdirSync(path.join(SRC, pack)).filter((name) => name.endsWith(".json"))) {
+    const doc = JSON.parse(fs.readFileSync(path.join(SRC, pack, file), "utf8"));
+    fs.writeFileSync(path.join(source, file), JSON.stringify(pf2ePackDocument(doc, BASE_PACKS), null, 1));
+  }
+  await compilePack(source, dest, { log: false, recursive: false });
+  console.log("built", name, fs.readdirSync(source).length, "derived source docs");
 }

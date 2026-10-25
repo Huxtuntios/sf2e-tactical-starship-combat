@@ -60,6 +60,14 @@ export function validateReleaseCompatibility(manifest) {
   const system = manifest.relationships?.systems?.find((entry) => entry.id === "sf2e" && entry.type === "system");
   if (!system) throw new Error("An explicit sf2e system relationship is required.");
   check(system.compatibility, "relationships.systems.sf2e.compatibility");
+  const pf2e = manifest.relationships?.systems?.find((entry) => entry.id === "pf2e" && entry.type === "system");
+  if (!pf2e) throw new Error("An explicit pf2e system relationship is required.");
+  check(pf2e.compatibility, "relationships.systems.pf2e.compatibility");
+  for (const pack of manifest.packs.filter((entry) => entry.system === "sf2e")) {
+    const counterpart = manifest.packs.find((entry) => entry.name === `${pack.name}-pf2e`);
+    if (!counterpart || counterpart.system !== "pf2e" || counterpart.type !== pack.type)
+      throw new Error(`Missing PF2e counterpart for ${pack.name}`);
+  }
 }
 
 function collect(root, relative, entries) {

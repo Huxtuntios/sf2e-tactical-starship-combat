@@ -63,6 +63,7 @@ const ALLOWED_LATIN = new Set([
   "HoloDock",
   "PF2e",
   "Toolbelt",
+  "Anachronism",
   "Causodes",
   "Ship",
   "Combat",

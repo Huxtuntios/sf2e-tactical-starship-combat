@@ -7,6 +7,7 @@ import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { snapshot } from "../history/history.mjs";
+import { nativeSystemId } from "../utils/system.mjs";
 
 const queues = new Map();
 export const CHAT_DAMAGE_FLAG = "chatDamageApplications";
@@ -62,7 +63,7 @@ export async function applyToolbeltDamage({ user, payload }) {
         rejectDamage("alreadyApplied");
       const parts = damagePartsFromMessage(message, payload.rollIndex, payload.multiplier, payload.addend ?? 0);
       const item = message.item;
-      const options = message.flags?.sf2e?.context?.options ?? [];
+      const options = message.flags?.[nativeSystemId()]?.context?.options ?? [];
       const traits = [
         ...new Set([
           ...(item?.system?.traits?.value ?? []),

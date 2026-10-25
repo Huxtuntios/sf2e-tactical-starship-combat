@@ -64,7 +64,9 @@ test("release ZIP contains matching root manifest and complete packs, but no dev
     assert.ok(files["README.ru.md"] && files["LICENSE"] && files["scripts/main.mjs"]);
     assert.ok(!names.some((name) => /^(node_modules|tools|tests|packs-src|dist|\.git|\.github)\//.test(name)));
     assert.ok(!names.some((name) => /\/(LOCK|LOG|LOG\.old)$/.test(name)));
-    assert.equal(source.packs.length, 11);
+    assert.equal(source.packs.length, 22);
+    assert.equal(source.packs.filter((pack) => pack.system === "sf2e").length, 11);
+    assert.equal(source.packs.filter((pack) => pack.system === "pf2e").length, 11);
     for (const pack of source.packs) {
       const current = `${pack.path}/CURRENT`;
       assert.ok(files[current], current);
