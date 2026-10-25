@@ -6,9 +6,11 @@
  *  - conditions: "frightened 2", "off-guard", "напугано 2", "застигнут врасплох"
  *                                              -> @TscCondition[frightened|value:2]{frightened 2}
  *    (@TscCondition is resolved at render time to the system's condition item, see condition-enricher.mjs).
- * Pure (no Foundry globals) and idempotent: existing enrichers and HTML tags are never touched.
+ * Pure (no Foundry globals) and idempotent. Existing damage/condition enrichers and HTML tags are preserved;
+ * check labels and their redundant outer parentheses are normalized for native SF2e rendering.
  */
 import { linkChecks } from "./inline-checks.mjs";
+import { normalizeNativeChecks } from "./native-checks.mjs";
 
 export const DAMAGE_TYPES = [
   "acid",
@@ -229,12 +231,13 @@ export function linkDamageAndConditions(html) {
   return conditionSegment(splitApply(s, damageSegment));
 }
 
-/** Full pipeline: checks, damage, conditions. Idempotent. */
-export function linkInline(html) {
+/** Full pipeline; module-only anchors opt out of native DC-label normalization. Idempotent. */
+export function linkInline(html, { nativeChecks = true } = {}) {
   let s = String(html ?? "");
   if (!s) return s;
   if (!s.includes("@Check[")) s = linkChecks(s);
-  return linkDamageAndConditions(s);
+  s = linkDamageAndConditions(s);
+  return nativeChecks ? normalizeNativeChecks(s) : s;
 }
 
 export const DAMAGE_TOKEN = /@Damage\[((?:[^[\]]|\[[^\]]*\])*)\](?:\{([^}]*)\})?/g;

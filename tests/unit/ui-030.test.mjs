@@ -25,7 +25,7 @@ test("module check links are escaped anchors and post enrichers", () => {
   const h = checkLinksHTML("<b> DC 20 Will save");
   assert.match(h, /^&lt;b&gt;/);
   assert.match(h, /class="tsc-check" data-check="will\|dc:20"/);
-  assert.equal(checkChatContent("will|dc:20", "DC 20 Will save"), "<p>@Check[will|dc:20]{DC 20 Will save}</p>");
+  assert.equal(checkChatContent("will|dc:20", "DC 20 Will save"), "<p>@Check[will|dc:20]{Will save}</p>");
 });
 test("editor kv/csv parsing", () => {
   assert.deepEqual(parseKv("fire 5, cold 10, physical: 3"), { fire: 5, cold: 10, physical: 3 });

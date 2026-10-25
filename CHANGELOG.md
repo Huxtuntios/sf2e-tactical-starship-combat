@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.14.3 — Toolbelt ship damage controls
+
+- Added optional Toolbelt controls for damage through ship shields or directly to hull; native positive damage buttons in ship rows use the same engine.
+- Preserved typed damage, multipliers and Shift adjustments; grouped multi-type damage applies Hardness and the shield/hull transition once.
+- Added GM-side validation, per-ship queues, state checks and application receipts to guard repeated clicks. Ordinary actors and native healing remain unchanged.
+- Kept module attack cards on their existing application path and suppressed duplicate native buttons on new associated rolls.
+- Added regression mocks and a local DOM fixture; documented unsupported persistent/split-splash workflows and mixed-selection handling.
+
+## 0.14.2 — Toolbelt statistics and inline checks
+
+- Exposed the existing starship save, Perception and skill adapter through native `actor.getStatistic`, fixing missing Reflex/Will for vehicle-based ships in SF2e inline checks and Toolbelt Target Helper.
+- Added a narrowly scoped, chained lookup wrapper for flagged vehicle/NPC starships only. Ordinary actors and unknown statistics retain the previous implementation; no actor data or external module settings are rewritten.
+- Kept native NPC modifiers and the existing module modifier calculations; lookups use current crew/effects without stacking the adjustment repeatedly.
+- Removed duplicate DC text and redundant parentheses around inline check links in action cards and generated descriptions, including Barrow Dirgesinger’s fragment launcher. Area/trait parentheses, basic-save parameters, visibility and typed damage remain intact.
+- Reviewed Toolbelt 3.59.2 and Workbench 7.7.5 integration paths. No duplicate damage-roll listener, automatic damage application or new dependency was added. Native damage-application buttons do not replace the starship shield/hull engine.
+- Added regression tests for native lookups, callback forwarding, ordinary actors, live penalties, NPC modifiers and EN/RU check markup; rebuilt compendiums.
+
 ## 0.14.1 — Compatibility declarations and release integrity
 
 - Declared Foundry v14 and SF2e compatibility explicitly, without widening support to Foundry v13 or PF2e worlds.

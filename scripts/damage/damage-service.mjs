@@ -1,5 +1,6 @@
 import { HOOK_EVENTS } from "../constants.mjs";
 import { computeStarshipDamage, normalizeIwr } from "../engine/damage.mjs";
+import { computeStarshipDamagePacket } from "../engine/damage-packet.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { postDamageCard } from "../chat/chat-cards.mjs";
 import { Initiative } from "../combat/initiative.mjs";
@@ -8,7 +9,17 @@ import { Initiative } from "../combat/initiative.mjs";
 export async function applyDamageInDraft(
   draft,
   shipUuid,
-  { amount, damageType = "untyped", traits = [], criticalHit = false, nonlethal = false, source = null, attackLine = null, silent = false }
+  {
+    amount,
+    parts = null,
+    damageType = "untyped",
+    traits = [],
+    criticalHit = false,
+    nonlethal = false,
+    source = null,
+    attackLine = null,
+    silent = false
+  }
 ) {
   draft.auditReason = source || attackLine || damageType;
   const entry = await draft.ship(shipUuid);
@@ -29,7 +40,8 @@ export async function applyDamageInDraft(
   };
   const resistances = mergeMax(normalizeIwr(d.resistances), normalizeIwr(sysAttr.resistances));
   const weaknesses = mergeMax(normalizeIwr(d.weaknesses), normalizeIwr(sysAttr.weaknesses));
-  const result = computeStarshipDamage({
+  const compute = parts ? computeStarshipDamagePacket : computeStarshipDamage;
+  const result = compute({
     state: {
       hp: d.hp.value,
       sp: d.sp.value,
@@ -44,6 +56,7 @@ export async function applyDamageInDraft(
       weaknesses
     },
     amount,
+    parts,
     damageType,
     traits,
     criticalHit,

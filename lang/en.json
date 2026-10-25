@@ -1208,6 +1208,23 @@
         "until-cover-lost": "until cover lost"
       },
       "remindSustain": "Remind me to sustain"
+    },
+    "toolbelt": {
+      "shields": "Damage through shields",
+      "hull": "Direct hull damage",
+      "shieldsHint": "Apply ship IWR and Hardness, then shields; excess damage reaches the hull.",
+      "hullHint": "Bypass ship shields, retaining IWR and Hardness.",
+      "multiplier": "Damage multiplier (choose half/full/double as appropriate for the save)",
+      "adjustment": "Adjust ship damage",
+      "invalid": "Invalid damage request.",
+      "unsupported": "This roll cannot be applied here. Persistent damage, healing-only or split splash rolls require separate handling. Module attack cards retain their own Apply Damage button.",
+      "inactive": "PF2e Toolbelt is not active.",
+      "alreadyApplied": "This roll has already been applied to this ship.",
+      "shipOnly": "Select a module starship.",
+      "source": "Toolbelt starship damage",
+      "mixedTargets": "Apply ship damage separately from ordinary actors, or use individual Toolbelt target rows.",
+      "useShipShields": "Shield Block is for a personal shield. Use Damage through shields or Direct hull damage for a starship.",
+      "applied": "Ship damage applied."
     }
   }
 }

@@ -50,7 +50,7 @@ test("degrees of success and Russian markers are formatted like sf2e items", () 
   );
   assert.equal(
     en,
-    "<p><strong>Effect</strong> Boom, @Check[will|dc:18]{DC 18 Will save}.</p><hr /><p><strong>Critical Success</strong> Fine.</p><p><strong>Success</strong> @TscCondition[frightened|value:1]{Frightened 1}.</p><p><strong>Failure</strong> Takes @Damage[3d8[mental]]{3d8 mental damage}.</p><p><strong>Critical Failure</strong> Worse.</p>"
+    "<p><strong>Effect</strong> Boom, @Check[will|dc:18]{Will save}.</p><hr /><p><strong>Critical Success</strong> Fine.</p><p><strong>Success</strong> @TscCondition[frightened|value:1]{Frightened 1}.</p><p><strong>Failure</strong> Takes @Damage[3d8[mental]]{3d8 mental damage}.</p><p><strong>Critical Failure</strong> Worse.</p>"
   );
   const ru = { trigger: "Триггер", effect: "Эффект" };
   assert.equal(

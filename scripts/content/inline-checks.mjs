@@ -4,6 +4,7 @@
  * sheets, journals and chat. Pure (no Foundry globals); idempotent — text that already contains enrichers is skipped.
  */
 import { linkInline, DAMAGE_TOKEN, CONDITION_TOKEN } from "./inline-links.mjs";
+import { normalizeNativeChecks } from "./native-checks.mjs";
 export const CHECK_SKILLS = [
   "Acrobatics",
   "Arcana",
@@ -69,7 +70,7 @@ const esc = (s) =>
  * <a class="tsc-check"> (the click posts the @Check enricher to chat, where sf2e makes it rollable).
  */
 export function checkLinksHTML(text) {
-  return linkInline(esc(text))
+  return linkInline(esc(text), { nativeChecks: false })
     .replace(
       /@Check\[([^\]]+)\](?:\{([^}]*)\})?/g,
       (m, params, label) =>
@@ -97,7 +98,7 @@ const enricherParams = (s) => esc(String(s ?? "").replace(/[[\]{}]/g, ""));
 export function checkChatContent(params, label, sourceName = "") {
   const head = sourceName ? `<p><strong>${esc(sourceName)}</strong></p>` : "";
   const l = enricherLabel(label);
-  return `${head}<p>@Check[${enricherParams(params)}]${l ? `{${l}}` : ""}</p>`;
+  return normalizeNativeChecks(`${head}<p>@Check[${enricherParams(params)}]${l ? `{${l}}` : ""}</p>`);
 }
 /** Chat content for a clicked inline damage link (data-inline="@Damage[…]"). Anything else is refused. */
 export function inlineChatContent(inline, label, sourceName = "") {

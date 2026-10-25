@@ -1,6 +1,8 @@
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
 import { registerHistoryHandlers } from "./history/history.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
+import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
+import { registerToolbeltDamage } from "./integrations/toolbelt-damage.mjs";
 import { MODULE_ID, MODULE_TITLE, DATA_VERSION, HOOK_EVENTS } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
 import { loadContent } from "./content/loader.mjs";
@@ -92,6 +94,7 @@ Hooks.once("ready", async () => {
   if (!enabled) return;
   await guarded("content", () => loadContent());
   await guarded("content-i18n", () => loadContentTranslations(game.i18n.lang));
+  await guarded("starship statistics", () => registerStarshipStatistics());
   initSocket();
   for (const fn of [
     registerCrewHandlers,
@@ -104,6 +107,7 @@ Hooks.once("ready", async () => {
   ])
     fn();
   registerAttackCards();
+  registerToolbeltDamage();
   registerStationItems();
   registerCombatHooks();
   registerCrewSyncHooks();

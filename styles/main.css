@@ -1,3 +1,24 @@
+/* Корабельные режимы урона в строке цели Toolbelt и в штатной карточке броска. */
+.tsc-ship-damage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  width: 100%;
+  padding-top: 4px;
+}
+.tsc-ship-damage-controls button {
+  flex: 1 1 110px;
+  white-space: normal;
+  line-height: 1.2;
+  min-height: 28px;
+}
+.tsc-ship-damage-controls select {
+  flex: 0 0 54px;
+  max-width: 54px;
+}
+.tsc-ship-damage-applied .tsc-ship-damage-controls {
+  opacity: 0.65;
+}
 /* SF2e Tactical Starship Combat - shared styles (self-contained; system CSS does not style AppV2 windows) */
 .sf2e-tsc {
   --tsc-bg: #0e1522;

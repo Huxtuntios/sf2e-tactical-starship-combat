@@ -21,6 +21,25 @@ Each character keeps their own initiative and spends their normal actions. By de
 | Other modules                             | None required                                                                    |
 | Optional integrations                     | HoloDock; coexistence checks for Aztec's Engines of War and Causodes Ship Combat |
 
+## Toolbelt and Workbench
+
+Ship checks are exposed through the native `actor.getStatistic` API. This allows SF2e inline save links and **PF2e Toolbelt Target Helper** to request Fortitude, Reflex and Will for vehicle-based player ships as well as NPC ships. Perception and stored ship skills use the same adapter as the ship sheet. Select the **ship token**, not a crew token, when making a ship save.
+
+The bridge chains the existing lookup only for actors explicitly marked as module starships. Ordinary actors, unknown statistics and external module settings are unchanged. Statistics are read on demand; NPC native modifiers are preserved. It does not create duplicate chat rolls or apply damage automatically.
+
+With **PF2e Toolbelt active**, typed damage messages gain two controls for module starships:
+
+- **Through shields**: use the ship damage engine, with shield overflow going to hull.
+- **Direct to hull**: bypass shields, but retain applicable immunities, resistances, weaknesses and Hardness.
+
+Native positive damage buttons (full, half, double and triple damage) in ship target rows also use the ship engine, through shields by default. Choose a multiplier explicitly; hold **Shift** when applying damage to enter a numeric adjustment. Types are read from the stored roll, not from client-supplied damage totals. Multi-type damage applies type defenses before applying Hardness and the shield/hull transition once. Repeated application of the same message roll to the same ship is guarded against, including switching between the two modes. Application requires an active GM and permission to adjust that ship’s vitals.
+
+Ordinary actors and native healing buttons retain their existing behavior. Toolbelt’s personal **Shield Block** is not a starship shield action: use the two ship controls instead. A generic row with a mixed ship/non-ship selection is blocked; use individual Toolbelt target rows or select ships separately. Unevaluated persistent damage, healing-only rolls and split splash messages are not supported by this bridge; apply those using the appropriate manual workflow. No persistent-damage condition is created automatically.
+
+Module attack cards keep their existing **Apply Damage** workflow. Newly generated attack-card damage rolls suppress duplicate native application buttons. Do not apply both paths from older chat cards created before this update. Reload the world after installing.
+
+Source review covered Toolbelt **3.59.2** and Workbench **7.7.5**. Workbench’s spell/creature automation is not a starship action engine: automatic station actions and CR scaling of module ship data are not added. Neither module is required. Automated mocks and local interface fixtures do not replace an in-world integration test.
+
 ## Install
 
 1. Open **Add-on Modules → Install Module** and paste the manifest URL:

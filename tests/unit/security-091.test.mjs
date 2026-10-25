@@ -225,7 +225,7 @@ test("0.9.1: decoded check-link labels are escaped again before they reach chat"
   const c = checkChatContent("will|dc:20", evil, "<b>Src</b>");
   assert.doesNotMatch(c, /<img|<b>Src/);
   assert.match(c, /&lt;img/);
-  assert.equal(checkChatContent("will|dc:20", "DC 20 Will save"), "<p>@Check[will|dc:20]{DC 20 Will save}</p>");
+  assert.equal(checkChatContent("will|dc:20", "DC 20 Will save"), "<p>@Check[will|dc:20]{Will save}</p>");
   assert.doesNotMatch(checkChatContent("will]{x}<i>", "a}b"), /<i>|\]\{x/);
   assert.equal(inlineChatContent("@Damage[2d8[fire]]", "2d8 fire"), "<p>@Damage[2d8[fire]]{2d8 fire}</p>");
   assert.doesNotMatch(inlineChatContent("@Damage[2d8[fire]]", evil), /<img/);

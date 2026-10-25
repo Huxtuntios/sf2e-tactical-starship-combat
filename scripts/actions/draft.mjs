@@ -8,9 +8,9 @@ import { log } from "../utils/logging.mjs";
  * "spent but not applied" or "applied but not spent": cost, frequency, effects, movement and log are one write set.
  */
 export class Draft {
-  constructor(combat) {
+  constructor(combat, { trackCombat = true } = {}) {
     this.combat = combat ?? null;
-    this.tsc = combat ? foundry.utils.deepClone(getTsc(combat)) : null;
+    this.tsc = combat && trackCombat ? foundry.utils.deepClone(getTsc(combat)) : null;
     this.ships = new Map(); // uuid -> { actor, data }
     this.hazards = new Map(); // uuid -> { actor, patch }
     this.hooks = []; // [name, ...args] fired after a successful commit
@@ -43,8 +43,9 @@ export class Draft {
     const action = this.auditActionReason;
     const reason = action || this.auditReason || "";
     const undoable = this.allowUndo === true && !this.hazards.size && !action && this.ships.size === 1;
-    for (const { actor, data } of this.ships.values())
-      writes.push(writeStarship(actor, data, { hullPatch: data.hp, reason, undoable: undoable && !!this.auditReason }));
+    // Внутренние writeOptions позволяют атомарно сохранить метку применения вместе с уроном.
+    for (const { actor, data, writeOptions } of this.ships.values())
+      writes.push(writeStarship(actor, data, { ...writeOptions, hullPatch: data.hp, reason, undoable: undoable && !!this.auditReason }));
     if (this.combat && this.tsc) writes.push(saveTsc(this.combat, this.tsc));
     for (const { actor, patch } of this.hazards.values()) writes.push(actor.update(patch));
     const results = await Promise.allSettled(writes);

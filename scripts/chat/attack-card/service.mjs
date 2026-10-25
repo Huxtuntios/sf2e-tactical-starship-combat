@@ -240,6 +240,7 @@ export async function rollAttackCardDamage({ user, payload }) {
       ? pd.damageParts.map((part) => ({ ...part, formula: pd.crit ? `(${part.formula})*2` : part.formula }))
       : [{ formula, type: pd.damageType ?? "untyped" }];
     const roll = await rollTypedDamage(typedDamageFormula(parts), {
+      attackCardId: message.id,
       speaker: { alias: card.ship.name },
       flavor: T("SF2eTSC.rolls.damageFlavor", {
         ship: card.ship.name,
