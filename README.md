@@ -64,10 +64,10 @@ Source review covered Toolbelt **3.59.2** and Workbench **7.7.5**. Workbench’s
 2. Enable **SF2e Tactical Starship Combat** in a Starfinder 2e world.
 3. Open **Guide / Руководство** in the compendiums or follow [Setup](#setup).
 
-The `latest` address works after a **regular, non-prerelease** GitHub release is published. To install a specific release, including the first prerelease, use the `module.json` asset on that release:
+The `latest` address works after a **regular, non-prerelease** GitHub release is published. To install a specific release, including a prerelease, use its `module.json` asset after it has been published:
 
 ```text
-https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.14.0/module.json
+https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.16.0/module.json
 ```
 
 For manual installation, create `Data/modules/sf2e-tactical-starship-combat/` and extract **`module.zip`** into it. `module.json` must be directly inside that directory. GitHub's automatic **Source code** archives are development sources, not installable module packages.
@@ -90,8 +90,8 @@ The module ID remains `sf2e-tactical-starship-combat`; existing settings and fla
 - **Damage and ship states.** Shield Points, Hull Points, resistances, weaknesses, immunities, compromised/wrecked states and hull-integrity checks. Use the module's damage tools for ships: native SF2e damage application does not account for module shields.
 - **Hazards.** Simple triggers and complex routines, with configurable GM prompts or automatic execution. Only supported text patterns are automated; other effects are reported for the GM.
 - **Content.** 74 starships, 32 hazards, 37 actions, 17 weapons, 34 upgrade entries and three frames, with English and Russian compendiums. Upgrades have station compatibility and capacity checks; not every upgrade effect is automated.
-- **Sensor Map appearance.** Combat-scoped light/dark themes, custom text/accent colors, portraits or simple symbols, object art overrides and an optional background with opacity, desaturation and blur. Unknown contacts do not reveal identifying artwork.
-- **Local themes.** Ship sheets, Station Actions, module action Item sheets and Crew Manager share a client-local light/dark preference. Other clients and the Sensor Map theme remain independent.
+- **Sensor Map appearance.** Combat-scoped custom text/accent colors, portraits or simple symbols, object art overrides and an optional background with opacity, desaturation and blur; the light/dark UI palette is client-local. Unknown contacts do not reveal identifying artwork.
+- **Local themes.** All module windows share the client-local Module UI Theme setting: Follow Foundry, Light or Dark. Existing light/dark selections are retained. Other clients remain independent.
 - **Soft effect timing.** Turn-start/end anchors, round durations, manually confirmed conditions and sustain reminders. Evade displays actions spent. Reminders do not spend actions or extend effects automatically.
 - **Change history and guarded undo.** Up to 80 GM-only records of module ship-state changes, pool deltas and reasons, with navigation to ships/stations/effects. Only a narrow, compatible subset can be undone; rolls, costs, chat and revealed information cannot.
 - **Rule-text interactions.** Conditions can be sent to chat and dragged onto characters with their values. Damage links create native typed SF2e rolls without applying damage. Contextual DCs use the actual station operator where the rule identifies a statistic; missing or ambiguous DCs remain manual.
@@ -102,8 +102,8 @@ The module ID remains `sf2e-tactical-starship-combat`; existing settings and fla
 
 | Setting                  | Scope                    | Purpose                                                      |
 | ------------------------ | ------------------------ | ------------------------------------------------------------ |
-| Starship sheet theme     | Client                   | Shared light/dark preference for ship/crew/action windows    |
-| Sensor Map appearance    | Encounter, GM-controlled | Theme, art and background for the current combat             |
+| Module UI Theme          | Client                   | Follow Foundry, Light or Dark for module windows             |
+| Sensor Map appearance    | Encounter, GM-controlled | Custom colors, art and background for the current combat     |
 | Rule enforcement         | World                    | Warn by default, or strictly enforce supported station rules |
 | Automatic hazard routine | World                    | Off, GM prompt or automatic                                  |
 | Crew initiative scope    | World                    | Crew participation and synchronization                       |

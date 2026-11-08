@@ -141,6 +141,7 @@ async function promptOptions(action, { ship, crew, station, target }) {
   }
   if (!fields.length) return {};
   const res = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: actionLabel(action) },
     content: fields.join(""),
     ok: { label: T("SF2eTSC.ui.execute"), callback: (e, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
@@ -186,6 +187,7 @@ export async function runAction(action, ctx) {
       // GM may override any restriction after seeing why it was refused
       if (game.user.isGM) {
         const go = await foundry.applications.api.DialogV2.confirm({
+          classes: ["sf2e-tsc"],
           window: { title: T("SF2eTSC.ui.gmOverride") },
           content: `<p>${foundry.utils.escapeHTML(err.message)}</p><p>${T("SF2eTSC.ui.overrideAsk")}</p>`,
           rejectClose: false

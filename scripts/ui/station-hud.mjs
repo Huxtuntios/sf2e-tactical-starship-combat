@@ -1,4 +1,4 @@
-import { wireSheetTheme, sheetThemeOptions } from "./sheet/sheet-theme.mjs";
+import { wireSheetTheme } from "./sheet/sheet-theme.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { buildHudContext, runHudAction } from "./hud-model.mjs";
 import { Crew } from "../crew/crew-service.mjs";
@@ -24,7 +24,7 @@ export class StationHUD extends TscApp {
   index = 0;
 
   async _prepareContext() {
-    return { ...buildHudContext(this.index), sheetThemes: sheetThemeOptions() };
+    return buildHudContext(this.index);
   }
   _onRender(context, options) {
     super._onRender(context, options);

@@ -204,6 +204,7 @@ function mockRoot(images = []) {
   const background = { style: {} };
   return {
     dataset: {},
+    classList: { contains: (name) => name === "tsc-sensor-map" },
     style: { setProperty: (k, v) => css.set(k, v) },
     css,
     viewport,
@@ -213,7 +214,9 @@ function mockRoot(images = []) {
   };
 }
 
-test("0.11.0 rendering applies both themes, custom colors and background-only filters", () => {
+test("map follows client theme, preserves custom colors and background-only filters", () => {
+  let selected = "light";
+  globalThis.game = { settings: { get: () => selected } };
   const root = mockRoot();
   paintMapAppearance(root, {
     appearance: { theme: "light", textColor: "#112233", background: "art/bg.webp", opacity: 0.5, fade: 0.8, blur: 4 }
@@ -225,7 +228,8 @@ test("0.11.0 rendering applies both themes, custom colors and background-only fi
   assert.equal(root.background.style.filter, "grayscale(0.8) blur(4px)");
   assert.equal(root.background.style.opacity, "0.5");
   assert.equal(root.viewport["has-background"], true);
-  paintMapAppearance(root, { appearance: {} });
+  selected = "dark";
+  paintMapAppearance(root, { appearance: { theme: "light" } });
   assert.equal(root.dataset.mapTheme, "dark");
   assert.equal(root.css.get("--tsc-text"), MAP_PALETTES.dark.text);
   assert.equal(root.background.style.backgroundImage, "none");

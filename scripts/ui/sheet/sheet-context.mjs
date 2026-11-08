@@ -2,7 +2,6 @@ import { stationDCRows, linkContextDCs } from "../../rolls/context-dc.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { effectCaption } from "../effect-editor.mjs";
 /** Starship sheet: render context (one object for all parts). */
-import { sheetThemeOptions } from "./sheet-theme.mjs";
 import { occupantView } from "../../crew/occupant.mjs";
 import { crewShipView } from "../../crew/crew-view.mjs";
 import { GRADES, STATION_TYPES } from "../../constants.mjs";
@@ -87,7 +86,6 @@ export async function buildSheetContext(sheet) {
   const npcActions = sheet.isNpc ? npcActionRows(data, actor, stations, npcWarnings) : [];
   if (sheet.isNpc) for (const station of stations) station.actionList = npcActions.filter((row) => row.stationId === station.id);
   return {
-    sheetThemeOptions: sheetThemeOptions(),
     actor,
     isGM,
     isNpc: sheet.isNpc,

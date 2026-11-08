@@ -15,6 +15,7 @@ export class HistoryApplication extends TscApp {
       undo: async function (event, target) {
         if (
           !(await foundry.applications.api.DialogV2.confirm({
+            classes: ["sf2e-tsc"],
             window: { title: T("SF2eTSC.qol.undo") },
             content: `<p>${T("SF2eTSC.qol.undoHint")}</p>`
           }))

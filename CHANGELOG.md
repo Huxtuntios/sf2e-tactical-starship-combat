@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0 — unified client UI themes
+
+- Extended the existing client sheet theme setting to Follow Foundry, Light and Dark for module windows, dialogs, builder, history and Sensor Map. Removed per-window theme selectors; existing stored light/dark preferences retain their values.
+- Preserved combat-scoped map artwork, background and optional custom colors; the old stored map theme no longer selects a UI palette. Native select popup appearance still depends partly on the operating system.
+- Added regression tests and offline browser fixtures. Live Foundry testing is still required.
+
 ## 0.15.0 — PF2e with SF2e Anachronism
 
 - Added conditional support for PF2e 8.6.0+ with active SF2e Anachronism 2.4.0+; standalone SF2e behavior and requirements are retained.

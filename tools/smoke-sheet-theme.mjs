@@ -56,14 +56,14 @@ check('removed-ship-controls',!app.querySelector('[data-qol-toolbar],[data-qol-c
 check('ship-title-contrast',getComputedStyle(app.querySelector('.tsc-sheet-head h2')).color===getComputedStyle(app).getPropertyValue('--tsc-text').trim().replace('#172b45','rgb(23, 43, 69)').replace('#e3ecfa','rgb(227, 236, 250)'));
 if('${tab}'==='overview'){const cells=[...app.querySelectorAll('.tsc-stat-grid > div,.tsc-stat-grid > button')];check('centered-stats',cells.length>0&&cells.every(c=>getComputedStyle(c).textAlign==='center'&&getComputedStyle(c).alignItems==='center'));}
 if('${tab}'==='config'){const th=app.querySelector('th');check('table-header-contrast',!!th&&getComputedStyle(th).backgroundColor==='${theme === "light" ? "rgb(255, 255, 255)" : "rgb(22, 33, 51)"}'&&getComputedStyle(th).color==='${theme === "light" ? "rgb(23, 43, 69)" : "rgb(227, 236, 250)"}');}
-check('theme',app.dataset.sheetTheme==='${theme}');check('selector',app.querySelector('[data-sheet-theme-select]').value==='${theme}');
+check('theme',app.dataset.sheetTheme==='${theme}');check('no-selector',!app.querySelector('[data-sheet-theme-select]'));
 check('theme-text',getComputedStyle(app).getPropertyValue('--tsc-text').trim()==='${theme === "light" ? "#172b45" : "#e3ecfa"}');
-const input=app.querySelector('input:not([type=checkbox]),textarea,select');check('input-background',getComputedStyle(input).backgroundColor==='${theme === "light" ? "rgb(238, 243, 249)" : "rgb(11, 17, 27)"}');
+const input=app.querySelector('input:not([type=checkbox]),textarea,select');check('input-background',getComputedStyle(input).backgroundColor==='${theme === "light" ? "rgb(255, 255, 255)" : "rgb(11, 17, 27)"}');
 const note=app.querySelector('textarea[name=notes]');if(note)note.value='Unsaved draft';
-const pick=app.querySelector('[data-sheet-theme-select]');pick.value='${theme === "light" ? "dark" : "light"}';pick.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,10));
-check('immediate-switch',app.dataset.sheetTheme===saved&&saved!=='${theme}'&&writes===1);check('tab-preserved',sheet.tab==='${tab}');check('draft-preserved',!note||note.value==='Unsaved draft');
+saved='${theme === "light" ? "dark" : "light"}';paintSheetTheme(app);
+check('immediate-switch',app.dataset.sheetTheme===saved&&saved!=='${theme}'&&writes===0);check('tab-preserved',sheet.tab==='${tab}');check('draft-preserved',!note||note.value==='Unsaved draft');
 check('map-untouched',getComputedStyle(document.querySelector('#map')).getPropertyValue('--tsc-bg').trim()==='#112233');
-saved='${theme}';paintSheetTheme(app);const old=app.querySelector('.tsc-sheet-head');old.replaceWith(old.cloneNode(true));wireSheetTheme(sheet);check('partial-header',app.querySelector('[data-sheet-theme-select]').value==='${theme}');
+saved='${theme}';paintSheetTheme(app);const old=app.querySelector('.tsc-sheet-head');old.replaceWith(old.cloneNode(true));wireSheetTheme(sheet);check('partial-header',app.dataset.sheetTheme==='${theme}');
 document.querySelector('#result').textContent=JSON.stringify({checks,passed:checks.every(c=>c.pass)});
 </script>`;
       fs.writeFileSync(

@@ -179,3 +179,16 @@ Live Foundry follow-up: open Station Actions with and without a helmed station, 
 ## 0.13.2 trait-label regression
 
 `tests/unit/starship-label-0132.test.mjs`: checks existing SF2e localized dictionaries, absent module trait labels, both CONFIG namespaces and module EN/RU labels. Only the starship trait label changes; unrelated traits and object-type translations remain intact. In live Foundry, restart the world and refresh all clients, then inspect native weapons, actions, upgrades and creature/vehicle trait chips in Russian and English. Existing items do not need reimporting: stored trait slugs are unchanged. Live Foundry validation remains outstanding.
+
+## 0.16.0: unified client UI theme
+
+The previous version-specific theme instructions elsewhere in this document document historical behavior and are superseded by this section. `starshipSheetTheme` remains client-scoped, now with Follow Foundry, Light and Dark; there are no per-window theme pickers. Offline unit tests cover selection, core setting changes, isolated repaint, retained map custom colors and the absence of selectors. The browser fixture renders the actual builder and history templates in both colors; existing fixtures cover sheets, HUD, crew, action, map and interactions. Native select rendering is platform-dependent; a headless browser cannot establish the appearance of every OS popup.
+
+Live checklist (not executed by the offline test suite):
+
+1. Back up and use a disposable Foundry v14 world, with SF2e or supported PF2e + Anachronism. Open player/NPC sheets, builder, history, Crew Manager, Station Actions, module action Item, Sensor Map and dialogs. Inspect all three modes.
+2. In Follow Foundry switch the Foundry application theme while windows are open and after reopening. Check both explicitly selected and default application themes; test unsaved fields and tab state.
+3. Use two independent clients with opposite module preferences; reload each and verify persistence and independence. Confirm earlier saved Light/Dark is retained. Confirm unrelated Foundry windows do not change.
+4. Open select menus on each target OS: selected, hovered, disabled and long entries; use arrows, Enter, Escape and Tab. Validate actual native popup contrast and assistive technology.
+5. On the map retain art, custom colors, background and filters; switch both client themes and re-open the appearance editor. Custom colors can be incompatible with a chosen palette.
+6. Create and edit a ship, crew assignments, stations, weapons and bays; search history and exercise guarded undo in a disposable world. Verify no gameplay or document changes result from theme changes. Repeat with optional integrations on/off.

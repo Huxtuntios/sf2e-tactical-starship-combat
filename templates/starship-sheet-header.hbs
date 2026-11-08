@@ -30,10 +30,6 @@
     </div>
     <div class="tsc-head-actions">
       {{#if isGM}}<button type="button" data-action="openHistory">{{localize "SF2eTSC.qol.history"}}</button>{{/if}}
-      <label class="tsc-sheet-theme-picker" title="{{localize 'SF2eTSC.settings.starshipSheetTheme.hint'}}">
-        <span>{{localize "SF2eTSC.settings.starshipSheetTheme.short"}}</span>
-        <select data-sheet-theme-select aria-label="{{localize 'SF2eTSC.settings.starshipSheetTheme.name'}}">{{#each sheetThemeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-      </label>
       <button type="button" data-action="openMap"><i class="fa-solid fa-satellite"></i> {{localize "SF2eTSC.ui.sensorMap"}}</button>
       {{#if isNpc}}{{#if isGM}}<button type="button" data-action="updateFromContent" title="{{localize 'SF2eTSC.update.hint'}}"><i class="fa-solid fa-rotate"></i> {{localize "SF2eTSC.update.button"}}</button>{{/if}}{{/if}}
       {{#if holodock}}<button type="button" data-action="openHolodock"><i class="fa-solid fa-ship"></i> {{localize "SF2eTSC.integrations.openHolodock"}}</button>{{/if}}

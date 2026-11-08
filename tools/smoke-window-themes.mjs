@@ -86,17 +86,16 @@ let saved='${theme}';const writes=[];globalThis.game={settings:{get:()=>saved,se
 const {wireSheetTheme}=await import('${rootUrl}/scripts/ui/sheet/sheet-theme.mjs');
 const checks=[];const check=(name,pass)=>checks.push({name,pass:!!pass});const app=document.querySelector('#app');
 const nodes=[...document.querySelector('#part').content.childNodes].filter(n=>n.nodeType===1||(n.nodeType===3&&n.textContent.trim()));
-check('ApplicationV2-single-root',nodes.length===1&&nodes[0].nodeType===1);check('picker-inside-root',nodes[0].querySelectorAll('[data-sheet-theme-select]').length===1);
+check('ApplicationV2-single-root',nodes.length===1&&nodes[0].nodeType===1);check('no-picker-inside-root',nodes[0].querySelectorAll('[data-sheet-theme-select]').length===0);
 wireSheetTheme({element:app});wireSheetTheme({element:app});check('initial-theme',app.dataset.sheetTheme==='${theme}');
 const light='rgb(23, 43, 69)',dark='rgb(227, 236, 250)';const expected='${theme}'==='light'?light:dark;
 check('window-header-contrast',getComputedStyle(app.querySelector('.window-header')).color===expected);
 const th=app.querySelector('th');check('table-header-contrast',!th||getComputedStyle(th).color===expected);
 const draft=document.createElement('input');draft.value='Несохранённый выбор';app.querySelector('.window-content').append(draft);
-const original=app.querySelector('[data-action]');const pick=app.querySelector('[data-sheet-theme-select]');pick.value='${theme}'==='light'?'dark':'light';pick.dispatchEvent(new Event('change'));
-await new Promise(r=>setTimeout(r,20));check('immediate-theme-switch',app.dataset.sheetTheme===pick.value&&pick.value!=='${theme}');
-check('one-client-setting-write',writes.length===1&&writes[0][1]==='starshipSheetTheme');check('no-render-or-draft-loss',draft.value==='Несохранённый выбор'&&(!original||app.contains(original)));
+const original=app.querySelector('[data-action]');saved='${theme}'==='light'?'dark':'light';wireSheetTheme({element:app});
+check('immediate-theme-switch',app.dataset.sheetTheme===saved&&saved!=='${theme}');
+check('no-setting-write',writes.length===0);check('no-render-or-draft-loss',draft.value==='Несохранённый выбор'&&(!original||app.contains(original)));
 const reopened=app.cloneNode(true);document.body.append(reopened);wireSheetTheme({element:reopened});check('reopened-inherits-client-theme',reopened.dataset.sheetTheme===saved);reopened.remove();
-pick.value='${theme}';pick.dispatchEvent(new Event('change'));await new Promise(r=>setTimeout(r,20));
 document.querySelector('#result').textContent=JSON.stringify({checks,passed:checks.every(c=>c.pass)});
 </script>`
       );

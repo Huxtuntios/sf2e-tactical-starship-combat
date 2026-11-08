@@ -74,6 +74,7 @@ for (const theme of ["dark", "light"]) {
   const appearance = { theme, background: nebula, artSize: 64, opacity: 0.65, blur: 2, fade: 0.25 };
   const html = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{margin:0;padding:24px;font:14px Arial;background:#777}.application{height:520px;width:1120px}.window-content{height:100%;box-sizing:border-box}.tsc-zone-objects button{width:100%}#result{position:fixed;bottom:4px;font:12px monospace;color:white;background:#222;padding:4px}</style><main id="app" class="sf2e-tsc tsc-sensor-map application"><section class="window-content">${body}</section></main><pre id="result">waiting</pre><script type="module">
 import {paintMapAppearance} from '${rootUrl}/scripts/ui/map-appearance-render.mjs';
+globalThis.game={settings:{get:()=> '${theme}'}};
 const app=document.querySelector('#app');const context={appearance:${JSON.stringify(appearance)}};paintMapAppearance(app,context);
 const checks=[];const check=(name,value)=>checks.push({name,pass:!!value});
 await new Promise(r=>setTimeout(r,250));

@@ -717,11 +717,12 @@
         "strict": "Strict (block)"
       },
       "starshipSheetTheme": {
-        "name": "Starship sheet theme",
+        "name": "Module UI Theme",
         "short": "Sheet theme",
-        "hint": "Dark or light theme for all player and NPC starship sheets on this client only. Other clients and the Sensor Map are unaffected. No reload required.",
+        "hint": "Client-only theme for all module windows. Follow Foundry uses the application color scheme.",
         "dark": "Dark",
-        "light": "Light"
+        "light": "Light",
+        "foundry": "Follow Foundry"
       }
     },
     "edit": {

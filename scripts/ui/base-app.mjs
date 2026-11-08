@@ -1,3 +1,4 @@
+import { paintSheetTheme } from "./sheet/sheet-theme.mjs";
 import { restoreUiState, saveUiState, wireClientUi } from "./client-ui.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { wireInlineClicks } from "./inline-clicks.mjs";
@@ -33,6 +34,7 @@ export const LiveMixin = (Base) =>
     }
     _onRender(context, options) {
       super._onRender?.(context, options);
+      paintSheetTheme(this.element);
       wireClientUi(this);
     }
     _onClose(options) {

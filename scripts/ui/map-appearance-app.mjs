@@ -1,3 +1,4 @@
+import { activeModuleTheme } from "./sheet/sheet-theme.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import { normalizeMapAppearance, MAP_PALETTES, safeImagePath } from "../sensor/appearance.mjs";
@@ -25,7 +26,7 @@ export class MapAppearanceApplication extends TscApp {
   async _prepareContext() {
     const state = getTsc(this.combat),
       a = normalizeMapAppearance(state.appearance),
-      palette = MAP_PALETTES[a.theme];
+      palette = MAP_PALETTES[activeModuleTheme()];
     const object = this.key ? state.objects.find((o) => o.key === this.key) : null;
     return {
       objectMode: !!this.key,
@@ -36,7 +37,6 @@ export class MapAppearanceApplication extends TscApp {
       mutedColor: a.mutedColor || palette.dim,
       accentColor: a.accentColor || palette.accent,
       customColors: !!(a.textColor || a.mutedColor || a.accentColor),
-      themes: ["dark", "light"].map((id) => ({ id, label: T(`SF2eTSC.mapAppearance.${id}`), selected: id === a.theme })),
       modes: ["art", "simple"].map((id) => ({ id, label: T(`SF2eTSC.mapAppearance.${id}`), selected: id === a.mode }))
     };
   }
@@ -80,7 +80,11 @@ export class MapAppearanceApplication extends TscApp {
         ? { op: "art", key: this.key, art: f.art }
         : {
             op: "appearance",
-            appearance: normalizeMapAppearance({ ...f, ...(!f.customColors ? { textColor: "", mutedColor: "", accentColor: "" } : {}) })
+            appearance: normalizeMapAppearance({
+              ...f,
+              theme: normalizeMapAppearance(getTsc(this.combat).appearance).theme,
+              ...(!f.customColors ? { textColor: "", mutedColor: "", accentColor: "" } : {})
+            })
           };
       await request("sensorUpdate", { combatId: this.combat.id, ...payload });
       await this.close();

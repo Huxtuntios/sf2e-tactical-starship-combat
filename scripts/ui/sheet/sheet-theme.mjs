@@ -1,42 +1,51 @@
-/** Local presentation only: never update an actor, combat, flags or the GM socket. */
+/** Client-only presentation. Never updates game documents or the Foundry-wide theme. */
 import { MODULE_ID } from "../../constants.mjs";
 import { MAP_PALETTES } from "../../sensor/appearance.mjs";
-import { T } from "../../utils/foundry.mjs";
-import { notifyError } from "../../utils/logging.mjs";
-import { wireOnce } from "./sheet-model.mjs";
 
-export const normalizeSheetTheme = (value) => (value === "light" ? "light" : "dark");
-export const clientSheetTheme = () => normalizeSheetTheme(game.settings.get(MODULE_ID, "starshipSheetTheme"));
-export function sheetThemeOptions() {
-  const current = clientSheetTheme();
-  return ["dark", "light"].map((id) => ({ id, label: T(`SF2eTSC.settings.starshipSheetTheme.${id}`), selected: id === current }));
+export const normalizeSheetTheme = (value) => (["light", "dark"].includes(value) ? value : "foundry");
+export function clientSheetTheme() {
+  return normalizeSheetTheme(globalThis.game?.settings?.get(MODULE_ID, "starshipSheetTheme"));
 }
-
-/** Root variables survive partial renders; refreshing the header cannot change the active tab or form draft. */
+/** Foundry v14 stores the application colour scheme in core.uiConfig. Empty means app default. */
+export function activeModuleTheme(value = clientSheetTheme(), root = null) {
+  if (value === "light" || value === "dark") return value;
+  let scheme;
+  try {
+    scheme = game.settings.get("core", "uiConfig")?.colorScheme?.applications;
+  } catch {
+    /* core unavailable during early init */
+  }
+  if (scheme === "light" || scheme === "dark") return scheme;
+  // With no global override, use the application's native Foundry theme class, when provided.
+  if (root?.classList?.contains("theme-light")) return "light";
+  if (root?.classList?.contains("theme-dark")) return "dark";
+  return "dark";
+}
 export function paintSheetTheme(element, value = clientSheetTheme()) {
-  const theme = normalizeSheetTheme(value);
+  if (!element?.dataset || !element?.style) return;
+  const theme = activeModuleTheme(normalizeSheetTheme(value), element);
   element.dataset.sheetTheme = theme;
-  for (const [key, color] of Object.entries(MAP_PALETTES[theme])) element.style.setProperty(`--tsc-${key}`, color);
-  element.querySelectorAll("[data-sheet-theme-select]").forEach((select) => {
-    select.value = theme;
-  });
+  if (element.classList?.contains("tsc-sensor-map")) element.dataset.mapTheme = theme;
+  const palette = { ...MAP_PALETTES[theme] };
+  if (element.classList?.contains("tsc-sensor-map")) {
+    if (element.dataset.tscTextColor) palette.text = element.dataset.tscTextColor;
+    if (element.dataset.tscMutedColor) palette.dim = element.dataset.tscMutedColor;
+    if (element.dataset.tscAccentColor) palette.accent = element.dataset.tscAccentColor;
+  }
+  for (const [key, color] of Object.entries(palette)) element.style.setProperty(`--tsc-${key}`, color);
 }
-
-export function wireSheetTheme(sheet) {
-  paintSheetTheme(sheet.element);
-  sheet.element.querySelectorAll("[data-sheet-theme-select]").forEach((select) => {
-    // ActorSheetV2 may disable form controls for observers. This selector changes only the local client setting.
-    select.disabled = false;
-    if (!wireOnce(select, "SheetTheme")) return;
-    select.addEventListener("change", async () => {
-      try {
-        await game.settings.set(MODULE_ID, "starshipSheetTheme", normalizeSheetTheme(select.value));
-        // Do not wait for the debounced refresh: the selector may still have focus.
-        paintSheetTheme(sheet.element);
-      } catch (err) {
-        paintSheetTheme(sheet.element);
-        notifyError("SF2eTSC.errors.generic", { message: err.message });
-      }
-    });
+export function wireSheetTheme(app) {
+  paintSheetTheme(app.element);
+}
+export function refreshModuleThemes() {
+  globalThis.document?.querySelectorAll(".sf2e-tsc[data-sheet-theme]").forEach((root) => paintSheetTheme(root));
+}
+export function registerModuleThemeHooks() {
+  Hooks.on("clientSettingChanged", (key) => {
+    if (key === "core.uiConfig" && clientSheetTheme() === "foundry") refreshModuleThemes();
+  });
+  Hooks.on("renderApplicationV2", (app, element) => {
+    const root = app.element?.classList?.contains("sf2e-tsc") ? app.element : element;
+    if (root?.classList?.contains("sf2e-tsc")) paintSheetTheme(root);
   });
 }

@@ -1,4 +1,4 @@
-import { wireSheetTheme, sheetThemeOptions } from "./sheet/sheet-theme.mjs";
+import { wireSheetTheme } from "./sheet/sheet-theme.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { allStarships, readStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
@@ -39,7 +39,7 @@ export class CrewManager extends TscApp {
       .filter((s) => ["player", "ally"].includes(readStarship(s).role))
       .map((ship) => crewShipView(ship, { combat, isGM }))
       .filter(Boolean);
-    return { ships, isGM, empty: !ships.length, sheetThemes: sheetThemeOptions() };
+    return { ships, isGM, empty: !ships.length };
   }
   _onRender(context, options) {
     super._onRender?.(context, options);

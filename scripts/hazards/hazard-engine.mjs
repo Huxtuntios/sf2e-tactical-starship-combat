@@ -180,6 +180,7 @@ export const HazardEngine = {
           await HazardEngine.trigger(o.key, { reason: T("SF2eTSC.chat.enteredZone", { ship: fromUuidSync(shipUuid)?.name ?? "" }) });
         else if (setting === "prompt" && game.user.isGM) {
           const go = await foundry.applications.api.DialogV2.confirm({
+            classes: ["sf2e-tsc"],
             window: { title: T("SF2eTSC.hazards.triggerPromptTitle") },
             content: `<p>${T("SF2eTSC.hazards.triggerPrompt", { hazard: foundry.utils.escapeHTML(o.name), zone: o.zone })}</p>`,
             rejectClose: false
@@ -199,6 +200,7 @@ export const HazardEngine = {
     if (mode === "off") return;
     if (mode === "automatic") return this.executeRoutine(hazard.uuid);
     const go = await foundry.applications.api.DialogV2.confirm({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.hazards.routinePromptTitle") },
       content: `<p>${T("SF2eTSC.hazards.routinePrompt", { hazard: foundry.utils.escapeHTML(hazard.name) })}</p>`,
       rejectClose: false

@@ -4,7 +4,6 @@
   <p>{{localize 'SF2eTSC.mapAppearance.objectHint'}}</p>
   <label>{{localize 'SF2eTSC.mapAppearance.image'}}<span class="tsc-image-field"><input type="text" name="art" value="{{art}}"><button type="button" data-action="browseImage" data-field="art" aria-label="{{localize 'SF2eTSC.mapAppearance.browse'}}"><i class="fa-solid fa-folder-open"></i></button></span></label>
 {{else}}
-  <label>{{localize 'SF2eTSC.mapAppearance.theme'}}<select name="theme">{{#each themes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
   <label>{{localize 'SF2eTSC.mapAppearance.mode'}}<select name="mode">{{#each modes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
   <label>{{localize 'SF2eTSC.mapAppearance.artSize'}}<input type="number" name="artSize" min="32" max="128" step="1" value="{{a.artSize}}"></label>
   <fieldset><legend>{{localize 'SF2eTSC.mapAppearance.colors'}}</legend>

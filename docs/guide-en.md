@@ -102,7 +102,7 @@ Window sizes save on close, ship tabs on selection (per ship/client). Ship-sheet
 
 ## Interface and actions (0.13.0)
 
-- Switch the client-local theme in a ship sheet, Station Actions window or module action Item sheet. Other clients and Sensor Map appearance remain unchanged.
+- Use Module Settings → Module UI Theme to select Follow Foundry, Light or Dark for all module windows, including the Sensor Map. The choice is client-local; earlier saved light/dark choices remain in place.
 - Start Combat: choose detection for each ship separately; custom objects support artwork paths and the image picker. In the Sensor Map details the GM can change a custom object’s type. Players see that type only once identified.
 - On the Stations tab, click a station action to run the existing action workflow. The book button next to an installed upgrade opens its compendium Item. Upgrade effects still require adjudication; this does not automate every upgrade activation.
 - Contextual DCs use the station operator’s actual skill, class or spell DC rather than substituting Piloting. Without an operator/statistic, or with ambiguous spell DCs, use the original text and choose manually. Target-owned DCs are not guessed.
@@ -111,4 +111,4 @@ Window sizes save on close, ship tabs on selection (per ship/client). Ship-sheet
 
 ### 0.13.1: Crew Manager
 
-The separate Crew Manager window has a light/dark selector. It shares the client-local preference used by ship sheets and Station Actions; other clients and Sensor Map themes are unaffected.
+Crew Manager uses the same client-local Module UI Theme setting as the rest of the module. Combat-scoped custom Sensor Map colors and artwork remain separately configurable; custom colors can reduce contrast in a different client theme.

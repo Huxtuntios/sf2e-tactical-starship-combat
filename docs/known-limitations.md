@@ -15,7 +15,7 @@ This release has been checked with Node tests, content validation, compiled Leve
 - Station markers and automatic helming on the scene map assume square grids.
 - The Sensor Map is a zone-based module window, not a replacement for every Foundry canvas feature. Image paths must be accessible to players; arbitrary remote hosts may block loading.
 - Detection and player visibility depend on GM-authoritative encounter state. Test them with a separate player account, not only the GM preview.
-- UI themes and window preferences are client-side; encounter appearance settings are shared as documented in the map settings.
+- UI themes and window preferences are client-side; encounter artwork, background and custom map colors are shared. Custom colors may need adjustment for contrasting client themes. Native select popup rendering varies by browser and operating system.
 - Conditions and typed damage rely on supported SF2e APIs and enrichers. Validate behavior after system updates.
 - Modules detected for coexistence are not bundled or required, and compatibility with arbitrary module combinations is not guaranteed.
 

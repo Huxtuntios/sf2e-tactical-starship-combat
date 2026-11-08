@@ -102,6 +102,7 @@ export function registerReactionHandlers() {
   onClientEvent("reactionPrompt", async (p) => {
     const name = T(`SF2eTSC.actions.${p.offer.actionId}`);
     const use = await foundry.applications.api.DialogV2.confirm({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.reaction.title"), icon: "fa-solid fa-bolt" },
       content: `<p><strong>${foundry.utils.escapeHTML(p.shipName)}</strong>: ${T("SF2eTSC.reaction.body", { attacker: foundry.utils.escapeHTML(p.attacker), amount: p.amount })}</p><p>${T("SF2eTSC.reaction.use", { action: name, crew: foundry.utils.escapeHTML(p.offer.crewName) })}</p>`,
       yes: { label: T("SF2eTSC.reaction.useBtn"), icon: "fa-solid fa-check" },

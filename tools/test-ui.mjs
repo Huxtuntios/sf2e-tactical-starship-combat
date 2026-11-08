@@ -12,6 +12,7 @@ const fixtures = [
   ["smoke-qol.mjs", "interaction"],
   ["smoke-window-themes.mjs", "windows"],
   ["smoke-map-appearance.mjs", "map"],
+  ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"]
 ];
 for (const [tool, folder] of fixtures) {
@@ -44,6 +45,17 @@ try {
           { timeout: 10000 }
         );
         const result = JSON.parse(await page.locator("#result").innerText());
+        if (folder === "builder-history" && name.startsWith("builder-")) {
+          const select = page.locator('select[name="size"]');
+          await select.focus();
+          await select.press("ArrowDown");
+          const changed = (await select.inputValue()) === "large";
+          await select.press("Escape");
+          await select.press("Tab");
+          const advanced = await select.evaluate((el) => globalThis.document.activeElement !== el);
+          result.checks.push({ name: "native-select-keyboard", pass: changed && advanced });
+          result.passed = result.passed && changed && advanced;
+        }
         results.push({ file: `${folder}/${name}`, ...result, errors });
       }
       await page.close();

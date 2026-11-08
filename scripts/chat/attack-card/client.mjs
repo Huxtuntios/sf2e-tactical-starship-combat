@@ -30,6 +30,7 @@ async function clientResolve(messageId, targetKey, mapChoice = "0") {
   } catch (err) {
     if (game.user.isGM && !/already|уже|stale|устарел/i.test(err.message)) {
       const go = await foundry.applications.api.DialogV2.confirm({
+        classes: ["sf2e-tsc"],
         window: { title: T("SF2eTSC.ui.gmOverride") },
         content: `<p>${escapeHtml(err.message)}</p><p>${T("SF2eTSC.ui.overrideAsk")}</p>`,
         rejectClose: false

@@ -35,6 +35,7 @@ export async function editEffect(actor, effectId) {
     )
     .join("");
   const result = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: `${T("SF2eTSC.qol.effectTiming")}: ${ct(effect.label)}` },
     content: `<p>${esc(T("SF2eTSC.qol.timingHint"))}</p><div class="form-group"><label>${T("SF2eTSC.qol.modeLabel")}</label><select name="mode">${modes}</select></div>
       <div class="form-group"><label>${T("SF2eTSC.qol.anchor")}</label><select name="combatantId">${turns}</select></div>

@@ -405,6 +405,7 @@ export class SensorMapApplication extends TscApp {
   static async #resize() {
     const c = activeStarshipCombat();
     const v = await foundry.applications.api.DialogV2.prompt({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.ui.zoneCount") },
       content: `<div class="form-group"><label>${T("SF2eTSC.ui.zoneCount")}</label><input type="number" name="zones" min="${ZONE_LIMITS.min}" max="${ZONE_LIMITS.max}" value="${getTsc(c).zones || 12}"></div>`,
       ok: { callback: (e, b) => Number(new foundry.applications.ux.FormDataExtended(b.form).object.zones) },
@@ -423,6 +424,7 @@ export class SensorMapApplication extends TscApp {
       .map((t) => `<option value="${t}">${T(`SF2eTSC.objectTypes.${t}`)}</option>`)
       .join("");
     const data = await foundry.applications.api.DialogV2.prompt({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.ui.addObject") },
       content: `<div class="form-group"><label>${T("SF2eTSC.ui.name")}</label><input name="name" type="text"></div><div class="form-group"><label>${T("SF2eTSC.ui.type")}</label><select name="type">${types}</select></div><div class="form-group"><label>${T("SF2eTSC.ui.zone")}</label><input name="zone" type="number" min="1" value="1"></div>`,
       ok: { callback: (e, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
@@ -479,6 +481,7 @@ export class SensorMapApplication extends TscApp {
     const zone = Number(t.dataset.zone);
     const info = getTsc(c).zoneInfo?.[zone] ?? {};
     const data = await foundry.applications.api.DialogV2.prompt({
+      classes: ["sf2e-tsc"],
       window: { title: `${T("SF2eTSC.ui.zone")} ${zone}` },
       content: `<div class="form-group"><label>${T("SF2eTSC.ui.cover")}</label><input type="checkbox" name="cover" ${info.cover ? "checked" : ""}></div><div class="form-group"><label>${T("SF2eTSC.ui.concealment")}</label><input type="checkbox" name="concealment" ${info.concealment ? "checked" : ""}></div><div class="form-group"><label>${T("SF2eTSC.ui.specialEffect")}</label><input type="text" name="special" value="${foundry.utils.escapeHTML(info.special ?? "")}"></div><div class="form-group"><label>${T("SF2eTSC.ui.publicNotes")}</label><textarea name="publicNotes">${foundry.utils.escapeHTML(info.publicNotes ?? "")}</textarea></div><div class="form-group"><label>${T("SF2eTSC.ui.gmNotes")}</label><textarea name="gmNotes">${foundry.utils.escapeHTML(info.gmNotes ?? "")}</textarea></div>`,
       ok: { callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object },

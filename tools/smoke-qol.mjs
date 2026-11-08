@@ -23,10 +23,10 @@ const {enrichCondition}=await import('${rootUrl}/scripts/content/condition-enric
 const {saveUiState,restoreUiState,wireClientUi}=await import('${rootUrl}/scripts/ui/client-ui.mjs');
 const checks=[];const check=(name,pass)=>checks.push({name,pass:!!pass});const el=document.querySelector('#action');
 const item={type:'action',flags:{'sf2e-tactical-starship-combat':{packAction:{actionId:'test'}}}};
-skinActionSheet({item},el);skinActionSheet({item},el);check('one-action-theme-picker',el.querySelectorAll('[data-sheet-theme-select]').length===1);
+skinActionSheet({item},el);skinActionSheet({item},el);check('no-action-theme-picker',el.querySelectorAll('[data-sheet-theme-select]').length===0);
 check('action-light',el.dataset.sheetTheme==='light'&&getComputedStyle(el.querySelector('h2')).color==='rgb(23, 43, 69)');
 check('ordinary-action-not-skinned',!isThemedStationAction({type:'action',flags:{}}));
-const pick=el.querySelector('select');pick.value='dark';pick.dispatchEvent(new Event('change'));await new Promise(r=>setTimeout(r,20));check('action-switch-client-only',el.dataset.sheetTheme==='dark'&&calls.join(',')==='starshipSheetTheme');check('draft-preserved',el.querySelector('input').value==='Черновик');
+values.starshipSheetTheme='dark';refreshActionThemes();check('action-switch-client-only',el.dataset.sheetTheme==='dark'&&calls.length===0);check('draft-preserved',el.querySelector('input').value==='Черновик');
 values.starshipSheetTheme='light';refreshActionThemes();check('action-global-refresh',el.dataset.sheetTheme==='light');
 const inline=document.querySelector('#inline');wireInlineClicks(inline);wireInlineClicks(inline);await new Promise(r=>setTimeout(r,20));
 const condition=inline.querySelector('.tsc-cond');const drag=new DataTransfer();condition.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:drag}));let data=JSON.parse(drag.getData('text/plain'));check('condition-native-drop',data.type==='Item'&&data.value===2&&data.uuid.endsWith('.fear'));

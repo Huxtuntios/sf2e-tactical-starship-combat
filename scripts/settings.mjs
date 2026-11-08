@@ -9,13 +9,11 @@ export function registerSettings() {
     hint: L("starshipSheetTheme.hint"),
     scope: "client",
     type: String,
-    default: "dark",
-    choices: { dark: L("starshipSheetTheme.dark"), light: L("starshipSheetTheme.light") },
+    default: "foundry",
+    choices: { foundry: L("starshipSheetTheme.foundry"), light: L("starshipSheetTheme.light"), dark: L("starshipSheetTheme.dark") },
     onChange: async () => {
-      const { refreshApps } = await import("./ui/base-app.mjs");
-      refreshApps("sheetTheme");
-      const { refreshActionThemes } = await import("./ui/action-sheet-theme.mjs");
-      refreshActionThemes();
+      const { refreshModuleThemes } = await import("./ui/sheet/sheet-theme.mjs");
+      refreshModuleThemes();
     }
   });
   reg("sensorMapSize", { name: L("sensorMapSize.name"), hint: L("sensorMapSize.hint"), type: Number, default: 12 });

@@ -63,6 +63,7 @@ export async function editJson() {
   delete raw.name;
   const json = JSON.stringify(raw, null, 2);
   const r = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.edit.rawJson"), resizable: true },
     position: { width: 720, height: 640 },
     content: `<p class="tsc-dim">${T("SF2eTSC.edit.rawJsonHint")}</p><textarea name="json" style="width:100%;height:480px;font-family:monospace">${foundry.utils.escapeHTML(json)}</textarea>`,
@@ -88,6 +89,7 @@ export async function forceClaim(e, t) {
   if (!crewUuid) {
     const crewList = readStarship(this.document).crew;
     const pick = await foundry.applications.api.DialogV2.prompt({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.crew.forceHelm") },
       content: `<div class="form-group"><label>${T("SF2eTSC.crew.character")}</label><select name="c">${crewList.map((c) => `<option value="${c.actorUuid}">${foundry.utils.escapeHTML(c.name)}</option>`).join("")}</select></div>`,
       ok: { callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object.c },
@@ -129,6 +131,7 @@ export async function toggleMalf(e, t) {
 export async function addStation() {
   const types = STATION_TYPES.map((x) => `<option value="${x}">${stationTypeLabel(x)}</option>`).join("");
   const r = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.ui.addStation") },
     content: `<div class="form-group"><label>${T("SF2eTSC.ui.type")}</label><select name="type">${types}</select></div><div class="form-group"><label>${T("SF2eTSC.ui.name")}</label><input name="name" type="text"></div>`,
     ok: { callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
@@ -166,6 +169,7 @@ export async function removeWeapon(e, t) {
 /* starship upgrades (station sections + ship level). The GM side re-checks capacity and compatibility. */
 const confirmOverride = async (name) =>
   foundry.applications.api.DialogV2.confirm({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.upgrades.overrideConfirmTitle") },
     content: `<p>${escHTML(T("SF2eTSC.upgrades.overrideConfirm", { name }))}</p>`
   });
@@ -222,6 +226,7 @@ export async function assignUpgrade(e, t) {
 export async function updateFromContent() {
   if (!game.user.isGM) return;
   const ok = await foundry.applications.api.DialogV2.confirm({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.update.button") },
     content: `<p>${T("SF2eTSC.update.confirm")}</p>`
   });
@@ -235,6 +240,7 @@ export function openMap() {
 }
 export async function gmDamage() {
   const r = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.ui.gmDamage") },
     content: `<div class="form-group"><label>${T("SF2eTSC.qol.reason")}</label><input type="text" name="reason" maxlength="240"></div><div class="form-group"><label>${T("SF2eTSC.chat.damage")}</label><input type="number" name="amount" value="10" min="0"></div><div class="form-group"><label>${T("SF2eTSC.ui.damageType")}</label><input type="text" name="damageType" value="untyped"></div><div class="form-group"><label>${T("SF2eTSC.traits.bypassing")}</label><input type="checkbox" name="bypassing"></div><div class="form-group"><label>${T("SF2eTSC.ui.crit")}</label><input type="checkbox" name="crit"></div><div class="form-group"><label>${T("SF2eTSC.ui.nonlethal")}</label><input type="checkbox" name="nonlethal"></div>`,
     ok: { callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
@@ -251,6 +257,7 @@ export async function gmDamage() {
 }
 export async function gmRepair() {
   const r = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.ui.repair") },
     content: `<div class="form-group"><label>${T("SF2eTSC.ui.hullPoints")}</label><input type="number" name="hp" value="0" min="0"></div><div class="form-group"><label>${T("SF2eTSC.ui.shieldPoints")}</label><input type="number" name="sp" value="0" min="0"></div><div class="form-group"><label>${T("SF2eTSC.ui.clearMalfunctions")}</label><input type="checkbox" name="clearMalfunctions"></div>`,
     ok: { callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object },

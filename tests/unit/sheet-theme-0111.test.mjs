@@ -1,226 +1,120 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import Handlebars from "handlebars";
-import { installFoundryMock, loadContentFromDisk, makeShip } from "../helpers/foundry-mock.mjs";
-import { MODULE_ID as M } from "../../scripts/constants.mjs";
+import { installFoundryMock } from "../helpers/foundry-mock.mjs";
+import { MODULE_ID } from "../../scripts/constants.mjs";
+import { MAP_PALETTES } from "../../scripts/sensor/appearance.mjs";
 import {
   normalizeSheetTheme,
   clientSheetTheme,
-  sheetThemeOptions,
+  activeModuleTheme,
   paintSheetTheme,
-  wireSheetTheme
+  refreshModuleThemes,
+  registerModuleThemeHooks
 } from "../../scripts/ui/sheet/sheet-theme.mjs";
-import { MAP_PALETTES } from "../../scripts/sensor/appearance.mjs";
 import { registerSettings } from "../../scripts/settings.mjs";
 
-const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
-function root(selects = []) {
+function root(classes = []) {
   const css = new Map();
-  return { dataset: {}, style: { setProperty: (k, v) => css.set(k, v) }, css, querySelectorAll: () => selects, contains: () => false };
+  return { dataset: {}, classList: { contains: (name) => classes.includes(name) }, style: { setProperty: (k, v) => css.set(k, v) }, css };
 }
-function selector() {
-  const handlers = [];
-  return { dataset: {}, value: "dark", disabled: true, handlers, addEventListener: (name, callback) => handlers.push(callback) };
-}
-
-test("0.11.1 theme defaults and invalid settings fall back to dark", () => {
-  installFoundryMock({ lang: "ru" });
-  for (const value of [undefined, null, "bad", {}, "dark"]) assert.equal(normalizeSheetTheme(value), "dark");
-  assert.equal(normalizeSheetTheme("light"), "light");
-  assert.equal(clientSheetTheme(), "dark");
-  const options = sheetThemeOptions();
-  assert.deepEqual(
-    options.map((o) => [o.id, o.selected]),
-    [
-      ["dark", true],
-      ["light", false]
-    ]
-  );
-  assert.deepEqual(
-    options.map((o) => o.label),
-    ["Тёмная", "Светлая"]
-  );
-});
-
-test("0.11.1 Foundry registration is client-scoped, visible and not a world setting", () => {
+test("the existing client setting gains Follow Foundry without migrating stored preferences", () => {
   installFoundryMock();
   const registrations = new Map();
-  game.settings.register = (module, key, value) => {
-    assert.equal(module, M);
-    registrations.set(key, value);
-  };
+  game.settings.register = (_module, key, value) => registrations.set(key, value);
   registerSettings();
   const setting = registrations.get("starshipSheetTheme");
   assert.equal(setting.scope, "client");
-  assert.equal(setting.config, true);
-  assert.equal(setting.default, "dark");
-  assert.deepEqual(Object.keys(setting.choices), ["dark", "light"]);
-  assert.equal(typeof setting.onChange, "function");
-  assert.equal(registrations.get("sensorMapSize").scope, "world");
+  assert.equal(setting.default, "foundry");
+  assert.deepEqual(Object.keys(setting.choices), ["foundry", "light", "dark"]);
+  for (const value of ["dark", "light"]) assert.equal(normalizeSheetTheme(value), value);
+  for (const value of [undefined, null, "bad", {}]) assert.equal(normalizeSheetTheme(value), "foundry");
 });
-
-test("0.11.1 two clients can save different preferences without actor/combat/socket writes", async () => {
+test("follow application setting; forced modes ignore core; empty falls back to app class", () => {
   installFoundryMock();
-  const clientA = new Map(),
-    clientB = new Map();
-  let current = clientA;
-  game.settings.get = (module, key) => current.get(key);
-  game.settings.set = async (module, key, value) => {
-    assert.equal(module, M);
-    assert.equal(key, "starshipSheetTheme");
-    current.set(key, value);
-  };
-  const sA = selector(),
-    rA = root([sA]);
-  wireSheetTheme({ element: rA });
-  sA.value = "light";
-  await sA.handlers[0]();
-  assert.equal(clientSheetTheme(), "light");
-  assert.equal(rA.dataset.sheetTheme, "light");
-  current = clientB;
-  const sB = selector(),
-    rB = root([sB]);
-  wireSheetTheme({ element: rB });
-  assert.equal(clientSheetTheme(), "dark");
-  assert.equal(rB.dataset.sheetTheme, "dark");
-  current = clientA;
-  assert.equal(clientSheetTheme(), "light");
-  assert.deepEqual(globalThis.__writes, []);
-  assert.deepEqual(globalThis.__socket, []);
+  let core = "light",
+    setting = "foundry";
+  game.settings.get = (module) => (module === MODULE_ID ? setting : { colorScheme: { applications: core } });
+  assert.equal(clientSheetTheme(), "foundry");
+  assert.equal(activeModuleTheme(), "light");
+  setting = "dark";
+  assert.equal(activeModuleTheme(), "dark");
+  setting = "light";
+  core = "dark";
+  assert.equal(activeModuleTheme(), "light");
+  setting = "foundry";
+  assert.equal(activeModuleTheme(), "dark");
+  core = "";
+  assert.equal(activeModuleTheme(undefined, root(["theme-light"])), "light");
+  assert.equal(activeModuleTheme(undefined, root(["theme-dark"])), "dark");
+  assert.equal(activeModuleTheme(undefined, root()), "dark");
 });
-
-test("0.11.1 read-only selectors are enabled and wired exactly once across partial renders", async () => {
-  const { settings, setUser } = installFoundryMock();
-  setUser("p1");
-  const select = selector(),
-    element = root([select]),
-    sheet = { element, tab: "notes" };
-  wireSheetTheme(sheet);
-  wireSheetTheme(sheet);
-  assert.equal(select.handlers.length, 1);
-  assert.equal(select.disabled, false);
-  select.value = "light";
-  await select.handlers[0]();
-  assert.equal(settings.get("starshipSheetTheme"), "light");
-  assert.equal(element.dataset.sheetTheme, "light");
-  assert.equal(sheet.tab, "notes");
-  assert.deepEqual(globalThis.__writes, []);
-  assert.deepEqual(globalThis.__socket, []);
-  const newSelect = selector();
-  element.querySelectorAll = () => [newSelect];
-  wireSheetTheme(sheet);
-  assert.equal(newSelect.value, "light");
-  assert.equal(newSelect.handlers.length, 1);
-});
-
-test("0.11.1 setting-save failure restores the local selection and reports an error", async () => {
+test("repaint preserves drafts, map overrides, and changes no document or other root", () => {
   installFoundryMock();
-  game.settings.set = async () => {
-    throw new Error("setting failed");
-  };
-  const select = selector(),
-    element = root([select]);
-  wireSheetTheme({ element });
-  select.value = "light";
-  await select.handlers[0]();
-  assert.equal(element.dataset.sheetTheme, "dark");
-  assert.equal(select.value, "dark");
-  assert.equal(globalThis.__notes.at(-1)[0], "error");
-  assert.deepEqual(globalThis.__writes, []);
-});
-
-test("0.11.1 painting both palettes changes only the sheet root, never the map appearance", () => {
-  const element = root();
-  const before = structuredClone(MAP_PALETTES);
+  const sheet = root(),
+    map = root(["tsc-sensor-map"]),
+    other = root();
+  map.dataset.tscTextColor = "#123456";
+  const draft = { value: "unsaved" };
   for (const theme of ["light", "dark"]) {
-    paintSheetTheme(element, theme);
-    assert.equal(element.dataset.sheetTheme, theme);
-    for (const [key, value] of Object.entries(MAP_PALETTES[theme])) assert.equal(element.css.get(`--tsc-${key}`), value);
-    assert.equal(element.dataset.mapTheme, undefined);
-    assert.equal(element.dataset.mapMode, undefined);
+    paintSheetTheme(sheet, theme);
+    paintSheetTheme(map, theme);
+    assert.equal(sheet.dataset.sheetTheme, theme);
+    assert.equal(sheet.css.get("--tsc-bg"), MAP_PALETTES[theme].bg);
+    assert.equal(map.dataset.mapTheme, theme);
+    assert.equal(map.css.get("--tsc-text"), "#123456");
+    assert.equal(map.css.get("--tsc-bg"), MAP_PALETTES[theme].bg);
   }
-  assert.deepEqual(MAP_PALETTES, before);
+  assert.equal(other.dataset.sheetTheme, undefined);
+  assert.equal(draft.value, "unsaved");
+  assert.deepEqual(globalThis.__writes, []);
+  assert.deepEqual(globalThis.__socket, []);
 });
-
-test("0.11.1 setting changes refresh all local open ship sheets, but not Sensor Map or active tabs", async () => {
-  const { settings } = installFoundryMock();
-  const registrations = new Map();
-  game.settings.register = (module, key, value) => registrations.set(key, value);
-  registerSettings();
-  const { LiveMixin } = await import("../../scripts/ui/base-app.mjs");
-  class LocalSheet extends LiveMixin(class {}) {
-    channels = ["sheetTheme"];
-    rendered = true;
-    element = root();
-    tab = "equipment";
-    renders = 0;
-    partsFor() {
-      return ["header"];
+test("client event repaints all module roots without a render, and ignores unrelated setting changes", () => {
+  installFoundryMock();
+  let core = "light",
+    preference = "foundry";
+  game.settings.get = (m) => (m === MODULE_ID ? preference : { colorScheme: { applications: core } });
+  const a = root(),
+    b = root(["tsc-sensor-map"]);
+  let calls = 0;
+  globalThis.document = {
+    querySelectorAll: () => {
+      calls++;
+      return [a, b];
     }
-    render(options) {
-      this.renders++;
-      this.lastParts = options.parts;
-      paintSheetTheme(this.element);
+  };
+  const hooks = {};
+  globalThis.Hooks = {
+    on: (name, fn) => {
+      hooks[name] = fn;
     }
-  }
-  class LocalMap extends LocalSheet {
-    channels = ["settings", "combat"];
-  }
-  const a = new LocalSheet(),
-    b = new LocalSheet(),
-    map = new LocalMap();
-  for (const app of [a, b, map]) app._onFirstRender({}, {});
-  try {
-    settings.set("starshipSheetTheme", "light");
-    await registrations.get("starshipSheetTheme").onChange("light");
-    await new Promise((r) => setTimeout(r, 100));
-    for (const app of [a, b]) {
-      assert.equal(app.renders, 1);
-      assert.equal(app.element.dataset.sheetTheme, "light");
-      assert.deepEqual(app.lastParts, ["header"]);
-      assert.equal(app.tab, "equipment");
-    }
-    assert.equal(map.renders, 0);
-    assert.equal(map.element.dataset.sheetTheme, undefined);
-  } finally {
-    for (const app of [a, b, map]) app._onClose({});
-  }
+  };
+  registerModuleThemeHooks();
+  hooks.clientSettingChanged("core.other", {});
+  assert.equal(calls, 0);
+  hooks.clientSettingChanged("core.uiConfig", {});
+  assert.equal(a.dataset.sheetTheme, "light");
+  assert.equal(b.dataset.mapTheme, "light");
+  core = "dark";
+  hooks.clientSettingChanged("core.uiConfig", {});
+  assert.equal(a.dataset.sheetTheme, "dark");
+  preference = "light";
+  core = "dark";
+  hooks.clientSettingChanged("core.uiConfig", {});
+  assert.equal(a.dataset.sheetTheme, "dark");
+  refreshModuleThemes();
+  assert.equal(a.dataset.sheetTheme, "light");
+  delete globalThis.document;
 });
-
-test("0.11.1 player and NPC contexts both inherit the saved local theme", async () => {
-  const { settings } = installFoundryMock();
-  await loadContentFromDisk();
-  settings.set("starshipSheetTheme", "light");
-  const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
-  for (const role of ["player", "npc"]) {
-    const actor = makeShip({ id: role, name: role, role });
-    const context = await buildSheetContext({ document: actor, isNpc: role === "npc", tab: "overview", tabs: ["overview"] });
-    assert.equal(context.sheetThemeOptions.find((o) => o.id === "light").selected, true);
-    assert.equal(context.isNpc, role === "npc");
+test("module-owned dialog call sites declare isolated class", () => {
+  function walk(dir) {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : d.name.endsWith(".mjs") ? [`${dir}/${d.name}`] : []));
   }
-});
-
-test("0.11.1 header selector is available to observers, not bound to actor data", () => {
-  const h = Handlebars.create();
-  h.registerHelper("localize", (key) => key);
-  const render = h.compile(read("templates/starship-sheet-header.hbs"));
-  for (const isNpc of [false, true]) {
-    const html = render({
-      isNpc,
-      isGM: false,
-      perms: {},
-      ship: { hp: {}, sp: {} },
-      sheetThemeOptions: [{ id: "light", label: "Светлая", selected: true }]
-    });
-    assert.match(html, /data-sheet-theme-select/);
-    assert.match(html, /value="light" selected/);
-    assert.ok(!/data-sheet-theme-select[^>]*data-field/.test(html));
+  for (const file of walk("scripts")) {
+    const s = fs.readFileSync(file, "utf8");
+    for (const m of s.matchAll(/DialogV2\.(?:prompt|confirm|wait)\(\{([\s\S]{0,300})/g)) assert.match(m[1], /classes: \["sf2e-tsc"/, file);
   }
-  const src = read("scripts/ui/starship-sheet.mjs");
-  assert.match(src, /wireSheetTheme\(this\)/);
-  assert.match(src, /"sheetTheme"/);
-  const css = read("styles/main.css");
-  for (const selector of [".tsc-sub td", ".tsc-station.malf", ".tsc-warn-box", "button.active", ".tsc-bars .bar em"])
-    assert.ok(css.includes(selector), selector);
 });

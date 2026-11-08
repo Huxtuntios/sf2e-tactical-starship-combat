@@ -90,6 +90,7 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       let addend = 0;
       if (event.shiftKey) {
         addend = await foundry.applications.api.DialogV2.prompt({
+          classes: ["sf2e-tsc"],
           window: { title: T("SF2eTSC.toolbelt.adjustment") },
           content: `<input type="number" name="addend" value="0" step="1" min="-100000" max="100000">`,
           ok: { callback: (e, b) => Number(new foundry.applications.ux.FormDataExtended(b.form).object.addend) },

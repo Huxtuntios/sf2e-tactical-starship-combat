@@ -102,7 +102,7 @@
 .sf2e-tsc input,
 .sf2e-tsc select,
 .sf2e-tsc textarea {
-  background: #0b111b;
+  background: var(--tsc-input, #0b111b);
   color: var(--tsc-text);
   border: 1px solid var(--tsc-line);
 }
@@ -233,7 +233,7 @@
 .tsc-obj.st-compromised,
 .tsc-obj.st-inoperable {
   border-color: var(--tsc-bad);
-  background: #2a1620;
+  background: var(--tsc-error-surface, #2a1620);
 }
 .tsc-obj.st-wrecked {
   border-color: #a16207;
@@ -268,7 +268,7 @@
   content: "✖ ";
 }
 .tsc-targeting-banner {
-  background: #10283a;
+  background: var(--tsc-selected-surface, #10283a);
   border: 1px solid var(--tsc-accent);
   padding: 4px 8px;
   border-radius: 4px;
@@ -396,7 +396,7 @@
 .tsc-bars .bar {
   position: relative;
   height: 16px;
-  background: #0b111b;
+  background: var(--tsc-input, #0b111b);
   border: 1px solid var(--tsc-line);
   border-radius: 3px;
   margin-bottom: 3px;
@@ -430,7 +430,7 @@
   margin-left: 8px;
 }
 .tsc-malfunction {
-  background: #3a1a12;
+  background: var(--tsc-warning-surface, #3a1a12);
   border: 1px solid var(--tsc-warn);
   padding: 4px 6px;
   border-radius: 4px;
@@ -485,7 +485,7 @@
   object-fit: contain;
   border: 1px solid var(--tsc-line);
   border-radius: 4px;
-  background: #0b111b;
+  background: var(--tsc-input, #0b111b);
 }
 .tsc-sheet-title {
   flex: 1;
@@ -611,7 +611,7 @@
 }
 .tsc-station.malf {
   border-color: var(--tsc-warn);
-  background: #2a2110;
+  background: var(--tsc-warning-surface, #2a2110);
 }
 .tsc-station header {
   display: flex;
@@ -624,7 +624,7 @@
   flex: 1;
 }
 .tsc-warn-box {
-  background: #2a2110;
+  background: var(--tsc-warning-surface, #2a2110);
   border: 1px solid var(--tsc-warn);
   padding: 4px 8px;
   border-radius: 4px;
@@ -669,7 +669,7 @@
   min-width: 180px;
 }
 .tsc-sub td {
-  background: #0e1a2b;
+  background: var(--tsc-sub-surface, #0e1a2b);
 }
 .sf2e-tsc :focus-visible {
   outline: 2px solid var(--tsc-accent);
@@ -782,7 +782,7 @@ a.tsc-check:hover {
   object-fit: cover;
   object-position: top;
   border: 2px solid var(--tsc-ok, #34d399);
-  background: #0b111b;
+  background: var(--tsc-input, #0b111b);
 }
 .tsc-occupant.is-empty .tsc-occ-img {
   border-style: dashed;
@@ -1295,7 +1295,7 @@ a.tsc-damage {
 .tsc-obj-bars .b {
   display: block;
   height: 4px;
-  background: #0b111b;
+  background: var(--tsc-input, #0b111b);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1912,4 +1912,75 @@ a.tsc-damage {
 }
 .sf2e-tsc.tsc-crew-manager[data-sheet-theme] a {
   color: var(--tsc-accent);
+}
+
+/* Shared client-local palette. The original sheet setting now governs every module root. */
+.sf2e-tsc[data-sheet-theme] {
+  --tsc-input: #0b111b;
+  --tsc-warning-surface: #2a2110;
+  --tsc-error-surface: #2a1620;
+  --tsc-selected-surface: #10283a;
+  --tsc-sub-surface: #0e1a2b;
+  --tsc-button-active-text: #04121f;
+  color-scheme: dark;
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+}
+.sf2e-tsc[data-sheet-theme="light"] {
+  --tsc-input: #ffffff;
+  --tsc-warning-surface: #fff4ce;
+  --tsc-error-surface: #fce8ec;
+  --tsc-selected-surface: #dceefb;
+  --tsc-sub-surface: #e2ebf5;
+  --tsc-button-active-text: #ffffff;
+  color-scheme: light;
+}
+.sf2e-tsc[data-sheet-theme] .window-header,
+.sf2e-tsc[data-sheet-theme] .window-content {
+  color: var(--tsc-text);
+  background: var(--tsc-bg);
+  border-color: var(--tsc-line);
+}
+.sf2e-tsc[data-sheet-theme] .window-header {
+  background: var(--tsc-panel);
+}
+.sf2e-tsc[data-sheet-theme] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: var(--tsc-input);
+  color: var(--tsc-text);
+  border-color: var(--tsc-line);
+}
+.sf2e-tsc[data-sheet-theme] :is(select option, select optgroup) {
+  background-color: var(--tsc-input);
+  color: var(--tsc-text);
+}
+.sf2e-tsc[data-sheet-theme] :is(option:disabled, optgroup:disabled) {
+  color: var(--tsc-dim);
+}
+.sf2e-tsc[data-sheet-theme] :is(input, textarea)::placeholder {
+  color: var(--tsc-dim);
+  opacity: 1;
+}
+.sf2e-tsc[data-sheet-theme] :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--tsc-accent);
+}
+.sf2e-tsc[data-sheet-theme] :is(button, table, thead, th) {
+  color: var(--tsc-text);
+  border-color: var(--tsc-line);
+}
+.sf2e-tsc[data-sheet-theme] :is(thead, th) {
+  background: var(--tsc-panel);
+  text-shadow: none;
+}
+.sf2e-tsc[data-sheet-theme] button.active {
+  background: var(--tsc-accent);
+  color: var(--tsc-button-active-text);
+}
+.sf2e-tsc[data-sheet-theme] a {
+  color: var(--tsc-accent);
+}
+.sf2e-tsc[data-sheet-theme] :is(.tsc-history-list small, .tsc-history .tsc-hint) {
+  color: var(--tsc-dim);
+}
+.sf2e-tsc[data-sheet-theme] .tsc-history-list > li {
+  overflow-wrap: anywhere;
 }

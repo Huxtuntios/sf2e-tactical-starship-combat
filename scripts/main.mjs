@@ -1,3 +1,4 @@
+import { registerModuleThemeHooks } from "./ui/sheet/sheet-theme.mjs";
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
 import { registerHistoryHandlers } from "./history/history.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
@@ -78,6 +79,7 @@ Hooks.once("init", () => {
   registerConditionEnricher();
   registerUpgradeUsages();
   registerItemTagging();
+  registerModuleThemeHooks();
   registerActionSheetThemes();
   log.info(`${MODULE_TITLE} initialized`);
 });

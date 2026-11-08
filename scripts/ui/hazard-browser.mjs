@@ -156,6 +156,7 @@ export class ContentBrowser extends TscApp {
   }
   static async #updateAll() {
     const ok = await foundry.applications.api.DialogV2.confirm({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.update.all") },
       content: `<p>${T("SF2eTSC.update.confirmAll")}</p>`,
       rejectClose: false
@@ -167,6 +168,7 @@ export class ContentBrowser extends TscApp {
   }
   static async #importAll() {
     const ok = await foundry.applications.api.DialogV2.confirm({
+      classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.ui.importAll") },
       content: `<p>${T("SF2eTSC.ui.importAllHint", { ships: Content.ships.length, hazards: Content.hazards.length })}</p>`,
       rejectClose: false

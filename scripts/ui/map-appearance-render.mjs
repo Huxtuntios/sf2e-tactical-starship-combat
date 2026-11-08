@@ -1,17 +1,14 @@
-import { normalizeMapAppearance, MAP_PALETTES } from "../sensor/appearance.mjs";
+import { normalizeMapAppearance } from "../sensor/appearance.mjs";
+import { paintSheetTheme } from "./sheet/sheet-theme.mjs";
 
 /** Paint styles and wire image fallback after full OR partial map renders. */
 export function paintMapAppearance(element, context) {
   const a = normalizeMapAppearance(context.appearance);
-  const palette = {
-    ...MAP_PALETTES[a.theme],
-    ...(a.textColor ? { text: a.textColor } : {}),
-    ...(a.mutedColor ? { dim: a.mutedColor } : {}),
-    ...(a.accentColor ? { accent: a.accentColor } : {})
-  };
-  element.dataset.mapTheme = a.theme;
+  element.dataset.tscTextColor = a.textColor;
+  element.dataset.tscMutedColor = a.mutedColor;
+  element.dataset.tscAccentColor = a.accentColor;
+  paintSheetTheme(element);
   element.dataset.mapMode = a.mode;
-  for (const [key, value] of Object.entries(palette)) element.style.setProperty(`--tsc-${key}`, value);
   element.style.setProperty("--tsc-art-size", `${a.artSize}px`);
   const viewport = element.querySelector(".tsc-map-viewport");
   viewport?.classList.toggle("has-background", !!a.background);

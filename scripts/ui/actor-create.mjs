@@ -124,6 +124,7 @@ export async function createStarshipDialog() {
     .join("");
   const FDE = foundry.applications.ux.FormDataExtended;
   const r = await foundry.applications.api.DialogV2.wait({
+    classes: ["sf2e-tsc"],
     window: { title: T("SF2eTSC.create.title"), icon: "fa-solid fa-rocket" },
     content: `<div class="form-group"><label>${T("SF2eTSC.ui.name")}</label><input type="text" name="name" autofocus></div>
       <div class="form-group"><label>${T("SF2eTSC.ui.type")}</label><select name="kind">${kinds}</select></div>
