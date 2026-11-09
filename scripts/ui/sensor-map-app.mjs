@@ -22,7 +22,7 @@ import { buildHudContext, runHudAction } from "./hud-model.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
-import { normalizeMapAppearance, objectArtwork } from "../sensor/appearance.mjs";
+import { normalizeMapAppearance, objectArtwork, visualTransform } from "../sensor/appearance.mjs";
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 
@@ -143,6 +143,8 @@ export class SensorMapApplication extends TscApp {
         sp = `${d.sp.value}/${d.sp.max}`;
       }
     }
+    const appearance = normalizeMapAppearance(tsc.appearance);
+    const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror);
     const cls = Targeting.current ? Targeting.classify(tsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
     return {
@@ -152,7 +154,14 @@ export class SensorMapApplication extends TscApp {
       art: objectArtwork(o, tsc.appearance, (uuid) => fromUuidSync(uuid)),
       type: o.type,
       heading: o.heading,
-      arrow: o.heading === "left" ? "←" : o.heading === "right" ? "→" : "",
+      arrow: ["left", "right"].includes(o.heading) && appearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
+      arrowEmoji: appearance.arrowMode === "emoji",
+      arrowCustom: appearance.arrowMode === "custom" && !!appearance.arrowImage,
+      arrowImage: appearance.arrowImage,
+      arrowRotation: o.heading === "left" ? 180 : 0,
+      arrowPosition: appearance.arrowPosition,
+      transform,
+
       status,
       statusLabel: T(`SF2eTSC.status.${status}`),
       hp,

@@ -41,6 +41,14 @@ export function makeCardRenderer(labels = {}) {
   /** Render a card (called on the GM when creating/updating and on every client at render time, in its own language). */
   function renderAttackCard(message) {
     const c = message.flags[MODULE_ID][CARD_FLAG];
+    // Legacy declarations can still be resolved, but never render a second copy of the system result.
+    if (c.status === "resolved" && ["strike", "npc-strike"].includes(c.action?.builtin)) {
+      const buttons =
+        c.result?.pendingDamage && !c.damageApplied
+          ? `<div class="tsc-btn-row"><button type="button" data-tsc-attack="damage">${escapeHtml(T(c.damageRoll ? "SF2eTSC.rolls.rerollDamage" : "SF2eTSC.rolls.rollDamage"))}</button>${c.damageRoll ? `<button type="button" data-tsc-attack="apply" data-gm-only="1">${escapeHtml(T("SF2eTSC.rolls.applyDamage"))}</button>` : ""}</div>`
+          : "";
+      return `<div class="sf2e-tsc-card tsc-attack-card" data-status="resolved">${buttons}<p class="tsc-ac-status done">✔ ${escapeHtml(T("SF2eTSC.attackCard.status.resolved"))}</p></div>`;
+    }
     const img = c.crew?.img ?? c.ship.img;
     const who = c.crew
       ? `${escapeHtml(c.crew.name)}${c.station ? ` — ${escapeHtml(c.station.name)}` : ""}`

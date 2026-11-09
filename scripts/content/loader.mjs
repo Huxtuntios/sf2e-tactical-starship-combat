@@ -88,12 +88,19 @@ export function upgradeCatalog() {
 }
 
 export const getAction = (id) => Content.actions.get(id) ?? null;
-export function actionsForStation(stationType, grade, gradeIndexFn) {
+export function actionsForStation(stationType, grade, gradeIndexFn, { data = null, station = null } = {}) {
   const out = [];
   for (const a of Content.actions.values()) {
     if (a.npcOnly) continue;
     if (a.station !== stationType && a.station !== "any") continue;
     if (a.minGrade && gradeIndexFn(grade) < gradeIndexFn(a.minGrade)) continue;
+    if (
+      a.requiresDroneType &&
+      !(Array.isArray(data?.drones) ? data.drones : []).some(
+        (d) => d?.tscVersion === 1 && d.stationId === station?.id && d.ref === a.requiresDroneType && d.deployed === true
+      )
+    )
+      continue;
     out.push(a);
   }
   return out;

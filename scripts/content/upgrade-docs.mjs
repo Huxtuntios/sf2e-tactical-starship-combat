@@ -10,6 +10,8 @@
 import { MODULE_ID, STARSHIP_TAG } from "../constants.mjs";
 import { schemaStamp } from "./action-docs.mjs";
 import { linkInline } from "./inline-links.mjs";
+import { upgradeDamagePresentation } from "./upgrade-damage.mjs";
+import { upgradeDicePresentation } from "./inline-dice.mjs";
 
 export const UPGRADE_ITEM_FLAG = "upgrade";
 export const UPGRADE_IMG = "icons/svg/upgrade.svg";
@@ -28,20 +30,22 @@ const defaults = { tr: id, L: (k) => k, render: (s) => linkInline(esc(s)), trait
 
 export const actionGlyph = (cost) => (GLYPH[cost] ? `<span class="action-glyph">${GLYPH[cost]}</span>` : "");
 
-function activationHTML(a, o) {
+function activationHTML(a, o, presentation = new Map()) {
+  const render = (text) => o.render(presentation.get(text) ?? o.tr(text));
   const traits = (a.traits ?? []).map(o.traitLabel).join(", ");
   const parts = [
     `<strong>${esc(o.L("activate"))}</strong> ${actionGlyph(a.cost)}${traits ? ` (${esc(traits)})` : ""} ${esc(o.tr(a.name))}`
   ];
   for (const k of ["frequency", "trigger", "requirements", "effect"])
-    if (a[k]) parts.push(`<strong>${esc(o.L(k))}</strong> ${o.render(o.tr(a[k]))}`);
+    if (a[k]) parts.push(`<strong>${esc(o.L(k))}</strong> ${render(a[k])}`);
   const details = (a.details ?? [])
     .map((d) => (typeof d === "string" ? { label: "", text: d } : d))
-    .map((d) => `<p class="tsc-upgrade-detail">${d.label ? `<strong>${esc(o.tr(d.label))}</strong> ` : ""}${o.render(o.tr(d.text))}</p>`)
+    .map((d) => `<p class="tsc-upgrade-detail">${d.label ? `<strong>${esc(o.tr(d.label))}</strong> ` : ""}${render(d.text)}</p>`)
     .join("");
   return `<p class="tsc-upgrade-activation">${parts.join("; ")}</p>${details}`;
 }
-const paragraphs = (list, o) => (list ?? []).map((t) => `<p>${o.render(o.tr(t))}</p>`).join("");
+const paragraphs = (list, o, presentation = new Map()) =>
+  (list ?? []).map((t) => `<p>${o.render(presentation.get(t) ?? o.tr(t))}</p>`).join("");
 
 /** Statistic line shown above the rules: usage, station, item level, traits, source. */
 export function upgradeMeta(entry, opts = {}) {
@@ -74,7 +78,10 @@ export function upgradeMeta(entry, opts = {}) {
  */
 export function upgradeDescriptionHTML(entry, opts = {}) {
   const o = { ...defaults, ...opts };
+  const originalTr = o.tr;
+  o.tr = (source) => upgradeDicePresentation(entry, source, originalTr(source));
   const out = [];
+  const presentation = upgradeDamagePresentation(entry, o.tr);
   if (o.meta !== false)
     out.push(
       `<p class="tsc-upgrade-meta">${upgradeMeta(entry, o)
@@ -82,11 +89,11 @@ export function upgradeDescriptionHTML(entry, opts = {}) {
         .join("; ")}</p>`
     );
   if (o.price) out.push(`<p class="tsc-upgrade-price"><strong>${esc(o.L("price"))}</strong> ${esc(o.L("priceNote"))}</p>`);
-  out.push("<hr>", paragraphs(entry.text, o), ...(entry.activations ?? []).map((a) => activationHTML(a, o)));
+  out.push("<hr>", paragraphs(entry.text, o), ...(entry.activations ?? []).map((a) => activationHTML(a, o, presentation.base)));
   if (entry.variant) {
     out.push(
       `<h3 class="tsc-upgrade-variant">${esc(o.tr(entry.name))}</h3>`,
-      paragraphs(entry.variantText, o),
+      paragraphs(entry.variantText, o, presentation.variant),
       ...(entry.variantActivations ?? []).map((a) => activationHTML(a, o))
     );
   }

@@ -304,3 +304,26 @@ test("0.11.0 glossary terminology is consistent in UI, build inputs and all comp
       assert.ok(!/(?<![А-Яа-яЁё])(?:КБ|[Чч]ерт(?:а|ы|у|ой|ами|е)?)(?![А-Яа-яЁё])/.test(text), file);
     }
 });
+
+test("unchanged map background styles are not reassigned on unrelated renders", () => {
+  globalThis.game = { settings: { get: () => "dark" } };
+  const root = mockRoot();
+  let writes = 0;
+  root.background.style = new Proxy(
+    {},
+    {
+      set(target, key, value) {
+        writes++;
+        target[key] = value;
+        return true;
+      }
+    }
+  );
+  const context = { appearance: { background: "art/bg.webp", opacity: 0.5, fade: 0.4, blur: 8 } };
+  paintMapAppearance(root, context);
+  assert.equal(writes, 4);
+  paintMapAppearance(root, context);
+  assert.equal(writes, 4);
+  paintMapAppearance(root, { appearance: { ...context.appearance, opacity: 0.6 } });
+  assert.equal(writes, 5);
+});

@@ -13,7 +13,9 @@ const fixtures = [
   ["smoke-window-themes.mjs", "windows"],
   ["smoke-map-appearance.mjs", "map"],
   ["smoke-builder-history.mjs", "builder-history"],
-  ["smoke-toolbelt-damage.mjs", "toolbelt"]
+  ["smoke-toolbelt-damage.mjs", "toolbelt"],
+  ["smoke-native-attack.mjs", "native-attack"],
+  ["smoke-description-links.mjs", "description-links"]
 ];
 for (const [tool, folder] of fixtures) {
   const result = spawnSync(process.execPath, [path.join(root, "tools", tool), path.join(out, folder)], { cwd: root, stdio: "inherit" });

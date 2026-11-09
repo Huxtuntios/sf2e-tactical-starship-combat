@@ -1,6 +1,7 @@
 import { stationDCRows, linkContextDCs } from "../../rolls/context-dc.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { effectCaption } from "../effect-editor.mjs";
+import { stationEffects } from "../../starship/effects.mjs";
 /** Starship sheet: render context (one object for all parts). */
 import { occupantView } from "../../crew/occupant.mjs";
 import { crewShipView } from "../../crew/crew-view.mjs";
@@ -16,11 +17,13 @@ import { COST_ICON } from "../action-runner.mjs";
 import { actionLabel } from "../../actions/action-engine.mjs";
 import { T } from "../../utils/foundry.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
-import { traitsText, damageTypeLabel, stationTypeLabel, zonesText } from "../../utils/labels.mjs";
+import { traitsText, damageTypeLabel, stationTypeLabel } from "../../utils/labels.mjs";
 import { formatKv, NPC_COSTS } from "../sheet-edit.mjs";
 import { shipCheckRows, sheetAttackRows, statCells, skillCheckRows, pilotingSaveButtons } from "../../rolls/ship-rolls.mjs";
 import { strikeListRows, canRoll, safeRows, mine, npcActionRows } from "./sheet-rows.mjs";
 import { stationUpgradeView, shipUpgradeView } from "./sheet-upgrades.mjs";
+import { droneInventory } from "../../engine/drone-inventory.mjs";
+import { weaponSummary } from "../weapon-summary.mjs";
 
 export async function buildSheetContext(sheet) {
   const actor = sheet.document;
@@ -36,7 +39,7 @@ export async function buildSheetContext(sheet) {
   const stations = data.stations.map((st) => {
     const crew = st.helmedBy ? fromUuidSync(st.helmedBy) : null;
     const def = Content.stations.get(st.type);
-    const acts = (sheet.isNpc ? [] : actionsForStation(st.type, st.grade, gradeIndex)).map((a) => ({
+    const acts = (sheet.isNpc ? [] : actionsForStation(st.type, st.grade, gradeIndex, { data, station: st })).map((a) => ({
       id: a.id,
       enabled: true,
       name: actionLabel(a),
@@ -50,6 +53,11 @@ export async function buildSheetContext(sheet) {
       dcRows: stationDCRows(crew),
       name: ct(st.name),
       occupant,
+      boostCaption: stationEffects(data.effects, st.id, combat)
+        .filter((e) => e.slug === "boost-battle-station")
+        .map(effectCaption)
+        .join(" · "),
+      boosted: stationEffects(data.effects, st.id, combat).some((e) => e.slug === "boost-battle-station"),
       typeLabel: def ? ct(def.name) : stationTypeLabel(st.type),
       icon: def?.icon,
       grade: st.grade,
@@ -57,6 +65,24 @@ export async function buildSheetContext(sheet) {
       helmName: crew?.name ?? occupant.name ?? null,
       occupied: !!st.helmedBy,
       upgradeSection: stationUpgradeView(sheet, data, st, upgradeOpts),
+      droneInventory: droneInventory(data, st, def),
+      droneRows:
+        st.type === "drone-console"
+          ? (Array.isArray(data.drones) ? data.drones : [])
+              .filter((d) => d?.stationId === st.id && d?.tscVersion === 1)
+              .map((d) => ({
+                ...d,
+                mines: (Array.isArray(d.mines) ? d.mines : [])
+                  .filter((m) => m && !["removed", "detonated"].includes(m.state))
+                  .map((m) => ({
+                    ...m,
+                    armed: m.state === "armed" && m.droneId === d.id && m.shipUuid === actor.uuid && typeof m.id === "string" && !!m.id
+                  })),
+                name: ct(Content.drones.find((type) => type.id === d.ref)?.name ?? d.ref),
+                canOperate: isGM || (!!crew && perms.has("operateStation") && !!crew.testUserPermission?.(game.user, "OWNER"))
+              }))
+          : [],
+      droneTypes: st.type === "drone-console" ? Content.drones.map((d) => ({ id: d.id, name: ct(d.name) })) : [],
       actionList: acts,
       canConfig: perms.has("configureShip"),
       isGunnery: st.type === "gunnery",
@@ -119,12 +145,13 @@ export async function buildSheetContext(sheet) {
     crew: crewRows,
     weapons: data.weapons.map((w) => ({
       ...w,
+      weaponInfo: weaponSummary(w),
       name: ct(w.name),
       damageLabel: damageTypeLabel(w.damageType),
       traitsLabel: traitsText(w.traits)
     })),
     shipUpgrades: shipUpgradeView(sheet, data, upgradeOpts),
-    bays: data.expansionBays,
+    bays: data.expansionBays.map((bay, index) => ({ ...bay, displayNumber: index + 1 })),
     crewShip: sheet.isNpc ? null : crewShipView(actor, { combat: activeStarshipCombat(), isGM }),
     smallCrew: activeCrew(data).length < 4 && !sheet.isNpc,
     effects: data.effects.map((e) => ({
@@ -143,7 +170,10 @@ export async function buildSheetContext(sheet) {
           .map((l) => l.text)
       : [],
     catalog: {
-      weapons: [...Content.weapons.values()].map((w) => ({ id: w.id, name: `${ct(w.name)} (${w.die}, ${zonesText(`${w.range} zones`)})` })),
+      weapons: [...Content.weapons.values()].map((w) => {
+        const row = weaponSummary(w);
+        return { ...row, name: row.option };
+      }),
       frames: [...Content.frames.values()].map((f) => ({ id: f.id, name: ct(f.name), sel: f.id === data.frame })),
       stationTypes: STATION_TYPES.map((t) => ({ id: t, name: stationTypeLabel(t) })),
       grades: GRADES.map((g) => ({ id: g, name: T(`SF2eTSC.grades.${g}`) })),

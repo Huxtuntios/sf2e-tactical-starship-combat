@@ -33,7 +33,17 @@ export const DEFAULT_MAP_APPEARANCE = Object.freeze({
   background: "",
   opacity: 0.35,
   fade: 0.25,
-  blur: 2
+  blur: 2,
+  arrowMode: "text",
+  arrowImage: "",
+  arrowSize: 18,
+  arrowGap: 4,
+  arrowPosition: "right",
+  arrowOpacity: 1,
+  autoMirror: false,
+  backgroundRotation: 0,
+  backgroundFlipX: false,
+  backgroundFlipY: false
 });
 const clamp = (v, min, max, fallback) =>
   v === "" || v == null || !Number.isFinite(Number(v)) ? fallback : Math.max(min, Math.min(max, Number(v)));
@@ -66,7 +76,17 @@ export function normalizeMapAppearance(value = {}) {
     background: safeImagePath(a.background),
     opacity: clamp(a.opacity, 0, 1, d.opacity),
     fade: clamp(a.fade, 0, 1, d.fade),
-    blur: clamp(a.blur, 0, 20, d.blur)
+    blur: clamp(a.blur, 0, 20, d.blur),
+    arrowMode: ["none", "text", "emoji", "custom"].includes(a.arrowMode) ? a.arrowMode : d.arrowMode,
+    arrowImage: safeImagePath(a.arrowImage),
+    arrowSize: Math.round(clamp(a.arrowSize, 10, 64, d.arrowSize)),
+    arrowGap: Math.round(clamp(a.arrowGap, 0, 24, d.arrowGap)),
+    arrowPosition: ["left", "right", "top", "bottom"].includes(a.arrowPosition) ? a.arrowPosition : d.arrowPosition,
+    arrowOpacity: clamp(a.arrowOpacity, 0, 1, d.arrowOpacity),
+    autoMirror: a.autoMirror === true,
+    backgroundRotation: normalizeAngle(a.backgroundRotation),
+    backgroundFlipX: a.backgroundFlipX === true,
+    backgroundFlipY: a.backgroundFlipY === true
   };
 }
 /** Called only with the redacted object from viewFor: unknown contacts must never resolve a document. */
@@ -77,4 +97,30 @@ export function objectArtwork(object, appearance, resolve = () => null) {
   if (!["starship", "hazard"].includes(object.type)) return "";
   const actor = resolve(object.actorUuid ?? object.key);
   return safeImagePath(actor?.img) || safeImagePath(actor?.prototypeToken?.texture?.src);
+}
+
+/** Визуальная ориентация не меняет курс или координаты игрового объекта. */
+export const normalizeAngle = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? ((Math.round(n) % 360) + 360) % 360 : 0;
+};
+export function normalizeObjectTransform(value = {}) {
+  const v = value && typeof value === "object" ? value : {};
+  return {
+    rotation: normalizeAngle(v.rotation),
+    flipX: v.flipX === true,
+    flipY: v.flipY === true,
+    baseDirection: ["right", "left", "up", "down"].includes(v.baseDirection) ? v.baseDirection : "right"
+  };
+}
+/** Отражение выводится из курса, а не накапливается от событий. Курс карты сегодня только left/right. */
+export function visualTransform(value, heading, autoMirror = false) {
+  const t = normalizeObjectTransform(value);
+  const horizontal = ["left", "right"].includes(t.baseDirection);
+  const auto = autoMirror && horizontal && ["left", "right"].includes(heading) && heading !== t.baseDirection;
+  return { ...t, auto, scaleX: t.flipX !== auto ? -1 : 1, scaleY: t.flipY ? -1 : 1 };
+}
+/** Сравнение полей отправляет только реально отредактированные абсолютные значения. */
+export function changedFields(previous, next, keys) {
+  return Object.fromEntries(keys.filter((key) => previous[key] !== next[key]).map((key) => [key, next[key]]));
 }

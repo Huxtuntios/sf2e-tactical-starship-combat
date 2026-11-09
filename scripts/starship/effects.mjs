@@ -68,6 +68,24 @@ export function pruneExpired(effects, combat, previous = null) {
   return { keep, removed: effects.filter((e) => !keep.includes(e)) };
 }
 
+/** Station-scoped Boosts must never leak to another station or a later combat. Legacy unscoped boosts remain stored but inactive. */
+export function stationEffects(effects, stationId, combat) {
+  return (effects ?? []).filter((e) => {
+    if (e.slug !== "boost-battle-station") return !e.station || e.station === stationId;
+    if (!stationId || e.station !== stationId || !combat || e.timing?.combatId !== combat.id) return false;
+    const timing = e.timing;
+    const anchor = combat.turns?.findIndex((c) => c.id === timing.combatantId) ?? -1;
+    if (anchor < 0 || !Number.isFinite(timing.round)) return false;
+    if (combat.round > timing.round || (combat.round === timing.round && combat.turn >= anchor)) return false;
+    return true;
+  });
+}
+
+/** Replace a Boost on the same station, but keep boosts on other stations. */
+export function replaceStationBoost(effects, effect) {
+  return [...(effects ?? []).filter((x) => !(x.slug === effect.slug && x.station === effect.station)), effect];
+}
+
 /** Effects that apply a given selector. */
 export function effectModifiers(effects, selector) {
   return effects.flatMap((e) => e.modifiers.filter((m) => m.selector === selector).map((m) => ({ ...m, slug: e.slug })));

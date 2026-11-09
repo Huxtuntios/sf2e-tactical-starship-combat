@@ -36,13 +36,50 @@ zones[1].objects.push({
   statusLabel: "В строю",
   type: "starship",
   arrow: "→",
+  heading: "right",
+  arrowPosition: "right",
+  transform: { rotation: 45, scaleX: -1, scaleY: 1 },
   hp: "75/100",
   sp: "20/30",
   hpPct: 75,
   spPct: 67,
   selected: true
 });
-zones[3].objects.push({ key: "planet", label: "Дальняя планета", icon: "◐", art: planet, status: "operational", type: "planet" });
+zones[3].objects.push({
+  key: "planet",
+  label: "Дальняя планета",
+  icon: "◐",
+  art: planet,
+  status: "operational",
+  type: "planet",
+  heading: "left",
+  arrow: "←",
+  arrowPosition: "top",
+  arrowCustom: true,
+  arrowImage: "file:///missing-arrow-test.png",
+  arrowRotation: 180,
+  transform: { rotation: 0, scaleX: 1, scaleY: 1 }
+});
+zones[4].objects.push({
+  key: "emoji",
+  label: "Emoji",
+  icon: "◐",
+  status: "operational",
+  type: "planet",
+  heading: "left",
+  arrow: "←",
+  arrowEmoji: true,
+  arrowRotation: 180,
+  transform: { rotation: 0, scaleX: 1, scaleY: 1 }
+});
+zones[8].objects.push({
+  key: "no-arrow",
+  label: "None",
+  icon: "◐",
+  status: "operational",
+  type: "planet",
+  transform: { rotation: 0, scaleX: 1, scaleY: 1 }
+});
 zones[5].objects.push({ key: "unknown", label: "Контакт α", icon: "○", status: "operational", type: "contact" });
 zones[6].objects.push({
   key: "failed",
@@ -82,6 +119,16 @@ check('theme',app.dataset.mapTheme==='${theme}');check('background',getComputedS
 check('art-size',getComputedStyle(app.querySelector('.tsc-object-art')).width==='64px'); document.body.dataset.artWidth=getComputedStyle(app.querySelector('.tsc-object-art')).width;
 const failed=app.querySelector('[data-object-key="failed"] img');check('broken-image-fallback',failed.hidden&&!failed.nextElementSibling.hidden);
 check('images-not-blurred',getComputedStyle(app.querySelector('.tsc-object-art')).filter==='none');
+const shipButton=app.querySelector('[data-object-key="ship"]'); const icon=shipButton.querySelector('.tsc-obj-icon');
+check('object-visual-transform',getComputedStyle(icon).transform!=='none');
+const beforeRect=shipButton.getBoundingClientRect(); icon.style.transform='rotate(135deg) scale(1, -1)'; const afterRect=shipButton.getBoundingClientRect();
+check('transform-does-not-move-hitbox',beforeRect.x===afterRect.x&&beforeRect.y===afterRect.y&&beforeRect.width===afterRect.width&&beforeRect.height===afterRect.height);
+const arrow=app.querySelector('[data-object-key="planet"] .tsc-course-image');check('broken-arrow-fallback',arrow.hidden&&!arrow.nextElementSibling.hidden);
+check('arrow-top',getComputedStyle(arrow.closest('.tsc-obj-visual')).flexDirection==='column');
+check('text-arrow',shipButton.querySelector('.tsc-obj-arrow').textContent.trim()==='→');
+check('emoji-arrow-rotated',getComputedStyle(app.querySelector('[data-object-key="emoji"] .tsc-course-emoji')).transform.startsWith('matrix(-1'));
+check('none-arrow',!app.querySelector('[data-object-key="no-arrow"] .tsc-obj-arrow'));
+check('arrow-does-not-capture-pointer',getComputedStyle(shipButton.querySelector('.tsc-obj-arrow')).pointerEvents==='none');
 check('background-filter',getComputedStyle(app.querySelector('.tsc-map-background')).filter.includes('blur(2px)'));
 const zoneRoot=app.querySelector('.tsc-zones');check('scrolls',zoneRoot.scrollWidth>zoneRoot.clientWidth);zoneRoot.scrollLeft=100;check('scroll-position',zoneRoot.scrollLeft>0);
 const old=app.querySelector('.tsc-map-viewport');old.replaceWith(old.cloneNode(true));paintMapAppearance(app,context);check('partial-render-background',getComputedStyle(app.querySelector('.tsc-map-background')).backgroundImage!=='none');

@@ -24,6 +24,9 @@ export function activeStarshipCombat() {
 /** GM-only write. Replaces arrays wholesale (objects, log) and merges maps. */
 export async function saveTsc(combat, state) {
   if (!game.user.isGM) throw new Error("saveTsc must run on a GM client");
+  const existing = combat?.flags?.[MODULE_ID]?.[FLAGS.COMBAT];
+  // Do not suppress the first initialization; compare normalized existing states only.
+  if (existing && JSON.stringify(normalizeSensorState(existing)) === JSON.stringify(normalizeSensorState(state))) return combat;
   return combat.update({ [`flags.${MODULE_ID}.${FLAGS.COMBAT}`]: state });
 }
 export async function mutateTsc(combat, fn) {

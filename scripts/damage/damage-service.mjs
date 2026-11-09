@@ -13,6 +13,7 @@ export async function applyDamageInDraft(
     amount,
     parts = null,
     damageType = "untyped",
+    strikeResistance = 0,
     traits = [],
     criticalHit = false,
     nonlethal = false,
@@ -38,7 +39,9 @@ export async function applyDamageInDraft(
     for (const [k, v] of Object.entries(b)) o[k] = Math.max(o[k] ?? 0, v);
     return o;
   };
-  const resistances = mergeMax(normalizeIwr(d.resistances), normalizeIwr(sysAttr.resistances));
+  const resistances = mergeMax(mergeMax(normalizeIwr(d.resistances), normalizeIwr(sysAttr.resistances)), {
+    "all-damage": Math.max(0, strikeResistance)
+  });
   const weaknesses = mergeMax(normalizeIwr(d.weaknesses), normalizeIwr(sysAttr.weaknesses));
   const compute = parts ? computeStarshipDamagePacket : computeStarshipDamage;
   const result = compute({

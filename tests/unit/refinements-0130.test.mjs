@@ -211,3 +211,25 @@ test("0.13 ship search and compact code are removed without removing client wind
   assert.match(read("templates/start-wizard.hbs"), /pickObjectArt/);
   assert.match(read("templates/start-wizard.hbs"), /shipDetection/);
 });
+
+test("expansion bay labels are one-based without changing stable ids", async () => {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const bays = [
+    { id: "bay-a", name: "A" },
+    { id: "bay-b", name: "B" }
+  ];
+  const ship = makeShip({ id: "bay-test", extra: { expansionBays: bays } });
+  const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
+  const context = await buildSheetContext({ document: ship, tab: "stations", tabs: ["stations"], isNpc: false });
+  assert.deepEqual(
+    context.bays.map((bay) => [bay.id, bay.displayNumber]),
+    [
+      ["bay-a", 1],
+      ["bay-b", 2]
+    ]
+  );
+  assert.equal(ship.flags[M].starship.expansionBays[0].displayNumber, undefined);
+  const template = read("templates/starship-sheet.hbs");
+  assert.match(template, /\{\{displayNumber\}\} <input/);
+});

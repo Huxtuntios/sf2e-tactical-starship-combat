@@ -1,3 +1,9 @@
+import { mineResolutionPlan } from "../../actions/mine-resolution.mjs";
+import { activeStarshipCombat, getTsc } from "../../combat/tsc-state.mjs";
+import { findObject } from "../../engine/sensor-ops.mjs";
+import { computeShipStats } from "../../starship/stats.mjs";
+import { fromUuidSafe } from "../../utils/foundry.mjs";
+import { beginNativeWeaponAttack } from "../native-attack.mjs";
 import { saveUiState } from "../client-ui.mjs";
 /** Starship sheet: click actions (called with `this` = the sheet). */
 import { STATION_TYPES } from "../../constants.mjs";
@@ -157,6 +163,105 @@ export async function addStation() {
 export async function removeStation(e, t) {
   await Ship.removeStation(this.document.uuid, t.dataset.stationId);
 }
+/** Учёт не расходует действие: его фиксирует оператор или GM. */
+export async function addDrone(e, t) {
+  const ref = t.closest("article")?.querySelector("select[name=droneType]")?.value;
+  if (!ref) return;
+  return request("droneState", { shipUuid: this.document.uuid, stationId: t.dataset.stationId, op: "add", ref, id: randomId("drone") });
+}
+/** Only marks a mine after the GM has handled its effects; never rolls or applies damage. */
+export async function closeDroneMine(e, t) {
+  const detonate = t.dataset.resolution === "detonated";
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    classes: ["sf2e-tsc"],
+    window: { title: T(detonate ? "SF2eTSC.droneBlock.mineDetonated" : "SF2eTSC.droneBlock.mineRemove") },
+    content: `<p>${escHTML(T(detonate ? "SF2eTSC.droneBlock.mineDetonateConfirm" : "SF2eTSC.droneBlock.mineRemoveConfirm"))}</p>`,
+    rejectClose: false
+  }).catch(() => false);
+  if (confirmed)
+    return request("closeDroneMine", {
+      shipUuid: this.document.uuid,
+      stationId: t.dataset.stationId,
+      droneId: t.dataset.droneId,
+      mineId: t.dataset.mineId,
+      resolution: t.dataset.resolution
+    });
+}
+/** GM-only explicit adjudication of the Mobile Exocortex prerequisite. */
+export async function moveDroneMine(e, t) {
+  if (!game.user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  const result = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
+    window: { title: T("SF2eTSC.mineAssist.move") },
+    content: `<p>${escHTML(T("SF2eTSC.mineAssist.moveHint"))}</p><label>${escHTML(T("SF2eTSC.mineAssist.destination"))} <input type="number" name="destination" min="1" step="1" required /></label><p><label><input type="checkbox" name="confirmed" /> ${escHTML(T("SF2eTSC.mineAssist.confirmFeature"))}</label></p>`,
+    ok: {
+      label: T("SF2eTSC.mineAssist.move"),
+      callback: (_e, b) => ({ destination: Number(b.form.elements.destination.value), confirmed: b.form.elements.confirmed.checked })
+    },
+    rejectClose: false
+  }).catch(() => null);
+  if (!result?.confirmed) return;
+  return request("moveDroneMine", {
+    shipUuid: this.document.uuid,
+    stationId: t.dataset.stationId,
+    droneId: t.dataset.droneId,
+    mineId: t.dataset.mineId,
+    destination: result.destination,
+    origin: Number(t.dataset.zone),
+    moveId: randomId("mineMove"),
+    confirmPrerequisite: true
+  });
+}
+/** Explicit GM aid: native links only; the mine stays armed until manually marked. */
+export async function prepareMineDetonation(e, t) {
+  if (!game.user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  const plan = async () => {
+    const data = readStarship(this.document);
+    const station = data.stations.find((s) => s.id === t.dataset.stationId);
+    const operator = station?.helmedBy ? await fromUuidSafe(station.helmedBy) : null;
+    const combat = activeStarshipCombat();
+    if (!combat?.id) throw new Error(T("SF2eTSC.mineAssist.invalid"));
+    try {
+      return mineResolutionPlan({
+        data,
+        shipUuid: this.document.uuid,
+        stationId: t.dataset.stationId,
+        droneId: t.dataset.droneId,
+        mineId: t.dataset.mineId,
+        combatId: combat.id,
+        shipZone: findObject(getTsc(combat), this.document.uuid)?.zone,
+        sensorRange: computeShipStats(this.document).sensorRange,
+        operator
+      });
+    } catch (err) {
+      throw new Error(T("SF2eTSC.mineAssist.invalid"), { cause: err });
+    }
+  };
+  await plan();
+  const choice = await foundry.applications.api.DialogV2.prompt({
+    classes: ["sf2e-tsc"],
+    window: { title: T("SF2eTSC.mineAssist.title") },
+    content: `<p>${escHTML(T("SF2eTSC.mineAssist.explain"))}</p><label>${escHTML(T("SF2eTSC.mineAssist.type"))} <select name="damageType"><option value="fire">${escHTML(T("SF2eTSC.mineAssist.fire"))}</option><option value="piercing">${escHTML(T("SF2eTSC.mineAssist.piercing"))}</option></select></label><p><label><input type="checkbox" name="reaction" /> ${escHTML(T("SF2eTSC.mineAssist.reaction"))}</label></p>`,
+    ok: {
+      label: T("SF2eTSC.mineAssist.post"),
+      callback: (_e, b) => ({ type: b.form.elements.damageType.value, reaction: b.form.elements.reaction.checked })
+    },
+    rejectClose: false
+  }).catch(() => null);
+  if (!choice || !["fire", "piercing"].includes(choice.type)) return;
+  if (!game.user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  const result = await plan(); // The dialog may have been open while the world changed.
+  const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+  if (!recipients.length) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  const title = escHTML(T("SF2eTSC.mineAssist.title"));
+  const hint = escHTML(T("SF2eTSC.mineAssist.chatHint", { zone: result.zone }));
+  const mode = escHTML(T(choice.reaction ? "SF2eTSC.mineAssist.reactionLabel" : "SF2eTSC.mineAssist.actionLabel"));
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: this.document }),
+    whisper: recipients,
+    content: `<p><strong>${title}</strong> — ${mode}</p><p>${hint}</p><p>@Damage[${result.dice}d8[${choice.type}]]</p><p>@Check[reflex|dc:${result.dc}|basic]</p>`
+  });
+}
 export async function addWeapon() {
   const sel = this.element.querySelector("[name=weaponCatalog]");
   const w = Content.weapons.get(sel?.value);
@@ -206,6 +311,8 @@ export async function assignUpgrade(e, t) {
   const opt = sel?.selectedOptions?.[0];
   if (!opt?.value) return notifyWarn("SF2eTSC.upgrades.assignTo");
   const stationId = opt.value === SHIP_TARGET ? null : opt.value;
+  const current = readStarship(this.document).upgrades.find((u) => u.id === t.dataset.id);
+  if (current && (current.stationId ?? null) === stationId) return;
   let override = false;
   if (game.user.isGM && opt.dataset.override === "1") {
     if (!(await confirmOverride(opt.textContent.trim()))) return;
@@ -320,7 +427,7 @@ export async function sheetAttack(e, t) {
   const row = sheetAttackRows(this.document).find((r) => r.key === t.dataset.key);
   if (!row) return;
   if (!row.enabled) return notifyWarn("SF2eTSC.errors.generic", { message: row.reason });
-  await request("declareAttack", sheetAttackRequest(this.document, row, t.dataset.map ?? "0"));
+  await beginNativeWeaponAttack(sheetAttackRequest(this.document, row, t.dataset.map ?? "0"));
 }
 export async function sheetDamage(e, t) {
   await rollSheetDamage(this.document, t.dataset.key, { crit: t.dataset.crit === "true" });

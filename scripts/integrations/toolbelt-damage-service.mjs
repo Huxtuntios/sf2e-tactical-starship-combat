@@ -19,7 +19,8 @@ const rejectDamage = (key) => {
 
 /** Только реальные типизированные экземпляры броска; клиент не присылает готовое число урона. */
 export function damagePartsFromMessage(message, rollIndex, multiplier, addend = 0) {
-  if (!message?.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage) rejectDamage("unsupported");
+  if (!message?.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage || message.flags?.[MODULE_ID]?.autoAppliedDamage)
+    rejectDamage("unsupported");
   if (message.rolls?.some((roll) => roll.options?.splashOnly)) rejectDamage("unsupported");
   const roll = message.rolls?.[rollIndex];
   if (!roll || ![0, 0.5, 1, 2, 3].includes(multiplier) || !Number.isInteger(addend) || Math.abs(addend) > 100000) rejectDamage("invalid");

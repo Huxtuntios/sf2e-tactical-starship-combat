@@ -1,3 +1,7 @@
+import { moveOwnedMine } from "../actions/mine-resolution.mjs";
+import { getTsc } from "../combat/tsc-state.mjs";
+import { findObject } from "../engine/sensor-ops.mjs";
+import { computeShipStats } from "./stats.mjs";
 import { patchStarship, stationOf, writeStarship, isStarship, loadStarship } from "./starship-state.mjs";
 import { registerHandler, request } from "../socket.mjs";
 import { can } from "../crew/permissions.mjs";
@@ -18,6 +22,7 @@ import { planUpgradeChange, UpgradeError } from "../engine/upgrades.mjs";
 import { stationTypeLabel } from "../utils/labels.mjs";
 import { upgradeCatalog } from "../content/loader.mjs";
 import { randomId } from "../utils/ids.mjs";
+import { changeDrone } from "../engine/drone-state.mjs";
 
 const EDITABLE_LISTS = ["weapons", "upgrades", "expansionBays", "effects", "strikes", "npcActions", "drones"];
 
@@ -118,6 +123,8 @@ export function registerShipHandlers() {
     if (!(user.isGM || can(user, s, "editEquipment"))) throw new Error(T("SF2eTSC.errors.noPermission"));
     await patchStarship(s, (d) => {
       if (!EDITABLE_LISTS.includes(payload.list)) throw new Error(T("SF2eTSC.errors.invalidData"));
+      // Сырые правки обходят правила дронов и разрешены только GM.
+      if (payload.list === "drones" && !user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
       // installing upgrades goes through "stationUpgrade" (capacity + compatibility); raw list edits are GM only
       if (payload.list === "upgrades" && payload.op !== "remove" && !user.isGM) throw new Error(T("SF2eTSC.errors.noPermission"));
       if (!Array.isArray(d[payload.list])) d[payload.list] = [];
@@ -134,6 +141,93 @@ export function registerShipHandlers() {
       } else throw new Error(T("SF2eTSC.errors.invalidData"));
     });
     return true;
+  });
+
+  registerHandler("droneState", async ({ user, payload }) => {
+    if (payload.op !== "add") throw new Error(T("SF2eTSC.droneControl.errors.useAction"));
+    const s = await ship(payload.shipUuid);
+    await patchStarship(s, (d) => {
+      const st = stationOf(d, payload.stationId);
+      if (!st || st.type !== "drone-console") throw new Error(T("SF2eTSC.droneControl.errors.station"));
+      if (payload.op === "add") {
+        if (!(user.isGM || can(user, s, "editEquipment"))) throw new Error(T("SF2eTSC.errors.noPermission"));
+      } else {
+        const operator = st.helmedBy ? fromUuidSync(st.helmedBy) : null;
+        if (!user.isGM && !(can(user, s, "operateStation") && operator?.testUserPermission?.(user, "OWNER")))
+          throw new Error(T("SF2eTSC.errors.noPermission"));
+      }
+      try {
+        changeDrone(d, payload.op, payload, {
+          definition: Content.stations.get("drone-console"),
+          droneTypes: Content.drones,
+          worldTime: game.time?.worldTime
+        });
+      } catch (err) {
+        const codes = ["station", "legacy", "invalid", "capacity", "cooldown"];
+        throw new Error(T(`SF2eTSC.droneControl.errors.${codes.includes(err.message) ? err.message : "invalid"}`), { cause: err });
+      }
+    });
+    return true;
+  });
+
+  // GM attests the prerequisite; mutations are serialized and validated against current ship/map state.
+  registerHandler("moveDroneMine", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    if (payload.confirmPrerequisite !== true) throw new Error(T("SF2eTSC.errors.invalidData"));
+    const actor = await ship(payload.shipUuid);
+    return patchStarship(
+      actor,
+      (data) => {
+        const combat = activeStarshipCombat();
+        const map = combat ? getTsc(combat) : null;
+        const operatorUuid = stationOf(data, payload.stationId)?.helmedBy;
+        if (!combat || !operatorUuid) throw new Error(T("SF2eTSC.mineAssist.moveInvalid"));
+        try {
+          return moveOwnedMine({
+            data,
+            shipUuid: actor.uuid,
+            stationId: payload.stationId,
+            droneId: payload.droneId,
+            mineId: payload.mineId,
+            combatId: combat.id,
+            shipZone: findObject(map, actor.uuid)?.zone,
+            sensorRange: computeShipStats(actor).sensorRange,
+            zones: map.zones,
+            destination: payload.destination,
+            origin: payload.origin,
+            moveId: payload.moveId,
+            operatorUuid
+          });
+        } catch (err) {
+          throw new Error(T("SF2eTSC.mineAssist.moveInvalid"), { cause: err });
+        }
+      },
+      { reason: T("SF2eTSC.mineAssist.move"), undoable: false, announce: false }
+    );
+  });
+
+  // GM-only bookkeeping after manual mine resolution; never performs a roll or applies damage.
+  registerHandler("closeDroneMine", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    if (!["detonated", "removed"].includes(payload.resolution)) throw new Error(T("SF2eTSC.errors.invalidData"));
+    const actor = await ship(payload.shipUuid);
+    let changed = false;
+    await patchStarship(
+      actor,
+      (data) => {
+        const drones = Array.isArray(data.drones) ? data.drones : [];
+        const matches = drones.filter((d) => d?.tscVersion === 1 && d.id === payload.droneId && d.stationId === payload.stationId);
+        if (matches.length !== 1 || !Array.isArray(matches[0].mines)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+        const mines = matches[0].mines.filter((m) => m?.id === payload.mineId && m.droneId === matches[0].id && m.shipUuid === actor.uuid);
+        if (mines.length !== 1) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+        if (mines[0].state !== "armed") return;
+        mines[0].state = payload.resolution;
+        mines[0].resolvedBy = user.id;
+        changed = true;
+      },
+      { reason: T("SF2eTSC.droneBlock.mineHistory"), undoable: false, announce: false }
+    );
+    return { changed };
   });
 
   /**

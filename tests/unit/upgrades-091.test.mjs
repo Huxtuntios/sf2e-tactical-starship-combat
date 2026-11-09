@@ -364,3 +364,122 @@ test("i18n: upgrade UI labels exist in English and Russian; partials balanced; b
     assert.ok(!s.includes("upgradeCatalog"), t);
   }
 });
+
+test("GM approval suppresses only recorded restrictions, not later or unknown issues", () => {
+  const st = { id: "gen-1", type: "generator", grade: "tactical" };
+  const data = { level: 1, stations: [st], upgrades: [] };
+  const opts = { entries: ENTRIES, stationDefs: STATIONS, isGM: true, newId: newIds() };
+  data.upgrades = planUpgradeChange(data, "add", { key: "cloaking-unit:commercial", stationId: st.id, override: true }, opts);
+  let status = stationUpgradeStatus(data, st, { entries: ENTRIES, stationDef: STATIONS.get("generator") });
+  assert.deepEqual(status.installed[0].record.overrideIssues, ["incompatible"]);
+  assert.ok(!status.installed[0].unresolvedIssues.includes("incompatible"));
+  assert.ok(status.installed[0].unresolvedIssues.includes("level"));
+  const lower = { ...data, stations: [{ ...st, grade: "commercial" }] };
+  status = stationUpgradeStatus(lower, lower.stations[0], { entries: ENTRIES, stationDef: STATIONS.get("generator") });
+  assert.ok(status.installed[0].unresolvedIssues.includes("capacity"));
+  const missing = { ...data, upgrades: [{ ...data.upgrades[0], ref: "no-such-upgrade" }] };
+  status = stationUpgradeStatus(missing, st, { entries: ENTRIES, stationDef: STATIONS.get("generator") });
+  assert.ok(status.installed[0].unresolvedIssues.includes("unknown"));
+});
+
+test("frame-provided base upgrades remain legitimate without exempting additional upgrades", async () => {
+  const frames = read("data/frames/frames.json").frames;
+  const { buildPlayerShipData } = await import("../../scripts/content/ship-docs.mjs");
+  for (const frame of frames) {
+    const raw = buildPlayerShipData({ name: "Ship", frame, level: 1 }).flags[M].starship;
+    const data = foldStationUpgrades(raw, ENTRIES);
+    for (const st of data.stations) {
+      const status = stationUpgradeStatus(data, st, { entries: ENTRIES, stationDef: STATIONS.get(st.type), frameDef: frame });
+      for (const item of status.installed) {
+        assert.equal(item.frameProvided, true, frame.id);
+        assert.deepEqual(item.unresolvedIssues, [], frame.id);
+        assert.equal(status.used, 1);
+        assert.equal(status.free, 0);
+      }
+    }
+    const base = data.upgrades[0];
+    if (base) {
+      const doubled = { ...data, upgrades: [...data.upgrades, { ...base, id: "custom-copy" }] };
+      const st = data.stations.find((s) => s.id === base.stationId);
+      const status = stationUpgradeStatus(doubled, st, { entries: ENTRIES, stationDef: STATIONS.get(st.type), frameDef: frame });
+      assert.equal(status.installed[1].frameProvided, false);
+      assert.ok(status.installed[1].unresolvedIssues.includes("capacity"));
+      assert.deepEqual(foldStationUpgrades({ ...raw, upgrades: data.upgrades }, ENTRIES).upgrades, data.upgrades);
+    }
+  }
+});
+
+test("assigning an upgrade to its existing station preserves approval and is a no-op", () => {
+  const st = { id: "g", type: "generator", grade: "commercial" };
+  const original = {
+    id: "x",
+    ref: "tractor-beam",
+    variant: null,
+    stationId: "g",
+    override: true,
+    overrideIssues: ["capacity"],
+    overrideCapacity: 0
+  };
+  const data = { level: 20, stations: [st], upgrades: [original] };
+  const list = planUpgradeChange(data, "assign", { id: "x", stationId: "g" }, { entries: ENTRIES, stationDefs: STATIONS, isGM: true });
+  assert.deepEqual(list, [original]);
+  assert.deepEqual(data.upgrades, [original]);
+});
+
+test("all standard frame defaults remain recognized at every catalogue level", async () => {
+  const frames = read("data/frames/frames.json").frames;
+  const { buildPlayerShipData } = await import("../../scripts/content/ship-docs.mjs");
+  for (const frame of frames)
+    for (const row of frame.table) {
+      const raw = buildPlayerShipData({ name: "Ship", frame, level: row.level }).flags[M].starship;
+      const data = foldStationUpgrades(raw, ENTRIES);
+      for (const st of data.stations) {
+        const status = stationUpgradeStatus(data, st, { entries: ENTRIES, stationDef: STATIONS.get(st.type), frameDef: frame });
+        for (const item of status.installed) {
+          assert.equal(item.frameProvided, true, `${frame.id} level ${row.level}`);
+          assert.deepEqual(item.unresolvedIssues, [], `${frame.id} level ${row.level}`);
+        }
+      }
+    }
+});
+
+test("reordering frame upgrades cannot hide capacity warnings on extra equipment", async () => {
+  const frame = read("data/frames/frames.json").frames.find((f) => f.id === "explorer");
+  const { buildPlayerShipData } = await import("../../scripts/content/ship-docs.mjs");
+  const raw = buildPlayerShipData({ name: "Ship", frame, level: 2 }).flags[M].starship;
+  const data = foldStationUpgrades(raw, ENTRIES);
+  const base = data.upgrades[0];
+  const st = data.stations.find((s) => s.id === base.stationId);
+  st.grade = "tactical";
+  const extra = { id: "other", ref: "gravity-toggle", variant: null, stationId: st.id };
+  for (const records of [
+    [base, extra],
+    [extra, base]
+  ]) {
+    const view = stationUpgradeStatus({ ...data, upgrades: records }, st, {
+      entries: ENTRIES,
+      stationDef: STATIONS.get(st.type),
+      frameDef: frame
+    });
+    assert.equal(view.installed.find((x) => x.record.id === base.id).frameProvided, true);
+    assert.ok(view.installed.find((x) => x.record.id === extra.id).unresolvedIssues.includes("capacity"));
+  }
+});
+
+test("duplicate legacy IDs do not grant multiple frame exemptions", async () => {
+  const frame = read("data/frames/frames.json").frames.find((f) => f.id === "explorer");
+  const { buildPlayerShipData } = await import("../../scripts/content/ship-docs.mjs");
+  const data = foldStationUpgrades(buildPlayerShipData({ name: "Ship", frame, level: 1 }).flags[M].starship, ENTRIES);
+  const base = data.upgrades[0],
+    station = data.stations.find((s) => s.id === base.stationId);
+  const result = stationUpgradeStatus({ ...data, upgrades: [base, { ...base }] }, station, {
+    entries: ENTRIES,
+    stationDef: STATIONS.get(station.type),
+    frameDef: frame
+  });
+  assert.deepEqual(
+    result.installed.map((item) => item.frameProvided),
+    [true, false]
+  );
+  assert.ok(result.installed[1].unresolvedIssues.includes("capacity"));
+});

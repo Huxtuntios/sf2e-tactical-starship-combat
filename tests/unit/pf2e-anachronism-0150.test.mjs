@@ -90,7 +90,7 @@ test("every derived PF2e pack matches its SF2e source, preserving all IDs and ru
       count++;
     }
   }
-  assert.equal(count, 538);
+  assert.equal(count, 540);
 });
 
 test("PF2e pack conversion is non-mutating and refuses unverified external UUIDs", () => {

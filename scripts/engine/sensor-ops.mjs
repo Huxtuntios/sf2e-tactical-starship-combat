@@ -138,6 +138,7 @@ export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], 
       icon: known ? o.icon : null,
       art: known ? o.art : undefined,
       actorUuid: known ? o.actorUuid : undefined,
+      mapTransform: known ? o.mapTransform : undefined,
       span: o.span
     });
   }

@@ -160,7 +160,7 @@ test("two clients clicking at the same time: exactly one execution", async () =>
   assert.equal(
     game.messages.contents.filter((m) => m.rolls?.length && m.rolls[0].formula.startsWith("1d20")).length,
     1,
-    "a single attack roll"
+    "one system attack roll message for one resolved attack"
   );
 });
 

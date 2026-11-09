@@ -227,6 +227,26 @@ export class MockChatMessage {
   }
 }
 
+export class MockJournalEntry {
+  constructor(data) {
+    this.id = rid();
+    this.name = data.name;
+    this.flags = structuredClone(data.flags);
+    this.ownership = structuredClone(data.ownership);
+  }
+  static async create(data) {
+    const doc = new MockJournalEntry(data);
+    game.journal.set(doc.id, doc);
+    Hooks.callAll("createJournalEntry", doc);
+    return doc;
+  }
+  async update(changes) {
+    applyUpdate(this, changes);
+    Hooks.callAll("updateJournalEntry", this, changes);
+    return this;
+  }
+}
+
 /** Scripted dice: push d20 / die results with `dice(…)`; un-scripted dice roll their average (rounded up). */
 export class MockRoll {
   constructor(formula) {
@@ -273,6 +293,8 @@ export function dice(...values) {
 
 const SETTING_DEFAULTS = {
   ruleEnforcement: "strict",
+  chatAnnouncements: "log",
+  historyStoreId: "",
   crewInitiativeScope: "crew",
   attackCards: true,
   playerShipInitiative: "disabled",
@@ -346,6 +368,7 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
     actors: new Collection(),
     combats: new Collection(),
     messages: new Collection(),
+    journal: new Collection(),
     combat: null,
     time: { worldTime: 0 },
     i18n: {
@@ -394,6 +417,7 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
     }
   };
   globalThis.ChatMessage = MockChatMessage;
+  globalThis.JournalEntry = MockJournalEntry;
   globalThis.Roll = MockRoll;
   globalThis.ui = {
     notifications: {

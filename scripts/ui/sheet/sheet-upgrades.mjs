@@ -70,17 +70,26 @@ function itemView(sheet, rec, entry, issues, overridden, station, { isGM = false
 /** Per-station section. `canEdit` = GM or editEquipment permission. */
 export function stationUpgradeView(sheet, data, st, { isGM = false, canEdit = false } = {}) {
   const entries = upgradeCatalog();
-  const status = stationUpgradeStatus(data, st, { entries, stationDef: Content.stations.get(st.type) ?? null });
+  const status = stationUpgradeStatus(data, st, {
+    entries,
+    stationDef: Content.stations.get(st.type) ?? null,
+    frameDef: Content.frames.get(data.frame) ?? null
+  });
   const opts = canEdit ? stationOptions(entries, st, { isGM }) : { compatible: [], override: [] };
   const full = status.used >= status.capacity;
   return {
     stationId: st.id,
     capacity: status.capacity,
     used: status.used,
-    over: status.over,
-    overText: status.over ? L("warn.over", { used: status.used, capacity: status.capacity }) : "",
+    over: status.installed.some((x) => x.unresolvedIssues.includes("capacity")),
+    overText: status.installed.some((x) => x.unresolvedIssues.includes("capacity"))
+      ? L("warn.over", { used: status.used, capacity: status.capacity })
+      : "",
     capacityLabel: L("capacity", { used: status.used, capacity: status.capacity }),
-    items: status.installed.map((x) => itemView(sheet, x.record, x.entry, x.issues, x.overridden, st, { isGM, canEdit })),
+    items: status.installed.map((x) => ({
+      ...itemView(sheet, x.record, x.entry, x.unresolvedIssues, x.overridden, st, { isGM, canEdit }),
+      frameProvided: x.frameProvided
+    })),
     canEdit,
     isGM,
     canInstall: canEdit && (isGM || (!full && opts.compatible.length > 0)),
@@ -151,6 +160,7 @@ export const STATION_UPGRADES_PARTIAL = `<section class="tsc-upgrades" data-upgr
 export const UPGRADE_ITEM_PARTIAL = `<li class="tsc-upgrade {{#if warnings.length}}has-warning{{/if}} {{#if overCapacity}}over{{/if}}">
   <details data-upgrade-details="{{id}}" {{#if open}}open{{/if}}>
     <summary><strong>{{name}}</strong> <span class="tsc-dim">{{localize "SF2eTSC.upgrades.level"}} {{level}}</span>
+      {{#if frameProvided}}<span class="tsc-pill">{{localize "SF2eTSC.upgrades.frameProvided"}}</span>{{/if}}
       {{#if overridden}}<span class="tsc-pill" data-tooltip="{{localize 'SF2eTSC.upgrades.overridden'}}"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> {{localize "SF2eTSC.upgrades.override"}}</span>{{/if}}
       {{#if overCapacity}}<span class="tsc-pill bad">{{localize "SF2eTSC.upgrades.warn.capacityShort"}}</span>{{/if}}
       {{#each warnings}}<span class="tsc-warn-inline" title="{{text}}"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{text}}</span>{{/each}}

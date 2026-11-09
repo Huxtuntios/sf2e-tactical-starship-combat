@@ -23,7 +23,8 @@ export class Draft {
     if (!actor) throw new Error(game.i18n.localize("SF2eTSC.errors.shipNotFound"));
     // commit() writes starship data for every loaded entry, so non-starship actors are refused here
     if (!isStarship(actor)) throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
-    const entry = { actor, data: foundry.utils.deepClone(readStarship(actor)) };
+    const before = foundry.utils.deepClone(readStarship(actor));
+    const entry = { actor, before, data: foundry.utils.deepClone(before) };
     this.ships.set(uuid, entry);
     return entry;
   }

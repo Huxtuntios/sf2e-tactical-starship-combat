@@ -93,16 +93,14 @@ test("0.10.1 upgrade drop: installed in the suitable station, or an error goes t
     [[gun.ref, "g1"]]
   );
 
-  // a ship without a gunnery station: nothing installed, error whispered to the user and the GM
+  // Отклонённое действие не создаёт запись в чате.
   const bare = makeShip({ id: "bare", name: "Bare", role: "player", level: 5, stations: [station("p1", "pilot", "advanced")] });
   const before = game.messages.size ?? [...game.messages].length;
   assert.equal(await drop.addUpgradeToShip(bare, gun.key), false);
   assert.equal(state.readStarship(bare).upgrades.length, 0);
   const msgs = [...game.messages];
-  const last = msgs.at(-1);
-  assert.ok(msgs.length > before, "an error message was posted");
-  assert.match(last.content, /tsc-drop-error/);
-  assert.ok(Array.isArray(last.whisper) && last.whisper.length >= 1, "whispered, not public");
+  assert.equal(msgs.length, before);
+  assert.ok(globalThis.__notes.some(([kind]) => kind === "warn"));
 });
 
 test("0.10.1 new ships get their station quality from the advancement table (not always commercial)", async () => {

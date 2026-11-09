@@ -12,6 +12,10 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
+> **0.17.0 is an experimental, test-world build, not a verified release.** Back up your world first. See `docs/work-in-progress-0.17.0.md` for incomplete features and the live test plan.
+
+> **Sensor Map:** very large background images can cause freezes. A user reported problems with an 8100 × 11700-pixel image; consider reducing its dimensions. The cause and performance limits have not been established.
+
 ## Requirements
 
 | Requirement                               | Version / notes                                                                  |

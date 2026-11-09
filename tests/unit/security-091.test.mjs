@@ -231,3 +231,37 @@ test("0.9.1: decoded check-link labels are escaped again before they reach chat"
   assert.doesNotMatch(inlineChatContent("@Damage[2d8[fire]]", evil), /<img/);
   assert.equal(inlineChatContent(`<script>alert(1)</script>`, "x"), null, "only @Damage[…] payloads are posted");
 });
+
+test("crew claim announces one actual change, never repeated or silent claims", async () => {
+  const { send } = await setup();
+  await game.settings.set(M, "chatAnnouncements", "all");
+  const ship = makeShip({
+    id: "claims",
+    name: "Ship",
+    owners: ["p1"],
+    stations: [
+      { id: "pilot-1", type: "pilot" },
+      { id: "pilot-2", type: "pilot" }
+    ]
+  });
+  const pc = makeCharacter({ id: "claim-pc", name: "PC", owners: ["p1"] });
+  let updates = 0;
+  const update = ship.update.bind(ship);
+  ship.update = async (...args) => {
+    updates++;
+    return update(...args);
+  };
+  const req = { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: pc.uuid };
+  assert.equal((await send("p1", "claimStation", req)).ok, true);
+  assert.equal(game.messages.size, 1);
+  assert.equal(updates, 1);
+  const { historyEntries } = await import("../../scripts/history/history.mjs");
+  assert.equal(historyEntries(ship.uuid).length, 1);
+  assert.equal((await send("p1", "claimStation", req)).ok, true);
+  assert.equal(game.messages.size, 1);
+  assert.equal(historyEntries(ship.uuid).length, 1);
+  assert.equal(updates, 1);
+  assert.equal((await send("p1", "claimStation", { ...req, stationId: "pilot-2", silent: true })).ok, true);
+  assert.equal(game.messages.size, 1);
+  assert.equal(historyEntries(ship.uuid).length, 2);
+});

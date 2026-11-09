@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.17.0 — experimental build, test worlds only
+
+This numbered build consolidates the changes since 0.16.0 and extends Sensor Map presentation. It is **not a verified release**: back up worlds and test with Foundry and all clients before production. No GitHub release is published by this build.
+
+### Sensor Map
+
+- Four combat-scoped course-arrow modes: none, text, emoji, or a custom image selected in Foundry's File Picker. The GM can adjust size, spacing, placement and opacity; missing images fall back to a text arrow.
+- Per-object image angle, horizontal/vertical flips and base direction are independent of game heading and position. Relative 90° buttons, a precise angle input and independent resets are available. Automatic horizontal mirroring composes with manual flipping and follows the existing left/right heading; up/down base artwork is not auto-mirrored because the game model has no vertical heading.
+- Background rotation and flips affect only the image, not zones or game coordinates. Existing settings and unknown fields are retained; older combats acquire default visual settings without migration. GM-authorized map requests are serialized per combat; editing uses absolute field patches. This is not a cross-document transaction or a failover guarantee.
+- Very large backgrounds (user-reported 8100 × 11700) may freeze; reduce image size. Zone redraws may still replace the background. No real Foundry profile or final performance confirmation is claimed.
+
+### Consolidated work since 0.16.0
+
+- Recognize narrowly scoped frame-provided upgrades, preserve other compatibility checks and warn about capacity; GM Override and standard frames still need live validation.
+- GM-only history storage, configurable Chat Announcements, no-op guards for several operations and improved duplicate request handling. Audits, privacy, socket behavior and Undo remain incomplete or unverified in live multiplayer.
+- Native SF2e attack card on supported ship-weapon paths replaces the duplicate module result card; actual damage remains separate. MAP and different attacks are not globally suppressed; the native API fallback and live behavior still require testing.
+- Individual drones, capacity checks, deploy/retrieve and limited base Drone Block for supported single-target ship-weapon Strikes. Mine deployment, manual resolution assistance, GM movement and post-resolution removal/marking are available. Full actions and the three upgrade effects are not implemented; reactions/action costs are tracked manually.
+- Improved weapon selector damage and explicit proficiency, supported interactive links and conservative damage-type inheritance for specific station upgrades. Not all descriptions or ambiguous damage types are covered.
+- Station-specific Boost Battle Station and GM-approved per-roll situational modifier assistance, with documented coverage and timing limits.
+
+### Validation and caveats
+
+- Automated tests and offline Chromium fixtures exercise model, rendering, permissions and mocked socket concurrency; they do not prove native Foundry/SF2e or real multiplayer behavior.
+- Full Drone Console, complete no-op/chat audit, real Foundry profiling, GM Override, frame compatibility, log privacy, sockets, failover and Undo need further work or verification. See `docs/work-in-progress-0.17.0.md` and the historical work-in-progress notes for scope and live test plans.
+
+## 0.16.1-dev.10 — experimental, test worlds only
+
+- Boost Battle Station now selects an installed station, stores separate station-scoped effects, refreshes without stacking duplicates, and shows the effect in the sheet, HUD and map dock. An active combat on the generator operator’s turn is required for safe expiration; legacy unscoped boosts are preserved but ignored.
+- Add up to six per-attack situational modifiers, with name, optional source, signed value, type and attack/damage/both scope. Player proposals require active GM approval. Normal weapon attacks use native attack modifiers; PC-weapon damage folds the stacked flat modifier into its typed formula. NPC damage modifiers, standalone damage, and fully native damage-modifier UI are not implemented.
+- Add mock tests for scope, expiration, validation, permissions, approval, damage stacking, duplicate requests and persistence. No real Foundry or multiplayer verification is claimed. Full Drone Console and previous unresolved work remain incomplete. See `docs/work-in-progress-0.16.10.md`.
+
+## 0.16.1-dev.9 — experimental, test worlds only
+
+- Add GM-only preparation of native damage and basic Reflex check links for a tracked, armed Pyrotechnics mine. Validate operator, current combat, range, drone and known statistics; the GM confirms a reaction trigger and resolves targets, damage and mine closure manually. This does not automatically detonate or spend actions.
+- Add GM-adjudicated Mobile Exocortex mine movement by one zone, with combat/range/ownership checks, origin guards and persistent duplicate-operation receipts. No automatic Undo; unknown mine fields are retained.
+- Add focused mock tests. Drone actions and upgrade mechanics remain incomplete; no live Foundry, SF2e 1.7.0, privacy or multiplayer verification is claimed. See `docs/work-in-progress-0.16.9.md`.
+
+## 0.16.1-dev.8 (experimental; test worlds only)
+
+- Interactive station-upgrade descriptions: bind scaled Ramming Prow damage to the local Ram action's bludgeoning type, present Nova Prow damage separately for graviton (bludgeoning) and photon (fire) attunements, and show the explicitly typed upgraded Thasteron Burst dice. The action text shows the selected variant's dice. No actor data is migrated or modified.
+- Add conservative, explicit structured-component inheritance; unknown, multiple or additional untyped effects are not assigned a guessed type. Literal numeric dice and known typed damage are validated before rolling.
+- Render explicit native checks and supported SF2e/Foundry links in module windows via the native text editor when available; preserve a chat-based check fallback. Preserve existing enrichers and linked content. Solar Generator Crystal's base shield die and Telepod's travel die can be rolled without applying points.
+- Added EN/RU catalogue tests, ambiguous-input and security tests, and a browser fixture for single-click behavior. See `docs/work-in-progress-0.16.8.md` for constraints and the live Foundry test plan.
+
+## 0.16.1-dev.7 — experimental, test worlds only
+
+- Add base Drone Block to module-resolved single-target weapon Strikes against player ships: the operator chooses one deployed drone, the resistance is applied as attack-scoped IWR, and the drone return/cooldown and damage are saved in one conflict-guarded target actor update. Reactions remain tracked manually. The Shield Protocol interaction, other attack paths and live multiplayer remain unverified and require GM handling.
+- Add GM-only, idempotent controls for removing an armed mine or recording a manually resolved detonation. The control does not execute the explosion, save or damage. Mine data is retained.
+- Guard sheet-damage application against duplicate application after a chat update failure. Add mock tests for permissions, duplicate requests, stale writes, cooldown and damage; no live Foundry verification. Remaining drone actions and all three upgrades are incomplete. See `docs/work-in-progress-0.16.7.md`.
+
+## 0.16.1-dev.6 — experimental, test worlds only
+
+- Correct dev.5: weapon Strikes from the ship sheet and station runner use a native system attack roll as the primary chat message; no module declaration or duplicate result card is posted on those paths. Select the target on the Sensor Map and choose MAP before rolling. Existing declaration API and spell cards are retained for compatibility.
+- Preserve a separate damage roll and, for sheet attacks, append restricted deferred-damage controls to the native attack message. Station damage prefers the system typed DamageRoll and falls back to the previous Foundry roll when unavailable; its result remains separate.
+- Check permissions on the GM, revalidate the target, and deduplicate matching event IDs in memory and via a GM-authored chat receipt where the system supplies a message. This is not an atomic transaction or proof of multi-client failover.
+- Add mock tests and an offline browser fixture; Foundry v14.370 / SF2e 1.7.0, real multi-client sockets, privacy, Undo, and Sensor Map profiling remain unverified. The other outstanding tasks, including full Drone Console mechanics, are not complete. See `docs/work-in-progress-0.16.6.md`.
+
+## 0.16.1-dev.5 — experimental, incomplete
+
+- Make Deploy Drone and Retrieve Drone station actions operate on individual tracked drones with GM-authoritative permissions, idempotency and guarded Undo for isolated movement. Action/reaction costs remain tracked manually.
+- Grant Deploy Starship Mine only for a deployed Pyrotechnics Drone; persist an individually identified mine, its owner/operator/combat/zone, and a per-station round limit. Do not automatically detonate; older map records are preserved for GM review. Placement is not Undoable.
+- Suppress the separate native attack-check chat message when an existing ship attack card supplies the result; damage rolls remain separate.
+- Document unresolved drone actions, upgrades, damage/reaction transaction issues, chat coverage, real multiplayer and Foundry profiling; see `docs/work-in-progress-0.16.5.md`. No live Foundry verification is claimed.
+
+## 0.16.1-dev.4 — incomplete experimental work
+
+- Added individual drone inventory records and manual deployment/retrieval tracking using the authoritative ship queue, permissions and per-console capacity. Action expenditure and all drone-specific effects remain manual. Legacy records are preserved and require GM review.
+- Blocked player raw-list drone mutations; GM raw editing remains available for recovery. Added no-op and concurrent-request mock tests.
+- Weapon selection now shows explicit damage, type, required proficiency when explicitly available, and item level; it never infers a rank from weapon category. Existing rules links remain native; checks alongside existing enrichers and keyboard access are improved.
+- Very large Sensor Map images may cause freezes (reported example 8100 × 11700); root cause and live performance are not established. Only for test worlds. See `docs/work-in-progress-0.16.4.md`.
+
+## 0.16.1-dev.3 — incomplete experimental work
+
+- Added a sourced drone rules matrix and non-destructive, read-only capacity warnings. Full drone mechanics remain unimplemented.
+- Disabled the unsafe automatic Drone Block Strike offer until an individual drone, correct operator level and attack-scoped effect can be tracked; manual adjudication remains available.
+- Checked all catalogue frames and levels; frame equipment occupies its slot regardless of list ordering, and duplicate IDs do not receive duplicate exemptions.
+- Suppressed same-station upgrade reassignment and unchanged map writes; eliminated duplicate crew-claim announcements and retained silent-claim history. Other no-op and chat paths still need audit.
+- Profiled the production template and painting function in an offline Chromium fixture. This is not a Foundry profile and does not confirm a Sensor Map fix. See `docs/work-in-progress-0.16.3.md`.
+
+## 0.16.1-dev.2 — incomplete experimental work
+
+- Recognize narrowly identified frame-provided upgrades without suppressing unrelated validation; avoid folding the same legacy upgrade twice.
+- Store new history in a bounded GM-only JournalEntry, retaining read/undo compatibility with trusted legacy GM whispers; optional change announcements have Log Only, Important Only and All Changes modes. Action and roll cards are separate.
+- Serialize actor read-modify-write operations and suppress no-op actor writes, repeat station-claim announcements, and rejected upgrade-drop chat messages.
+- Correct the existing Drone Block manual reminder to use the operator’s level. Full drone mechanics remain unimplemented.
+- Record an offline Chromium rendering experiment; the real Foundry Sensor Map performance and multiplayer behavior remain unverified. This is not a release; see `docs/work-in-progress-0.16.2.md`.
+
+## 0.16.1-dev.1 — work in progress
+
+Partial experimental fixes only; see `docs/work-in-progress-0.16.1.md` for incomplete requirements and testing limitations.
+
 ## 0.16.0 — unified client UI themes
 
 - Extended the existing client sheet theme setting to Follow Foundry, Light and Dark for module windows, dialogs, builder, history and Sensor Map. Removed per-window theme selectors; existing stored light/dark preferences retain their values.

@@ -1324,7 +1324,7 @@
    "effects": [
     {
      "type": "manual",
-     "text": "Your starship gains resistance equal to half its level (round up) against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes."
+     "text": "Your starship gains resistance equal to half your level against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes."
     }
    ]
   },
@@ -1642,6 +1642,30 @@
     "range": 0
    },
    "builtin": "npc-strike"
+  },
+  {
+   "id": "deploy-starship-mine",
+   "slug": "deploy-starship-mine",
+   "name": "Deploy Starship Mine",
+   "station": "drone-console",
+   "minGrade": "commercial",
+   "cost": 1,
+   "traits": [
+    "manipulate",
+    "station"
+   ],
+   "text": "Frequency once per round. Requirement: no mine deployed by this pyrotechnics drone in your zone. The drone deploys a starship mine in your starship’s zone.",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 192
+   },
+   "requiresDroneType": "pyrotechnics-drone",
+   "effects": [
+    {
+     "type": "manual",
+     "text": "Deploy a starship mine in your zone."
+    }
+   ]
   }
  ]
 }

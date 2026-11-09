@@ -10,10 +10,13 @@ import { request } from "../socket.mjs";
 import { actionLabel } from "../actions/action-engine.mjs";
 import { Targeting } from "./targeting.mjs";
 import { npcStrikeRange } from "../actions/strike.mjs";
-import { T, moduleSetting } from "../utils/foundry.mjs";
+import { T, moduleSetting, fromUuidSync_ } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { isCardAttack, beginCardTargeting } from "../chat/attack-card.mjs";
 import { ct } from "../content/content-i18n.mjs";
+import { randomId } from "../utils/ids.mjs";
+import { stationEffects } from "../starship/effects.mjs";
+import { beginNativeWeaponAttack } from "./native-attack.mjs";
 const skillLabel = (s) => {
   const k = `SF2eTSC.skills.${String(s).toLowerCase()}`;
   return game.i18n.has(k) ? T(k) : s;
@@ -70,6 +73,56 @@ function targetRange(action, ship, weaponRange) {
 /** Ask for the options an action needs (cost variant, spell rank, skill, DC tier, weapon, target station, area origin). */
 async function promptOptions(action, { ship, crew, station, target }) {
   const fields = [];
+  if (action.id === "boost-battle-station") {
+    const data = readStarship(ship);
+    const combat = activeStarshipCombat();
+    const esc = foundry.utils.escapeHTML;
+    const stations = data.stations.filter((st) => st.id && data.stations.filter((other) => other.id === st.id).length === 1);
+    if (!stations.length) {
+      notifyError("SF2eTSC.errors.boostInvalidTarget");
+      return null;
+    }
+    const entries = stations
+      .map((st) => {
+        const names =
+          [...new Set([st.helmedBy, ...data.crew.filter((c) => c.stationId === st.id).map((c) => c.actorUuid)].filter(Boolean))]
+            .map((uuid) => fromUuidSync_(uuid)?.name ?? data.crew.find((c) => c.actorUuid === uuid)?.name ?? uuid)
+            .join(", ") || T("SF2eTSC.boost.unoccupied");
+        const active = stationEffects(data.effects, st.id, combat).some((e) => e.slug === "boost-battle-station");
+        const state = st.malfunctioning ? T("SF2eTSC.ui.malfunctioning") : T("SF2eTSC.boost.available");
+        return `<option value="${esc(st.id)}">${esc(ct(st.name))} — ${esc(names)} — ${esc(state)}${active ? ` — ${esc(T("SF2eTSC.boost.active"))}` : ""}</option>`;
+      })
+      .join("");
+    fields.push(
+      `<p class="hint">${esc(T("SF2eTSC.boost.hint"))}</p><div class="form-group"><label>${esc(T("SF2eTSC.boost.choose"))}</label><select name="targetStationId">${entries}</select></div>`
+    );
+  }
+  if (isCardAttack(action) && ["strike", "npc-strike"].includes(action.builtin))
+    fields.push(
+      `<div class="form-group"><label>${T("SF2eTSC.ui.map")}</label><select name="mapChoice"><option value="0">${T("SF2eTSC.rolls.map0")}</option><option value="1">${T("SF2eTSC.rolls.map1")}</option><option value="2">${T("SF2eTSC.rolls.map2")}</option></select></div>`
+    );
+  if (["deploy-drone", "retrieve-drone", "deploy-starship-mine"].includes(action.id)) {
+    const deployed = action.id !== "deploy-drone";
+    const records = readStarship(ship).drones;
+    const drones = (Array.isArray(records) ? records : []).filter(
+      (d) =>
+        d?.tscVersion === 1 &&
+        d.stationId === station?.id &&
+        d.deployed === deployed &&
+        (!action.requiresDroneType || d.ref === action.requiresDroneType)
+    );
+    if (!drones.length) {
+      notifyError("SF2eTSC.errors.generic", { message: T("SF2eTSC.droneControl.errors.noEligible") });
+      return null;
+    }
+    const entries = drones
+      .map(
+        (d) =>
+          `<option value="${foundry.utils.escapeHTML(d.id)}">${foundry.utils.escapeHTML(ct(Content.drones.find((t) => t.id === d.ref)?.name ?? d.ref))} (${foundry.utils.escapeHTML(d.id)})</option>`
+      )
+      .join("");
+    fields.push(`<div class="form-group"><label>${T("SF2eTSC.droneControl.type")}</label><select name="droneId">${entries}</select></div>`);
+  }
   if (Array.isArray(action.cost))
     fields.push(
       `<div class="form-group"><label>${T("SF2eTSC.ui.actionsToSpend")}</label><select name="actions">${action.cost.map((c) => `<option value="${c}">${"◆".repeat(c)}</option>`).join("")}</select></div>`
@@ -173,6 +226,7 @@ export async function runAction(action, ctx) {
   const execute = async (targetKey, targetObj) => {
     const opts = await promptOptions(action, { ship, crew, station, target: targetObj });
     if (opts === null) return;
+    if (action.id === "deploy-starship-mine") opts.mineId = randomId("mine");
     const send = (extra = {}) =>
       request("executeAction", {
         shipUuid: ship.uuid,
@@ -203,6 +257,18 @@ export async function runAction(action, ctx) {
     }
   };
   if (!needsTarget) return execute(null, null);
+  if (isCardAttack(action) && ["strike", "npc-strike"].includes(action.builtin)) {
+    const opts = await promptOptions(action, { ship, crew, station, target: null });
+    if (opts !== null)
+      await beginNativeWeaponAttack({
+        shipUuid: ship.uuid,
+        actionId: action.id,
+        crewUuid: crew?.uuid ?? null,
+        stationId: station?.id ?? null,
+        options: opts
+      });
+    return;
+  }
   // single-target attacks: declaration card first (no roll, nothing spent), then the target is chosen on the card
   // or on the Sensor Map — both resolve through the same GM handler (resolveAttackCard)
   if (isCardAttack(action) && moduleSetting("attackCards") !== false) {

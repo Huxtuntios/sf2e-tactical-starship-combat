@@ -1984,3 +1984,70 @@ a.tsc-damage {
 .sf2e-tsc[data-sheet-theme] .tsc-history-list > li {
   overflow-wrap: anywhere;
 }
+
+/* Клавиатурный фокус интерактивных правил в обеих темах. */
+a.tsc-check:focus-visible,
+a.tsc-cond:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Преобразуются только изображения; кнопки, зоны и курс сохраняют свою геометрию. */
+.tsc-sensor-map .tsc-obj-icon {
+  transform-origin: center;
+  flex: 0 0 auto;
+}
+.tsc-sensor-map .tsc-obj-arrow {
+  font-size: var(--tsc-arrow-size, 18px);
+  opacity: var(--tsc-arrow-opacity, 1);
+  pointer-events: none;
+  line-height: 1;
+}
+.tsc-sensor-map .tsc-obj-visual {
+  grid-column: 1 / 4;
+  grid-row: 1;
+  display: flex;
+  gap: var(--tsc-arrow-gap, 4px);
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+.tsc-sensor-map .tsc-obj-visual.arrow-left .tsc-obj-arrow,
+.tsc-sensor-map .tsc-obj-visual.arrow-top .tsc-obj-arrow {
+  order: -1;
+}
+.tsc-sensor-map .tsc-obj-visual.arrow-top,
+.tsc-sensor-map .tsc-obj-visual.arrow-bottom {
+  flex-direction: column;
+}
+.tsc-sensor-map .tsc-course-image {
+  display: block;
+  width: var(--tsc-arrow-size, 18px);
+  height: var(--tsc-arrow-size, 18px);
+  object-fit: contain;
+  pointer-events: none;
+  transform-origin: center;
+}
+.tsc-sensor-map .tsc-course-image[hidden] {
+  display: none;
+}
+.tsc-sensor-map .tsc-course-emoji {
+  display: inline-block;
+  transform-origin: center;
+}
+.tsc-map-appearance .tsc-arrow-preview {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.tsc-map-appearance .tsc-arrow-preview[hidden] {
+  display: none;
+}
+.tsc-map-appearance .tsc-transform-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tsc-map-appearance .tsc-transform-buttons button {
+  flex: 1 1 auto;
+}

@@ -71,7 +71,17 @@ const writeQueues = new Map();
 async function performWrite(
   actor,
   data,
-  { hullPatch = null, extra = {}, history = true, reason = "", undoable = true, expected = null, expectedCombat = undefined } = {}
+  {
+    hullPatch = null,
+    extra = {},
+    history = true,
+    announce = true,
+    reason = "",
+    undoable = true,
+    expected = null,
+    expectedCombat = undefined,
+    force = false
+  } = {}
 ) {
   if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
   const before = readStarship(actor);
@@ -79,8 +89,14 @@ async function performWrite(
   if (expected && !audit.equalState(audit.snapshot(before), expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
   if (expectedCombat !== undefined && !audit.equalState(audit.combatGuard(), expectedCombat))
     throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
-  const updates = { [`flags.${MODULE_ID}.${FLAGS.STARSHIP}`]: persistable(data), ...extra };
+  const nextFlag = persistable(data);
   const hull = hullPatch ?? data.hp;
+  // Сравнение выполняется внутри очереди GM, непосредственно перед записью.
+  const hullUnchanged =
+    !hull ||
+    ((!Number.isInteger(hull.value) || hull.value === before.hp.value) && (!Number.isInteger(hull.max) || hull.max === before.hp.max));
+  if (!force && !Object.keys(extra).length && hullUnchanged && audit.equalState(persistable(before), nextFlag)) return actor;
+  const updates = { [`flags.${MODULE_ID}.${FLAGS.STARSHIP}`]: nextFlag, ...extra };
   if (hull) {
     if (Number.isInteger(hull.value)) updates["system.attributes.hp.value"] = hull.value;
     if (Number.isInteger(hull.max) && hull.max !== actor.system?.attributes?.hp?.max) updates["system.attributes.hp.max"] = hull.max;
@@ -88,7 +104,7 @@ async function performWrite(
   const result = await actor.update(updates);
   if (history) {
     try {
-      await audit.recordChange(actor, before, readStarship(actor), { reason, undoable });
+      await audit.recordChange(actor, before, readStarship(actor), { reason, undoable, announce });
     } catch (err) {
       log.error("history recording failed (state was saved)", err);
       ui.notifications?.warn?.(game.i18n.localize("SF2eTSC.qol.historyFailed"));
@@ -97,9 +113,9 @@ async function performWrite(
   return result;
 }
 
-export function writeStarship(actor, data, options = {}) {
+function enqueueStarship(actor, operation) {
   const previous = writeQueues.get(actor.uuid) ?? Promise.resolve();
-  const task = previous.catch(() => {}).then(() => performWrite(actor, data, options));
+  const task = previous.catch(() => {}).then(operation);
   writeQueues.set(actor.uuid, task);
   task
     .finally(() => {
@@ -109,12 +125,18 @@ export function writeStarship(actor, data, options = {}) {
   return task;
 }
 
-/** Read-modify-write helper. `mutator(data)` edits a clone and may return a hull patch. */
-export async function patchStarship(actor, mutator, options = {}) {
-  const data = foundry.utils.deepClone(readStarship(actor));
-  const result = await mutator(data);
-  await writeStarship(actor, data, { hullPatch: data.hp, ...options });
-  return result;
+export function writeStarship(actor, data, options = {}) {
+  return enqueueStarship(actor, () => performWrite(actor, data, options));
+}
+
+/** Чтение, проверка и изменение выполняются вместе в очереди авторитетного GM. */
+export function patchStarship(actor, mutator, options = {}) {
+  return enqueueStarship(actor, async () => {
+    const data = foundry.utils.deepClone(readStarship(actor));
+    const result = await mutator(data);
+    await performWrite(actor, data, { hullPatch: data.hp, ...options });
+    return result;
+  });
 }
 
 export function stationOf(data, stationId) {

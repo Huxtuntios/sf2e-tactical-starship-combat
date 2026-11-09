@@ -216,7 +216,8 @@ function conditionSegment(s) {
 }
 
 /** Enrichers (one bracket level, as in @Damage[(2d6)[fire]]) and HTML tags are protected. */
-export const TOKEN_RE = /(@\w+\[(?:[^[\]]|\[[^\]]*\])*\](?:\{[^}]*\})?|<[^>]*>)/g;
+export const TOKEN_RE =
+  /(<(?:a|code|pre|script|style)\b[^>]*>[\s\S]*?<\/(?:a|code|pre|script|style)\s*>|\[\[[^\]]+\]\](?:\{[^}]*\})?|@\w+\[(?:[^[\]]|\[[^\]]*\])*\](?:\{[^}]*\})?|<[^>]*>)/gi;
 function splitApply(s, fn) {
   return String(s)
     .split(TOKEN_RE)
@@ -231,12 +232,40 @@ export function linkDamageAndConditions(html) {
   return conditionSegment(splitApply(s, damageSegment));
 }
 
+/** Resolve an explicitly bound damage component. Never infer a type from prose or a multi-type action. */
+export function linkInheritedDamage(html, { sourceDamageParts = [], componentId = null } = {}) {
+  const parts = Array.isArray(sourceDamageParts) ? sourceDamageParts : [];
+  const candidates = componentId == null ? parts : parts.filter((part) => part?.id === componentId);
+  if (candidates.length !== 1) return String(html ?? "");
+  const type = String(candidates[0]?.type ?? candidates[0]?.damageType ?? "").toLowerCase();
+  if (!DAMAGE_TYPES.includes(type) || type === "untyped") return String(html ?? "");
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])${DICE}\\s+(?:damage|урона)(?![\\p{L}\\p{N}])`, "giu");
+  const original = String(html ?? "");
+  const eligible = [];
+  const partsOfText = original.split(TOKEN_RE);
+  for (let i = 0; i < partsOfText.length; i += 2) {
+    const text = partsOfText[i];
+    for (const match of text.matchAll(re)) {
+      const prefix = text.slice(0, match.index);
+      if (!/(?:instead of|вместо|additional|extra|дополнительн\p{L}*)\s*$/iu.test(prefix)) eligible.push({ i, match });
+    }
+  }
+  // Several untyped effects may be unrelated; their binding is not established by a shared type alone.
+  if (eligible.length !== 1) return original;
+  const { i, match } = eligible[0];
+  const text = partsOfText[i];
+  partsOfText[i] =
+    text.slice(0, match.index) + `${formula(match[1], type, false)}{${labelOf(match[0])}}` + text.slice(match.index + match[0].length);
+  return partsOfText.join("");
+}
+
 /** Full pipeline; module-only anchors opt out of native DC-label normalization. Idempotent. */
-export function linkInline(html, { nativeChecks = true } = {}) {
+export function linkInline(html, { nativeChecks = true, sourceDamageParts = [], componentId = null } = {}) {
   let s = String(html ?? "");
   if (!s) return s;
-  if (!s.includes("@Check[")) s = linkChecks(s);
+  s = splitApply(s, linkChecks);
   s = linkDamageAndConditions(s);
+  s = linkInheritedDamage(s, { sourceDamageParts, componentId });
   return nativeChecks ? normalizeNativeChecks(s) : s;
 }
 

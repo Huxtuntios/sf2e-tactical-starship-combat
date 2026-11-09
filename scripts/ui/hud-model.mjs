@@ -14,6 +14,8 @@ import { ct, ctPlain } from "../content/content-i18n.mjs";
 import { traitsText } from "../utils/labels.mjs";
 import { T } from "../utils/foundry.mjs";
 import { occupantView } from "../crew/occupant.mjs";
+import { stationEffects } from "../starship/effects.mjs";
+import { effectCaption } from "./effect-editor.mjs";
 
 /** Crew actors the user controls (controlled token first, then owned characters). */
 function myCrewActors() {
@@ -56,7 +58,7 @@ export function buildHudContext(index = 0, list = findHelmedStations()) {
   const combat = activeStarshipCombat();
   const cb = combat ? combatantForActor(combat, crew) : null;
   const def = Content.stations.get(station.type);
-  const actions = actionsForStation(station.type, station.grade, gradeIndex);
+  const actions = actionsForStation(station.type, station.grade, gradeIndex, { data, station });
   const extra = ["repair-station", "jump-start"].map((id) => Content.actions.get(id)).filter(Boolean);
   const rows = [...actions, ...extra.filter((e) => !actions.includes(e))].map((a) => {
     const p = previewAction(a, { ship, crew, station, combat });
@@ -93,6 +95,11 @@ export function buildHudContext(index = 0, list = findHelmedStations()) {
     occupant: occupantView(crew.uuid, { fallbackName: crew.name }),
     noCombatant: !!combat && !cb,
     malfunctioning: station.malfunctioning,
+    boosted: stationEffects(data.effects, station.id, combat).some((e) => e.slug === "boost-battle-station"),
+    boostCaption: stationEffects(data.effects, station.id, combat)
+      .filter((e) => e.slug === "boost-battle-station")
+      .map(effectCaption)
+      .join(" · "),
     hp: data.hp,
     sp: data.sp,
     hpPct: pct(data.hp.value, data.hp.max),

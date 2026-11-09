@@ -71,6 +71,7 @@
     <div class="tsc-station-list">{{#each stations}}
       <article data-station-link="{{id}}" class="tsc-station {{#if malfunctioning}}malf{{/if}} {{#if occupied}}occ{{/if}}">
         <header><i class="{{icon}}" aria-hidden="true"></i><h4>{{name}}</h4><span class="tsc-pill">{{gradeLabel}}</span>
+          {{#if boosted}}<span class="tsc-pill" title="{{boostCaption}}">{{localize "SF2eTSC.boost.active"}} · {{boostCaption}}</span>{{/if}}
           {{#if malfunctioning}}<span class="tsc-pill bad">⚠ {{localize "SF2eTSC.ui.malfunctioning"}}</span>{{/if}}
           {{> tscOccupant occupant size="md"}}</header>
         <div class="tsc-btn-row">
@@ -83,6 +84,15 @@
             <button type="button" class="danger" data-action="removeStation" data-station-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
         </div>
         {{> tscStationUpgrades upgradeSection}}
+        {{#if droneInventory}}<p class="tsc-hint">{{localize "SF2eTSC.droneInventory.label"}}: {{droneInventory.count}} / {{#if droneInventory.capacity}}{{droneInventory.capacity}}{{else}}—{{/if}}. {{localize "SF2eTSC.droneInventory.manual"}}</p>{{#if @root.isGM}}{{#if droneInventory.over}}<p class="tsc-hint">⚠ {{localize "SF2eTSC.droneInventory.over"}}</p>{{/if}}{{#if droneInventory.unassigned}}<p class="tsc-hint">⚠ {{localize "SF2eTSC.droneInventory.unassigned"}}: {{droneInventory.unassigned}}</p>{{/if}}{{/if}}{{/if}}
+        {{#if droneInventory}}
+          <p class="tsc-hint">{{localize "SF2eTSC.droneControl.hint"}}</p>
+          <ul class="tsc-list">{{#each droneRows}}<li>{{name}} — {{#if deployed}}{{localize "SF2eTSC.droneControl.deployed"}}{{else}}{{localize "SF2eTSC.droneControl.aboard"}}{{/if}}
+            {{#if mines.length}}<ul>{{#each mines}}<li>{{localize "SF2eTSC.droneControl.mine"}} {{id}} — {{localize "SF2eTSC.droneControl.mineZone"}} {{zone}} ({{#if armed}}{{localize "SF2eTSC.droneControl.mineArmed"}}{{else}}{{localize "SF2eTSC.droneBlock.mineUnknown"}}{{/if}})
+              {{#if armed}}{{#if @root.isGM}}<button type="button" data-action="moveDroneMine" data-zone="{{zone}}" data-station-id="{{../stationId}}" data-drone-id="{{../id}}" data-mine-id="{{id}}">{{localize "SF2eTSC.mineAssist.move"}}</button><button type="button" data-action="prepareMineDetonation" data-station-id="{{../stationId}}" data-drone-id="{{../id}}" data-mine-id="{{id}}">{{localize "SF2eTSC.mineAssist.title"}}</button><button type="button" data-action="closeDroneMine" data-station-id="{{../stationId}}" data-drone-id="{{../id}}" data-mine-id="{{id}}" data-resolution="detonated">{{localize "SF2eTSC.droneBlock.mineDetonated"}}</button><button type="button" data-action="closeDroneMine" data-station-id="{{../stationId}}" data-drone-id="{{../id}}" data-mine-id="{{id}}" data-resolution="removed">{{localize "SF2eTSC.droneBlock.mineRemove"}}</button>{{/if}}{{/if}}</li>{{/each}}</ul>{{/if}}
+            </li>{{/each}}</ul>
+          {{#if @root.perms.editEquipment}}<div class="tsc-row-inputs"><select name="droneType" aria-label="{{localize 'SF2eTSC.droneControl.type'}}">{{#each droneTypes}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addDrone" data-station-id="{{id}}">{{localize "SF2eTSC.droneControl.add"}}</button></div>{{/if}}
+        {{/if}}
         {{#if isGunnery}}{{#if canConfig}}<label>{{localize "SF2eTSC.ui.weapon"}} <select data-station-field="weaponId" data-station-id="{{id}}"><option value="">—</option>{{#each @root.weapons}}<option value="{{id}}" {{#if (eq id ../weaponId)}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>{{/if}}{{/if}}
         {{#if dcRows.length}}<details><summary>{{localize "SF2eTSC.rolls.stationDCs"}}</summary><div class="tsc-station-dcs" aria-label="{{localize 'SF2eTSC.rolls.stationDCs'}}">{{#each dcRows}}<span>{{label}}: {{value}}</span>{{/each}}</div></details>{{/if}}
         <ul class="tsc-inline-list">{{#each actionList}}<li><details><summary><button type="button" data-action="runAction" data-action-id="{{id}}" data-station-id="{{../id}}" {{#unless enabled}}disabled{{/unless}} title="{{reasons}}">{{icon}} {{name}}</button></summary><div class="tsc-action-desc">{{{html}}}</div></details></li>{{/each}}</ul>
@@ -99,12 +109,12 @@
 
   {{#if (eq tab "equipment")}}
     <h4>{{localize "SF2eTSC.tabs.weapons"}}</h4>
-    <ul class="tsc-list">{{#each weapons}}<li><strong>{{name}}</strong> — {{die}} {{damageLabel}}, {{localize "SF2eTSC.ui.range"}} {{range}} <span class="tsc-dim">{{traitsLabel}}</span>{{#if @root.perms.editEquipment}} <button type="button" class="danger" data-action="removeWeapon" data-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}</li>{{else}}<li class="tsc-dim">—</li>{{/each}}</ul>
+    <ul class="tsc-list">{{#each weapons}}<li><strong>{{name}}</strong> — {{localize "SF2eTSC.weaponInfo.damage"}}: {{weaponInfo.damage}}; {{localize "SF2eTSC.weaponInfo.damageType"}}: {{weaponInfo.damageTypes}}; {{localize "SF2eTSC.weaponInfo.requiredProficiency"}}: {{weaponInfo.rank}}, {{localize "SF2eTSC.ui.range"}} {{range}} <span class="tsc-dim">{{traitsLabel}}</span>{{#if @root.perms.editEquipment}} <button type="button" class="danger" data-action="removeWeapon" data-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}</li>{{else}}<li class="tsc-dim">—</li>{{/each}}</ul>
     {{#if perms.editEquipment}}<div class="tsc-row-inputs"><select name="weaponCatalog">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>{{/if}}
     <h4>{{localize "SF2eTSC.upgrades.title"}}</h4>
     {{> tscShipUpgrades shipUpgrades}}
     <h4>{{localize "SF2eTSC.ui.expansionBays"}}</h4>
-    <ul class="tsc-list">{{#each bays}}<li>{{@index}} <input type="text" value="{{name}}" data-bay-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.expansionBays'}}" {{#unless @root.perms.editEquipment}}disabled{{/unless}}></li>{{/each}}</ul>
+    <ul class="tsc-list">{{#each bays}}<li>{{displayNumber}} <input type="text" value="{{name}}" data-bay-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.expansionBays'}}" {{#unless @root.perms.editEquipment}}disabled{{/unless}}></li>{{/each}}</ul>
   {{/if}}
 
   {{#if (eq tab "notes")}}

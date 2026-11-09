@@ -8,7 +8,7 @@ import { readStarship, isStarship } from "../starship/starship-state.mjs";
 import { shipSkillValue } from "../starship/stats.mjs";
 import { hazardStealthDC } from "../hazards/hazard-stealth.mjs";
 import { calculateZoneDistance } from "../engine/range.mjs";
-import { makeEffect } from "../starship/effects.mjs";
+import { makeEffect, replaceStationBoost } from "../starship/effects.mjs";
 import { computeShipStats, shipStatistic, rollNativeCheck, crewStatistic } from "../starship/stats.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { rollSpec, basicSaveMultiplier } from "./dice.mjs";
@@ -62,15 +62,21 @@ const EXEC = {
   async applyEffect(fx, ctx) {
     const entry = await targetEntry(ctx, fx.target === "target" ? "target" : "self");
     const def = { ...fx.effect };
-    if (fx.target === "station") def.station = ctx.options.stationId ?? ctx.station?.id ?? null;
+    if (fx.target === "station")
+      def.station =
+        ctx.action.id === "boost-battle-station" ? ctx.options.targetStationId : (ctx.options.stationId ?? ctx.station?.id ?? null);
     const e = makeEffect(def, {
       combat: ctx.combat,
       creatorTurn: creatorTurn(ctx),
       actions: ctx.options.actions ?? 1,
       sourceUuid: ctx.shipUuid
     });
+    if (ctx.action.id === "boost-battle-station") {
+      e.operatorUuid = ctx.crewUuid;
+      e.sourceStationId = ctx.station?.id ?? null;
+      entry.data.effects = replaceStationBoost(entry.data.effects, e);
+    } else entry.data.effects = [...entry.data.effects.filter((x) => !(x.slug === e.slug && x.sourceUuid === e.sourceUuid)), e];
     if (def.conditions?.includes("off-kilter")) entry.data.offKilter = true;
-    entry.data.effects = [...entry.data.effects.filter((x) => !(x.slug === e.slug && x.sourceUuid === e.sourceUuid)), e];
     ctx.reports.push(`${entry.actor.name}: ${ct(e.label)}`);
   },
   async restoreShields(fx, ctx) {

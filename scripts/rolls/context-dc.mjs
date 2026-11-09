@@ -26,8 +26,8 @@ const SOURCES = [
   ["crafting", /your Crafting DC|ваш(?:его|ему|ей|им) КС Ремесла/giu],
   ["piloting", /your Piloting DC|ваш(?:его|ему|ей|им) КС Пилотирования/giu],
   ["computers", /your Computers DC|ваш(?:его|ему|ей|им) КС Компьютеров/giu],
-  ["mechanic", /your mechanic (?:class )?DC|ваш(?:его|ему|ей|им) КС механика/giu],
-  ["solarian", /your solarian (?:class )?DC|ваш(?:его|ему|ей|им) КС солариана/giu],
+  ["mechanic", /your mechanic (?:class )?DC|ваш(?:его|ему|ей|им) КС (?:класса )?механика/giu],
+  ["solarian", /your solarian (?:class )?DC|ваш(?:его|ему|ей|им) КС (?:класса )?соляриана/giu],
   ["class", /your class DC|ваш(?:его|ему|ей|им) КС класса/giu],
   ["spell", /your spell DC|ваш(?:его|ему|ей|им) КС заклинаний/giu],
   ["shipFortitude", /your starship[’']s Fortitude DC|КС Стойкости вашего звездолёта/giu]

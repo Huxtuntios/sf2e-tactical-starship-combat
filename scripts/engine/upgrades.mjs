@@ -113,19 +113,62 @@ export function upgradesOf(data, stationId) {
  * Issues never remove anything: "unknown" (not in the catalog), "incompatible", "level" (above the ship level),
  * "capacity" (beyond the available slots). GM overrides are reported as such instead of as problems.
  */
-export function stationUpgradeStatus(data, station, { entries = [], stationDef = null } = {}) {
+export function stationUpgradeStatus(data, station, { entries = [], stationDef = null, frameDef = null } = {}) {
   const capacity = stationCapacity(station, stationDef);
   const records = upgradesOf(data, station.id);
+  // Built-in equipment consumes its slot regardless of list ordering. Other entries cannot gain an
+  // extra slot by moving a frame-provided entry to the end of the array.
+  const isFrameProvided = (rec, entry) => {
+    const baseIndex = (frameDef?.defaultStations ?? []).findIndex(
+      (st, index) => st.type === station.type && station.id === `${st.type}-${index + 1}` && st.upgrade === rec.ref
+    );
+    const baseEntry = resolveUpgrade(entries, rec.ref);
+    return (
+      data?.role === "player" &&
+      frameDef?.id === data.frame &&
+      baseIndex >= 0 &&
+      rec.id === `upg-${station.id}-1`.slice(0, 60) &&
+      !!entry &&
+      compatibleWith(entry, station) &&
+      entry.variant === baseEntry?.variant
+    );
+  };
+  let baseClaimed = false;
+  const frameFlags = records.map((rec) => {
+    if (baseClaimed || !isFrameProvided(rec, resolveUpgrade(entries, rec.ref, rec.variant ?? null))) return false;
+    baseClaimed = true;
+    return true;
+  });
+  const baseCount = frameFlags.filter(Boolean).length;
+  let ordinaryIndex = 0;
   const installed = records.map((rec, i) => {
     const entry = resolveUpgrade(entries, rec.ref, rec.variant ?? null);
+    const frameProvided = frameFlags[i];
+    const slotIndex = frameProvided ? 0 : baseCount + ordinaryIndex++;
     const issues = [];
     if (!entry) issues.push("unknown");
     else {
       if (!compatibleWith(entry, station)) issues.push("incompatible");
       if (Number.isFinite(Number(data?.level)) && entry.level > Number(data.level)) issues.push("level");
     }
-    if (i >= capacity) issues.push("capacity");
-    return { record: rec, entry, issues, overridden: !!rec.override && issues.some((x) => x !== "level") };
+    if (slotIndex >= capacity) issues.push("capacity");
+    // Старые boolean override не содержат перечня разрешённых ограничений.
+    // Их нельзя безопасно распространять на новые ошибки; ведущий может подтвердить их заново.
+    const approved = rec.override && Array.isArray(rec.overrideIssues) ? rec.overrideIssues : [];
+    const unresolvedIssues = issues.filter((issue) => {
+      if (frameProvided && ["level", "capacity"].includes(issue)) return false;
+      if (!approved.includes(issue) || !["incompatible", "capacity"].includes(issue)) return true;
+      if (issue === "capacity" && (!Number.isFinite(rec.overrideCapacity) || capacity < rec.overrideCapacity)) return true;
+      return false;
+    });
+    return {
+      record: rec,
+      entry,
+      issues,
+      unresolvedIssues,
+      frameProvided,
+      overridden: !!rec.override && issues.some((issue) => !unresolvedIssues.includes(issue) && approved.includes(issue))
+    };
   });
   return { capacity, used: records.length, free: Math.max(0, capacity - records.length), over: records.length > capacity, installed };
 }
@@ -202,6 +245,16 @@ export function planUpgradeChange(
       throw new UpgradeError("capacity", { used, capacity: stationCapacity(st, stationDefs.get?.(st.type) ?? null) });
     return ok;
   };
+  const approvedAt = (entry, stationId, override, ignoreId = null) => {
+    if (!override || stationId == null) return { overrideIssues: [], overrideCapacity: null };
+    const st = stationOf(stationId);
+    const capacity = stationCapacity(st, stationDefs.get?.(st.type) ?? null);
+    const used = list.filter((u) => u.id !== ignoreId && u.stationId === stationId).length;
+    return {
+      overrideIssues: [!compatibleWith(entry, st) && "incompatible", used >= capacity && "capacity"].filter(Boolean),
+      overrideCapacity: capacity
+    };
+  };
   if (op === "add") {
     const { ref, variant } = parseUpgradeKey(payload?.key);
     const entry = resolveUpgrade(entries, ref, variant);
@@ -209,7 +262,7 @@ export function planUpgradeChange(
     if (list.length >= 200) throw new UpgradeError("tooMany");
     const stationId = payload?.stationId ?? null;
     const override = check(entry, stationId, payload?.override);
-    list.push(upgradeRecord(entry, { id: newId(), stationId, override }));
+    list.push({ ...upgradeRecord(entry, { id: newId(), stationId, override }), ...approvedAt(entry, stationId, override) });
     return list;
   }
   const idx = list.findIndex((u) => u.id === payload?.id);
@@ -223,13 +276,32 @@ export function planUpgradeChange(
     const entry = resolveUpgrade(entries, rec.ref, rec.variant ?? null);
     if (!entry) throw new UpgradeError("unknown");
     const stationId = payload?.stationId ?? null;
+    // Re-selecting the current station must not reset an earlier GM approval or write state.
+    if ((rec.stationId ?? null) === stationId) return list;
     const override = check(entry, stationId, payload?.override, rec.id);
-    list[idx] = { ...rec, stationId, override, variant: rec.variant ?? entry.variant ?? null };
+    list[idx] = {
+      ...rec,
+      stationId,
+      override,
+      variant: rec.variant ?? entry.variant ?? null,
+      ...approvedAt(entry, stationId, override, rec.id)
+    };
     return list;
   }
   if (op === "override") {
     if (!isGM) throw new UpgradeError("gmOnly");
-    list[idx] = { ...list[idx], override: !!payload?.value };
+    const rec = list[idx];
+    const entry = resolveUpgrade(entries, rec.ref, rec.variant ?? null);
+    const station = stationOf(rec.stationId);
+    const status =
+      station && entry ? stationUpgradeStatus(data, station, { entries, stationDef: stationDefs.get?.(station.type) ?? null }) : null;
+    const current = status?.installed.find((item) => item.record.id === rec.id);
+    list[idx] = {
+      ...rec,
+      override: !!payload?.value,
+      overrideIssues: payload?.value ? (current?.issues ?? []).filter((issue) => ["incompatible", "capacity"].includes(issue)) : [],
+      overrideCapacity: payload?.value && status ? status.capacity : null
+    };
     return list;
   }
   throw new UpgradeError("invalidOp");
@@ -253,6 +325,8 @@ export function foldStationUpgrades(data, entries = null) {
       if (typeof ref !== "string" || !ref) return;
       const { ref: r, variant } = parseUpgradeKey(ref);
       let id = `upg-${st.id}-${i + 1}`.slice(0, 60);
+      // Один и тот же исходный ID уже мог быть перенесён в список при обновлении из компендия.
+      if (upgrades.some((u) => u?.id === id && u.stationId === st.id && u.ref === r && (u.variant ?? null) === variant)) return;
       while (upgrades.some((u) => u?.id === id)) id = `${id}x`.slice(-64);
       upgrades.push({ id, ref: r, variant, stationId: st.id, name: r, station: st.type, level: null, override: false });
     });

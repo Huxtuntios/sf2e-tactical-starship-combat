@@ -10,7 +10,8 @@ import { notifyError, notifyInfo } from "../utils/logging.mjs";
 import { randomId } from "../utils/ids.mjs";
 import { docI18nOptions } from "../content/importer.mjs";
 import { ct } from "../content/content-i18n.mjs";
-import { stationTypeLabel, zonesText } from "../utils/labels.mjs";
+import { stationTypeLabel } from "../utils/labels.mjs";
+import { weaponSummary } from "./weapon-summary.mjs";
 
 /** Starship Builder: Name > Player/NPC > Level > Frame > Size > Stats > Stations > Weapons > Bays > Crew > Map. Frame is only a template. */
 export class StarshipBuilder extends TscApp {
@@ -47,7 +48,10 @@ export class StarshipBuilder extends TscApp {
         name: stationTypeLabel(s),
         checked: d.stations ? d.stations.includes(s) : ["pilot", "generator", "gunnery", "scanners"].includes(s)
       })),
-      weapons: [...Content.weapons.values()].map((w) => ({ id: w.id, name: `${ct(w.name)} (${w.die}, ${zonesText(`${w.range} zones`)})` })),
+      weapons: [...Content.weapons.values()].map((w) => {
+        const row = weaponSummary(w);
+        return { ...row, name: row.option };
+      }),
       characters: game.actors
         .filter((a) => a.type === "character" && a.hasPlayerOwner)
         .map((a) => ({ uuid: a.uuid.replace(/\./g, "__DOT__"), name: a.name })),

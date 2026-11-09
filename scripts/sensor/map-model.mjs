@@ -13,7 +13,7 @@ import {
   updateObject
 } from "../engine/sensor-ops.mjs";
 import { OBJECT_TYPES } from "./object-types.mjs";
-import { normalizeMapAppearance, safeImagePath } from "./appearance.mjs";
+import { normalizeMapAppearance, normalizeObjectTransform, safeImagePath } from "./appearance.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
 
 export const ICONS = {
@@ -81,6 +81,27 @@ export function applySensorOp(s, payload, opts = {}) {
         : s;
     case "appearance":
       return { ...s, appearance: normalizeMapAppearance(payload.appearance) };
+    case "appearancePatch": {
+      const patch = payload.appearance && typeof payload.appearance === "object" ? payload.appearance : {};
+      const old = s.appearance && typeof s.appearance === "object" ? s.appearance : {};
+      const normalized = normalizeMapAppearance({ ...old, ...patch });
+      return { ...s, appearance: { ...old, ...normalized } };
+    }
+    case "objectVisual": {
+      const o = findObject(s, payload.key);
+      if (!o) return s;
+      const patch = payload.visual && typeof payload.visual === "object" ? payload.visual : {};
+      const transformPatch = patch.transform && typeof patch.transform === "object" ? patch.transform : {};
+      const valid = Object.fromEntries(
+        Object.entries(transformPatch).filter(([k]) => ["rotation", "flipX", "flipY", "baseDirection"].includes(k))
+      );
+      const original = o.mapTransform && typeof o.mapTransform === "object" ? o.mapTransform : {};
+      const transform = { ...original, ...normalizeObjectTransform({ ...original, ...valid }) };
+      const out = {};
+      if (Object.keys(valid).length) out.mapTransform = transform;
+      if (typeof patch.art === "string") out.art = safeImagePath(patch.art);
+      return Object.keys(out).length ? updateObject(s, payload.key, out) : s;
+    }
     case "art":
       return updateObject(s, payload.key, { art: safeImagePath(payload.art) });
     case "resize":

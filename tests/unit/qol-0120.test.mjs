@@ -67,7 +67,7 @@ test("0.12 sustain reminders once per new round, no automatic cost, expiry or ex
   assert.equal(e.timing.lastReminderRound, 2);
   assert.equal(advanceEffects(step.keep, timingCombat(3, 1), null).reminders.length, 0);
 });
-test("0.12 history whispers only to GMs and shows exact shields/hull deltas plus reason", async () => {
+test("history is GM-only and shows exact shields/hull deltas plus reason", async () => {
   const { actor } = setup();
   await patchStarship(
     actor,
@@ -78,8 +78,8 @@ test("0.12 history whispers only to GMs and shows exact shields/hull deltas plus
   );
   const [m] = historyEntries(actor.uuid),
     r = m.flags[M].history;
-  assert.ok(m.whisper.length > 0);
-  assert.ok(m.whisper.every((id) => game.users.get(id).isGM));
+  assert.equal(game.journal.get(game.settings.get(M, "historyStoreId")).ownership.default, 0);
+  assert.equal(game.messages.size, 0);
   assert.equal(r.reason, "попадание лазера");
   assert.match(historySummary(r.before, r.after), /Щиты: 20 → 8. Корпус: без изменений/);
   assert.equal(r.undoable, true);
@@ -213,6 +213,28 @@ test("0.13 history search and undo filter compose; reset restores all rows", () 
   );
 });
 
+test("legacy trusted GM whisper remains readable and undoable", async () => {
+  const { actor } = setup();
+  const before = snapshot(readStarship(actor));
+  await patchStarship(
+    actor,
+    (d) => {
+      d.sp.value = 8;
+    },
+    { history: false }
+  );
+  const after = snapshot(readStarship(actor));
+  const old = await ChatMessage.create({
+    whisper: [game.user.id],
+    flags: {
+      [M]: { history: { schema: 1, shipUuid: actor.uuid, before, after, undoable: true, undone: false, guard: null, at: Date.now() } }
+    }
+  });
+  assert.equal(historyEntries()[0].id, old.id);
+  await undoChange(old.id);
+  assert.equal(readStarship(actor).sp.value, 20);
+  assert.equal(old.flags[M].history.undone, true);
+});
 test("0.12 forged player history flags are neither displayed nor executable", async () => {
   const { actor, setUser } = setup();
   const data = snapshot(readStarship(actor));
@@ -243,7 +265,7 @@ test("0.12 audit retention is bounded to 80 GM records", async () => {
   } finally {
     ChatMessage.create = create;
   }
-  assert.equal(game.messages.filter((m) => m.flags[M]?.history).length, 80);
+  assert.equal(game.journal.get(game.settings.get(M, "historyStoreId")).flags[M].historyStore.records.length, 80);
   assert.equal(historyEntries().length, 80);
 });
 test("0.12 effect lifecycle handler denies players and records sustaining without spending actions", async () => {
@@ -310,4 +332,62 @@ test("0.12 turn hook removes stable end-of-turn effects and issues only one sust
   await combat.update({ turn: 0 });
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(reminders().length, 1);
+});
+
+test("unchanged starship write skips actor update and history", async () => {
+  const { actor } = setup();
+  let calls = 0;
+  const update = actor.update.bind(actor);
+  actor.update = async (...args) => {
+    calls++;
+    return update(...args);
+  };
+  await patchStarship(actor, () => {});
+  assert.equal(calls, 0);
+  assert.equal(historyEntries(actor.uuid).length, 0);
+  await patchStarship(actor, (data) => {
+    data.sp.value = 8;
+  });
+  assert.equal(calls, 1);
+  assert.equal(historyEntries(actor.uuid).length, 1);
+  await patchStarship(actor, (data) => {
+    data.sp.value = 8;
+  });
+  assert.equal(calls, 1);
+  assert.equal(historyEntries(actor.uuid).length, 1);
+});
+
+test("chat modes do not announce no-ops, and journal stays private", async () => {
+  for (const mode of ["log", "important", "all"]) {
+    const { actor, settings } = setup();
+    settings.set("chatAnnouncements", mode);
+    await patchStarship(actor, (d) => {
+      d.sp.value = 7;
+    });
+    assert.equal(game.messages.size, mode === "all" ? 1 : 0, mode);
+    assert.equal(historyEntries().length, 1);
+    await patchStarship(actor, (d) => {
+      d.sp.value = 7;
+    });
+    assert.equal(game.messages.size, mode === "all" ? 1 : 0, mode);
+    assert.equal(historyEntries().length, 1);
+    await patchStarship(actor, (d) => {
+      d.inoperable = true;
+    });
+    assert.equal(game.messages.size, mode === "log" ? 0 : mode === "important" ? 1 : 2, mode);
+    const journal = game.journal.get(settings.get("historyStoreId"));
+    assert.deepEqual(journal.ownership, { default: 0 });
+  }
+});
+
+test("shared history store fails closed and never reads or undoes its records", async () => {
+  const { actor, settings } = setup();
+  await patchStarship(actor, (d) => {
+    d.sp.value = 9;
+  });
+  const entry = historyEntries()[0];
+  const store = game.journal.get(settings.get("historyStoreId"));
+  store.ownership.p1 = 2;
+  assert.equal(historyEntries().length, 0);
+  await assert.rejects(undoChange(entry.id));
 });

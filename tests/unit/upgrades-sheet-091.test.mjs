@@ -131,3 +131,47 @@ test("content dictionary: versioned, uncached URL; ru-RU falls back to ru", asyn
     globalThis.fetch = prev;
   }
 });
+
+test("concurrent installs on one station are serialized before capacity validation", async () => {
+  const { send } = await setup();
+  const ship = makeShip({
+    id: "race",
+    name: "Race",
+    owners: ["p1"],
+    level: 10,
+    stations: [{ id: "g", type: "generator", grade: "tactical" }]
+  });
+  const [a, b] = await Promise.all([
+    send("p1", "stationUpgrade", { shipUuid: ship.uuid, op: "add", key: "gravity-toggle", stationId: "g" }),
+    send("p1", "stationUpgrade", { shipUuid: ship.uuid, op: "add", key: "tractor-beam", stationId: "g" })
+  ]);
+  assert.equal([a, b].filter((r) => r.ok).length, 1);
+  assert.equal(flag(ship).upgrades.length, 1);
+});
+
+test("reassigning to the same station creates no update, history, or chat", async () => {
+  const { send } = await setup();
+  await game.settings.set(M, "chatAnnouncements", "all");
+  const ship = makeShip({
+    id: "same",
+    name: "Same",
+    owners: ["p1"],
+    level: 10,
+    stations: [{ id: "g", type: "generator", grade: "tactical" }]
+  });
+  assert.equal((await send("p1", "stationUpgrade", { shipUuid: ship.uuid, op: "add", key: "gravity-toggle", stationId: "g" })).ok, true);
+  const rec = flag(ship).upgrades[0];
+  let updates = 0;
+  const update = ship.update.bind(ship);
+  ship.update = async (...args) => {
+    updates++;
+    return update(...args);
+  };
+  const { historyEntries } = await import("../../scripts/history/history.mjs");
+  const history = historyEntries(ship.uuid).length,
+    messages = game.messages.size;
+  assert.equal((await send("p1", "stationUpgrade", { shipUuid: ship.uuid, op: "assign", id: rec.id, stationId: "g" })).ok, true);
+  assert.equal(updates, 0);
+  assert.equal(historyEntries(ship.uuid).length, history);
+  assert.equal(game.messages.size, messages);
+});

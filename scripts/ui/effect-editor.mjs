@@ -1,11 +1,13 @@
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { request } from "../socket.mjs";
-import { T } from "../utils/foundry.mjs";
+import { T, fromUuidSync_ } from "../utils/foundry.mjs";
 import { ct } from "../content/content-i18n.mjs";
 
 export function effectCaption(e) {
   const chunks = [];
+  if (e.slug === "boost-battle-station" && e.operatorUuid)
+    chunks.push(T("SF2eTSC.boost.source", { name: fromUuidSync_(e.operatorUuid)?.name ?? "—" }));
   if (e.slug === "evade") {
     const spent = e.actionsSpent ?? e.modifiers?.find((m) => m.selector === "ac")?.value;
     if (spent) chunks.push(T("SF2eTSC.qol.actionsSpent", { count: spent }));

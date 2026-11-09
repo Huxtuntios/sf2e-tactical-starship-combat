@@ -1,11 +1,13 @@
+import { publicLabel } from "../chat/attack-card/model.mjs";
+import { rollTypedDamage, typedDamageFormula } from "../rolls/typed-damage.mjs";
 import { DEGREE } from "../constants.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { classifyRange, calculateZoneDistance, rangePenalty } from "../engine/range.mjs";
 import { isAttackFromBehind } from "../engine/heading.mjs";
 import { calculateAreaZones, parseAreaTrait, areaTargets } from "../engine/areas.mjs";
 import { stackModifiers } from "../engine/stacking.mjs";
-import { effectModifiers, effectsAgainst, consumedByStrike, offGuardAgainst } from "../starship/effects.mjs";
-import { computeShipStats, shipStatistic, rollNativeCheck, crewClassDC, bestSpellStatistic } from "../starship/stats.mjs";
+import { effectModifiers, stationEffects, effectsAgainst, consumedByStrike, offGuardAgainst } from "../starship/effects.mjs";
+import { computeShipStats, shipStatistic, rollNativeCheck, crewClassDC, bestSpellStatistic, secretVisibility } from "../starship/stats.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { basicSaveMultiplier } from "./dice.mjs";
 import { stationOf } from "../starship/starship-state.mjs";
@@ -14,6 +16,7 @@ import { T, moduleSetting } from "../utils/foundry.mjs";
 import { Reactions } from "./reactions.mjs";
 import { log } from "../utils/logging.mjs";
 import { ct } from "../content/content-i18n.mjs";
+import { manualModifiersFor } from "./manual-modifiers.mjs";
 
 const DEGREE_LABEL = (d) => T(`SF2eTSC.degree.${["criticalFailure", "failure", "success", "criticalSuccess"][d]}`);
 
@@ -116,12 +119,9 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
   const volley = (weapon.traits ?? []).map((t) => /volley (\d+)/.exec(String(t))).find(Boolean)?.[1];
   const rp = rangePenalty({ distance, rangeIncrement: incr, volley: volley ? Number(volley) : null });
   const fx = ctx.data.effects;
-  const mods = [];
+  const mods = manualModifiersFor(ctx.manualModifiers, "attack");
   if (row?.tracking) mods.push({ slug: "tsc-tracking", label: modLabel("tracking"), type: "item", value: row.tracking });
-  for (const m of effectModifiers(
-    fx.filter((e) => !e.station || e.station === ctx.station?.id),
-    "station-check"
-  ))
+  for (const m of effectModifiers(stationEffects(fx, ctx.station?.id, ctx.combat), "station-check"))
     mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
   for (const m of effectModifiers(fx, "attack"))
     mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
@@ -165,8 +165,13 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
     base = weapon.attack;
   } else if (spell) statistic = bestSpellStatistic(ctx.crew);
   else statistic = buildCrewAttack(ctx.crew, weapon);
+  const attacker = findObject(ctx.tsc, ctx.shipUuid);
+  const secretAttack = ctx.data.role !== "player" && (!attacker || !publicLabel(attacker, "party").known);
   const res = await rollNativeCheck({
+    secret: secretAttack,
     statistic: ctx.options.npcStrike ? npcStatistic(ctx, weapon) : statistic,
+    createMessage: !(ctx.cardMode && ctx.action.builtin === "spell-attack"),
+    onMessage: ctx.onAttackMessage ?? null,
     dc,
     label: `${ct(weapon.name)} — ${ctx.ship.name}`,
     actor: ctx.crew ?? ctx.ship,
@@ -264,11 +269,21 @@ export function damageFormula(ctx, weapon, crit) {
   if (weapon.npc) return crit ? `(${weapon.formula})*2` : weapon.formula;
   const dice = ctx.stationRow?.damageDice ?? 1;
   const [n, faces] = String(weapon.die).split("d").map(Number);
-  const boost = effectModifiers(
-    ctx.data.effects.filter((e) => !e.station || e.station === ctx.station?.id),
-    "station-damage"
-  ).reduce((a, m) => a + m.value, 0);
-  const base = `${n * dice}d${faces}${boost ? `+${boost}` : ""}`;
+  const damageMods = [
+    ...effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat), "station-damage"),
+    ...manualModifiersFor(ctx.manualModifiers, "damage")
+  ];
+  // Prefer SF2e's own stacking implementation; older/testing environments retain the existing module fallback.
+  const Modifier = globalThis.game?.pf2e?.Modifier;
+  const StatisticModifier = globalThis.game?.pf2e?.StatisticModifier;
+  const boost =
+    Modifier && StatisticModifier
+      ? new StatisticModifier(
+          "tsc-station-damage",
+          damageMods.map((m, i) => new Modifier({ slug: `tsc-damage-${i}`, label: m.label ?? m.slug, modifier: m.value, type: m.type }))
+        ).totalModifier
+      : stackModifiers(damageMods).total;
+  const base = `${n * dice}d${faces}${boost > 0 ? `+${boost}` : boost < 0 ? `${boost}` : ""}`;
   return crit ? `(${base})*2` : base;
 }
 async function rollDamage(ctx, formula, flavor) {
@@ -316,12 +331,30 @@ export async function resolveStrike(ctx) {
     ctx.reports.push(T("SF2eTSC.rolls.damagePending"));
     return;
   }
-  let amount = await rollDamage(ctx, damageFormula(ctx, weapon, crit), `${ct(weapon.name)}: ${T("SF2eTSC.chat.damage")}`);
+  // Keep the same formula and application order, but use the system's typed damage roll for chat.
+  const formula = damageFormula(ctx, weapon, crit);
+  const flavor = `${ct(weapon.name)}: ${T("SF2eTSC.chat.damage")}`;
+  const secret = ctx.data.role !== "player" && (!me || !publicLabel(me, "party").known);
+  const DamageRoll = globalThis.CONFIG?.Dice?.rolls?.find((Ctor) => Ctor.name === "DamageRoll");
+  const damageType = weapon.damageType ?? "untyped";
+  // A mixed-type NPC formula cannot safely be labeled as a single damage instance.
+  const mixedTypes = new Set((weapon.damageParts ?? []).map((part) => part.type)).size > 1;
+  const typedFormula = !mixedTypes && /^[a-z][a-z0-9-]*$/.test(damageType) ? typedDamageFormula([{ formula, type: damageType }]) : null;
+  // Select the fallback before evaluating a roll, never retry after a message might have been posted.
+  const nativeAvailable = typedFormula && DamageRoll && (!DamageRoll.validate || DamageRoll.validate(typedFormula));
+  let amount;
+  if (nativeAvailable) {
+    const damageRoll = await rollTypedDamage(typedFormula, { actor: ctx.ship, suppressApply: true, secret, flavor });
+    amount = damageRoll.total;
+  } else {
+    const roll = await new Roll(formula).evaluate();
+    await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor }, secretVisibility(secret));
+    amount = roll.total;
+  }
   const traits = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
   // reaction window (Reposition Shield, Drone Block, ...) before damage is applied to a player ship
   const rx = await Reactions.ask(ctx, target, { amount, traits, crit });
   const dmgTraits = traits.includes("bypassing") || rx.bypassHull ? [...traits, "bypassing"] : traits;
-  if (rx.resistance) amount = Math.max(0, amount - rx.resistance);
   if (rx.shieldAbsorb) {
     const sp = (await ctx.draft.ship(target.uuid)).data.sp.value;
     const absorbed = Math.min(amount, rx.shieldAbsorb === "full" ? sp : Math.floor(sp / 2));
@@ -331,11 +364,12 @@ export async function resolveStrike(ctx) {
   const dmg = await applyDamageInDraft(ctx.draft, target.uuid, {
     amount,
     damageType: weapon.damageType,
+    strikeResistance: rx.resistance ?? 0,
     traits: dmgTraits,
     criticalHit: crit,
     source: ct(weapon.name),
     attackLine: null,
-    silent: !!ctx.cardMode
+    silent: true
   });
   recordDamage(ctx, target.actor.name, amount, weapon.damageType, dmg);
   await applyTargetStationRider(ctx, target, dmg, res.degree);

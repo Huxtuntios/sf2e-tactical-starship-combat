@@ -40,7 +40,10 @@ export function actionIcon(cost) {
 }
 
 /** Desired station items per crew actor UUID for the given ships (pure). */
-export function desiredStationItems(ships, { actionsFor = (st) => actionsForStation(st.type, st.grade, gradeIndex) } = {}) {
+export function desiredStationItems(
+  ships,
+  { actionsFor = (st, data) => actionsForStation(st.type, st.grade, gradeIndex, { data, station: st }) } = {}
+) {
   const out = new Map();
   for (const ship of ships) {
     const d = readStarship(ship);
@@ -48,7 +51,7 @@ export function desiredStationItems(ships, { actionsFor = (st) => actionsForStat
     for (const st of d.stations ?? []) {
       if (!st.helmedBy) continue;
       const list = out.get(st.helmedBy) ?? [];
-      for (const a of actionsFor(st)) {
+      for (const a of actionsFor(st, d)) {
         if (a.npcOnly) continue;
         list.push({
           shipUuid: ship.uuid,

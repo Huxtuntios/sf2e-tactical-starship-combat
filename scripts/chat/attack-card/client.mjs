@@ -11,6 +11,7 @@ import { ct } from "../../content/content-i18n.mjs";
 import { CARD_FLAG } from "./model.mjs";
 import { renderAttackCard, renderDiag } from "./render.mjs";
 import { declareAttack, resolveAttackCard, rollAttackCardDamage, applyAttackCardDamage } from "./service.mjs";
+import { previewNativeAttack, executeNativeAttack } from "../native-attack.mjs";
 
 /** Mark the chosen MAP button (DOM only). */
 export function setMapChoice(card, choice) {
@@ -76,6 +77,8 @@ function canAct(c) {
 
 export function registerAttackCards() {
   registerHandler("declareAttack", declareAttack);
+  registerHandler("previewNativeAttack", previewNativeAttack);
+  registerHandler("executeNativeAttack", executeNativeAttack);
   registerHandler("resolveAttackCard", resolveAttackCard);
   registerHandler("rollAttackCardDamage", rollAttackCardDamage);
   registerHandler("applyAttackCardDamage", applyAttackCardDamage);
@@ -84,6 +87,47 @@ export function registerAttackCards() {
     const diag = message.flags?.[MODULE_ID]?.attackDiag;
     const el = html instanceof HTMLElement ? html : html?.[0];
     if (!el || (!c && !diag)) return;
+    if (c?.native) {
+      // Append only the controls needed for deferred damage; preserve the system's own result HTML.
+      el.querySelector(".tsc-native-attack-controls")?.remove();
+      const host = el.querySelector(".message-content") ?? el;
+      const controls = document.createElement("div");
+      controls.className = "tsc-native-attack-controls";
+      if (c.result?.pendingDamage && !c.damageApplied) {
+        const damage = document.createElement("button");
+        damage.type = "button";
+        damage.dataset.tscAttack = "damage";
+        damage.textContent = T(c.damageRoll ? "SF2eTSC.rolls.rerollDamage" : "SF2eTSC.rolls.rollDamage");
+        controls.append(damage);
+        if (c.damageRoll && game.user.isGM) {
+          const apply = document.createElement("button");
+          apply.type = "button";
+          apply.dataset.tscAttack = "apply";
+          apply.textContent = T("SF2eTSC.rolls.applyDamage");
+          controls.append(apply);
+        }
+      }
+      if (!canAct(c)) controls.querySelectorAll("button").forEach((b) => b.remove());
+      host.append(controls);
+      controls.addEventListener("click", (ev) => {
+        const button = ev.target.closest?.("[data-tsc-attack]");
+        if (!button || button.disabled) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        controls.querySelectorAll("button").forEach((b) => {
+          b.disabled = true;
+        });
+        const type = button.dataset.tscAttack === "damage" ? "rollAttackCardDamage" : "applyAttackCardDamage";
+        request(type, { messageId: message.id })
+          .catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }))
+          .finally(() =>
+            controls.querySelectorAll("button").forEach((b) => {
+              b.disabled = false;
+            })
+          );
+      });
+      return;
+    }
     const slot = el.querySelector(".tsc-attack-card");
     if (slot) {
       const tmp = document.createElement("div");

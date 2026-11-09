@@ -116,8 +116,11 @@ export async function rollNativeCheck({
   secret = false,
   actor = null,
   modifierOnly = null,
-  skipDialog = true
+  skipDialog = true,
+  createMessage = true,
+  onMessage = null
 }) {
+  let postedMessage = null;
   try {
     if (statistic) {
       const stat = extraModifiers.length
@@ -135,7 +138,15 @@ export async function rollNativeCheck({
       const roll = await stat.check.roll({
         dc: typeof dc === "number" ? { value: dc } : (dc ?? undefined),
         extraRollOptions: ["starship", ...extraRollOptions],
-        createMessage: true,
+        createMessage,
+        ...(onMessage
+          ? {
+              callback: async (_roll, _outcome, message) => {
+                postedMessage = message?.id ? message : null;
+                await onMessage(message);
+              }
+            }
+          : {}),
         skipDialog,
         label,
         ...secretVisibility(secret)
@@ -148,8 +159,14 @@ export async function rollNativeCheck({
           roll,
           native: true
         };
+      if (onMessage && createMessage)
+        throw new Error(
+          L("attackCard.nativeRollNotCompleted", "The system attack roll did not complete. Check chat and ship state before retrying.")
+        );
     }
   } catch (err) {
+    // For an attack, even an error before the callback might follow a posted message. Never auto-reroll it.
+    if (postedMessage || (onMessage && createMessage)) throw err;
     log.warn("native check failed, using fallback", err);
   }
   // fallback: plain roll
@@ -160,10 +177,13 @@ export async function rollNativeCheck({
   const degree = dcv == null ? null : degreeOfSuccess(roll.total, dcv, natural);
   const degreeText = degree == null ? "" : ` — ${L(`degree.${["criticalFailure", "failure", "success", "criticalSuccess"][degree]}`, "")}`;
   const dcText = dcv == null ? "" : ` (${L("ui.dcShort", "DC")} ${dcv})`;
-  await roll.toMessage(
-    { speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label ?? L("ui.check", "Check")}${dcText}${degreeText}` },
-    { create: true, ...secretVisibility(secret) }
-  );
+  if (createMessage) {
+    const message = await roll.toMessage(
+      { speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label ?? L("ui.check", "Check")}${dcText}${degreeText}` },
+      { create: true, ...secretVisibility(secret) }
+    );
+    if (onMessage) await onMessage(message);
+  }
   return { degree, total: roll.total, natural, roll, native: false };
 }
 

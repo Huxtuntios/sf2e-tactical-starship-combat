@@ -1,5 +1,9 @@
 # Testing
 
+## 0.16.1-dev.6 experimental checks
+
+`tests/unit/native-attack-0166.test.mjs` exercises chat modes, target validation, four attack degrees, MAP, separate events and weapons, deferred damage, system callback, duplicate-event receipts, simulated GM/player socket authorization and non-retry on ambiguous roll failure. `tools/smoke-native-attack.mjs` checks that rerendering leaves native HTML intact and damage controls do not duplicate. These are mocks and local Chromium, not live Foundry or SF2e 1.7.0. See `work-in-progress-0.16.6.md` for the outstanding test-world checklist.
+
 ## 0.14.1 compatibility-release checks
 
 `npm run check` passes 315 Node tests with no skips. Four new tests cover core/system declarations, rejection of missing metadata, equality of the external/ZIP manifests, and the post-upload verification workflow. This validates packaging, not live Foundry activation. The module still requires Foundry v14 and an SF2e 1.6.0+ world; no v13/PF2e compatibility is claimed.

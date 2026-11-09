@@ -284,7 +284,10 @@
       "noFrames": "No starship frames are loaded.",
       "commitFailed": "Saving failed for {count} document(s); see the console.",
       "npcStrikeInvalid": "This NPC Strike has incomplete data (attack type, modifier or damage) and cannot be rolled.",
-      "npcStrikeUnbound": "This reaction has no Strike of the ship bound to it."
+      "npcStrikeUnbound": "This reaction has no Strike of the ship bound to it.",
+      "boostInvalidSource": "Boost requires an operational Generator helmed by the acting crew member.",
+      "boostInvalidTarget": "Choose one existing station on this ship.",
+      "boostNeedsTurn": "Boost requires an active combat and the generator operator’s current turn, so its one-round duration can be tracked safely."
     },
     "requirements": {
       "offKilter": "The starship is off-kilter.",
@@ -636,7 +639,8 @@
       "repair-self": "Repair Self",
       "seek-starships-npc": "Seek Starships",
       "fortify-shield-points": "Fortify Shield Points",
-      "engaged-strike": "Engaged Strike"
+      "engaged-strike": "Engaged Strike",
+      "deploy-starship-mine": "Deploy Starship Mine"
     },
     "settings": {
       "sensorMapSize": {
@@ -708,7 +712,7 @@
       },
       "attackCards": {
         "name": "Attack declaration cards",
-        "hint": "Single-target attacks first post a chat card (weapon, range, valid targets, MAP, known modifiers) and are resolved from its target buttons or the Sensor Map. Off: the target is picked on the Sensor Map directly."
+        "hint": "Controls legacy and spell attack declaration cards. Weapon Strikes select a target on the Sensor Map and use a system roll message."
       },
       "ruleEnforcement": {
         "name": "Rule enforcement",
@@ -723,6 +727,13 @@
         "dark": "Dark",
         "light": "Light",
         "foundry": "Follow Foundry"
+      },
+      "chatAnnouncements": {
+        "name": "Chat Announcements",
+        "hint": "Controls optional state announcements. Rolls, action and damage cards remain visible.",
+        "log": "Log Only",
+        "important": "Important Only",
+        "all": "All Changes"
       }
     },
     "edit": {
@@ -839,7 +850,10 @@
         "void": "Cancelled",
         "resolving": "Rolling…"
       },
-      "declared": "Attack declared — choose a target in the chat card or on the Sensor Map."
+      "declared": "Attack declared — choose a target in the chat card or on the Sensor Map.",
+      "nativeAttachFailed": "The attack was rolled, but the damage controls could not be attached to its system message. Do not repeat the attack; roll damage manually.",
+      "nativeIncomplete": "This attack was already rolled but did not finish cleanly. Do not reroll the same event; the GM must review the message and combat state.",
+      "nativeRollNotCompleted": "The system attack roll did not complete. Check chat and ship state before retrying."
     },
     "greek": {
       "Alpha": "Alpha",
@@ -1107,7 +1121,8 @@
         "chooseHint": "{ship} has several stations that can take {name}. Which one should it go into?",
         "slotsUsed": "{used}/{capacity} slots used"
       },
-      "openCompendium": "Open compendium upgrade"
+      "openCompendium": "Open compendium upgrade",
+      "frameProvided": "Frame-provided"
     },
     "diag": {
       "versions": "Versions",
@@ -1208,7 +1223,10 @@
         "until-station-repaired": "until station repaired",
         "until-cover-lost": "until cover lost"
       },
-      "remindSustain": "Remind me to sustain"
+      "remindSustain": "Remind me to sustain",
+      "historyStoreName": "Starship change history (GM only)",
+      "historyStoreInvalid": "The private history store is missing or shared. Restore its GM-only permissions or consult a GM.",
+      "changeAnnouncement": "{name}: starship state changed."
     },
     "toolbelt": {
       "shields": "Damage through shields",
@@ -1233,6 +1251,155 @@
       "anachronismRequired": "Enable SF2e Anachronism in this PF2e world, then reload. The starship module stays inactive without it.",
       "anachronismVersion": "SF2e Anachronism 2.4.0 or newer is required in PF2e. Update it and reload.",
       "skillsMissing": "Anachronism skills are unavailable: {skills}. Check the active module and additional skill settings, then reload. Starship automation has not started."
+    },
+    "droneInventory": {
+      "label": "Recorded drones / console capacity",
+      "manual": "Tracking and drone actions require GM adjudication.",
+      "over": "Recorded drones exceed this console’s capacity; no records were deleted.",
+      "unassigned": "Unassigned or orphaned drones; check their console"
+    },
+    "droneControl": {
+      "type": "Drone type",
+      "add": "Add drone",
+      "aboard": "Aboard",
+      "deployed": "Deployed",
+      "deploy": "Track deployment",
+      "retrieve": "Track retrieval",
+      "hint": "Use Deploy Drone and Retrieve Drone station actions to change status. Track the action cost at the table. Other drone effects still require GM adjudication.",
+      "errors": {
+        "station": "Drone console not found.",
+        "legacy": "Drone data needs GM review; no legacy data was changed.",
+        "invalid": "Invalid drone request.",
+        "capacity": "Drone capacity is full or unknown, or unassigned records require GM review.",
+        "cooldown": "This drone is not yet available or its cooldown cannot be checked.",
+        "useAction": "Use the station action to deploy or retrieve a drone.",
+        "noEligible": "No eligible tracked drone is available.",
+        "mineZone": "This drone already has an armed mine in this zone.",
+        "mineRound": "This station has already deployed a mine this round.",
+        "mineMap": "The ship must be placed on the current Sensor Map in an active combat.",
+        "mineOldMap": "An armed mine belongs to another or an unknown combat map. Ask the GM to review it; its data has been preserved.",
+        "cardFailed": "The drone action was saved, but its chat card could not be created."
+      },
+      "cost": "Action cost",
+      "oneAction": "1 action",
+      "mineZone": "Mine zone",
+      "mine": "Mine",
+      "mineArmed": "armed"
+    },
+    "weaponInfo": {
+      "damage": "Damage",
+      "damageType": "Damage type",
+      "requiredProficiency": "Required proficiency",
+      "level": "Item level",
+      "notSpecified": "Not specified",
+      "ranks": {
+        "untrained": "Untrained",
+        "trained": "Trained",
+        "expert": "Expert",
+        "master": "Master",
+        "legendary": "Legendary"
+      }
+    },
+    "droneBlock": {
+      "choose": "Choose a deployed drone for this Strike. Close to decline.",
+      "invalid": "Drone Block is no longer available; review the Strike and drone state.",
+      "protocolManual": "Drone Shield Protocol requires manual adjudication.",
+      "repeated": "Drone Block was already recorded for this Strike.",
+      "mineHistory": "Manual mine resolution",
+      "mineDetonated": "Mark manually detonated",
+      "mineRemove": "Remove mine",
+      "mineDetonateConfirm": "Only mark this mine after resolving the explosion, saves and damage manually. This button does not roll or apply damage. Continue?",
+      "mineRemoveConfirm": "Remove this mine without an explosion? Its record is retained for history.",
+      "mineUnknown": "Unknown state — GM review"
+    },
+    "mineAssist": {
+      "title": "Prepare mine resolution",
+      "explain": "Creates GM-only native damage and basic Reflex links. Choose reaction only after confirming that a starship entered or left this mine’s zone within sensor range. Resolve each affected ship manually, then mark the mine detonated. Repeating this creates another card. No action or reaction is spent automatically.",
+      "type": "Damage type",
+      "fire": "Fire",
+      "piercing": "Piercing",
+      "reaction": "Reaction: I confirm the qualifying entry or exit occurred",
+      "post": "Create roll links",
+      "reactionLabel": "Reaction (GM confirmed trigger)",
+      "actionLabel": "One action",
+      "chatHint": "Mine in zone {zone}: roll damage and basic Reflex saves for affected starships; apply results manually. Then mark the mine detonated.",
+      "invalid": "Cannot prepare resolution: check the armed mine, current combat and range, deployed Pyrotechnics Drone, original operator and their class DC/level. Modified or unrecognized mines require manual adjudication.",
+      "move": "Move mine",
+      "moveHint": "GM only. One action, tracked manually. The mine must be within sensor range; choose an adjacent zone. No automatic Undo is provided.",
+      "destination": "Destination zone",
+      "confirmFeature": "I confirm the operator has Mobile Exocortex",
+      "moveInvalid": "Cannot move mine: check its ownership, the deployed drone, active combat, sensor range and adjacent destination."
+    },
+    "boost": {
+      "choose": "Station to boost",
+      "unoccupied": "Unoccupied",
+      "available": "Available",
+      "active": "Boost: +1 status to station checks and damage",
+      "hint": "Choose an installed station. The effect lasts until the start of the operator’s next turn; action costs are tracked manually.",
+      "source": "Source operator: {name}"
+    },
+    "modifiers": {
+      "title": "Situational modifiers",
+      "hint": "Optional, for this attack and its damage only. Leave unused rows empty. Player entries require GM approval; action costs are tracked manually.",
+      "known": "Automatic attack modifiers (preview; revalidated by GM):",
+      "name": "Name",
+      "source": "Source (optional)",
+      "invalid": "Invalid manual modifier: enter a name, non-zero integer from -100 to 100, type and scope.",
+      "approval": "Approve player modifiers",
+      "approvalHint": "{name} proposes these modifiers for one attack:",
+      "denied": "The GM did not approve the modifiers.",
+      "npcDamage": "Manual damage modifiers for NPC or mixed damage are not supported; resolve them with the GM.",
+      "type": {
+        "status": "Status",
+        "circumstance": "Circumstance",
+        "item": "Item",
+        "untyped": "Untyped"
+      },
+      "scope": {
+        "attack": "Attack",
+        "damage": "Damage",
+        "both": "Attack and damage"
+      }
+    },
+    "mapVisual": {
+      "courseArrow": "Course arrow",
+      "display": "Display",
+      "customImage": "Custom image",
+      "selectImage": "Select image",
+      "clearImage": "Remove image",
+      "preview": "Arrow preview",
+      "size": "Arrow size",
+      "gap": "Distance",
+      "position": "Position",
+      "autoMirror": "Auto mirror image on course change",
+      "autoHint": "Auto mirror uses the ship’s left/right course and its base image direction. Up/down source images are not auto-mirrored.",
+      "orientation": "Image orientation",
+      "rotation": "Rotation (degrees)",
+      "flipX": "Flip horizontal",
+      "flipY": "Flip vertical",
+      "baseDirection": "Base image direction",
+      "baseHint": "Manual transforms do not change course or position. Choose the direction the untransformed image faces.",
+      "rotateLeft": "Rotate left",
+      "rotateRight": "Rotate right",
+      "resetRotation": "Reset rotation",
+      "resetFlipping": "Reset flipping",
+      "resetAll": "Reset all",
+      "backgroundHint": "Background transforms are visual only: zones and object coordinates remain unchanged and may no longer match the artwork.",
+      "arrowModes": {
+        "none": "None",
+        "text": "Text",
+        "emoji": "Emoji",
+        "custom": "Custom image"
+      },
+      "positions": {
+        "left": "Left",
+        "right": "Right",
+        "top": "Top",
+        "bottom": "Bottom",
+        "up": "Up",
+        "down": "Down"
+      },
+      "noFilePicker": "The Foundry image picker is unavailable."
     }
   }
 }

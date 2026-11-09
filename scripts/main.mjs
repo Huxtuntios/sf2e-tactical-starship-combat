@@ -186,6 +186,10 @@ function registerRefreshHooks() {
     Hooks.on(hook, (message) => {
       if (game.user.isGM && message.flags?.[MODULE_ID]?.history) refreshApps("history");
     });
+  for (const hook of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
+    Hooks.on(hook, (entry) => {
+      if (game.user.isGM && entry.flags?.[MODULE_ID]?.historyStore) refreshApps("history");
+    });
   const crewChanged = (actor) => {
     if (actor instanceof Actor && !isStarship(actor) && isCrewMember(actor)) refreshApps("crew", actor);
   };

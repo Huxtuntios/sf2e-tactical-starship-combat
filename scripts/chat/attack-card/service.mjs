@@ -18,6 +18,8 @@ import { portraitOf } from "../../crew/occupant.mjs";
 import { log } from "../../utils/logging.mjs";
 import { Draft } from "../../actions/draft.mjs";
 import { applyDamageInDraft } from "../../damage/damage-service.mjs";
+import { Reactions } from "../../actions/reactions.mjs";
+import { snapshot } from "../../history/history.mjs";
 import { ct } from "../../content/content-i18n.mjs";
 import {
   CARD_FLAG,
@@ -241,6 +243,7 @@ export async function rollAttackCardDamage({ user, payload }) {
       : [{ formula, type: pd.damageType ?? "untyped" }];
     const roll = await rollTypedDamage(typedDamageFormula(parts), {
       attackCardId: message.id,
+      secret: !!message.blind || !!message.whisper?.length,
       speaker: { alias: card.ship.name },
       flavor: T("SF2eTSC.rolls.damageFlavor", {
         ship: card.ship.name,
@@ -270,9 +273,27 @@ export async function applyAttackCardDamage({ user, payload }) {
     const target = await fromUuidSafe(pd.targetUuid);
     if (!target || !isStarship(target)) throw new Error(T("SF2eTSC.errors.needTarget"));
     const draft = new Draft(activeStarshipCombat() ?? null);
+    const entry = await draft.ship(pd.targetUuid);
+    const strikeId = `chat:${message.id}`;
+    if (entry.data.appliedStrikeReceipts != null && !Array.isArray(entry.data.appliedStrikeReceipts))
+      throw new Error(T("SF2eTSC.droneBlock.invalid"));
+    if ((entry.data.appliedStrikeReceipts ?? []).includes(strikeId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
+    // A damage receipt and the ship's drone + hull changes are written in the same guarded actor update.
+    entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
+    const attacker = await fromUuidSafe(card.request?.shipUuid);
+    const rx =
+      attacker && (card.native || ["strike", "npc-strike"].includes(card.action?.builtin))
+        ? await Reactions.ask(
+            { draft, combat: draft.combat, tsc: draft.tsc, options: {}, strikeId, ship: attacker, droneBlockOnly: true },
+            { uuid: pd.targetUuid, actor: target, data: entry.data },
+            { amount: card.damageRoll.total, traits: pd.traits ?? [], crit: !!pd.crit }
+          )
+        : {};
+    entry.data.appliedStrikeReceipts = [...(entry.data.appliedStrikeReceipts ?? []), strikeId];
     const d = await applyDamageInDraft(draft, pd.targetUuid, {
       amount: card.damageRoll.total,
       damageType: pd.damageType,
+      strikeResistance: rx.resistance ?? 0,
       traits: pd.traits ?? [],
       criticalHit: !!pd.crit,
       source: pd.source,
@@ -300,8 +321,7 @@ export async function applyAttackCardDamage({ user, payload }) {
 
 export async function updateCard(message, patch) {
   const card = { ...message.flags[MODULE_ID][CARD_FLAG], ...patch };
-  await message.update({
-    content: renderAttackCard({ id: message.id, flags: { [MODULE_ID]: { [CARD_FLAG]: card } } }),
-    [`flags.${MODULE_ID}.${CARD_FLAG}`]: card
-  });
+  const changes = { [`flags.${MODULE_ID}.${CARD_FLAG}`]: card };
+  if (!card.native) changes.content = renderAttackCard({ id: message.id, flags: { [MODULE_ID]: { [CARD_FLAG]: card } } });
+  await message.update(changes);
 }

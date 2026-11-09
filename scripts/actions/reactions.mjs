@@ -3,6 +3,11 @@ import { gradeAtLeast } from "../engine/advancement.mjs";
 import { emitClientEvent, onClientEvent, registerHandler, request } from "../socket.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
+import { stageDroneBlock } from "./drone-block.mjs";
+import { can } from "../crew/permissions.mjs";
+import { findObject } from "../engine/sensor-ops.mjs";
+import { publicLabel } from "../chat/attack-card/model.mjs";
+import { ct } from "../content/content-i18n.mjs";
 
 const WAIT_MS = 20000;
 const waiting = new Map();
@@ -21,9 +26,25 @@ export const Reactions = {
         if (a.cost !== "reaction" || !STRIKE_REACTIONS.includes(a.id)) continue;
         if (a.station !== st.type || !gradeAtLeast(st.grade, a.minGrade ?? "commercial")) continue;
         if (a.id === "reposition-shield" && targetData.sp.value <= 0) continue;
-        if (a.id === "drone-block" && (targetData.drones ?? []).length && !(targetData.drones ?? []).some((d) => d.deployed)) continue;
         const crew = fromUuidSync(st.helmedBy);
-        offers.push({ actionId: a.id, stationId: st.id, crewUuid: st.helmedBy, crewName: crew?.name ?? "?" });
+        const drones =
+          a.id === "drone-block"
+            ? (Array.isArray(targetData.drones) ? targetData.drones : []).filter(
+                (d) => d?.tscVersion === 1 && d.stationId === st.id && d.deployed === true && Content.drones.some((t) => t.id === d.ref)
+              )
+            : [];
+        if (
+          a.id === "drone-block" &&
+          (!drones.length || (targetData.upgrades ?? []).some((u) => u.ref === "drone-shield-protocol" && u.stationId === st.id))
+        )
+          continue;
+        offers.push({
+          actionId: a.id,
+          stationId: st.id,
+          crewUuid: st.helmedBy,
+          crewName: crew?.name ?? "?",
+          ...(drones.length ? { drones: drones.map((d) => ({ id: d.id, ref: d.ref })) } : {})
+        });
       }
     }
     return offers;
@@ -39,9 +60,16 @@ export const Reactions = {
     const offers = this.eligible(target.data, ctx.tsc, ctx.combat);
     if (!offers.length) return result;
     for (const offer of offers) {
+      if (ctx.droneBlockOnly && offer.actionId !== "drone-block") continue;
       const crew = await fromUuidSafe(offer.crewUuid);
-      const user = game.users.find((u) => u.active && !u.isGM && crew?.testUserPermission?.(u, "OWNER")) ?? game.users.activeGM;
+      const user =
+        game.users.find((u) => u.active && !u.isGM && crew?.testUserPermission?.(u, "OWNER") && can(u, target.actor, "operateStation")) ??
+        game.users.activeGM;
       if (!user) continue;
+      const attacker = ctx.tsc ? findObject(ctx.tsc, ctx.shipUuid ?? ctx.ship?.uuid) : null;
+      const attackerLabel = user.isGM
+        ? ctx.ship.name
+        : ((attacker ? publicLabel(attacker, target.uuid).label : null) ?? T("SF2eTSC.attackCard.unknownAttacker"));
       const use = await new Promise((resolve) => {
         const requestId = foundry.utils.randomID(10);
         const timer = setTimeout(() => {
@@ -50,6 +78,7 @@ export const Reactions = {
         }, WAIT_MS);
         waiting.set(requestId, {
           userId: user.id,
+          drones: offer.drones?.map((d) => d.id),
           resolve: (v) => {
             clearTimeout(timer);
             resolve(v);
@@ -57,12 +86,27 @@ export const Reactions = {
         });
         emitClientEvent(
           "reactionPrompt",
-          { requestId, shipUuid: target.uuid, shipName: target.actor.name, offer, amount, crit, attacker: ctx.ship.name },
+          { requestId, shipUuid: target.uuid, shipName: target.actor.name, offer, amount, crit, attacker: attackerLabel },
           user.id
         );
       });
       if (!use) continue;
       try {
+        if (!user.isGM && (!crew?.testUserPermission?.(user, "OWNER") || !can(user, target.actor, "operateStation")))
+          throw new Error(T("SF2eTSC.errors.noPermission"));
+        if (offer.actionId === "drone-block") {
+          const resistance = await stageDroneBlock({
+            draft: ctx.draft,
+            targetUuid: target.uuid,
+            stationId: offer.stationId,
+            crew,
+            droneId: use,
+            strikeId: ctx.strikeId,
+            worldTime: game.time?.worldTime
+          });
+          result.resistance = Math.max(result.resistance ?? 0, resistance);
+          continue;
+        }
         const { executeAction } = await import("./action-engine.mjs");
         const r = await executeAction({
           userId: user.id,
@@ -87,8 +131,9 @@ export function resolveReactionResponse({ user, payload }) {
   const w = waiting.get(payload?.requestId);
   if (!w) return false;
   if (!user?.isGM && w.userId !== user?.id) throw new Error(T("SF2eTSC.errors.noPermission"));
+  if (payload.use && w.drones && !w.drones.includes(payload.droneId)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
   waiting.delete(payload.requestId);
-  w.resolve(payload.use ? true : null);
+  w.resolve(payload.use ? (w.drones ? payload.droneId : true) : null);
   return true;
 }
 /** Test hook. */
@@ -101,16 +146,27 @@ export function registerReactionHandlers() {
   registerHandler("reactionResponse", async (req) => resolveReactionResponse(req));
   onClientEvent("reactionPrompt", async (p) => {
     const name = T(`SF2eTSC.actions.${p.offer.actionId}`);
-    const use = await foundry.applications.api.DialogV2.confirm({
-      classes: ["sf2e-tsc"],
-      window: { title: T("SF2eTSC.reaction.title"), icon: "fa-solid fa-bolt" },
-      content: `<p><strong>${foundry.utils.escapeHTML(p.shipName)}</strong>: ${T("SF2eTSC.reaction.body", { attacker: foundry.utils.escapeHTML(p.attacker), amount: p.amount })}</p><p>${T("SF2eTSC.reaction.use", { action: name, crew: foundry.utils.escapeHTML(p.offer.crewName) })}</p>`,
-      yes: { label: T("SF2eTSC.reaction.useBtn"), icon: "fa-solid fa-check" },
-      no: { label: T("SF2eTSC.reaction.declineBtn") },
-      rejectClose: false
-    }).catch(() => false);
+    const droneId = p.offer.drones?.length
+      ? await foundry.applications.api.DialogV2.prompt({
+          classes: ["sf2e-tsc"],
+          window: { title: name },
+          content: `<p>${T("SF2eTSC.droneBlock.choose")}</p><select name="droneId">${p.offer.drones.map((d) => `<option value="${foundry.utils.escapeHTML(d.id)}">${foundry.utils.escapeHTML(ct(Content.drones.find((type) => type.id === d.ref)?.name ?? d.ref))} (${foundry.utils.escapeHTML(d.id)})</option>`).join("")}</select>`,
+          ok: { label: T("SF2eTSC.reaction.useBtn"), callback: (_e, b) => b.form.elements.droneId.value },
+          rejectClose: false
+        }).catch(() => null)
+      : null;
+    const use = p.offer.drones?.length
+      ? !!droneId
+      : await foundry.applications.api.DialogV2.confirm({
+          classes: ["sf2e-tsc"],
+          window: { title: T("SF2eTSC.reaction.title"), icon: "fa-solid fa-bolt" },
+          content: `<p><strong>${foundry.utils.escapeHTML(p.shipName)}</strong>: ${T("SF2eTSC.reaction.body", { attacker: foundry.utils.escapeHTML(p.attacker), amount: p.amount })}</p><p>${T("SF2eTSC.reaction.use", { action: name, crew: foundry.utils.escapeHTML(p.offer.crewName) })}</p>`,
+          yes: { label: T("SF2eTSC.reaction.useBtn"), icon: "fa-solid fa-check" },
+          no: { label: T("SF2eTSC.reaction.declineBtn") },
+          rejectClose: false
+        }).catch(() => false);
     try {
-      await request("reactionResponse", { requestId: p.requestId, use: !!use });
+      await request("reactionResponse", { requestId: p.requestId, use: !!use, ...(droneId ? { droneId } : {}) });
     } catch (err) {
       log.warn("reaction response failed", err);
     }

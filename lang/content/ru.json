@@ -100,7 +100,7 @@
   "A docked drone is deployed.": "Пристыкованный дрон развёрнут.",
   "Drone Block": "Блок дроном",
   "Trigger: Your starship would be hit by a Strike. Requirement: at least one drone deployed. Your starship gains resistance against the triggering Strike equal to half your level. The drone is retrieved and can’t be deployed again for 10 minutes.": "Триггер: по вашему звездолёту должен попасть Удар. Требование: развёрнут хотя бы один дрон. Ваш звездолёт получает сопротивление против вызвавшего реакцию Удара, равное половине вашего уровня. Дрон возвращается и не может быть развёрнут снова в течение 10 минут.",
-  "Your starship gains resistance equal to half its level (round up) against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes.": "Ваш звездолёт получает сопротивление, равное половине его уровня (с округлением вверх), против вызвавшего реакцию Удара; дрон возвращается и не может быть развёрнут снова 10 минут.",
+  "Your starship gains resistance equal to half your level against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes.": "Ваш звездолёт получает сопротивление, равное половине вашего уровня, против вызвавшего реакцию Удара; дрон возвращается и не может быть развёрнут снова 10 минут.",
   "Retrieve Drone": "Вернуть дрона",
   "Retrieve a deployed drone, returning it to the starship.": "Верните развёрнутого дрона на звездолёт.",
   "A deployed drone returns to the starship.": "Развёрнутый дрон возвращается на звездолёт.",
@@ -1254,6 +1254,9 @@
   "Weapon Crystal": "Оружейный кристалл",
   "Starships Nova Strike": "Удар новой (звездолёт)",
   "ENTER ESCAPE POD": "Войти в спасательную капсулу",
-  "originates from a deployed drone within sensor range": "исходит от развёрнутого дрона в пределах дальности сенсоров"
+  "originates from a deployed drone within sensor range": "исходит от развёрнутого дрона в пределах дальности сенсоров",
+  "Deploy Starship Mine": "Размещение звездолётной мины",
+  "Frequency once per round. Requirement: no mine deployed by this pyrotechnics drone in your zone. The drone deploys a starship mine in your starship’s zone.": "Частота: раз в раунд. Требование: в вашей зоне нет мины, размещённой этим пиротехническим дроном. Дрон размещает звездолётную мину в зоне вашего корабля.",
+  "Deploy a starship mine in your zone.": "Разместите звездолётную мину в вашей зоне."
  }
 }

@@ -1,10 +1,26 @@
 /** Delegated links in module windows: actual typed damage, chat checks, draggable valued conditions. */
 import { openCondition, findCondition, conditionDragData } from "../content/condition-enricher.mjs";
-import { checkChatContent } from "../content/inline-checks.mjs";
+import { checkChatContent, safeInlineDamage } from "../content/inline-checks.mjs";
 import { rollTypedDamage, inlineDamageFormula } from "../rolls/typed-damage.mjs";
 import { notifyError } from "../utils/logging.mjs";
+import { safeDiceFormula } from "../content/inline-dice.mjs";
 export function wireInlineClicks(root) {
   if (!root) return;
+  // The native editor resolves explicit system links; unresolved expressions remain visible as text.
+  const editor = globalThis.foundry?.applications?.ux?.TextEditor?.implementation;
+  if (editor?.enrichHTML)
+    root.querySelectorAll?.("[data-tsc-native]").forEach((node) => {
+      if (node.dataset.tscNativePending) return;
+      node.dataset.tscNativePending = "1";
+      const source = node.dataset.tscNative;
+      const escaped = String(source).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      Promise.resolve()
+        .then(() => editor.enrichHTML(escaped))
+        .then((html) => {
+          if (node.isConnected && typeof html === "string" && html !== escaped && !html.includes(escaped)) node.outerHTML = html;
+        })
+        .catch((err) => console.warn("sf2e-tsc | native description enricher failed", err));
+    });
   // Partial renders insert fresh anchors. Resolve ahead of dragstart: the browser requires synchronous setData.
   root.querySelectorAll?.("a.tsc-cond").forEach((link) => {
     link.draggable = true;
@@ -30,6 +46,12 @@ export function wireInlineClicks(root) {
     },
     true
   );
+  root.addEventListener("keydown", (event) => {
+    const link = event.target?.closest?.("a.tsc-cond, a.tsc-check");
+    if (!link || !["Enter", " "].includes(event.key) || event.repeat) return;
+    event.preventDefault();
+    link.click();
+  });
   root.addEventListener("contextmenu", (event) => {
     const link = event.target?.closest?.("a.tsc-cond");
     if (!link) return;
@@ -53,8 +75,13 @@ export function wireInlineClicks(root) {
             content: `@TscCondition[${slug}${Number.isInteger(value) && value > 0 ? `|value:${value}` : ""}]`,
             speaker: ChatMessage.getSpeaker()
           });
+        } else if (link.dataset.dice) {
+          const formula = safeDiceFormula(link.dataset.dice);
+          if (!formula || !globalThis.Roll || (Roll.validate && !Roll.validate(formula))) return;
+          const roll = await new Roll(formula).evaluate();
+          await roll.toMessage({ speaker: ChatMessage.getSpeaker(), flavor: foundry.utils.escapeHTML(link.dataset.label ?? "") });
         } else if (link.dataset.inline) {
-          const formula = inlineDamageFormula(link.dataset.inline);
+          const formula = inlineDamageFormula(safeInlineDamage(link.dataset.inline));
           if (formula) await rollTypedDamage(formula, { flavor: foundry.utils.escapeHTML(link.dataset.label ?? "") });
         } else {
           const title = root.querySelector(".window-title")?.textContent?.trim() ?? "";

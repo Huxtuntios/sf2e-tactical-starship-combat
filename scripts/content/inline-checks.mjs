@@ -3,8 +3,9 @@
  * "DC 5 flat check") into sf2e/pf2e inline check enrichers (@Check[will|dc:32]{…}) so they are clickable in
  * sheets, journals and chat. Pure (no Foundry globals); idempotent — text that already contains enrichers is skipped.
  */
-import { linkInline, DAMAGE_TOKEN, CONDITION_TOKEN } from "./inline-links.mjs";
+import { linkInline, DAMAGE_TOKEN, CONDITION_TOKEN, TOKEN_RE, DAMAGE_TYPES } from "./inline-links.mjs";
 import { normalizeNativeChecks } from "./native-checks.mjs";
+import { safeDiceFormula } from "./inline-dice.mjs";
 export const CHECK_SKILLS = [
   "Acrobatics",
   "Arcana",
@@ -45,6 +46,16 @@ export function linkChecks(html) {
       `@Check[${save.toLowerCase()}|dc:${dc}${basic ? "|basic" : ""}]{DC ${dc} ${basic ?? ""}${save}${word ?? ""}}`
   );
   s = s.replace(FLAT_RE, (m, dc) => `@Check[flat|dc:${dc}]{DC ${dc} flat check}`);
+  // Explicit numeric Russian DCs only; contextual or missing DCs stay text until resolved separately.
+  s = s.replace(/КС\s+(\d+)\s+(прост\p{L}*\s+)?спасброс\p{L}*\s+(Стойкости|Рефлекса|Воли)/giu, (m, dc, basic, save) => {
+    const slug = { стойкости: "fortitude", рефлекса: "reflex", воли: "will" }[save.toLowerCase()];
+    return `@Check[${slug}|dc:${dc}${basic ? "|basic" : ""}]{${m}}`;
+  });
+  s = s.replace(/КС\s+(\d+)\s+плоск\p{L}*\s+проверк\p{L}*/giu, (m, dc) => `@Check[flat|dc:${dc}]{${m}}`);
+  s = s.replace(/КС\s+(\d+)\s+проверк\p{L}*\s+(Ремесла|Пилотирования|Компьютеров)/giu, (m, dc, skill) => {
+    const slug = { ремесла: "crafting", пилотирования: "piloting", компьютеров: "computers" }[skill.toLowerCase()];
+    return `@Check[${slug}|dc:${dc}]{${m}}`;
+  });
   s = s.replace(SKILL_RE, (m, dc, list, word) => {
     let first = true;
     const linked = list.replace(new RegExp(SKILL, "g"), (sk) => {
@@ -69,24 +80,47 @@ const esc = (s) =>
  * Render plain text for the module's own windows: escaped, with every check turned into a clickable
  * <a class="tsc-check"> (the click posts the @Check enricher to chat, where sf2e makes it rollable).
  */
-export function checkLinksHTML(text) {
-  return linkInline(esc(text), { nativeChecks: false })
-    .replace(
-      /@Check\[([^\]]+)\](?:\{([^}]*)\})?/g,
-      (m, params, label) =>
-        `<a class="tsc-check" data-check="${params}" data-label="${label ?? ""}"><i class="fa-solid fa-dice-d20"></i> ${label ?? params}</a>`
-    )
-    .replace(
-      new RegExp(DAMAGE_TOKEN.source, "g"),
-      (m, params, label) =>
-        `<a class="tsc-check tsc-damage" data-inline="@Damage[${params}]" data-label="${label ?? ""}"><i class="fa-solid fa-burst"></i> ${label ?? params}</a>`
-    )
-    .replace(
-      new RegExp(CONDITION_TOKEN.source, "g"),
-      (m, slug, value, label) =>
-        `<a class="tsc-cond" data-condition="${slug}"${value ? ` data-value="${value}"` : ""}><i class="fa-solid fa-circle-info"></i> ${label ?? slug}</a>`
-    );
+/** Only literal, bounded dice and a known type are sent to the native damage roller. */
+export function safeInlineDamage(inline) {
+  const m = /^@Damage\[(\(?\d+d\d+(?:[+-]\d+)?\)?)\[((?:persistent,)?)([a-z-]+)\]\]$/i.exec(String(inline ?? ""));
+  if (!m || !DAMAGE_TYPES.includes(m[3].toLowerCase())) return null;
+  const dice = safeDiceFormula(m[1].replace(/^\(|\)$/g, ""));
+  if (!dice) return null;
+  return `@Damage[${/[+-]/.test(dice) ? `(${dice})` : dice}[${m[2].toLowerCase()}${m[3].toLowerCase()}]]`;
 }
+export function checkLinksHTML(text, options = {}) {
+  const linked = linkInline(esc(text), { ...options, nativeChecks: false });
+  return linked
+    .split(TOKEN_RE)
+    .map((part, i) => {
+      if (!(i % 2)) return part;
+      let m = /^@Check\[([^\]]+)\](?:\{([^}]*)\})?$/.exec(part);
+      if (m)
+        return `<span class="tsc-native-enricher" data-tsc-native="${part}"><a role="button" tabindex="0" class="tsc-check" data-check="${m[1]}" data-label="${m[2] ?? ""}"><i class="fa-solid fa-dice-d20"></i> ${m[2] ?? m[1]}</a></span>`;
+      m = new RegExp(`^${DAMAGE_TOKEN.source}$`).exec(part);
+      if (m) {
+        const safe = safeInlineDamage(`@Damage[${m[1]}]`);
+        return safe
+          ? `<a role="button" tabindex="0" class="tsc-check tsc-damage" data-inline="${safe}" data-label="${m[2] ?? ""}"><i class="fa-solid fa-burst"></i> ${m[2] ?? m[1]}</a>`
+          : part;
+      }
+      m = new RegExp(`^${CONDITION_TOKEN.source}$`).exec(part);
+      if (m)
+        return `<a role="button" tabindex="0" class="tsc-cond" data-condition="${m[1]}"${m[2] ? ` data-value="${m[2]}"` : ""}><i class="fa-solid fa-circle-info"></i> ${m[3] ?? m[1]}</a>`;
+      m = /^\[\[\/r\s+([^\]]+)\]\](?:\{([^}]*)\})?$/i.exec(part);
+      if (m) {
+        const dice = safeDiceFormula(m[1]);
+        return dice
+          ? `<a role="button" tabindex="0" class="tsc-check tsc-dice" data-dice="${dice}" data-label="${m[2] ?? dice}"><i class="fa-solid fa-dice"></i> ${m[2] ?? dice}</a>`
+          : part;
+      }
+      if (/^@(?:UUID|Template|Localize|act)\[/.test(part))
+        return `<span class="tsc-native-enricher" data-tsc-native="${part}">${part}</span>`;
+      return part;
+    })
+    .join("");
+}
+
 /**
  * `dataset.*` values are HTML-decoded by the browser, so everything taken from a clicked link is escaped
  * again before it is put into chat HTML. Enricher delimiters are stripped from labels so a label cannot close the

@@ -17,14 +17,15 @@ import { evaluateRequirements } from "./requirements.mjs";
 import { executeEffects, resolveSeekBuiltin, modelKeyOf } from "./effects-exec.mjs";
 import { resolveStrike, resolveAreaFire, resolveSpellAttack, resolveWeapon } from "./strike.mjs";
 import { computeShipStats, shipDC, shipStatistic, crewStatistic, rollNativeCheck } from "../starship/stats.mjs";
-import { effectModifiers } from "../starship/effects.mjs";
+import { effectModifiers, stationEffects } from "../starship/effects.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
-import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { activeStarshipCombat, combatantForActor, turnIndexOf } from "../combat/tsc-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { postActionCard } from "../chat/chat-cards.mjs";
 import { registerHandler } from "../socket.mjs";
 import { fromUuidSafe, fromUuidSync_, T, moduleSetting, levelDC } from "../utils/foundry.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
+import { executeDroneMovement } from "./drone-actions.mjs";
 
 export const actionLabel = (a) => (game.i18n.has(`SF2eTSC.actions.${a.id}`) ? T(`SF2eTSC.actions.${a.id}`) : ct(a.name));
 const REPAIR_IDS = ["repair-station", "jump-start"];
@@ -166,10 +167,11 @@ async function runCheck(ctx) {
   if (!statistic && ctx.data.role !== "player")
     fallbackMod = skill === "perception" ? ctx.stats.perception : (ctx.data.skills?.[skill] ?? 0);
   else if (!statistic) fail("noSkill", { skill });
-  const boost = effectModifiers(
-    ctx.data.effects.filter((e) => !e.station || e.station === ctx.station?.id),
-    "station-check"
-  ).map((m) => ({ label: m.slug, type: m.type, value: m.value }));
+  const boost = effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat), "station-check").map((m) => ({
+    label: m.slug,
+    type: m.type,
+    value: m.value
+  }));
   const res = await rollNativeCheck({
     statistic,
     dc: dc ?? (ctx.action.builtin === "seek" ? undefined : 0),
@@ -196,7 +198,7 @@ function reactionResultFor(ctx) {
         : ctx.degree === DEGREE.CRITICAL_FAILURE
           ? { bypassHull: true }
           : {};
-  if (id === "drone-block") return { resistance: Math.ceil(ctx.level / 2) };
+  // Drone Block remains a manual reminder until the selected drone and the triggering Strike can be tracked together.
   return {};
 }
 
@@ -246,6 +248,10 @@ async function executeActionNow(params) {
   }
   if (action.builtin === "npc-strike") options.npcStrike = action.strike;
   if (action.passive) fail("passiveAbility");
+  if (["deploy-drone", "retrieve-drone", "deploy-starship-mine"].includes(action.id)) {
+    if (parent || params.dryRun) fail("invalidData");
+    return executeDroneMovement({ user, ship, crewUuid, stationId: params.stationId, options, action });
+  }
   const combat = activeStarshipCombat();
   const draft = parent ?? new Draft(combat);
   const entry = await draft.ship(shipUuid);
@@ -286,6 +292,7 @@ async function executeActionNow(params) {
     crewUuid,
     action,
     options,
+    manualModifiers: params.approvedModifiers ?? [],
     level: data.level,
     reports: [],
     lines: [],
@@ -294,6 +301,7 @@ async function executeActionNow(params) {
     degreeLabel: null,
     areaTargets: [],
     suppressActionCard: false,
+    strikeId: params.strikeId ?? foundry.utils.randomID(20),
     get tsc() {
       return draft.tsc;
     },
@@ -326,6 +334,23 @@ async function executeActionNow(params) {
   if (ctx.station?.malfunctioning && !REPAIR_IDS.includes(action.id) && !gmOverride) rule("malfunctioning");
   if (action.id === "repair-station" && ctx.station?.repairLockedUntilTurnOf && !gmOverride) rule("repairLocked");
 
+  // A Boost needs an actual ship station and a stable current-turn anchor. Never trust the target from the socket.
+  if (action.id === "boost-battle-station") {
+    if (
+      !ctx.station ||
+      ctx.station.type !== "generator" ||
+      !crew ||
+      ctx.station.helmedBy !== crewUuid ||
+      ctx.station.malfunctioning ||
+      data.destroyed
+    )
+      fail("boostInvalidSource");
+    if (!options.targetStationId || data.stations.filter((st) => st.id === options.targetStationId).length !== 1)
+      fail("boostInvalidTarget");
+    const cb = combatantForActor(combat, crew);
+    if (!combat || !cb || turnIndexOf(combat, cb.id) !== combat.turn) fail("boostNeedsTurn");
+  }
+
   if (!gmOverride && crew && (action.traits ?? []).includes("manipulate") && crew.handsFree === 0) rule("noFreeHand");
 
   // --- requirements
@@ -337,7 +362,7 @@ async function executeActionNow(params) {
     action.builtin === "npc-strike"
   )
     ctx.weapon = resolveWeapon(ctx);
-  ctx.target = params.dryRun ? null : await resolveTarget(ctx);
+  ctx.target = params.dryRun && !params.validateTarget ? null : await resolveTarget(ctx);
   const failed = evaluateRequirements(action, ctx, strictRules);
   if (failed.length) rule("requirementFailed", { reqs: failed.map((k) => T(`SF2eTSC.requirements.${k}`)).join(", ") });
 
@@ -369,8 +394,9 @@ async function executeActionNow(params) {
 
   // dry run (attack declaration card): every validation above ran, nothing was rolled, spent or written
   if (params.dryRun) return { ok: true, dryRun: true, ctx, costValue };
+  ctx.onAttackMessage = params.onAttackMessage ?? null;
   ctx.cardMode = !!params.cardMode;
-  if (ctx.cardMode) ctx.suppressActionCard = true;
+  if (ctx.cardMode || ["strike", "npc-strike"].includes(action.builtin)) ctx.suppressActionCard = true;
 
   // --- check / builtin resolution / effects
   if (action.builtin === "strike" || action.builtin === "npc-strike") await resolveStrike(ctx);
@@ -445,6 +471,8 @@ export const CLIENT_OPTION_KEYS = Object.freeze([
   "stationId",
   "areaOrigin",
   "weaponId",
+  "droneId",
+  "mineId",
   "gmOverride",
   "sheetRoll",
   "mapChoice",

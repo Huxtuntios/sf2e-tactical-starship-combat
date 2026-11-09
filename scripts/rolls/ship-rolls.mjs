@@ -13,6 +13,7 @@ import { readStarship } from "../starship/starship-state.mjs";
 import { computeShipStats, shipStatistic, rollNativeCheck, shipSkillValue } from "../starship/stats.mjs";
 import { resolveWeapon, damageFormula, sheetAttackBonus } from "../actions/strike.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
+import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { slugifyName } from "../actions/npc-inline.mjs";
 import { MAP_BASE } from "../engine/map.mjs";
 import { T, fromUuidSync_ } from "../utils/foundry.mjs";
@@ -166,7 +167,14 @@ export function sheetAttackRows(actor) {
   const rows = [];
   for (const w of data.weapons ?? []) {
     const station = weaponStation(data, w);
-    const ctx = { options: { weaponId: w.id }, data, station, stationRow: station ? stationRowFor(station) : null, stats };
+    const ctx = {
+      options: { weaponId: w.id },
+      data,
+      station,
+      stationRow: station ? stationRowFor(station) : null,
+      stats,
+      combat: activeStarshipCombat()
+    };
     const weapon = resolveWeapon(ctx);
     if (!weapon) continue;
     const crew = station?.helmedBy ? fromUuidSync_(station.helmedBy) : null;
@@ -254,7 +262,14 @@ export function sheetDamageFormula(actor, key, crit = false) {
     const w = data.weapons.find((x) => `w:${x.id}` === key);
     if (!w) return null;
     const station = weaponStation(data, w);
-    ctx = { options: { weaponId: w.id }, data, station, stationRow: station ? stationRowFor(station) : null, stats };
+    ctx = {
+      options: { weaponId: w.id },
+      data,
+      station,
+      stationRow: station ? stationRowFor(station) : null,
+      stats,
+      combat: activeStarshipCombat()
+    };
   }
   const weapon = resolveWeapon(ctx);
   if (!weapon) return null;

@@ -3,7 +3,6 @@ import { patchStarship, readStarship, stationOf, activeCrew, loadStarship } from
 import { registerHandler, request } from "../socket.mjs";
 import { canControlCrewActor, can, canJoinShip } from "./permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
-import { postSimpleCard } from "../chat/chat-cards.mjs";
 import { randomId } from "../utils/ids.mjs";
 import { CREW_ROLES } from "../constants.mjs";
 import { assignStation, releaseStationIn, normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
@@ -97,29 +96,35 @@ async function claimStation({ user, payload }) {
     const other = data.crew.find((c) => c.actorUuid === station.helmedBy);
     throw new Error(T("SF2eTSC.crew.claimedBy", { name: other?.name ?? "?" }));
   }
-  await patchStarship(ship, (d) => {
-    let entry = d.crew.find((c) => c.actorUuid === crewActor.uuid);
-    if (!entry) {
-      entry = {
-        actorUuid: crewActor.uuid,
-        name: crewActor.name,
-        userId: user.isGM ? null : user.id,
-        role: "crew",
-        stationId: null,
-        ready: false
-      };
-      d.crew.push(entry);
-    }
-    // one station per crew member, one member per station: a forced claim evicts the previous occupant
-    assignStation(d, crewActor.uuid, payload.stationId);
-  });
+  const changed = await patchStarship(
+    ship,
+    (d) => {
+      const before = JSON.stringify([d.crew, d.stations]);
+      const current = stationOf(d, payload.stationId);
+      if (!current) throw new Error(T("SF2eTSC.errors.stationNotFound"));
+      if (current.helmedBy && current.helmedBy !== crewActor.uuid && !force)
+        throw new Error(T("SF2eTSC.crew.claimedBy", { name: d.crew.find((c) => c.actorUuid === current.helmedBy)?.name ?? "?" }));
+      let entry = d.crew.find((c) => c.actorUuid === crewActor.uuid);
+      if (!entry) {
+        entry = {
+          actorUuid: crewActor.uuid,
+          name: crewActor.name,
+          userId: user.isGM ? null : user.id,
+          role: "crew",
+          stationId: null,
+          ready: false
+        };
+        d.crew.push(entry);
+      }
+      // one station per crew member, one member per station: a forced claim evicts the previous occupant
+      assignStation(d, crewActor.uuid, payload.stationId);
+      return before !== JSON.stringify([d.crew, d.stations]);
+    },
+    { announce: payload.silent !== true }
+  );
+  if (!changed) return true;
   Hooks.callAll(HOOK_EVENTS.stationClaimed, ship, payload.stationId, crewActor);
-  if (!payload.silent)
-    await postSimpleCard({
-      actor: ship,
-      title: T("SF2eTSC.crew.helm"),
-      body: T("SF2eTSC.crew.helmedMsg", { name: crewActor.name, station: station.name })
-    });
+  // The central history notifier already announces actual state changes in All Changes mode.
   return true;
 }
 async function releaseStation({ user, payload }) {
@@ -169,7 +174,7 @@ export async function repairAllCrewAssignments() {
     if (!raw) continue;
     const probe = normalizeCrewAssignments(foundry.utils.deepClone({ crew: raw.crew ?? [], stations: raw.stations ?? [] }));
     if (!probe.repairs.length) continue;
-    await patchStarship(ship, () => {}); // readStarship already normalizes; the write persists it
+    await patchStarship(ship, () => {}, { force: true }); // Явное восстановление записывает нормализованные данные.
     fixed.push({ name: ship.name, repairs: probe.repairs });
   }
   return fixed;

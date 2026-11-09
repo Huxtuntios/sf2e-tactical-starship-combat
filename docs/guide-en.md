@@ -6,6 +6,14 @@
 - The compendium folder **Tactical Starship Combat** contains the Tech Core starships, starship hazards, station action items, starship weapons, station/frame/equipment references, the tactical starship combat rules (EN/RU), the starship exploration activities (EN/RU, reference items without automation) and this guide. The starship, hazard, action, weapon, upgrade and exploration packs have _English_ and _Русский_ folders.
 - Module tools are in the **Token** controls (left): **Sensor Map**, **Station HUD**, and for the GM **Start Combat** and a **Toolbox** (Crew manager, Hazard Browser, Starship Builder, Encounter Builder, Diagnostics).
 
+## Sensor Map visual controls (0.17.0, experimental)
+
+The GM opens the palette in the Sensor Map toolbar. Course arrows support None, Text, Emoji and Custom Image; use the Foundry File Picker, then Save. The arrow's size, gap, position and opacity are encounter-wide. A missing custom image falls back to text. Open an identified object's artwork controls to set its image angle, horizontal/vertical flips and the direction the unmodified artwork faces. The reset controls operate on the form; Save persists the changes. Transformations affect artwork, not the clickable object or game coordinates. Only GM users can edit appearance; existing movement permissions are unchanged.
+
+Auto Mirror compares the current **left/right** game heading to a left/right artwork base direction. Manual and automatic horizontal flips combine rather than overwrite one another. Artwork whose base direction is up/down is not automatically mirrored: the current game model has no up/down heading. Background angle and flips are purely visual and do not move zones or objects. Appearance is saved to the combat and synced via the active GM; changing other clients or losing the active GM still requires live testing. These controls apply to existing Sensor Map objects, not separate drone or mine markers (which the map does not currently create).
+
+Very large backgrounds may freeze the map; an 8100 × 11700 image caused problems in a user test. Real Foundry performance profiling has not been completed.
+
 ## 2. Creating a starship
 
 There are four ways:
@@ -112,3 +120,9 @@ Window sizes save on close, ship tabs on selection (per ship/client). Ship-sheet
 ### 0.13.1: Crew Manager
 
 Crew Manager uses the same client-local Module UI Theme setting as the rest of the module. Combat-scoped custom Sensor Map colors and artwork remain separately configurable; custom colors can reduce contrast in a different client theme.
+
+> **Experimental drone actions:** Deploy/Retrieve update an individual drone; a deployed Pyrotechnics Drone can record a mine. Track action costs manually. Other drone and upgrade effects are not automated. See `work-in-progress-0.16.5.md` before testing.
+
+### Experimental: boosting a station and situational modifiers (dev.10)
+
+Use Boost Battle Station on the generator operator's active combat turn and select the installed station. An indicator shows a +1 status bonus for one round; operator changes do not transfer the bonus elsewhere. For a single-target weapon Strike, the optional pre-roll dialog accepts up to six modifiers. Player entries require GM approval. See `docs/work-in-progress-0.16.10.md` for unsupported damage paths, persistence, and live-test limitations.

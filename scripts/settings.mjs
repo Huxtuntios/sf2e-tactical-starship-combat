@@ -16,6 +16,14 @@ export function registerSettings() {
       refreshModuleThemes();
     }
   });
+  reg("chatAnnouncements", {
+    name: L("chatAnnouncements.name"),
+    hint: L("chatAnnouncements.hint"),
+    type: String,
+    default: "important",
+    choices: { log: L("chatAnnouncements.log"), important: L("chatAnnouncements.important"), all: L("chatAnnouncements.all") }
+  });
+  reg("historyStoreId", { config: false, type: String, default: "" });
   reg("sensorMapSize", { name: L("sensorMapSize.name"), hint: L("sensorMapSize.hint"), type: Number, default: 12 });
   reg("combatPresets", { config: false, type: Object, default: {} });
   reg("ruleEnforcement", {

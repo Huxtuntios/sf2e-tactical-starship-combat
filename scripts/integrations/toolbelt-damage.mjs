@@ -142,7 +142,8 @@ export function registerToolbeltDamage() {
   Hooks.on("renderChatMessageHTML", (message, html) => {
     sweep();
     const root = html instanceof HTMLElement ? html : html?.[0];
-    if (!root || !message.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage) return;
+    if (!root || !message.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage || message.flags?.[MODULE_ID]?.autoAppliedDamage)
+      return;
     const binding = wireToolbeltDamage(message, root);
     if (binding) roots.set(root, { binding, messageId: message.id });
   });

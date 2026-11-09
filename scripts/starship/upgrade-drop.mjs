@@ -1,7 +1,7 @@
 /**
  * drag a starship upgrade from the "Starship Upgrades" compendium onto a starship: it is installed in a
  * suitable battle station (right type, a free upgrade slot) instead of becoming an embedded Item. When nothing fits,
- * nothing is installed and the reason is posted to the chat (whispered to the player and the GM).
+ * nothing is installed and the reason is shown locally to the player.
  * when several stations can take it, a dialog asks which one (closing it installs nothing).
  * `planUpgradeDrop` is pure; `addUpgradeToShip` performs the install through the normal GM-checked service.
  */
@@ -49,16 +49,9 @@ export function planUpgradeDrop(data, entry, { entries = [], stationDefs = new M
 
 const stationLabel = (type) => (game.i18n.has(`SF2eTSC.stations.${type}`) ? T(`SF2eTSC.stations.${type}`) : String(type ?? ""));
 
-/** Error message in the chat, visible to the user who dropped and to the GMs only. */
+/** Локальное предупреждение не создаёт чат-сообщение для отклонённой операции. */
 export async function postDropError(actor, name, reason) {
-  const gms = game.users?.filter?.((u) => u.isGM)?.map((u) => u.id) ?? [];
-  const whisper = [...new Set([game.user.id, ...gms])];
-  const text = T("SF2eTSC.upgrades.drop.failed", { name, ship: actor.name, reason });
-  return ChatMessage.create({
-    content: `<div class="sf2e-tsc tsc-drop-error"><p><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(text)}</p></div>`,
-    whisper,
-    speaker: ChatMessage.getSpeaker({ actor })
-  });
+  ui.notifications.warn(T("SF2eTSC.upgrades.drop.failed", { name, ship: actor.name, reason }));
 }
 
 /** Option label of the picker: "Gunnery 2 (Advanced) — 1/2 slots used". Pure apart from localization. */

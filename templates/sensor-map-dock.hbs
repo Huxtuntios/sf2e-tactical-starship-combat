@@ -6,6 +6,7 @@
     <header class="tsc-dock-head">
       <span class="tsc-dock-title"><i class="{{dock.stationIcon}}" aria-hidden="true"></i> <strong>{{dock.station}}</strong> <small class="tsc-dim">{{dock.crew}} · {{dock.ship}}</small></span>
       {{#if dock.selectors.[1]}}<span class="tsc-dock-pick" role="tablist">{{#each dock.selectors}}<button type="button" role="tab" class="tsc-chip {{#if active}}active{{/if}}" data-action="dockPick" data-index="{{i}}" title="{{label}}">{{short}}</button>{{/each}}</span>{{/if}}
+      {{#if dock.boosted}}<span class="tsc-pill" title="{{dock.boostCaption}}">{{localize "SF2eTSC.boost.active"}}</span>{{/if}}
       {{#if dock.malfunctioning}}<span class="tsc-pill bad" role="alert">⚠ {{localize "SF2eTSC.ui.malfunctioning"}}</span>{{/if}}
       {{#if dock.noCombatant}}<span class="tsc-pill warn" role="alert">⚠ {{localize "SF2eTSC.errors.noCombatantHud"}}</span>{{/if}}
     </header>
