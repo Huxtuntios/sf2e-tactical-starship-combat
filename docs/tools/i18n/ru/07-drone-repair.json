@@ -1,9 +1,0 @@
-{
- "Repair Hull": "Ремонт корпуса",
- "Attempt a Crafting check to repair a starship in your zone. Critical success: regain 2d6 Hull Points; success: regain 1d6 Hull Points; critical failure: take 1d6 piercing damage. Expert DC 20 adds 10, master DC 30 adds 30, legendary DC 40 adds 50 to Hull Points regained.": "Совершите проверку Ремесла, чтобы отремонтировать звездолёт в своей зоне. Критический успех: восстановите 2d6 очков корпуса; успех: восстановите 1d6 очков корпуса; критический провал: цель получает 1d6 колющего урона. Эксперт: КС 20 и +10 к восстановлению; мастер: КС 30 и +30; легенда: КС 40 и +50.",
- "This experimental implementation supports only the console's own ship; other targets require GM resolution.": "Экспериментальная реализация поддерживает только собственный корабль консоли; ремонт других целей разрешает ведущий.",
- "Deploy a starship mine in your zone.": "Разместите звездолётную мину в вашей зоне.",
- "Your starship gains resistance equal to half your level against the triggering Strike; the drone is retrieved and can’t be redeployed for 10 minutes.": "Ваш звездолёт получает сопротивление, равное половине вашего уровня, против вызвавшего реакцию Удара; дрон возвращается и не может быть развёрнут снова 10 минут.",
- "Frequency once per round. Requirement: no mine deployed by this pyrotechnics drone in your zone. The drone deploys a starship mine in your starship’s zone.": "Частота: раз в раунд. Требование: в вашей зоне нет мины, размещённой этим пиротехническим дроном. Дрон размещает звездолётную мину в зоне вашего корабля.",
- "Deploy Starship Mine": "Размещение звездолётной мины"
-}
