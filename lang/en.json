@@ -1443,7 +1443,8 @@
       "disclosureRequired": "Confirm disclosure to players before adding this object.",
       "disclosureTitle": "Place a visible object?",
       "disclosure": "The new object will be visible to all players: its name, Actor reference and zone may be accessible in combat data. Do not use this method for hidden ships or hazards. Continue?",
-      "unchanged": "This Actor is already in the selected zone."
+      "unchanged": "This Actor is already in the selected zone.",
+      "managedMine": "This object is a deployed mine; its position follows the mine record on the ship."
     },
     "mineModify": {
       "title": "Modify Starship Mine",
@@ -1620,6 +1621,99 @@
       "recorded": "GM preparation saved (manual effects)",
       "card": "Preparation only: no modification is applied automatically or transferred on deploy. Check duration and apply the actual personal mod manually.",
       "cardFailed": "Preparation was saved, but the GM card could not be created."
+    },
+    "mineStock": {
+      "installTitle": "Install Mine",
+      "install": "Install",
+      "installHint": "{operator} modifies up to four starship mines inside the undeployed pyrotechnics drone. Choose a stored mine or create a new one for each row, then pick a confirmed modification.",
+      "mine": "Mine",
+      "label": "Mine name",
+      "mod": "Modification",
+      "newMine": "— new mine —",
+      "confirm": "I confirm the operator uses the Mine Exocortex and that this modification is allowed by the Tech Core rules. It stays with the mine and has no automatic effect.",
+      "classOverride": "The operator is not a mechanic. Install anyway (GM override).",
+      "classOk": "The operator is a mechanic.",
+      "classUnknown": "The operator's class could not be determined; the GM confirms it.",
+      "known": "Known modifications",
+      "knownTitle": "Add known modification",
+      "knownHint": "Record a Mine Exocortex modification that {operator} knows. It is an opaque confirmed note; it is not Smart Mine or Targeting Mine.",
+      "knownConfirm": "I confirm the operator knows this modification.",
+      "removeKnown": "Remove known modification",
+      "stored": "Mines stored in the drone",
+      "modified": "modified",
+      "plainNote": "Only prepared mines are counted; plain mines are not limited by the recorded rules.",
+      "legacyNotes": "old notes, not an inventory",
+      "discard": "Remove stored mine",
+      "discardConfirm": "Remove this stored mine and its modification from the drone?",
+      "card": "The mines are now stored in the drone with their confirmed modifications. Deploy Starship Mine places a chosen mine on the Sensor Map.",
+      "cardFailed": "Install Mine was saved, but the GM note could not be posted.",
+      "choose": "Stored mine",
+      "plain": "Plain starship mine",
+      "chooseHint": "A stored mine keeps its confirmed modifications. Choose a mine that is stored in the selected drone.",
+      "errors": {
+        "invalid": "Install Mine is not available: check the console, the operator, the Mine Deployment Shell and that the pyrotechnics drone is not deployed.",
+        "class": "The operator is not a mechanic.",
+        "mod": "Choose a known modification of this operator.",
+        "stock": "That stored mine is not in the selected drone.",
+        "modified": "That mine already has an installed modification.",
+        "receipts": "Too many recorded Install Mine operations for this drone.",
+        "legacy": "The drone or console data is damaged; nothing was changed."
+      }
+    },
+    "mineContact": {
+      "name": "Starship mine: {label}",
+      "description": "A starship mine deployed by {ship}. The mine is tracked on the ship's drone; this Hazard sheet only shows its information.",
+      "rule": "Detonation: 2d8 fire or piercing damage with a basic Reflex save against the operator's class DC (scaled by the module's mine helper). The GM resolves it with the mine helper.",
+      "installed": "Installed modifications",
+      "manual": "These notes are confirmed by the GM and do not create automatic effects.",
+      "folder": "Starship mines",
+      "detonated": "detonated",
+      "removed": "removed",
+      "invalid": "The mine or its ship was not found.",
+      "duplicate": "Several documents describe the same mine. Remove the extra ones and synchronize again.",
+      "managed": "This contact follows the mine record on the ship. Move, detonate or remove the mine from the ship sheet.",
+      "managedHint": "This contact is managed by the mine record: its position and removal follow the drone.",
+      "syncFailed": "The mine is saved, but its Sensor Map contact was not updated: {message}",
+      "syncButton": "Sync contact",
+      "syncHint": "Recreate or update the mine's Hazard Actor and Sensor Map contact",
+      "openShip": "Open ship sheet",
+      "sync": {
+        "added": "Mine contact added to the Sensor Map.",
+        "updated": "Mine contact updated.",
+        "removed": "Mine contact removed from the map.",
+        "marked": "Mine marked.",
+        "unchanged": "The mine contact is up to date.",
+        "skipped": "The mine belongs to another combat.",
+        "failed": "Synchronization failed."
+      }
+    },
+    "contactEditor": {
+      "title": "Add Sensor Map object",
+      "intro": "Place a hazard or a custom contact. Players see nothing until you choose a state that discloses it.",
+      "source": "Source",
+      "sources": {
+        "world": "Hazard from the world",
+        "compendium": "Hazard from a compendium",
+        "custom": "Custom contact (no Actor)"
+      },
+      "filter": "Search",
+      "hazard": "Hazard",
+      "loading": "Loading compendiums…",
+      "noChoices": "No hazards found.",
+      "copyNote": "A private world copy is created so every placement has its own state. Players cannot see it.",
+      "detectionHint": "Undetected and hidden stay private. Observed shows an anonymous marker; identified shows the name and sheet to players.",
+      "confirm": "I confirm that players may learn this information.",
+      "add": "Add",
+      "addPublic": "Add environment object (asteroid, station, …)",
+      "pick": "Choose a hazard first.",
+      "nameRequired": "Enter a contact name.",
+      "invalidSource": "This source cannot be used.",
+      "invalidDetection": "Unknown detection state.",
+      "done": {
+        "added": "Contact added.",
+        "moved": "Contact moved.",
+        "unchanged": "Nothing changed."
+      }
     }
   }
 }

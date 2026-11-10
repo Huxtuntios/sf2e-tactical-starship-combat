@@ -1,4 +1,5 @@
 import { changeDrone } from "../engine/drone-state.mjs";
+import { takeStoredMine, allMineIds } from "../engine/mine-stock.mjs";
 import { Content } from "../content/loader.mjs";
 import { patchStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
@@ -8,6 +9,7 @@ import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { postActionCard } from "../chat/chat-cards.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { log } from "../utils/logging.mjs";
+import { syncMineContactSafe } from "../sensor/mine-contact.mjs";
 
 /** Команда проходит через общую очередь корабля; её состояние и история не зависят от устаревшего Draft. */
 export async function executeDroneMovement({ user, ship, crewUuid, stationId, options, action }) {
@@ -30,7 +32,15 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
       try {
         const updated =
           op === "mine"
-            ? deployMine(data, { stationId, droneId: options.droneId, mineId: options.mineId, shipUuid: ship.uuid, crewUuid, combat })
+            ? deployMine(data, {
+                stationId,
+                droneId: options.droneId,
+                mineId: options.mineId,
+                stockId: options.stockId || null,
+                shipUuid: ship.uuid,
+                crewUuid,
+                combat
+              })
             : changeDrone(
                 data,
                 op,
@@ -47,7 +57,7 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
         droneName = ct(Content.drones.find((d) => d.id === record?.ref)?.name ?? record?.ref ?? "");
         return updated;
       } catch (err) {
-        const allowed = ["station", "legacy", "invalid", "capacity", "cooldown", "mineZone", "mineRound", "mineMap", "mineOldMap"];
+        const allowed = ["station", "legacy", "invalid", "capacity", "cooldown", "mineZone", "mineRound", "mineMap", "mineOldMap", "stock"];
         throw new Error(T(`SF2eTSC.droneControl.errors.${allowed.includes(err.message) ? err.message : "invalid"}`), { cause: err });
       }
     },
@@ -55,6 +65,9 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
   );
   // Повторный запрос не создаёт карточку, историю или запись в журнале боя.
   if (!changed) return { ok: true, changed: false };
+  // Мина уже сохранена в данных корабля; её Hazard Actor и контакт на карте — идемпотентная проекция.
+  if (op === "mine")
+    await syncMineContactSafe({ shipUuid: ship.uuid, droneId: options.droneId, mineId: options.stockId || options.mineId });
   try {
     await postActionCard({
       actor: ship,
@@ -74,9 +87,11 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
 }
 
 /** Размещение не создаёт взрыв и не воздействует на другие корабли. */
-export function deployMine(data, { stationId, droneId, mineId, shipUuid, crewUuid, combat }) {
+export function deployMine(data, { stationId, droneId, mineId, stockId = null, shipUuid, crewUuid, combat }) {
   if (!combat?.id || !Number.isInteger(combat.round) || combat.round < 1) throw new Error("mineMap");
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(mineId ?? "")) throw new Error("invalid");
+  // Подготовленная мина развёртывается под собственным ID; обычная — под ID, созданным запросом.
+  const wantedId = stockId || mineId;
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(wantedId ?? "")) throw new Error("invalid");
   if (!Array.isArray(data.drones)) throw new Error("legacy");
   const matches = data.drones.filter((d) => d?.id === droneId);
   if (matches.length !== 1) throw new Error("legacy");
@@ -85,13 +100,16 @@ export function deployMine(data, { stationId, droneId, mineId, shipUuid, crewUui
     throw new Error("legacy");
   if (drone.mines != null && !Array.isArray(drone.mines)) throw new Error("legacy");
   const mines = drone.mines ?? [];
-  const oldMatches = data.drones.flatMap((d) => (Array.isArray(d?.mines) ? d.mines : [])).filter((m) => m?.id === mineId);
+  const oldMatches = data.drones.flatMap((d) => (Array.isArray(d?.mines) ? d.mines : [])).filter((m) => m?.id === wantedId);
   if (oldMatches.length > 1) throw new Error("legacy");
   const old = oldMatches[0];
   if (old) {
+    // Повтор того же запроса идемпотентен; чужая запись с таким ID — ошибка.
     if (old.droneId === droneId && old.shipUuid === shipUuid && old.operatorUuid === crewUuid) return false;
     throw new Error("invalid");
   }
+  // Обычная мина не может занять ID, который принадлежит хранимой мине корабля.
+  if (!stockId && allMineIds(data).includes(wantedId)) throw new Error("invalid");
   const obj = findObject(getTsc(combat), shipUuid);
   if (!obj || !Number.isInteger(obj.zone)) throw new Error("mineMap");
   if (mines.some((m) => m?.state === "armed" && m.combatId !== combat.id)) throw new Error("mineOldMap");
@@ -101,7 +119,15 @@ export function deployMine(data, { stationId, droneId, mineId, shipUuid, crewUui
   const key = `${stationId}:deploy-starship-mine`;
   const last = data.droneMineFrequency?.[key];
   if (last?.combatId === combat.id && last?.round === combat.round) throw new Error("mineRound");
-  drone.mines = [...mines, { id: mineId, droneId, shipUuid, operatorUuid: crewUuid, combatId: combat.id, zone: obj.zone, state: "armed" }];
+  // Подготовленная мина снимается со склада в том же изменении данных корабля; её подтверждённые модификации
+  // остаются с этой миной и не превращаются в Smart/Targeting.
+  const stored = takeStoredMine(drone, stockId);
+  const record = { id: wantedId, droneId, shipUuid, operatorUuid: crewUuid, combatId: combat.id, zone: obj.zone, state: "armed" };
+  if (stored) {
+    record.label = stored.label;
+    if (stored.installed) record.installed = structuredClone(stored.installed);
+  }
+  drone.mines = [...mines, record];
   data.droneMineFrequency = { ...(data.droneMineFrequency ?? {}), [key]: { combatId: combat.id, round: combat.round } };
   return true;
 }

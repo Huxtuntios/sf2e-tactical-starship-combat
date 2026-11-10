@@ -1,5 +1,14 @@
 # Known limitations
 
+## 0.17.1-dev.12 — current limitations
+
+- Privacy of private contacts and of compendium copies is still **unverified** in a real Foundry world with several clients. Do not use the new editor for real secrets until the manual plan passes.
+- Only prepared (modified) mines are stored. The number of plain mines in a Pyrotechnics Drone is not given by the recorded rules and is not limited or counted. Known modifications and installed modifications are GM-confirmed opaque notes; they have no effects, expiry or validation against the printed Mine Exocortex list.
+- A deployed mine's Hazard Actor and contact are a projection of the mine record; if creation fails, press "Sync contact". Deleting the Actor or the contact by hand leaves the mine armed until the next sync. If the sensor map is shrunk below a mine's zone the contact is clamped by the map, not the record.
+- After Drone Block retrieves a pyrotechnics drone its armed mines stay armed but the helper cannot move, modify or detonate them until the drone is redeployed (10 minutes of world time). Whether this matches the printed text is an open question.
+- Folder/Actor creation uses `Folder.create` and `Actor.create` of the running system; hazard data is minimal and relies on system defaults. Not tested against SF2e 1.6.0.
+- Old `tscInstallMinePlan` notes are shown as "old notes, not an inventory" and are never converted automatically.
+
 ## 0.17.1-dev.11 — current limitations
 
 Private JournalEntry server filtering, Actor and token permissions, network traffic, cache, other modules and GM failover are **not verified in a real Foundry world**. Do not use this experimental staging for real secrets. GM-owned world NPC ships and hazards and private custom contacts may be staged. `hidden` and `undetected` remain absent even when show-unknown is enabled; `observed` publishes a stable anonymous key and zone to all clients. Full reveal intentionally discloses identity and cannot be reversed. Private contacts cannot participate in targeting or hazard automation until full reveal. The hazard API now requires explicit publicActor=true and detection=identified to publish or place on Ship Map; this changes its old default. Existing public records and existing shared GM zone notes remain readable; new GM note writes are refused, without migration. GM must inspect world permissions, tokens, journals, combatants and chat. Projection and journal are two separate writes: failures may leave stale markers; retry the same operation or reconcile manually after inspection. GM-local queues are not distributed locks. An already delivered identity or marker cannot be retracted. Map resizing and other modules are not integrated with staged objects.

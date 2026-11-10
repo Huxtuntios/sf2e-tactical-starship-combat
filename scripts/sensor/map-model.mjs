@@ -30,6 +30,9 @@ export const ICONS = {
 };
 const defaultResolve = (u) => (u ? globalThis.fromUuidSync?.(u) : null);
 
+/** Операции, которые нельзя применять к контакту мины напрямую: положение и существование задаёт запись мины. */
+export const MINE_LOCKED_OPS = Object.freeze(["move", "shift", "remove", "type", "art"]);
+
 /** Sensor-map ops a player may request for a ship they control. */
 export const PLAYER_SENSOR_OPS = ["move", "shift"];
 
@@ -44,6 +47,8 @@ export function userControlsShip(user, actor, resolve = defaultResolve) {
 
 /** May `user` move the sensor-map object `key`? GM: always; players: only their own ship. */
 export function canMoveKey(user, tsc, key, resolve = defaultResolve) {
+  // Контакт мины следует за записью мины в дроне (перемещение Mobile Exocortex), а не двигается напрямую.
+  if (tsc?.objects?.find((x) => x.key === key)?.mineRef) return false;
   if (user?.isGM) return true;
   const o = tsc?.objects?.find((x) => x.key === key);
   if (!o || o.type !== "starship") return false;

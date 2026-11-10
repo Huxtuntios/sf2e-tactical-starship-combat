@@ -1,3 +1,4 @@
+import * as mineStockActions from "./mine-stock-actions.mjs";
 import { mineResolutionPlan } from "../../actions/mine-resolution.mjs";
 import { activeStarshipCombat } from "../../combat/tsc-state.mjs";
 import { mappedMineTargets, targetSnapshots } from "../../actions/mine-targets.mjs";
@@ -715,3 +716,20 @@ export async function openUpgrade(e, target) {
   const row = matches.find((item) => item.flags?.["sf2e-tactical-starship-combat"]?.upgrade?.lang === lang) ?? matches[0];
   if (row) (await pack.getDocument(row._id))?.sheet?.render(true);
 }
+
+/** Склад мин: логика в mine-stock-actions.mjs, здесь только привязка к листу. */
+export const installMineStock = function (e, t) {
+  return mineStockActions.installMineStock(this, e, t);
+};
+export const addKnownMineMod = function (e, t) {
+  return mineStockActions.addKnownMineMod(this, e, t);
+};
+export const removeKnownMineMod = function (e, t) {
+  return mineStockActions.removeKnownMineMod(this, e, t);
+};
+export const discardStoredMine = function (e, t) {
+  return mineStockActions.discardStoredMine(this, e, t);
+};
+export const syncMineContactNow = function (e, t) {
+  return mineStockActions.syncMineContactNow(this, e, t);
+};

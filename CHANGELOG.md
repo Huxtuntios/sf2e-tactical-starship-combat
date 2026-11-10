@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.1-dev.12 — experimental, unpublished
+
+- Sensor Map: one GM window to add objects — world hazard, compendium hazard (private world copy per placement, deleted if placement fails) or custom contact — with an initial detection state (undetected/hidden stay private; observed and identified need confirmation). Private contacts gain an absolute zone selector; public hazards with known identity open their existing Hazard sheet. The previous quick-add for environment objects stays as a separate button.
+- Install Mine: prepared mines are now stored inside the undeployed Pyrotechnics Drone (`drone.mineStock`) with GM-confirmed modifications chosen from the operator's known Mine Exocortex modifications (`station.tscKnownMineMods`). Up to four mines per action, replay-safe, mechanic class checked when it can be determined (GM override). Personal modifications stay opaque notes: they are not Smart/Targeting and have no automatic effect. Old dev.10/11 plan notes are left untouched.
+- Deploy Starship Mine: a stored mine can be deployed under its own id keeping its modifications; plain deployment is unchanged. Each deployed mine gets its own Hazard Actor (players OBSERVER, in a "Starship mines" folder) and a public Sensor Map contact linked by `mineRef`. Move, detonation and removal of the mine update or remove the contact and mark the Actor. The contact cannot be moved, retyped or removed directly, and generic hazard automation skips it. Projection failures never roll back the saved mine; `syncMineContact` is idempotent.
+- `api.addSensorContact`, `api.syncMineContact`, `api.privacyProbe` added. The probe only reports what the current client sees and never claims security.
+- Drone Block reviewed; no behavior changed. Two open rules questions are recorded in `docs/work-in-progress-0.17.1-dev.12.md`. No action/reaction accounting. Not verified in real Foundry; Chromium fixtures not run.
+
 ## 0.17.1-dev.11 — experimental, unpublished
 
 - Stage new world hazards and NPC ships from drag/drop and the content browser; private custom contacts can be created, renamed, moved and removed. Observed publishes only an anonymous marker; Hidden and Unnoticed remain withheld. Full reveal needs confirmation. No real multiplayer privacy verification.

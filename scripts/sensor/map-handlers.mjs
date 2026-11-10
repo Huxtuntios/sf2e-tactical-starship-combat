@@ -5,7 +5,7 @@ import { findObject } from "../engine/sensor-ops.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { registerHandler } from "../socket.mjs";
 import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
-import { sanitizeSensorPayload, applySensorOp } from "./map-model.mjs";
+import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 
@@ -21,6 +21,8 @@ export function registerSensorHandlers() {
         throw new Error(T("SF2eTSC.privateMap.legacyNotesWarning"));
       if (payload.key && findObject(getTsc(combat), payload.key)?.tscPrivateProjection)
         throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+      if (payload.key && MINE_LOCKED_OPS.includes(payload.op) && findObject(getTsc(combat), payload.key)?.mineRef)
+        throw new Error(T("SF2eTSC.mineContact.managed"));
       if (payload.op === "dropActor") {
         if (typeof payload.actorUuid !== "string" || !payload.actorUuid || payload.actorUuid.length > 1024)
           throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
@@ -35,7 +37,7 @@ export function registerSensorHandlers() {
             return change.state;
           });
         } catch (error) {
-          const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired"];
+          const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
           if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
           throw error;
         }

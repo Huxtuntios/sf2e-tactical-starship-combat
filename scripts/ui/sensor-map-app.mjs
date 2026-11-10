@@ -14,6 +14,8 @@ import { request } from "../socket.mjs";
 import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { wireSensorMapDragDrop } from "./sensor-drop-ui.mjs";
+import { SensorContactEditor } from "./sensor-contact-editor.mjs";
+import { setPrivateContactZone } from "../sensor/contact-service.mjs";
 import { gmEditRequests } from "../sensor/gm-edit.mjs";
 import { DETECTION_LEVELS } from "../constants.mjs";
 import { calculateZoneDistance } from "../engine/range.mjs";
@@ -63,7 +65,11 @@ export class SensorMapApplication extends TscApp {
       objectArt: SensorMapApplication.#objectArt,
       selectObject: SensorMapApplication.#select,
       pickZone: SensorMapApplication.#pickZone,
-      addObject: SensorMapApplication.#addObject,
+      addObject: SensorMapApplication.#addContact,
+      addPublicObject: SensorMapApplication.#addObject,
+      mineOpenShip: guardPrivate(SensorMapApplication.#mineOpenShip),
+      mineDetonate: guardPrivate(SensorMapApplication.#mineDetonate),
+      mineSync: guardPrivate(SensorMapApplication.#mineSync),
       removeObj: SensorMapApplication.#remove,
       flipHeading: SensorMapApplication.#flip,
       moveLeft: SensorMapApplication.#moveLeft,
@@ -231,6 +237,7 @@ export class SensorMapApplication extends TscApp {
         label: obj.name,
         privateContact: true,
         zone: obj.zone,
+        zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
         canRename: obj.type === "custom",
         detectionLabel: T(`SF2eTSC.detection.${obj.detection.party}`),
@@ -241,6 +248,9 @@ export class SensorMapApplication extends TscApp {
         }))
       };
     const actor = sel.type === "starship" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
+    // Игровая информация об опасности — на существующем листе Hazard Actor; видимость определяют его права.
+    const hazardActor = sel.type === "hazard" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
+    const mine = obj.mineRef && isGM ? obj.mineRef : null;
     const d = actor && isStarship(actor) ? readStarship(actor) : null;
     const stats = d ? computeShipStats(actor) : null;
     const rows = [{ k: T("SF2eTSC.ui.zone"), v: sel.zone }];
@@ -280,9 +290,11 @@ export class SensorMapApplication extends TscApp {
       type: sel.type,
       known: sel.known,
       rows,
-      isHazard: sel.type === "hazard",
+      isHazard: sel.type === "hazard" && !obj.mineRef,
+      mine,
+      isMine: !!obj.mineRef,
       hazardDisabled: !!hs?.disabled,
-      canOpen: !!actor && (isGM || actor.testUserPermission?.(game.user, "OBSERVER")),
+      canOpen: !!(actor ?? hazardActor) && (isGM || (actor ?? hazardActor).testUserPermission?.(game.user, "OBSERVER")),
       level: sel.level,
       detection: isGM
         ? DETECTION_LEVELS.map((l) => ({ id: l, label: T(`SF2eTSC.detection.${l}`), active: (obj.detection?.party ?? "undetected") === l }))
@@ -308,6 +320,22 @@ export class SensorMapApplication extends TscApp {
             combatId: activeStarshipCombat()?.id
           });
           for (const r of reqs) await request(r.name, r.payload);
+        } catch (err) {
+          notifyError("SF2eTSC.errors.generic", { message: err.message });
+        }
+      });
+    });
+  }
+
+  /** Абсолютный выбор зоны для приватного контакта; каждый select подключается один раз. */
+  #wirePrivateZone() {
+    this.element.querySelectorAll("[data-private-zone]").forEach((el) => {
+      if (el.dataset.tscZone) return;
+      el.dataset.tscZone = "1";
+      el.addEventListener("change", async () => {
+        try {
+          await setPrivateContactZone(activeStarshipCombat(), el.dataset.privateZone, Number(el.value));
+          this.render();
         } catch (err) {
           notifyError("SF2eTSC.errors.generic", { message: err.message });
         }
@@ -370,6 +398,7 @@ export class SensorMapApplication extends TscApp {
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
     this.#wireGmEdit();
+    this.#wirePrivateZone();
     this.element.querySelectorAll("details.tsc-gm-tools").forEach((d) => {
       if (d.dataset.tscToggle) return;
       d.dataset.tscToggle = "1";
@@ -448,6 +477,32 @@ export class SensorMapApplication extends TscApp {
         combatId: c.id,
         zones: Math.min(Math.max(Math.round(v), ZONE_LIMITS.min), ZONE_LIMITS.max)
       });
+  }
+  static #addContact() {
+    const c = activeStarshipCombat();
+    if (game.user.isGM && c) return new SensorContactEditor(c).render(true);
+  }
+  static async #mineShip(ref) {
+    const ship = await fromUuidSafe(ref.shipUuid);
+    if (!ship) throw new Error(T("SF2eTSC.mineContact.invalid"));
+    return ship;
+  }
+  static async #mineOpenShip(e, t) {
+    (await SensorMapApplication.#mineShip(t.dataset)).sheet?.render(true);
+  }
+  static async #mineSync(e, t) {
+    const out = await request("syncMineContact", { shipUuid: t.dataset.shipUuid, droneId: t.dataset.droneId, mineId: t.dataset.mineId });
+    ui.notifications?.info?.(T(`SF2eTSC.mineContact.sync.${out?.action ?? "unchanged"}`));
+  }
+  /** Тот же помощник детонации, что и на листе корабля: ничего не бросается и не применяется без подтверждений GM. */
+  static async #mineDetonate(e, t) {
+    const ship = await SensorMapApplication.#mineShip(t.dataset);
+    const drone = readStarship(ship).drones.find((d) => d.id === t.dataset.droneId);
+    if (!drone) throw new Error(T("SF2eTSC.mineContact.invalid"));
+    const { prepareMineDetonation } = await import("./sheet/sheet-actions.mjs");
+    return prepareMineDetonation.call({ document: ship }, e, {
+      dataset: { stationId: drone.stationId, droneId: drone.id, mineId: t.dataset.mineId }
+    });
   }
   static async #addObject() {
     const c = activeStarshipCombat();

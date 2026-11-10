@@ -25,6 +25,7 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false } = {})
   if (matches.length > 1) throw new Error("duplicateActors");
   if (matches.length) {
     const old = matches[0];
+    if (old.mineRef) throw new Error("managedMine");
     return { state: old.zone === zone ? state : moveObject(state, old.key, zone), result: old.zone === zone ? "unchanged" : "moved" };
   }
   if (!publicActor) throw new Error("disclosureRequired");

@@ -1,4 +1,6 @@
 import { saveInstallMinePlan } from "../actions/install-mine-plan.mjs";
+import { installMines, changeKnownMod, discardStoredMine, operatorClassStatus } from "../engine/mine-stock.mjs";
+import { syncMineContact, syncMineContactSafe } from "../sensor/mine-contact.mjs";
 import { updateProtocolDrone } from "../actions/protocol-manual.mjs";
 import { updatePetCabin } from "../actions/pet-onboard.mjs";
 import { markManualIntercept } from "../actions/intercept-manual.mjs";
@@ -264,6 +266,104 @@ export function registerShipHandlers() {
     return changed;
   });
 
+  const MINE_STOCK_ERRORS = ["invalid", "class", "mod", "stock", "modified", "receipts", "legacy"];
+  const mineStockError = (err) =>
+    new Error(T(`SF2eTSC.mineStock.errors.${MINE_STOCK_ERRORS.includes(err?.message) ? err.message : "invalid"}`), { cause: err });
+
+  // Install Mine (Tech Core с. 184): подготовленные мины хранятся в неразвёрнутом дроне вместе с подтверждёнными модификациями.
+  registerHandler("installMineStock", async ({ user, payload }) => {
+    if (!user?.isGM || payload.confirmed !== true) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    const operator = await fromUuidSafe(payload.operatorUuid);
+    if (!operator || operator.documentName !== "Actor" || operator.uuid !== payload.operatorUuid)
+      throw new Error(T("SF2eTSC.mineStock.errors.invalid"));
+    const writeOptions = { reason: T("SF2eTSC.mineStock.installTitle"), undoable: false, announce: false };
+    let changed;
+    try {
+      changed = await patchStarship(
+        actor,
+        (data) => {
+          writeOptions.expected = snapshot(data);
+          return installMines(data, {
+            stationId: payload.stationId,
+            droneId: payload.droneId,
+            operatorUuid: payload.operatorUuid,
+            entries: payload.entries,
+            operationId: payload.operationId,
+            confirmed: payload.confirmed === true,
+            operatorClass: operatorClassStatus(operator),
+            gmOverride: payload.gmOverride === true,
+            now: game.time?.worldTime
+          });
+        },
+        writeOptions
+      );
+    } catch (err) {
+      throw mineStockError(err);
+    }
+    if (changed) {
+      try {
+        const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        if (!recipients.length) throw new Error("missing GM");
+        const esc = foundry.utils.escapeHTML;
+        const rows = payload.entries.map((e) => `<li>${esc(String(e.label ?? e.stockId ?? ""))}</li>`).join("");
+        await ChatMessage.create({
+          whisper: recipients,
+          speaker: ChatMessage.getSpeaker({ actor }),
+          content: `<p><strong>${esc(T("SF2eTSC.mineStock.installTitle"))}</strong> — ${esc(actor.name)} / ${esc(operator.name)}</p><ul>${rows}</ul><p>${esc(T("SF2eTSC.mineStock.card"))}</p>`
+        });
+      } catch (err) {
+        log.error("Install Mine saved but card failed", err);
+        ui.notifications?.warn?.(T("SF2eTSC.mineStock.cardFailed"));
+      }
+    }
+    return changed;
+  });
+
+  // Известные модификации минного экзокортекса оператора: только подтверждённые ведущим непрозрачные записи.
+  registerHandler("mineKnownMod", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    try {
+      return await patchStarship(
+        actor,
+        (data) =>
+          changeKnownMod(data, {
+            stationId: payload.stationId,
+            operatorUuid: payload.operatorUuid,
+            op: payload.op,
+            modId: payload.modId,
+            label: payload.label,
+            confirmed: payload.confirmed === true
+          }),
+        { reason: T("SF2eTSC.mineStock.knownTitle"), undoable: false, announce: false }
+      );
+    } catch (err) {
+      throw mineStockError(err);
+    }
+  });
+
+  registerHandler("discardStoredMine", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    try {
+      return await patchStarship(
+        actor,
+        (data) => discardStoredMine(data, { stationId: payload.stationId, droneId: payload.droneId, stockId: payload.stockId }),
+        { reason: T("SF2eTSC.mineStock.discard"), undoable: false, announce: false }
+      );
+    } catch (err) {
+      throw mineStockError(err);
+    }
+  });
+
+  // Явная повторная синхронизация проекции мины (Actor и контакт на карте) после сбоя.
+  registerHandler("syncMineContact", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    return syncMineContact({ shipUuid: actor.uuid, droneId: String(payload.droneId ?? ""), mineId: String(payload.mineId ?? "") });
+  });
+
   // Ведущий подтверждает Modify; проверка и запись выполняются в очереди активного GM.
   registerHandler("modifyDroneMine", async ({ user, payload }) => {
     if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
@@ -333,7 +433,7 @@ export function registerShipHandlers() {
     if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
     if (payload.confirmPrerequisite !== true) throw new Error(T("SF2eTSC.errors.invalidData"));
     const actor = await ship(payload.shipUuid);
-    return patchStarship(
+    const moved = await patchStarship(
       actor,
       (data) => {
         const combat = activeStarshipCombat();
@@ -362,6 +462,9 @@ export function registerShipHandlers() {
       },
       { reason: T("SF2eTSC.mineAssist.move"), undoable: false, announce: false }
     );
+    // Контакт на карте следует за записью мины; сбой проекции не откатывает уже сохранённый перенос.
+    if (moved) await syncMineContactSafe({ shipUuid: actor.uuid, droneId: payload.droneId, mineId: payload.mineId });
+    return moved;
   });
 
   registerHandler("protocolDroneManual", async ({ user, payload }) => {
@@ -477,6 +580,8 @@ export function registerShipHandlers() {
       },
       { reason: T("SF2eTSC.droneBlock.mineHistory"), undoable: false, announce: false }
     );
+    // Взорванная или убранная мина снимается с карты, а её Actor получает отметку состояния.
+    if (changed) await syncMineContactSafe({ shipUuid: actor.uuid, droneId: payload.droneId, mineId: payload.mineId });
     return { changed };
   });
 

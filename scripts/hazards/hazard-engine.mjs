@@ -97,6 +97,8 @@ export const HazardEngine = {
     if (!draft.tsc) throw new Error(T("SF2eTSC.errors.noCombat"));
     const hs = draft.tsc.hazardState[hazardUuid] ?? {};
     if (hs.disabled) return { skipped: true };
+    // Мина дрона — отдельный объект с собственным циклом (Modify, перемещение, детонация); общая автоматизация её не трогает.
+    if (findObject(draft.tsc, hazardUuid)?.mineRef) return { skipped: true, reason: "mine" };
     const flags = hazardFlags(hazard) ?? {};
     const effectText = flags.effectText ?? flags.actions?.[0]?.text ?? hazard.system?.details?.routine ?? "";
     const o = findObject(draft.tsc, hazardUuid);
@@ -177,7 +179,7 @@ export const HazardEngine = {
     const me = findObject(draft.tsc, shipUuid);
     if (!me) return;
     for (const o of objectsInZone(draft.tsc, me.zone)) {
-      if (o.type !== "hazard") continue;
+      if (o.type !== "hazard" || o.mineRef) continue;
       const hs = draft.tsc.hazardState[o.key] ?? {};
       if (hs.disabled) continue;
       const hazard = fromUuidSync(o.key);

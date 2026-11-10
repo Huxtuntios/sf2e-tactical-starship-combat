@@ -8,6 +8,7 @@
       {{#if detail.actorUuid}}<button type="button" data-action="privateOpen" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
       {{#if detail.canRename}}<button type="button" data-action="privateRename" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.rename"}}</button>{{/if}}
       <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">{{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="privateDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}</div>
+      <label>{{localize "SF2eTSC.ui.zone"}} <select data-private-zone="{{detail.key}}">{{#each detail.zoneChoices}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
       <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="-1">◀</button>
       <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="1">▶</button>
       <button type="button" data-action="privateReveal" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.reveal"}}</button>
@@ -27,10 +28,18 @@
           <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>
         {{/if}}
       </div>
+      {{#if detail.mine}}
+      <div class="tsc-detail-actions">
+        <button type="button" data-action="mineOpenShip" data-ship-uuid="{{detail.mine.shipUuid}}">{{localize "SF2eTSC.mineContact.openShip"}}</button>
+        <button type="button" data-action="mineDetonate" data-ship-uuid="{{detail.mine.shipUuid}}" data-drone-id="{{detail.mine.droneId}}" data-mine-id="{{detail.mine.mineId}}">{{localize "SF2eTSC.mineAssist.title"}}</button>
+        <button type="button" data-action="mineSync" data-ship-uuid="{{detail.mine.shipUuid}}" data-drone-id="{{detail.mine.droneId}}" data-mine-id="{{detail.mine.mineId}}">{{localize "SF2eTSC.mineContact.syncButton"}}</button>
+      </div>
+      <p class="tsc-hint">{{localize "SF2eTSC.mineContact.managedHint"}}</p>
+      {{/if}}
       {{#if @root.isGM}}
       <details class="tsc-gm-tools" {{#if gmToolsOpen}}open{{/if}}>
         <summary><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> {{localize "SF2eTSC.ui.gmTools"}}</summary>
-        {{#if detail.typeOptions}}<label>{{localize "SF2eTSC.ui.type"}} <select data-object-type="{{detail.key}}">{{#each detail.typeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/if}}
+        {{#if detail.typeOptions}}{{#unless detail.isMine}}<label>{{localize "SF2eTSC.ui.type"}} <select data-object-type="{{detail.key}}">{{#each detail.typeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/unless}}{{/if}}
         {{#if detail.gm}}
         <div class="tsc-gm-edit">
           <label>{{localize "SF2eTSC.ui.heading"}} <select data-gm-ship="heading" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}" data-current="{{detail.gm.heading}}">{{#unless detail.gm.heading}}<option value="" selected>{{localize "SF2eTSC.mapVisual.positions.unknown"}}</option>{{/unless}}{{#each detail.gm.headings}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
@@ -45,7 +54,7 @@
             <button type="button" data-action="triggerHazard" data-key="{{detail.key}}"><i class="fa-solid fa-bolt"></i> {{localize "SF2eTSC.hazards.trigger"}}</button>
             <button type="button" data-action="toggleHazard" data-key="{{detail.key}}">{{#if detail.hazardDisabled}}{{localize "SF2eTSC.hazards.enable"}}{{else}}{{localize "SF2eTSC.hazards.disable"}}{{/if}}</button>
           {{/if}}
-          <button type="button" class="danger" data-action="removeObj" data-key="{{detail.key}}" title="{{localize 'SF2eTSC.ui.removeObject'}}" aria-label="{{localize 'SF2eTSC.ui.removeObject'}}"><i class="fa-solid fa-trash"></i></button>
+          {{#unless detail.isMine}}<button type="button" class="danger" data-action="removeObj" data-key="{{detail.key}}" title="{{localize 'SF2eTSC.ui.removeObject'}}" aria-label="{{localize 'SF2eTSC.ui.removeObject'}}"><i class="fa-solid fa-trash"></i></button>{{/unless}}
         </div>
         <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">
           {{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="setDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}

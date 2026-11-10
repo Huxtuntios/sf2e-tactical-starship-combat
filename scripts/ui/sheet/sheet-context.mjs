@@ -1,4 +1,5 @@
 import { petOnboardStatus } from "../../actions/pet-onboard.mjs";
+import { stockSummary, knownMods } from "../../engine/mine-stock.mjs";
 import { stationDCRows, linkContextDCs } from "../../rolls/context-dc.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { effectCaption } from "../effect-editor.mjs";
@@ -67,6 +68,7 @@ export async function buildSheetContext(sheet) {
       occupied: !!st.helmedBy,
       upgradeSection: stationUpgradeView(sheet, data, st, upgradeOpts),
       droneInventory: droneInventory(data, st, def),
+      knownMineMods: st.type === "drone-console" && st.helmedBy ? safeKnownMods(st) : [],
       droneProtocol:
         st.type === "drone-console" && data.upgrades.filter((u) => u.ref === "drone-shield-protocol" && u.stationId === st.id).length === 1,
       mineShell:
@@ -81,10 +83,12 @@ export async function buildSheetContext(sheet) {
               .filter((d) => d?.stationId === st.id && d?.tscVersion === 1)
               .map((d) => ({
                 ...d,
+                stock: stockSummary(d),
                 mines: (Array.isArray(d.mines) ? d.mines : [])
                   .filter((m) => m && !["removed", "detonated"].includes(m.state))
                   .map((m) => ({
                     ...m,
+                    installedLabels: (m.installed?.mods ?? []).map((x) => x.label),
                     armed: m.state === "armed" && m.droneId === d.id && m.shipUuid === actor.uuid && typeof m.id === "string" && !!m.id
                   })),
                 name: ct(Content.drones.find((type) => type.id === d.ref)?.name ?? d.ref),
@@ -224,4 +228,13 @@ function checkContext(actor) {
   const rollable = canRoll(actor);
   const rows = rollable ? safeRows(actor, shipCheckRows) : [];
   return { shipChecks: skillCheckRows(rows), statCells: statCells(rows, { canRoll: rollable }), pilotingSaves: pilotingSaveButtons(actor) };
+}
+
+/** Повреждённые данные консоли не должны ломать отрисовку листа. */
+function safeKnownMods(station) {
+  try {
+    return knownMods(station, station.helmedBy);
+  } catch {
+    return [];
+  }
 }

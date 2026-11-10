@@ -1,5 +1,9 @@
 # SF2e Tactical Starship Combat
 
+## Experimental 0.17.1-dev.12
+
+**Partial, unpublished; use only in a backed-up test world.** The Sensor Map now has one GM window for adding objects: a world hazard, a compendium hazard (a private world copy per placement) or a custom contact, each with an initial detection state. Install Mine now stores prepared mines (with GM-confirmed modifications) inside the undeployed Pyrotechnics Drone; Deploy Starship Mine can place a stored or plain mine, creating its own Hazard Actor and Sensor Map contact that follow the mine record through move, detonation and removal. **Contact privacy was NOT verified in a real multi-client Foundry**; use `api.privacyProbe()` and `MANUAL-TEST-0.17.1-dev.12-ru.md`. Browser (Chromium) fixtures were not run for this build. See `docs/work-in-progress-0.17.1-dev.12.md`. Install the supplied ZIP manually; automatic-update links are omitted.
+
 ## Experimental 0.17.1-dev.11
 
 **Partial, unpublished; use only in a backed-up test world.** World NPC ships and hazards can be staged as private contacts; custom contacts can be created privately. Observed publishes an anonymous position, Hidden and Unnoticed remain withheld, and full identification requires confirmation. This does **not** prove real Foundry privacy; do not rely on it for secrets. Install Mine remains GM notes, not inventory or automatically applied modifications; stale plan replacement is rejected. See `docs/work-in-progress-0.17.1-dev.11.md` and `MANUAL-TEST-0.17.1-dev.11-ru.md`. Install the supplied ZIP manually; automatic-update links are omitted.

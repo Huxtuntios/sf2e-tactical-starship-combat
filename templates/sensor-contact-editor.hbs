@@ -1,0 +1,34 @@
+<section class="tsc-contact-editor">
+  <p class="tsc-hint">{{localize "SF2eTSC.contactEditor.intro"}}</p>
+  <fieldset>
+    <legend>{{localize "SF2eTSC.contactEditor.source"}}</legend>
+    {{#each sources}}
+      <label><input type="radio" name="source" value="{{id}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+    {{/each}}
+  </fieldset>
+  {{#if isCustom}}
+    <label>{{localize "SF2eTSC.ui.name"}} <input type="text" name="name" maxlength="120" value="{{name}}"></label>
+  {{else}}
+    <label>{{localize "SF2eTSC.contactEditor.filter"}} <input type="search" name="filter" value="{{filter}}" autocomplete="off"></label>
+    {{#if loading}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.loading"}}</p>{{/if}}
+    <label>{{localize "SF2eTSC.contactEditor.hazard"}}
+      <select name="uuid" size="8" aria-label="{{localize 'SF2eTSC.contactEditor.hazard'}}">
+        {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if pack}} — {{pack}}{{/if}}{{#if visible}} ⚠{{/if}}</option>{{/each}}
+      </select>
+    </label>
+    {{#unless choices.length}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.noChoices"}}</p>{{/unless}}
+    {{#if isCompendium}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.copyNote"}}</p>{{/if}}
+  {{/if}}
+  <label>{{localize "SF2eTSC.ui.zone"}}
+    <select name="zone">{{#each zones}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select>
+  </label>
+  <label>{{localize "SF2eTSC.ui.detection"}}
+    <select name="detection">{{#each detections}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+  </label>
+  <p class="tsc-hint">{{localize "SF2eTSC.contactEditor.detectionHint"}}</p>
+  <label class="tsc-check"><input type="checkbox" name="confirmed" {{#if confirmed}}checked{{/if}} {{#unless needsConfirm}}disabled{{/unless}}> {{localize "SF2eTSC.contactEditor.confirm"}}</label>
+  <footer class="tsc-detail-actions">
+    <button type="button" data-action="addContact"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "SF2eTSC.contactEditor.add"}}</button>
+    <button type="button" data-action="close">{{localize "SF2eTSC.ui.cancel"}}</button>
+  </footer>
+</section>

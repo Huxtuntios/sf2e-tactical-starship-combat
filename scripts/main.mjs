@@ -47,6 +47,7 @@ const TEMPLATES = [
   "sensor-map-detail",
   "map-appearance",
   "sensor-map-dock",
+  "sensor-contact-editor",
   "starship-sheet",
   "starship-sheet-header",
   "starship-sheet-tabs",

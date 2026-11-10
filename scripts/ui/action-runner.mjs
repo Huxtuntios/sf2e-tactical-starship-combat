@@ -157,6 +157,29 @@ async function promptOptions(action, { ship, crew, station, target }) {
       )
       .join("");
     fields.push(`<div class="form-group"><label>${T("SF2eTSC.droneControl.type")}</label><select name="droneId">${entries}</select></div>`);
+    if (action.id === "deploy-starship-mine") {
+      // Подготовленные при Install Mine мины хранятся в дроне; обычное развёртывание остаётся доступным.
+      const esc = foundry.utils.escapeHTML;
+      const stored = drones.flatMap((d) =>
+        (Array.isArray(d.mineStock) ? d.mineStock : []).map((m) => ({
+          drone: d.id,
+          id: m.id,
+          label: m.label,
+          mods: (m.installed?.mods ?? []).map((x) => x.label)
+        }))
+      );
+      if (stored.length) {
+        const opts = stored
+          .map(
+            (m) =>
+              `<option value="${esc(m.id)}">${esc(m.label)}${m.mods.length ? ` — ${esc(m.mods.join(", "))}` : ""} (${esc(m.drone)})</option>`
+          )
+          .join("");
+        fields.push(
+          `<div class="form-group"><label>${T("SF2eTSC.mineStock.choose")}</label><select name="stockId"><option value="">${T("SF2eTSC.mineStock.plain")}</option>${opts}</select></div><p class="hint">${T("SF2eTSC.mineStock.chooseHint")}</p>`
+        );
+      }
+    }
   }
   if (Array.isArray(action.cost))
     fields.push(

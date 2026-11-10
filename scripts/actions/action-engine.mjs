@@ -478,6 +478,7 @@ export const CLIENT_OPTION_KEYS = Object.freeze([
   "weaponId",
   "droneId",
   "mineId",
+  "stockId",
   "repairId",
   "gmOverride",
   "sheetRoll",

@@ -1,5 +1,9 @@
 # Testing
 
+## 0.17.1-dev.12 verification
+
+`npm run check` (Prettier, ESLint, content validation, pack build, unit/architecture tests with a mocked Foundry) was run; see `work-in-progress-0.17.1-dev.12.md` for the counts. Chromium fixtures were **not** run (no browser in the build environment). The unit tests drive the real socket handlers and `executeAction` against a mock, which proves module logic only. Private-contact privacy, Actor/Folder creation in a real SF2e world, dialogs and multi-client behaviour are **unverified**; follow `MANUAL-TEST-0.17.1-dev.12-ru.md`.
+
 ## 0.17.1-dev.11 verification
 
 See `work-in-progress-0.17.1-dev.11.md` and `MANUAL-TEST-0.17.1-dev.11-ru.md`. Unit/mock and Chromium tests cannot verify Foundry server access, real SF2e, Toolbelt, multiplayer, failover or network behaviour. No live test has been run.

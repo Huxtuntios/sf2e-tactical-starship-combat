@@ -1,5 +1,11 @@
 # Rules decisions and disputed points
 
+## 0.17.1-dev.12 — Install Mine storage and Deploy Starship Mine
+
+Install Mine (Tech Core p. 184) modifies up to four of the starship mines inside a drone that has not deployed yet, as if they were mines of the operator's Mine Exocortex. The module records this as stored prepared mines in the drone with one GM-confirmed modification each; a stored mine cannot be modified again because the text does not describe re-modification. The mechanic requirement is checked from the character's class item when present; otherwise the GM confirms. Mine Exocortex modifications are not mapped to Smart/Targeting Mine (p. 193), which stay a separate helper on deployed mines. The recorded rules do not state how many mines a Pyrotechnics Drone holds, so plain mines are neither counted nor limited — **open question for the rules owner**.
+
+Deploy Starship Mine (p. 192–193) keeps its existing checks (deployed drone, operator at the console, once per round, one armed mine of the drone per zone, ship on the map). The starship mine is **not** the Orbital Mine hazard, so a per-mine Hazard Actor is created instead of reusing the compendium hazard's numbers; its description only states the recorded detonation text and the GM resolves it with the existing helper. The mine belongs to the party, so its Actor is visible to players and its contact is identified; nothing here hides information from the party.
+
 ## 0.17.1-dev.11 — Install Mine
 
 Tech Core p. 184 modifies up to four mines _inside_ an undeployed drone; Deploy Starship Mine on p. 193 is a distinct action. A map mine is not created by Install Mine, and personal mechanic mods are not mapped to deployed starship Smart/Targeting mods. The helper is a manual plan only; its saved labels and mod text are not effects or proof of inventory, prerequisites or validity. GM must verify effects and their duration.
