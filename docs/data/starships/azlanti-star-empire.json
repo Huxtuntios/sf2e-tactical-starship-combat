@@ -1,0 +1,841 @@
+{
+ "faction": "Azlanti Star Empire",
+ "ships": [
+  {
+   "id": "sovereign-harrier",
+   "name": "Sovereign Harrier",
+   "level": 1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 7,
+   "sensorRange": 4,
+   "speed": 5,
+   "skills": {
+    "computers": 5,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 4,
+    "con": 3,
+    "int": 2,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 17,
+   "fort": 6,
+   "ref": 9,
+   "will": 7,
+   "hp": 17,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "coilgun",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Space Sovereignty",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Speed Sigil",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Space Sovereignty",
+       "unique": true,
+       "shared": true
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "coilgun",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "agile",
+      "analog",
+      "range increment 3 zones"
+     ],
+     "damage": "1d6 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Space Sovereignty",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Sovereign Harrier Boosts Thrusters twice, and if it moves at least 5 zones, it makes a Strike at a target in the direction of its current heading. On a critical hit, the target takes a –1-zone status penalty to Speed and a –1 status penalty to AC and Reflex saves for 1 minute."
+    },
+    {
+     "name": "Speed Sigil",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "See page 210.",
+     "familyText": "Frequency once per day; Effect The starship empowers its engines by activating a seven-pointed sigil. The starship gains a +2-zone status bonus to its Speed and a +1 status bonus to its AC and Reflex saves for 1 minute."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 210
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "vanguard-comet",
+   "name": "Vanguard Comet",
+   "level": 3,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 9,
+   "sensorRange": 4,
+   "speed": 3,
+   "skills": {
+    "computers": 8,
+    "piloting": 11
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 4,
+    "con": 2,
+    "int": 3,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 18,
+   "fort": 9,
+   "ref": 11,
+   "will": 7,
+   "hp": 32,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Deploy Turret",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fire Turret",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Mobile Aeon Turret",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "magnetar rail",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "magnetar rail",
+     "kind": "ranged",
+     "attack": 10,
+     "traits": [
+      "analog",
+      "automatic",
+      "ordnance",
+      "range increment 6 zones"
+     ],
+     "damage": "1d12+3 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "magnetar rail",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(3-zone cone, analog, ordnance), Damage 1d12+3 piercing (DC 16 basic Reflex save)",
+     "mode": "auto-fire",
+     "weapon": "magnetar rail"
+    },
+    {
+     "name": "Deploy Turret",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Vanguard Comet deploys a turret in its zone. The turret is a tiny starship object with AC 20, 10 HP, Hardness 5, and object immunities. The Vanguard Comet can only have four deployed turrets at a given time. If it would deploy a fifth, one of its previously deployed turrets is destroyed."
+    },
+    {
+     "name": "Fire Turret",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect Each turret of the Vanguard Comet’s choice within sensor range targets a starship in the turret’s zone. Multiple turrets can’t target the same starship. The targets take 3d6 electricity damage with a DC 31 basic Reflex save."
+    },
+    {
+     "name": "Mobile Aeon Turret",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Vanguard Comet Boosts Thrusters and can move each of its turrets within sensor range 1 zone."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 211
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "vanguard-monitor",
+   "name": "Vanguard Monitor",
+   "level": 5,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 13,
+   "sensorRange": 10,
+   "speed": 2,
+   "skills": {
+    "arcana": 14,
+    "computers": 12,
+    "piloting": 10,
+    "stealth": 12
+   },
+   "abilities": {
+    "str": 1,
+    "dex": 3,
+    "con": 1,
+    "int": 5,
+    "wis": 4,
+    "cha": 0
+   },
+   "ac": 21,
+   "fort": 10,
+   "ref": 10,
+   "will": 13,
+   "hp": 55,
+   "sp": 14,
+   "fortify": 7,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Sihedron disruptor rifle",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Protection Sigil",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Lissala’s Eye",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Vanish From Sensors",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "Sihedron disruptor rifle",
+     "kind": "ranged",
+     "attack": 11,
+     "traits": [
+      "range increment 10 zones",
+      "tech",
+      "versatile A",
+      "C",
+      "E",
+      "or F",
+      "volley 2 zones"
+     ],
+     "damage": "2d10+5 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Protection Sigil",
+     "cost": "reaction",
+     "traits": [
+      "divine"
+     ],
+     "text": "Resistance 3 (page 210)",
+     "familyText": "Frequency once per day; Trigger The starship takes damage; Effect A seven- pointed sigil blazes as divine energy surrounds the hull. The starship gains resistance against the triggering damage type equal to half its level + 1 (minimum 1) for 1 minute."
+    },
+    {
+     "name": "Concealing Maneuver",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Requirements There’s a Medium or larger starship or hazard in the Vanguard Monitor’s zone; Effect The Vanguard Monitor gains a +2 circumstance bonus to its AC against starships in a direction of its choice on the sensor map as it takes cover, and it attempts to Hide from starships it has a circumstance bonus to AC against."
+    },
+    {
+     "name": "Lissala’s Eye",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "DC 19 (page 210)"
+    },
+    {
+     "name": "Vanish From Sensors",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Vanguard Monitor becomes invisible to other starships until the end of its next turn or it takes a hostile action, whichever happens first."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 211
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "sovereign-dominator",
+   "name": "Sovereign Dominator",
+   "level": 8,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 17,
+   "sensorRange": 8,
+   "speed": 2,
+   "skills": {
+    "computers": 15,
+    "piloting": 14
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 2,
+    "con": 4,
+    "int": 3,
+    "wis": 2,
+    "cha": 4
+   },
+   "ac": 24,
+   "fort": 17,
+   "ref": 13,
+   "will": 17,
+   "hp": 122,
+   "sp": 32,
+   "fortify": 16,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "aeon polarizing beam",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Lissala’s Eye",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Dominate Station",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "aeon polarizing beam",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "boost 2d8",
+      "ordnance",
+      "range increment 2 zones",
+      "tech",
+      "versatile A",
+      "C",
+      "E",
+      "or F"
+     ],
+     "damage": "2d8+8 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Dominate Station",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The Sovereign Dominator’s sophisticated scanners scramble and break the battle stations of a starship within sensor range. The target starship attempts a DC 23 Will save. On a failure, all the target starship’s battle stations are malfunctioning."
+    },
+    {
+     "name": "Issue Threat",
+     "cost": "one-action",
+     "traits": [
+      "auditory",
+      "verbal"
+     ],
+     "text": "Frequency once per turn; Effect The Sovereign Dominator opens a one-way channel with a starship within sensor range, then attempts to Demoralize each enemy creature on board the starship."
+    },
+    {
+     "name": "Lissala’s Eye",
+     "cost": "one-action",
+     "traits": [
+      "divine"
+     ],
+     "text": "DC 23 (page 210)"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 212
+   },
+   "needsReview": true,
+   "review": [
+    "sp: PDF 32 vs AoN 132 (PDF used)"
+   ]
+  },
+  {
+   "id": "sihedron-apostle",
+   "name": "Sihedron Apostle",
+   "level": 13,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 25,
+   "sensorRange": 6,
+   "speed": 5,
+   "skills": {
+    "computers": 23,
+    "piloting": 23,
+    "stealth": 25
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 8,
+    "con": 8,
+    "int": 6,
+    "wis": 6,
+    "cha": 4
+   },
+   "ac": 33,
+   "fort": 23,
+   "ref": 27,
+   "will": 25,
+   "hp": 242,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "polarizing beam",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Kurshudi’s Aim",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Sihedron cloak",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "silence sigil",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Magic Station"
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Stick To Cover",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "polarizing beam",
+     "kind": "ranged",
+     "attack": 27,
+     "traits": [
+      "boost 3d8",
+      "ordnance",
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "3d8+13 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Sihedron Cloak",
+     "cost": "passive",
+     "traits": [
+      "divine",
+      "illusion"
+     ],
+     "text": "The Sihedron Apostle is invisible to all non-Azlanti starships’ sensors. A creature helming a starship’s magic conduit can attempt to counteract the Sihedron cloak’s invisibility (7th rank; DC 34)."
+    },
+    {
+     "name": "Silence Sigil",
+     "cost": "passive",
+     "traits": [
+      "aura",
+      "divine"
+     ],
+     "text": "Starships within sensor range of the Sihedron Apostle must attempt a DC 32 Will save. On a failure, all magical and technological communications on board the starship cease to function. Comm units can’t send or receive data, and starships can’t Hack Comms. Crew members helming battle stations in different rooms can’t use normal ship communications. Telepathy and other communicative spells cease functioning. Creatures with innate telepathy from their ancestry or class features are temporarily blocked from psychic communication, receiving and emitting only vague emotional impressions from other creatures while in range of the silence sigil. A creature helming a starship’s magic conduit can attempt to counteract the silence sigil with an action that’s a magic conduit station action (7th rank; DC 34)."
+    },
+    {
+     "name": "Kurshudi’s Aim",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Sihedron Apostle targets a starship within sensor range that it’s concealed from, choosing one of the ship’s battle stations to fire on. The target starship takes 3d8 electricity damage with a DC 31 basic Fortitude save. If the battle station is being helmed, the creature helming it can attempt the Fortitude save instead. Regardless of who makes the save, only the starship takes the damage and the battle station becomes malfunctioning as normal on a failure."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 212
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "klokworx-nexus",
+   "name": "Klokworx Nexus",
+   "level": 16,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Azlanti Star Empire",
+   "family": "Azlanti Star Empire",
+   "perception": 28,
+   "sensorRange": 10,
+   "speed": 1,
+   "skills": {
+    "computers": 26,
+    "intimidation": 28,
+    "piloting": 26
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 2,
+    "con": 10,
+    "int": 6,
+    "wis": 6,
+    "cha": 8
+   },
+   "ac": 36,
+   "fort": 34,
+   "ref": 26,
+   "will": 30,
+   "hp": 300,
+   "sp": 40,
+   "fortify": 20,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Deploy Drone",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Nexus Formation",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Nexus Swarm",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "laser",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Laser Barrage",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Ultimate Shock Cannon",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "laser",
+     "kind": "ranged",
+     "attack": 27,
+     "traits": [
+      "range increment 1 zone"
+     ],
+     "damage": "3d6+14 fire (originates from a deployed drone within sensor range)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Deploy Drone",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect The Klokworx Nexus deploys a magical drone in its zone. The drone is a small starship object with AC 30, 25 HP, Hardness 10, and object immunities. The Klokworx Nexus can only have four deployed drones at a time. If it would deploy a fifth, one of its previously deployed drones is destroyed."
+    },
+    {
+     "name": "Laser Barrage",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Klokworx Nexus’s numerous light laser cannons unleash a fusillade of fire. All starships in a 2-zone-cone take 8d6 fire damage (DC 35 basic Reflex save)."
+    },
+    {
+     "name": "Nexus Formation",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect Each deployed drone within sensor range moves up to 2 zones."
+    },
+    {
+     "name": "Nexus Swarm",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Each drone within the Klokworx Nexus’s sensor range fires at a target in its zone. Each affected starship takes 3d8+16 fire damage with a DC 33 basic Reflex save. If a starship is targeted by multiple drones, it rolls its save and takes damage only once, but it rolls its save with a –1 circumstance penalty."
+    },
+    {
+     "name": "Ultimate Shock Cannon",
+     "cost": "three-actions",
+     "traits": [],
+     "text": "The klokworx Nexus fires a massive beam of crackling energy in a 6-zone-line in the direction of its heading. Affected targets take 20d8 electricity damage with a DC 35 basic Fortitude save."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 213
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

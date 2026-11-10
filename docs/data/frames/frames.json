@@ -1,0 +1,685 @@
+{
+ "frames": [
+  {
+   "id": "bulwark",
+   "name": "Bulwark",
+   "size": "medium",
+   "traits": [
+    "tech"
+   ],
+   "sensorRange": 5,
+   "expansionBays": 4,
+   "stationSlots": 4,
+   "defaultStations": [
+    {
+     "type": "pilot",
+     "upgrade": "ramming-prow"
+    },
+    {
+     "type": "generator"
+    }
+   ],
+   "description": "A bulky, defensive frame with a ramming prow. Sturdy but slow.",
+   "table": [
+    {
+     "level": 1,
+     "hp": 27,
+     "sp": 10,
+     "ac": 17,
+     "fort": 9,
+     "ref": 6,
+     "will": 8,
+     "speed": 2
+    },
+    {
+     "level": 2,
+     "hp": 42,
+     "sp": 14,
+     "ac": 18,
+     "fort": 10,
+     "ref": 7,
+     "will": 9,
+     "speed": 2
+    },
+    {
+     "level": 3,
+     "hp": 57,
+     "sp": 18,
+     "ac": 19,
+     "fort": 11,
+     "ref": 10,
+     "will": 10,
+     "speed": 2
+    },
+    {
+     "level": 4,
+     "hp": 72,
+     "sp": 22,
+     "ac": 20,
+     "fort": 12,
+     "ref": 11,
+     "will": 11,
+     "speed": 2
+    },
+    {
+     "level": 5,
+     "hp": 92,
+     "sp": 31,
+     "ac": 21,
+     "fort": 14,
+     "ref": 13,
+     "will": 13,
+     "speed": 2
+    },
+    {
+     "level": 6,
+     "hp": 108,
+     "sp": 36,
+     "ac": 22,
+     "fort": 15,
+     "ref": 14,
+     "will": 14,
+     "speed": 2
+    },
+    {
+     "level": 7,
+     "hp": 124,
+     "sp": 41,
+     "ac": 25,
+     "fort": 18,
+     "ref": 15,
+     "will": 15,
+     "speed": 2
+    },
+    {
+     "level": 8,
+     "hp": 140,
+     "sp": 46,
+     "ac": 26,
+     "fort": 19,
+     "ref": 16,
+     "will": 16,
+     "speed": 2
+    },
+    {
+     "level": 9,
+     "hp": 156,
+     "sp": 51,
+     "ac": 27,
+     "fort": 20,
+     "ref": 17,
+     "will": 17,
+     "speed": 2
+    },
+    {
+     "level": 10,
+     "hp": 172,
+     "sp": 66,
+     "ac": 28,
+     "fort": 21,
+     "ref": 18,
+     "will": 19,
+     "speed": 3
+    },
+    {
+     "level": 11,
+     "hp": 188,
+     "sp": 72,
+     "ac": 29,
+     "fort": 22,
+     "ref": 19,
+     "will": 22,
+     "speed": 3
+    },
+    {
+     "level": 12,
+     "hp": 204,
+     "sp": 78,
+     "ac": 30,
+     "fort": 23,
+     "ref": 20,
+     "will": 23,
+     "speed": 3
+    },
+    {
+     "level": 13,
+     "hp": 220,
+     "sp": 84,
+     "ac": 33,
+     "fort": 24,
+     "ref": 21,
+     "will": 24,
+     "speed": 3
+    },
+    {
+     "level": 14,
+     "hp": 236,
+     "sp": 90,
+     "ac": 34,
+     "fort": 25,
+     "ref": 22,
+     "will": 25,
+     "speed": 3
+    },
+    {
+     "level": 15,
+     "hp": 267,
+     "sp": 96,
+     "ac": 35,
+     "fort": 29,
+     "ref": 24,
+     "will": 26,
+     "speed": 3
+    },
+    {
+     "level": 16,
+     "hp": 284,
+     "sp": 102,
+     "ac": 36,
+     "fort": 30,
+     "ref": 25,
+     "will": 27,
+     "speed": 3
+    },
+    {
+     "level": 17,
+     "hp": 301,
+     "sp": 108,
+     "ac": 39,
+     "fort": 31,
+     "ref": 26,
+     "will": 28,
+     "speed": 3
+    },
+    {
+     "level": 18,
+     "hp": 318,
+     "sp": 114,
+     "ac": 40,
+     "fort": 32,
+     "ref": 27,
+     "will": 29,
+     "speed": 3
+    },
+    {
+     "level": 19,
+     "hp": 335,
+     "sp": 120,
+     "ac": 41,
+     "fort": 33,
+     "ref": 28,
+     "will": 30,
+     "speed": 4
+    },
+    {
+     "level": 20,
+     "hp": 372,
+     "sp": 146,
+     "ac": 42,
+     "fort": 35,
+     "ref": 29,
+     "will": 32,
+     "speed": 4
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 197
+   }
+  },
+  {
+   "id": "explorer",
+   "name": "Explorer",
+   "size": "medium",
+   "traits": [
+    "tech"
+   ],
+   "sensorRange": 6,
+   "expansionBays": 4,
+   "stationSlots": 4,
+   "defaultStations": [
+    {
+     "type": "pilot"
+    },
+    {
+     "type": "generator",
+     "upgrade": "pulse-shield"
+    }
+   ],
+   "description": "A balanced frame with powerful sensors and unmatched shield generation.",
+   "table": [
+    {
+     "level": 1,
+     "hp": 24,
+     "sp": 11,
+     "ac": 15,
+     "fort": 8,
+     "ref": 6,
+     "will": 9,
+     "speed": 3
+    },
+    {
+     "level": 2,
+     "hp": 36,
+     "sp": 16,
+     "ac": 16,
+     "fort": 9,
+     "ref": 7,
+     "will": 10,
+     "speed": 3
+    },
+    {
+     "level": 3,
+     "hp": 48,
+     "sp": 21,
+     "ac": 17,
+     "fort": 10,
+     "ref": 10,
+     "will": 11,
+     "speed": 3
+    },
+    {
+     "level": 4,
+     "hp": 60,
+     "sp": 26,
+     "ac": 18,
+     "fort": 11,
+     "ref": 11,
+     "will": 12,
+     "speed": 3
+    },
+    {
+     "level": 5,
+     "hp": 77,
+     "sp": 36,
+     "ac": 20,
+     "fort": 13,
+     "ref": 13,
+     "will": 14,
+     "speed": 3
+    },
+    {
+     "level": 6,
+     "hp": 90,
+     "sp": 42,
+     "ac": 21,
+     "fort": 14,
+     "ref": 14,
+     "will": 15,
+     "speed": 3
+    },
+    {
+     "level": 7,
+     "hp": 103,
+     "sp": 48,
+     "ac": 24,
+     "fort": 15,
+     "ref": 15,
+     "will": 18,
+     "speed": 4
+    },
+    {
+     "level": 8,
+     "hp": 116,
+     "sp": 54,
+     "ac": 25,
+     "fort": 16,
+     "ref": 16,
+     "will": 19,
+     "speed": 4
+    },
+    {
+     "level": 9,
+     "hp": 129,
+     "sp": 60,
+     "ac": 26,
+     "fort": 17,
+     "ref": 17,
+     "will": 20,
+     "speed": 4
+    },
+    {
+     "level": 10,
+     "hp": 142,
+     "sp": 66,
+     "ac": 28,
+     "fort": 18,
+     "ref": 19,
+     "will": 21,
+     "speed": 4
+    },
+    {
+     "level": 11,
+     "hp": 155,
+     "sp": 72,
+     "ac": 29,
+     "fort": 21,
+     "ref": 20,
+     "will": 22,
+     "speed": 4
+    },
+    {
+     "level": 12,
+     "hp": 168,
+     "sp": 78,
+     "ac": 30,
+     "fort": 22,
+     "ref": 21,
+     "will": 23,
+     "speed": 4
+    },
+    {
+     "level": 13,
+     "hp": 181,
+     "sp": 84,
+     "ac": 33,
+     "fort": 23,
+     "ref": 22,
+     "will": 24,
+     "speed": 4
+    },
+    {
+     "level": 14,
+     "hp": 194,
+     "sp": 90,
+     "ac": 34,
+     "fort": 24,
+     "ref": 23,
+     "will": 25,
+     "speed": 4
+    },
+    {
+     "level": 15,
+     "hp": 222,
+     "sp": 111,
+     "ac": 35,
+     "fort": 26,
+     "ref": 24,
+     "will": 29,
+     "speed": 5
+    },
+    {
+     "level": 16,
+     "hp": 236,
+     "sp": 118,
+     "ac": 36,
+     "fort": 27,
+     "ref": 25,
+     "will": 30,
+     "speed": 5
+    },
+    {
+     "level": 17,
+     "hp": 250,
+     "sp": 125,
+     "ac": 39,
+     "fort": 28,
+     "ref": 26,
+     "will": 31,
+     "speed": 5
+    },
+    {
+     "level": 18,
+     "hp": 264,
+     "sp": 132,
+     "ac": 40,
+     "fort": 29,
+     "ref": 27,
+     "will": 32,
+     "speed": 5
+    },
+    {
+     "level": 19,
+     "hp": 278,
+     "sp": 139,
+     "ac": 41,
+     "fort": 30,
+     "ref": 28,
+     "will": 33,
+     "speed": 5
+    },
+    {
+     "level": 20,
+     "hp": 292,
+     "sp": 166,
+     "ac": 43,
+     "fort": 31,
+     "ref": 30,
+     "will": 35,
+     "speed": 5
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 198
+   }
+  },
+  {
+   "id": "skirmisher",
+   "name": "Skirmisher",
+   "size": "medium",
+   "traits": [
+    "tech"
+   ],
+   "sensorRange": 4,
+   "expansionBays": 4,
+   "stationSlots": 4,
+   "defaultStations": [
+    {
+     "type": "pilot",
+     "upgrade": "rotational-thrusters"
+    },
+    {
+     "type": "generator"
+    }
+   ],
+   "description": "A swift, battle-ready frame with superior mobility.",
+   "table": [
+    {
+     "level": 1,
+     "hp": 22,
+     "sp": 8,
+     "ac": 16,
+     "fort": 6,
+     "ref": 9,
+     "will": 8,
+     "speed": 5
+    },
+    {
+     "level": 2,
+     "hp": 32,
+     "sp": 12,
+     "ac": 17,
+     "fort": 7,
+     "ref": 10,
+     "will": 9,
+     "speed": 5
+    },
+    {
+     "level": 3,
+     "hp": 42,
+     "sp": 16,
+     "ac": 18,
+     "fort": 10,
+     "ref": 11,
+     "will": 10,
+     "speed": 5
+    },
+    {
+     "level": 4,
+     "hp": 52,
+     "sp": 20,
+     "ac": 19,
+     "fort": 11,
+     "ref": 12,
+     "will": 11,
+     "speed": 5
+    },
+    {
+     "level": 5,
+     "hp": 67,
+     "sp": 29,
+     "ac": 21,
+     "fort": 13,
+     "ref": 14,
+     "will": 13,
+     "speed": 5
+    },
+    {
+     "level": 6,
+     "hp": 78,
+     "sp": 34,
+     "ac": 22,
+     "fort": 14,
+     "ref": 15,
+     "will": 14,
+     "speed": 5
+    },
+    {
+     "level": 7,
+     "hp": 89,
+     "sp": 39,
+     "ac": 25,
+     "fort": 15,
+     "ref": 18,
+     "will": 15,
+     "speed": 6
+    },
+    {
+     "level": 8,
+     "hp": 100,
+     "sp": 44,
+     "ac": 26,
+     "fort": 16,
+     "ref": 19,
+     "will": 16,
+     "speed": 6
+    },
+    {
+     "level": 9,
+     "hp": 111,
+     "sp": 49,
+     "ac": 27,
+     "fort": 17,
+     "ref": 20,
+     "will": 17,
+     "speed": 6
+    },
+    {
+     "level": 10,
+     "hp": 122,
+     "sp": 64,
+     "ac": 28,
+     "fort": 18,
+     "ref": 21,
+     "will": 19,
+     "speed": 6
+    },
+    {
+     "level": 11,
+     "hp": 133,
+     "sp": 70,
+     "ac": 29,
+     "fort": 19,
+     "ref": 22,
+     "will": 22,
+     "speed": 6
+    },
+    {
+     "level": 12,
+     "hp": 144,
+     "sp": 76,
+     "ac": 30,
+     "fort": 20,
+     "ref": 23,
+     "will": 23,
+     "speed": 6
+    },
+    {
+     "level": 13,
+     "hp": 155,
+     "sp": 82,
+     "ac": 33,
+     "fort": 21,
+     "ref": 24,
+     "will": 24,
+     "speed": 6
+    },
+    {
+     "level": 14,
+     "hp": 166,
+     "sp": 88,
+     "ac": 34,
+     "fort": 22,
+     "ref": 25,
+     "will": 25,
+     "speed": 6
+    },
+    {
+     "level": 15,
+     "hp": 192,
+     "sp": 94,
+     "ac": 36,
+     "fort": 24,
+     "ref": 29,
+     "will": 26,
+     "speed": 7
+    },
+    {
+     "level": 16,
+     "hp": 204,
+     "sp": 100,
+     "ac": 37,
+     "fort": 25,
+     "ref": 30,
+     "will": 27,
+     "speed": 7
+    },
+    {
+     "level": 17,
+     "hp": 216,
+     "sp": 106,
+     "ac": 40,
+     "fort": 26,
+     "ref": 31,
+     "will": 28,
+     "speed": 7
+    },
+    {
+     "level": 18,
+     "hp": 228,
+     "sp": 112,
+     "ac": 41,
+     "fort": 27,
+     "ref": 32,
+     "will": 29,
+     "speed": 7
+    },
+    {
+     "level": 19,
+     "hp": 240,
+     "sp": 118,
+     "ac": 42,
+     "fort": 28,
+     "ref": 33,
+     "will": 30,
+     "speed": 7
+    },
+    {
+     "level": 20,
+     "hp": 252,
+     "sp": 144,
+     "ac": 44,
+     "fort": 29,
+     "ref": 35,
+     "will": 32,
+     "speed": 7
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 199
+   }
+  }
+ ]
+}

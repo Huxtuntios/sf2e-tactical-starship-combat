@@ -1,0 +1,357 @@
+{
+ "stations": [
+  {
+   "id": "pilot",
+   "name": "Pilot’s Console",
+   "icon": "fa-solid fa-rocket",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 181
+   },
+   "passive": "Helmed: AC equals your Piloting DC if higher; item bonus to AC and Reflex saves per grade.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "helmedAC": 0,
+     "helmedReflex": 0
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "helmedAC": 0,
+     "helmedReflex": 0
+    },
+    {
+     "grade": "advanced",
+     "level": 5,
+     "upgrades": 2,
+     "helmedAC": 1,
+     "helmedReflex": 0
+    },
+    {
+     "grade": "superior",
+     "level": 8,
+     "upgrades": 2,
+     "helmedAC": 1,
+     "helmedReflex": 1
+    },
+    {
+     "grade": "elite",
+     "level": 11,
+     "upgrades": 3,
+     "helmedAC": 2,
+     "helmedReflex": 1
+    },
+    {
+     "grade": "ultimate",
+     "level": 14,
+     "upgrades": 3,
+     "helmedAC": 2,
+     "helmedReflex": 2
+    },
+    {
+     "grade": "paragon",
+     "level": 18,
+     "upgrades": 4,
+     "helmedAC": 3,
+     "helmedReflex": 3
+    }
+   ]
+  },
+  {
+   "id": "generator",
+   "name": "Generator",
+   "icon": "fa-solid fa-bolt",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 179
+   },
+   "passive": "Begins an encounter with full Shield Points. Helmed: item bonus to Fortitude saves.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "helmedFortitude": 0
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "helmedFortitude": 0
+    },
+    {
+     "grade": "advanced",
+     "level": 5,
+     "upgrades": 2,
+     "helmedFortitude": 0
+    },
+    {
+     "grade": "superior",
+     "level": 8,
+     "upgrades": 2,
+     "helmedFortitude": 1
+    },
+    {
+     "grade": "elite",
+     "level": 11,
+     "upgrades": 3,
+     "helmedFortitude": 1
+    },
+    {
+     "grade": "ultimate",
+     "level": 14,
+     "upgrades": 3,
+     "helmedFortitude": 2
+    },
+    {
+     "grade": "paragon",
+     "level": 18,
+     "upgrades": 4,
+     "helmedFortitude": 3
+    }
+   ]
+  },
+  {
+   "id": "gunnery",
+   "name": "Gunnery",
+   "icon": "fa-solid fa-crosshairs",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "passive": "Helmed: Strike, Area Fire or Auto-Fire with the installed weapon. Weapon grade equals the gunnery grade.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "damageDice": 1,
+     "tracking": 0
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "damageDice": 1,
+     "tracking": 1
+    },
+    {
+     "grade": "advanced",
+     "level": 4,
+     "upgrades": 2,
+     "damageDice": 2,
+     "tracking": 1
+    },
+    {
+     "grade": "superior",
+     "level": 10,
+     "upgrades": 2,
+     "damageDice": 2,
+     "tracking": 2
+    },
+    {
+     "grade": "elite",
+     "level": 12,
+     "upgrades": 3,
+     "damageDice": 3,
+     "tracking": 2
+    },
+    {
+     "grade": "ultimate",
+     "level": 16,
+     "upgrades": 3,
+     "damageDice": 3,
+     "tracking": 3
+    },
+    {
+     "grade": "paragon",
+     "level": 19,
+     "upgrades": 4,
+     "damageDice": 4,
+     "tracking": 3
+    }
+   ]
+  },
+  {
+   "id": "scanners",
+   "name": "Scanners",
+   "icon": "fa-solid fa-satellite-dish",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 182
+   },
+   "passive": "Increases sensor range; helmed: item bonus to Will saves.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "helmedWill": 0,
+     "sensorIncrease": 1
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "helmedWill": 0,
+     "sensorIncrease": 1
+    },
+    {
+     "grade": "advanced",
+     "level": 5,
+     "upgrades": 2,
+     "helmedWill": 0,
+     "sensorIncrease": 2
+    },
+    {
+     "grade": "superior",
+     "level": 8,
+     "upgrades": 2,
+     "helmedWill": 1,
+     "sensorIncrease": 2
+    },
+    {
+     "grade": "elite",
+     "level": 11,
+     "upgrades": 3,
+     "helmedWill": 1,
+     "sensorIncrease": 3
+    },
+    {
+     "grade": "ultimate",
+     "level": 14,
+     "upgrades": 3,
+     "helmedWill": 2,
+     "sensorIncrease": 3
+    },
+    {
+     "grade": "paragon",
+     "level": 18,
+     "upgrades": 4,
+     "helmedWill": 3,
+     "sensorIncrease": 4
+    }
+   ]
+  },
+  {
+   "id": "magic-conduit",
+   "name": "Magic Conduit",
+   "icon": "fa-solid fa-wand-sparkles",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 180
+   },
+   "passive": "The magic conduit amplifies spellcasters’ magic to work wonders on a massive, space-worthy scale. Magic Conduit Benefits: The starship has a spell repository containing starship spells. Helmed Magic Conduit Benefits: If you have the spellcasting feature, you can cast starship spells, expending your own spell slots as needed. You can only cast a starship spell from the repository if your spellcasting feature allows you to learn spells of the same tradition. Helmed: item bonus to Will saves.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "helmedWill": 0
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "helmedWill": 0
+    },
+    {
+     "grade": "advanced",
+     "level": 5,
+     "upgrades": 2,
+     "helmedWill": 0
+    },
+    {
+     "grade": "superior",
+     "level": 8,
+     "upgrades": 2,
+     "helmedWill": 1
+    },
+    {
+     "grade": "elite",
+     "level": 11,
+     "upgrades": 3,
+     "helmedWill": 1
+    },
+    {
+     "grade": "ultimate",
+     "level": 14,
+     "upgrades": 3,
+     "helmedWill": 2
+    },
+    {
+     "grade": "paragon",
+     "level": 18,
+     "upgrades": 4,
+     "helmedWill": 3
+    }
+   ]
+  },
+  {
+   "id": "drone-console",
+   "name": "Drone Console",
+   "icon": "fa-solid fa-robot",
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 178
+   },
+   "passive": "Helmed: while you have drones deployed, gain station actions granted by those drones.",
+   "advancement": [
+    {
+     "grade": "commercial",
+     "level": 1,
+     "upgrades": 0,
+     "drones": 1
+    },
+    {
+     "grade": "tactical",
+     "level": 2,
+     "upgrades": 1,
+     "drones": 2
+    },
+    {
+     "grade": "advanced",
+     "level": 4,
+     "upgrades": 2,
+     "drones": 3
+    },
+    {
+     "grade": "superior",
+     "level": 10,
+     "upgrades": 2,
+     "drones": 4
+    },
+    {
+     "grade": "elite",
+     "level": 12,
+     "upgrades": 3,
+     "drones": 4
+    },
+    {
+     "grade": "ultimate",
+     "level": 16,
+     "upgrades": 3,
+     "drones": 5
+    },
+    {
+     "grade": "paragon",
+     "level": 19,
+     "upgrades": 4,
+     "drones": 5
+    }
+   ]
+  },
+  {
+   "id": "custom",
+   "name": "Custom Battle Station",
+   "icon": "fa-solid fa-gear",
+   "source": null,
+   "passive": "GM-defined station.",
+   "advancement": []
+  }
+ ]
+}

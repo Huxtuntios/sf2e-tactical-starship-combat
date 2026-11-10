@@ -1,0 +1,23 @@
+{
+ "starships": [
+  "starships/azlanti-star-empire.json",
+  "starships/corpse-fleet.json",
+  "starships/free-captains.json",
+  "starships/hellknights.json",
+  "starships/knights-of-golarion.json",
+  "starships/pact-worlds.json",
+  "starships/starships-of-near-space.json",
+  "starships/starships-of-the-vast.json",
+  "starships/stewards.json",
+  "starships/swarm.json",
+  "starships/veskarium.json",
+  "starships/xenowardens.json"
+ ],
+ "hazards": "hazards/hazards.json",
+ "stations": "stations/stations.json",
+ "actions": "actions/station-actions.json",
+ "frames": "frames/frames.json",
+ "weapons": "equipment/weapons.json",
+ "upgrades": "equipment/upgrades.json",
+ "misc": "equipment/misc.json"
+}

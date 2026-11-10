@@ -1,0 +1,37 @@
+/* Combat tracker decoration (global scope: the tracker is not a .sf2e-tsc window) */
+.tsc-badge {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  opacity: 0.95;
+  margin-left: 4px;
+  flex-wrap: wrap;
+}
+.tsc-badge .hp {
+  color: #34d399;
+}
+.tsc-badge .sp {
+  color: #38bdf8;
+}
+.tsc-badge .st {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tsc-badge .pips {
+  letter-spacing: 1px;
+}
+.tsc-tracker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px;
+}
+.tsc-tracker-controls button {
+  flex: 1 1 auto;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.tsc-hud-btn i {
+  pointer-events: none;
+}

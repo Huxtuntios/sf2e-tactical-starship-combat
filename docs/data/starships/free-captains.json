@@ -1,0 +1,1179 @@
+{
+ "faction": "Free Captains",
+ "ships": [
+  {
+   "id": "raider-trident",
+   "name": "Raider Trident",
+   "level": -1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 4,
+   "sensorRange": 2,
+   "speed": 4,
+   "skills": {
+    "piloting": 4
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 3,
+    "con": 1,
+    "int": 0,
+    "wis": 1,
+    "cha": 2
+   },
+   "ac": 14,
+   "fort": 4,
+   "ref": 6,
+   "will": 2,
+   "hp": 10,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Chainsaw Prow",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "scrap launcher",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "scrap launcher",
+     "kind": "ranged",
+     "attack": 6,
+     "traits": [
+      "analog",
+      "range increment 2 zones"
+     ],
+     "damage": "1d6 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Chainsaw Prow",
+     "cost": "one-action",
+     "traits": [],
+     "text": "DC 13, 1d4+3 slashing damage (see above)",
+     "familyText": "The Free Captain starship sinks its rotating blades into the hull of a starship within 0 zones. The target takes the listed slashing damage with a basic Fortitude save against the listed DC. If Chainsaw Prow deals damage to the target's Hull Points, and the target is larger than the Free Captain starship, the Free Captain starship clings to the target. Until the start of the Free Captain starship's next turn, it moves with the target whenever the target moves."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 216
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "raider-rustbringer",
+   "name": "Raider Rustbringer",
+   "level": 2,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 8,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 6,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 3,
+    "int": 0,
+    "wis": 1,
+    "cha": 0
+   },
+   "ac": 17,
+   "fort": 11,
+   "ref": 7,
+   "will": 5,
+   "hp": 32,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "resistances": "fire 5",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "auxiliary laser repeater",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "zero hydro hose",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "zero hydro hose",
+     "kind": "melee",
+     "attack": 9,
+     "traits": [
+      "analog"
+     ],
+     "damage": "1d8+4 cold plus cryo corrosion"
+    },
+    {
+     "name": "auxiliary laser repeater",
+     "kind": "ranged",
+     "attack": 8,
+     "traits": [
+      "range increment 1 zone",
+      "tech"
+     ],
+     "damage": "1d6+3 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Cryo Corrosion",
+     "cost": "passive",
+     "traits": [],
+     "text": "When the Raider Rustbringer deals damage to a starship’s Hull Points with its zero hydro hose, the spray damages the target’s systems. The affected starship must attempt a DC 17 Fortitude save; on a failure, one battle stations of the Rustbringer’s choice becomes malfunctioning. If the battle station is helmed, the creature helming it takes 2d6 cold damage (DC 17 basic Fortitude save)."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 216
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "dread-buccaneer",
+   "name": "Dread Buccaneer",
+   "level": 3,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 10,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 8,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 2,
+    "con": 3,
+    "int": 1,
+    "wis": 1,
+    "cha": 4
+   },
+   "ac": 17,
+   "fort": 8,
+   "ref": 11,
+   "will": 6,
+   "hp": 35,
+   "sp": 10,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Piercing Harpoon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "pulsecaster cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Wave Holo-Roger",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "pulsecaster cannon",
+     "kind": "ranged",
+     "attack": 10,
+     "traits": [
+      "agile",
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "1d6+5 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Piercing Harpoon",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "DC 19, 2d8 piercing damage (page 216)",
+     "familyText": "The Free Captain starship launches a harpoon at another starship within 1 zone. The target starship takes the listed piercing damage and attempts a Fortitude save against the listed DC. Critical Success The target is unaffected. Success The target takes half damage. Failure The target takes full damage, and the Free Captain starship chooses a battle station on the target starship to become malfunctioning. Critical Failure The target takes double damage, and the Free Captain starship chooses a battle station on the target to become malfunctioning. Additionally, the harpoon causes a Hull Breach hazard to appear in a space adjacent to the malfunctioning battle station."
+    },
+    {
+     "name": "Wave Holo-Roger",
+     "cost": "one-action",
+     "traits": [
+      "mental",
+      "visual"
+     ],
+     "text": "See page 216.",
+     "familyText": "A Free Captain starship's holo-roger is a sight that gives rise to courage in the hearts of its allies. Allied creatures and starships within sensor range of the starship gain a +2 circumstance bonus to Will saves against fear effects for 1 round."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 217
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "raider-heartbreaker",
+   "name": "Raider Heartbreaker",
+   "level": 6,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 16,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 15,
+    "piloting": 12
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 4,
+    "con": 2,
+    "int": 5,
+    "wis": 4,
+    "cha": 3
+   },
+   "ac": 22,
+   "fort": 11,
+   "ref": 14,
+   "will": 17,
+   "hp": 65,
+   "sp": 16,
+   "fortify": 8,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "boltcaster",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Chainsaw Prow",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Static Burst",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "boltcaster",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d10+5 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Chainsaw Prow",
+     "cost": "one-action",
+     "traits": [],
+     "text": "DC 22, 2d8+5 slashing damage (page 216)",
+     "familyText": "The Free Captain starship sinks its rotating blades into the hull of a starship within 0 zones. The target takes the listed slashing damage with a basic Fortitude save against the listed DC. If Chainsaw Prow deals damage to the target's Hull Points, and the target is larger than the Free Captain starship, the Free Captain starship clings to the target. Until the start of the Free Captain starship's next turn, it moves with the target whenever the target moves.",
+     "relocated": true
+    },
+    {
+     "name": "Static Burst",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Heartbreaker’s computer performs an all-out attack on the systems of a starship within sensor range. The target takes 4d6 electricity damage with a DC 23 Will save; if the Heartbreaker is clinging to the target using its Chainsaw Prow, the target takes a –2 circumstance penalty to this saving throw. Critical Success The target is unaffected. Success The target takes half damage. Failure The target takes full damage and suffers a –1 status penalty to its AC and attack rolls until the end of the Heartbreaker’s next turn. Critical Failure As failure, but the target takes double damage, and the status penalty is –2.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 217
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "dread-dominator",
+   "name": "Dread Dominator",
+   "level": 8,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 17,
+   "sensorRange": 8,
+   "speed": 2,
+   "skills": {
+    "computers": 15,
+    "crafting": 15,
+    "piloting": 14
+   },
+   "abilities": {
+    "str": 6,
+    "dex": 2,
+    "con": 4,
+    "int": 3,
+    "wis": 2,
+    "cha": 4
+   },
+   "ac": 24,
+   "fort": 17,
+   "ref": 13,
+   "will": 17,
+   "hp": 122,
+   "sp": 32,
+   "fortify": 16,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "overcharged polarizing beam",
+       "unique": false,
+       "shared": true
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "overcharged polarizing beam",
+       "unique": false,
+       "shared": true
+      },
+      {
+       "name": "Piercing Harpoon",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Raider Beam",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Wave Holo-Roger",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "overcharged polarizing beam",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "boost 2d10",
+      "ordnance",
+      "range increment 1 zone",
+      "tech",
+      "versatile A",
+      "C",
+      "E",
+      "or F"
+     ],
+     "damage": "2d10+8 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Piercing Harpoon",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "DC 23, 3d8 piercing damage (page 216)",
+     "familyText": "The Free Captain starship launches a harpoon at another starship within 1 zone. The target starship takes the listed piercing damage and attempts a Fortitude save against the listed DC. Critical Success The target is unaffected. Success The target takes half damage. Failure The target takes full damage, and the Free Captain starship chooses a battle station on the target starship to become malfunctioning. Critical Failure The target takes double damage, and the Free Captain starship chooses a battle station on the target to become malfunctioning. Additionally, the harpoon causes a Hull Breach hazard to appear in a space adjacent to the malfunctioning battle station.",
+     "relocated": true
+    },
+    {
+     "name": "Raider Beam",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Dominator emits a harmless laser beam that plants a unique signal onto a starship within sensor range. The target must attempt a DC 23 Will save. On a failure, it becomes off-guard to the Dominator and its allies within sensor range for 1 round. On a critical failure, the target also can’t benefit from cover against starships it’s off-guard to for the duration.",
+     "relocated": true
+    },
+    {
+     "name": "Wave Holo-Roger",
+     "cost": "one-action",
+     "traits": [
+      "page 216"
+     ],
+     "text": "",
+     "familyText": "A Free Captain starship's holo-roger is a sight that gives rise to courage in the hearts of its allies. Allied creatures and starships within sensor range of the starship gain a +2 circumstance bonus to Will saves against fear effects for 1 round.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 217
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "pentacorn",
+   "name": "Pentacorn",
+   "level": 10,
+   "size": "unique",
+   "rarity": "common",
+   "traits": [
+    "medium",
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 20,
+   "sensorRange": 7,
+   "speed": 4,
+   "skills": {
+    "computers": 22,
+    "piloting": 19,
+    "stealth": 19
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 5,
+    "con": 3,
+    "int": 7,
+    "wis": 6,
+    "cha": 5
+   },
+   "ac": 29,
+   "fort": 16,
+   "ref": 19,
+   "will": 22,
+   "hp": 120,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Cloaking Field",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Disruptive Shields",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "flak autocannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Vital Strike",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Wave Holo-Roger",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "flak autocannon",
+     "kind": "ranged",
+     "attack": 21,
+     "traits": [
+      "agile",
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d12+12 bludgeoning"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Disruptive Shields",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger Pentacorn takes damage to its Shield Points from an enemy; Effect Pentacorn’s shields discharge disruptive energy. The triggering enemy must succeed at a DC 29 Reflex save or take 4d6 electricity damage; on a failure, the enemy also takes a –2-zone status penalty to its Speed for 1 round."
+    },
+    {
+     "name": "Cloaking Field",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Frequency once per minute; Effect Pentacorn becomes hidden for 1 minute. The effect ends if Pentacorn takes damage or uses a hostile action."
+    },
+    {
+     "name": "Vital Strike",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Requirements A starship within 3 zones is off-guard to Pentacorn; Effect Pentacorn makes a flak autocannon Strike against the required starship. If this Strike hits, it deals an additional 1d12 precision damage, and Pentacorn chooses one of the target’s battle stations to become malfunctioning."
+    },
+    {
+     "name": "Wave Holo-Roger",
+     "cost": "one-action",
+     "traits": [
+      "mental",
+      "visual"
+     ],
+     "text": "See page 216.",
+     "familyText": "A Free Captain starship's holo-roger is a sight that gives rise to courage in the hearts of its allies. Allied creatures and starships within sensor range of the starship gain a +2 circumstance bonus to Will saves against fear effects for 1 round."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 218
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "raider-starcrusher",
+   "name": "Raider Starcrusher",
+   "level": 11,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 21,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "arcana": 23,
+    "computers": 21,
+    "piloting": 19
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 5,
+    "con": 5,
+    "int": 6,
+    "wis": 7,
+    "cha": 3
+   },
+   "ac": 29,
+   "fort": 21,
+   "ref": 18,
+   "will": 24,
+   "hp": 130,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Piercing Harpoon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "plasma cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Charge Harpoon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Cosmic Crush",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "plasma cannon",
+     "kind": "ranged",
+     "attack": 22,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "2d6+10 fire plus 2d6 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Charge Harpoon",
+     "cost": "one-action",
+     "traits": [
+      "arcane"
+     ],
+     "text": "The Starcrusher links its harpoon with its magic conduit, charging it with deadly electricity. If its next action is to use Piercing Harpoon, it deals an additional 3d6 electricity damage, and the target takes a –1-zone status penalty to its Speed on a failed save."
+    },
+    {
+     "name": "Cosmic Crush",
+     "cost": "two-actions",
+     "traits": [
+      "arcane"
+     ],
+     "text": "Frequency once per minute; Effect The Starcrusher generates a blazing miniature star in a zone within sensor range that rapidly collapses into a black hole. Starships in the targeted zone take 5d6 fire damage and 5d6 bludgeoning damage (DC 30 basic Reflex save). On a failed save, affected starships are immobilized until the end of their next turn."
+    },
+    {
+     "name": "Piercing Harpoon",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "DC 30, 5d8 piercing damage (page 216)",
+     "familyText": "The Free Captain starship launches a harpoon at another starship within 1 zone. The target starship takes the listed piercing damage and attempts a Fortitude save against the listed DC. Critical Success The target is unaffected. Success The target takes half damage. Failure The target takes full damage, and the Free Captain starship chooses a battle station on the target starship to become malfunctioning. Critical Failure The target takes double damage, and the Free Captain starship chooses a battle station on the target to become malfunctioning. Additionally, the harpoon causes a Hull Breach hazard to appear in a space adjacent to the malfunctioning battle station."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 218
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "jolly-roger",
+   "name": "Jolly Roger",
+   "level": 12,
+   "size": "unique",
+   "rarity": "common",
+   "traits": [
+    "tiny",
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 23,
+   "sensorRange": 6,
+   "speed": 5,
+   "skills": {
+    "intimidation": 23,
+    "piloting": 22
+   },
+   "abilities": {
+    "str": 0,
+    "dex": 6,
+    "con": 4,
+    "int": 3,
+    "wis": 3,
+    "cha": 7
+   },
+   "ac": 32,
+   "fort": 22,
+   "ref": 26,
+   "will": 19,
+   "hp": 172,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "farseeker missiles",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Engage Lateral Thrusters",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Terrifying Holo-Roger",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 26,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "3d8+12 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "farseeker missiles",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range 6 zones, razing, tech), Damage 3d10+12 piercing (DC 31 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "farseeker missiles"
+    },
+    {
+     "name": "Engage Lateral Thrusters",
+     "cost": "one-action",
+     "traits": [
+      "move"
+     ],
+     "text": "Frequency once per turn; Effect Jolly Roger moves up to its Speed in any direction, regardless of its heading."
+    },
+    {
+     "name": "Terrifying Holo-Roger",
+     "cost": "two-actions",
+     "traits": [
+      "visual"
+     ],
+     "text": "Jolly Roger forcibly opens a one-way channel to a tech starship within sensor range, bringing up the renowned icon of its crew on the target’s screens, then attempts to Demoralize each enemy creature on board the target starship. would deploy a third, one of its previously deployed drones is destroyed."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 218
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "starsplitter",
+   "name": "Starsplitter",
+   "level": 14,
+   "size": "unique",
+   "rarity": "common",
+   "traits": [
+    "huge",
+    "tech"
+   ],
+   "faction": "Free Captains",
+   "family": "Free Captains",
+   "perception": 24,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 20,
+    "piloting": 23
+   },
+   "abilities": {
+    "str": 8,
+    "dex": 5,
+    "con": 8,
+    "int": 2,
+    "wis": 4,
+    "cha": 6
+   },
+   "ac": 33,
+   "fort": 28,
+   "ref": 23,
+   "will": 22,
+   "hp": 208,
+   "sp": 50,
+   "fortify": 25,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Deploy Spearhead Drone",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Impale",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Phalanx Formation",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shields",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "modded rail cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Jailbroken Jamming Algorithm",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Wave Holo-Roger",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "modded rail cannon",
+     "kind": "ranged",
+     "attack": 27,
+     "traits": [
+      "analog",
+      "range increment 10 zones"
+     ],
+     "damage": "3d12+14 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Deploy Spearhead Drone",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect Starsplitter deploys a drone in its zone. The drone is a tiny starship object with AC 28, 20 HP, Hardness 10, and object immunities. Starsplitter can have only two drones deployed at once, and if it"
+    },
+    {
+     "name": "Wave Holo-Roger",
+     "cost": "one-action",
+     "traits": [
+      "mental",
+      "visual"
+     ],
+     "text": "See page 216.",
+     "familyText": "A Free Captain starship's holo-roger is a sight that gives rise to courage in the hearts of its allies. Allied creatures and starships within sensor range of the starship gain a +2 circumstance bonus to Will saves against fear effects for 1 round.",
+     "relocated": true
+    },
+    {
+     "name": "Phalanx Formation",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per turn; Effect Each deployed spearhead drone within sensor range moves up to 2 zones.",
+     "relocated": true
+    },
+    {
+     "name": "Impale",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Starsplitter directs a deployed spearhead drone within sensor range to impale a starship within 0 zones of the drone. The target takes 3d12+22 piercing damage (DC 34 basic Reflex save). The drone is destroyed. If this damages the target’s Hull Points, Starsplitter chooses a battle station on the target to become malfunctioning.",
+     "relocated": true
+    },
+    {
+     "name": "Jailbroken Jamming Algorithm",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Starsplitter scans for targets in a zone within sensor range. Tech starships in the targeted zone must succeed at a DC 34 Will save or be hacked for 1 round, taking a –1 status penalty to their AC and a –1-zone status penalty to their Speed and sensor range.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 219
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

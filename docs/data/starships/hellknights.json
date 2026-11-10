@@ -1,0 +1,599 @@
+{
+ "faction": "Hellknights",
+ "ships": [
+  {
+   "id": "infernex-burning-nail",
+   "name": "Infernex Burning Nail",
+   "level": 1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Hellknights",
+   "family": "Hellknights",
+   "perception": 6,
+   "sensorRange": 4,
+   "speed": 5,
+   "skills": {
+    "computers": 6,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 3,
+    "con": 2,
+    "int": 2,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 14,
+   "fort": 6,
+   "ref": 8,
+   "will": 7,
+   "hp": 18,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "resistances": "fire 2",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "hellfire cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Kindling of Order",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "piercing nail",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "piercing nail",
+     "kind": "melee",
+     "attack": 6,
+     "traits": [
+      "tech"
+     ],
+     "damage": "1d8+2 piercing"
+    },
+    {
+     "name": "hellfire cannon",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Kindling of Order",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "healing"
+     ],
+     "text": "The Burning Nail’s hull ignites into infernal flames. Each non-allied starship within 0 zones takes 2d6 fire damage (DC 14 basic Reflex save). The Burning Nail regains Hull Points equal to half the damage dice it rolls. The Burning Nail can’t use Kindling of Order for 1d4 rounds."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 220
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "infernex-stalwart",
+   "name": "Infernex Stalwart",
+   "level": 4,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Hellknights",
+   "family": "Hellknights",
+   "perception": 12,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 10,
+    "piloting": 11
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 1,
+    "con": 3,
+    "int": 2,
+    "wis": 4,
+    "cha": 3
+   },
+   "ac": 18,
+   "fort": 11,
+   "ref": 9,
+   "will": 14,
+   "hp": 44,
+   "sp": 14,
+   "fortify": 7,
+   "immunities": "starship immunities",
+   "resistances": "fire 4",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Shielding of Law",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "hellfire cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Kindling of Order",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "hellfire cannon",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "2d8 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Kindling of Order",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "healing"
+     ],
+     "text": "The Stalwart’s hull ignites into infernal flames. Each non-allied starship within 0 zones takes 4d6 fire damage (DC 18 basic Reflex save). The Stalwart regains Hull Points equal to half the damage it rolls. The Stalwart can’t use Kindling of Order for 1d4 rounds."
+    },
+    {
+     "name": "Shielding of Law",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Stalwart and starships of its choice within 0 zones gain 5 Shield Points."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 220
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "infernex-justiciar",
+   "name": "Infernex Justiciar",
+   "level": 11,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Hellknights",
+   "family": "Hellknights",
+   "perception": 24,
+   "sensorRange": 6,
+   "speed": 4,
+   "skills": {
+    "computers": 20,
+    "piloting": 22,
+    "stealth": 24,
+    "survival": 18
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 7,
+    "con": 4,
+    "int": 5,
+    "wis": 3,
+    "cha": 5
+   },
+   "ac": 30,
+   "fort": 21,
+   "ref": 24,
+   "will": 18,
+   "hp": 100,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "resistances": "fire 11",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Tractor Beam",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "guilt-seeker missiles",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "hellfire cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Infernal Cloak",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Infernal Hunter",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Infernal Mark",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "hellfire cannon",
+     "kind": "ranged",
+     "attack": 24,
+     "traits": [
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "2d8+11 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "guilt-seeker missiles",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range 4 zones, razing, tech), Damage 6d6 piercing (DC 30 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "guilt-seeker missile"
+    },
+    {
+     "name": "Infernal Cloak",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Frequency once per day; Effect The Infernex Justiciar becomes invisible for 1 hour. This makes it undetected to all starships, though starships can attempt to Seek Starships against it, making it hidden to them instead. If the invisible starship uses a hostile action, the invisibility ends after that hostile action is completed."
+    },
+    {
+     "name": "Infernal Hunter",
+     "cost": "one-action",
+     "traits": [
+      "divine",
+      "teleportation"
+     ],
+     "text": "Once per week, the Infernex Justiciar can teleport to its marked target’s zone."
+    },
+    {
+     "name": "Infernal Mark",
+     "cost": "one-action",
+     "traits": [
+      "concentrate",
+      "divine"
+     ],
+     "text": "The Infernex Justiciar brands a starship in sensor range with an infernal mark. The Infernex Justiciar gains a +1 status bonus to attack rolls to Strike the marked target. The infernal mark can only be removed by destroying the Justiciar or by counteracting it, such as with dispel magic or similar effects (6th rank; DC 29)."
+    },
+    {
+     "name": "Punish the Guilty",
+     "cost": "passive",
+     "traits": [],
+     "text": "The first time the Infernex Justiciar hits a target branded with its infernal mark each round, it deals an additional 1d8 precision damage."
+    },
+    {
+     "name": "Tractor Beam",
+     "cost": "one-action",
+     "traits": [],
+     "text": "DC 30 (page 208)"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 221
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "infernex-citadel",
+   "name": "Infernex Citadel",
+   "level": 16,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Hellknights",
+   "family": "Hellknights",
+   "perception": 28,
+   "sensorRange": 7,
+   "speed": 2,
+   "skills": {
+    "computers": 30,
+    "intimidation": 32,
+    "piloting": 28
+   },
+   "abilities": {
+    "str": 5,
+    "dex": 4,
+    "con": 9,
+    "int": 6,
+    "wis": 6,
+    "cha": 8
+   },
+   "ac": 37,
+   "fort": 31,
+   "ref": 24,
+   "will": 28,
+   "hp": 279,
+   "sp": 40,
+   "fortify": 20,
+   "immunities": "starship immunities",
+   "resistances": "fire 16",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "diabolic hellfire cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "heavy ion cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "hellfire lance",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Tractor Beam",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Kindling of Order",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "Decree of Guilt",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Sensor Sweep",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "diabolic hellfire cannon",
+     "kind": "ranged",
+     "attack": 30,
+     "traits": [
+      "range increment 5 zones",
+      "tech"
+     ],
+     "damage": "7d10 fire"
+    },
+    {
+     "name": "heavy ion cannon",
+     "kind": "ranged",
+     "attack": 30,
+     "traits": [
+      "nonlethal",
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "5d12 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "hellfire lance",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(3-zone line, tech), Damage 5d12 fire (DC 32 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "hellfire lance"
+    },
+    {
+     "name": "Decree of Guilt",
+     "cost": "one-action",
+     "traits": [
+      "auditory",
+      "concentrate",
+      "emotion",
+      "fear",
+      "mental"
+     ],
+     "text": "The Infernex Citadel’s commanding Hellknight attempts a single Intimidation check to Demoralize all crew members of a starship in sensor range. A crew member can’t reduce its frightened condition below 1 while its ship is affected by the Citadel’s Tractor Beam."
+    },
+    {
+     "name": "Kindling of Order",
+     "cost": "two-actions",
+     "traits": [
+      "divine",
+      "healing"
+     ],
+     "text": "The Citadel’s hull ignites into infernal flames. Each non-allied starship within 0 zones takes 17d6 fire damage (DC basic 34 Reflex save). The Citadel regains Hull Points equal to half the damage dice it rolls. The Citadel can’t use Kindling of Order for 1d4 rounds."
+    },
+    {
+     "name": "Sensor Sweep",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Infernex Citadel scans a zone in sensor range. Invisible starships in the zone become concealed instead. Concealed starships in the zone are no longer concealed. Starships in the affected zone must attempt a DC 37 Fortitude save. On a failure, the Citadel’s scanners tag the target, making it off-guard to the Citadel and all its allies in sensor range for 1 round. The Citadel can Sustain this effect."
+    },
+    {
+     "name": "Tractor Beam",
+     "cost": "one-action",
+     "traits": [],
+     "text": "DC 36 (page 208)"
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 221
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

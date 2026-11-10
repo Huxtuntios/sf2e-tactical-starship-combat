@@ -1,0 +1,902 @@
+{
+ "faction": "Xenowardens",
+ "ships": [
+  {
+   "id": "bd-freighter",
+   "name": "BD Freighter",
+   "level": 1,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Xenowardens",
+   "family": "Cargo and Transport Starships",
+   "perception": 5,
+   "sensorRange": 5,
+   "speed": 4,
+   "skills": {
+    "computers": 5,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 1,
+    "dex": 4,
+    "con": 2,
+    "int": 2,
+    "wis": 2,
+    "cha": 1
+   },
+   "ac": 17,
+   "fort": 7,
+   "ref": 9,
+   "will": 5,
+   "hp": 10,
+   "sp": 5,
+   "fortify": 5,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Run Blockade",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "coilgun",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "scanners",
+     "actions": [
+      {
+       "name": "TARN",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "coilgun",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "agile",
+      "analog",
+      "range increment 3 zones"
+     ],
+     "damage": "1d6+2 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "TARN",
+     "cost": "passive",
+     "traits": [],
+     "text": "EJ Corp’s proprietary Technical Automated Resource Network (TARN) is an AI model that assists in piloting the BD Freighter, allowing even rookie pilots to maneuver around obstacles with ease. The BD Freighter ignores up to 1 zone of Speed penalty."
+    },
+    {
+     "name": "Run Blockade",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The BD Freighter diverts power to its generator and Boosts Thrusters while performing evasive maneuvers. This movement doesn’t trigger reactions, and the BD Freighter gains a +1 circumstance bonus to AC and Reflex saves until the start of its next turn."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 238
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "uc-pod",
+   "name": "UC Pod",
+   "level": 1,
+   "size": "tiny",
+   "rarity": "common",
+   "traits": [
+    "primal",
+    "starship"
+   ],
+   "faction": "Xenowardens",
+   "family": "Xenowardens",
+   "perception": 8,
+   "sensorRange": 3,
+   "speed": 5,
+   "skills": {
+    "nature": 7,
+    "piloting": 6
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 5,
+    "con": 2,
+    "int": 3,
+    "wis": 4,
+    "cha": 1
+   },
+   "ac": 13,
+   "fort": 4,
+   "ref": 10,
+   "will": 7,
+   "hp": 26,
+   "sp": 0,
+   "fortify": 0,
+   "weaknesses": "fire 3",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "lightning cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "spore pod launcher",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Primal Bond",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "primal comms",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Spore Cloud",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "lightning cannon",
+     "kind": "ranged",
+     "attack": 9,
+     "traits": [
+      "range increment 3 zones",
+      "tech"
+     ],
+     "damage": "1d4+2 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Primal Comms",
+     "cost": "passive",
+     "traits": [
+      "primal"
+     ],
+     "text": "The UC Pod’s crew can communicate with starships in sensor range using a primal comms relay incorporated into its magic conduit. Attempting to Hack Comms against a UC Pod requires a Nature check instead of a Computers check."
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Primal Bond",
+     "cost": "reaction",
+     "traits": [
+      "healing",
+      "primal"
+     ],
+     "text": "Trigger The UC Pod takes damage and has 13 or fewer HP; Effect The UC Pod gains fast healing 3, which ends when it has 14 or more Hit Points."
+    },
+    {
+     "name": "spore pod launcher",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range 2 zones), Damage 1d6+3 acid (DC 14 basic Reflex save)",
+     "mode": "area-fire",
+     "weapon": "spore pod launcher"
+    },
+    {
+     "name": "Spore Cloud",
+     "cost": "one-action",
+     "traits": [
+      "primal"
+     ],
+     "text": "The UC Pod Boosts Thrusters, creating a spore cloud in each zone it leaves during this movement. The spore cloud lasts until the start of its next turn. Starships outside the spore cloud are concealed to starships inside it."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 236
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "uc-bloom",
+   "name": "UC Bloom",
+   "level": 4,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "primal",
+    "starship"
+   ],
+   "faction": "Xenowardens",
+   "family": "Xenowardens",
+   "perception": 12,
+   "sensorRange": 4,
+   "speed": 3,
+   "skills": {
+    "crafting": 8,
+    "medicine": 10,
+    "nature": 12,
+    "piloting": 7
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 4,
+    "con": 4,
+    "int": 3,
+    "wis": 5,
+    "cha": 2
+   },
+   "ac": 19,
+   "fort": 10,
+   "ref": 9,
+   "will": 14,
+   "hp": 68,
+   "sp": 0,
+   "fortify": 0,
+   "weaknesses": "fire 6",
+   "stations": [
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Entwined Roots",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Pollinate",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Primal Bond",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "primal comms",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Petal Shields",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "thorn lance",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Rapid Growth Organelle"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "thorn lance",
+     "kind": "ranged",
+     "attack": 13,
+     "traits": [
+      "primal",
+      "range increment 4 zones"
+     ],
+     "damage": "2d6+6 piercing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Primal Comms",
+     "cost": "passive",
+     "traits": [
+      "primal"
+     ],
+     "text": "As UC Pod. — [UC Pod: The UC Pod’s crew can communicate with starships in sensor range using a primal comms relay incorporated into its magic conduit. Attempting to Hack Comms against a UC Pod requires a Nature check instead of a Computers check.]"
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Primal Bond",
+     "cost": "reaction",
+     "traits": [
+      "healing",
+      "primal"
+     ],
+     "text": "Trigger The UC Bloom takes damage and has 34 or fewer HP; Effect The UC Bloom gains fast healing 6, which ends when it has 35 or more Hit Points."
+    },
+    {
+     "name": "Entwined Roots",
+     "cost": "two-actions",
+     "traits": [
+      "healing",
+      "primal"
+     ],
+     "text": "The UC Bloom restores 6 HP to a Pollinated starship within sensor range. If any of the crew members on board the target starship are affected by a temporary condition, such as frightened, reduce the value of the condition by 1."
+    },
+    {
+     "name": "Petal Shields",
+     "cost": "one-action",
+     "traits": [
+      "primal"
+     ],
+     "text": "Frequency once per hour; Effect The UC Bloom unfurls its petals to block incoming projectiles. The UC Bloom gains 10 SP that last for 1 minute. While it has these SP, Medium and smaller starships behind a UC Bloom can Stick to Cover (page 208) as a pilot’s console station action (even if the starship doesn’t normally have the Stick to Cover action)."
+    },
+    {
+     "name": "Pollinate",
+     "cost": "one-action",
+     "traits": [
+      "primal"
+     ],
+     "text": "The UC Bloom releases nanomachines that attach to a starship in sensor range and transmit a magical homing signal. An unwilling target must succeed a DC 18 Will save to resist being pollinated."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 236
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "dashadz-wayfarer",
+   "name": "Dashadz Wayfarer",
+   "level": 6,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Xenowardens",
+   "family": "Cargo and Transport Starships",
+   "perception": 14,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 13,
+    "piloting": 15
+   },
+   "abilities": {
+    "str": 5,
+    "dex": 5,
+    "con": 5,
+    "int": 2,
+    "wis": 4,
+    "cha": 2
+   },
+   "ac": 23,
+   "fort": 15,
+   "ref": 15,
+   "will": 12,
+   "hp": 74,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Eject Garbage",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Dashadz shock cannon",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Engage Lateral Thrusters",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "Dashadz shock cannon",
+     "kind": "ranged",
+     "attack": 15,
+     "traits": [
+      "ordnance",
+      "range increment 2 zones",
+      "tech",
+      "unwieldy"
+     ],
+     "damage": "2d10+8 electricity"
+    },
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 14,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+6 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Dashadz Durability",
+     "cost": "passive",
+     "traits": [],
+     "text": "The Dashadz Wayfarer is more durable than it looks—and it looks extremely durable. The first time the Dashadz wayfarer is reduced to 0 Hull Points, it’s instead reduced to 1 Hull Point and regains 10 Shield Points. It can’t benefit from Dashadz durability again until repaired at an appropriate starship facility, a process requiring 1 day of work."
+    },
+    {
+     "name": "Eject Garbage",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "Frequency once per day; Effect The Dashadz Wayfarer engages its garbage ejection system, spewing weaponized debris behind it. All starships in a 2-zone cone in the opposite direction of the Wayfarer’s heading take 7d6 bludgeoning damage with a DC 21 basic Reflex save. Entering an affected zone costs an extra 1 zone of movement for 1 round."
+    },
+    {
+     "name": "Engage Lateral Thrusters",
+     "cost": "one-action",
+     "traits": [
+      "move"
+     ],
+     "text": "Frequency once per turn; Effect The Dashadz Wayfarer moves up to its Speed in any direction."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 238
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "uc-gardenship",
+   "name": "UC Gardenship",
+   "level": 8,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "primal",
+    "starship"
+   ],
+   "faction": "Xenowardens",
+   "family": "Xenowardens",
+   "perception": 16,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "crafting": 14,
+    "nature": 16,
+    "piloting": 12
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 5,
+    "con": 6,
+    "wis": 5,
+    "cha": 2
+   },
+   "ac": 27,
+   "fort": 18,
+   "ref": 13,
+   "will": 16,
+   "hp": 165,
+   "sp": 0,
+   "fortify": 0,
+   "weaknesses": "fire 10",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "heavy lightning cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "heavy spore pod launcher",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Primal Bond",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "primal comms",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Verdant Growth",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Deploy Seed",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Seed Migration",
+       "unique": true,
+       "shared": false
+      }
+     ],
+     "label": "Seedpod"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "heavy lightning cannon",
+     "kind": "ranged",
+     "attack": 16,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+7 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Primal Comms",
+     "cost": "passive",
+     "traits": [
+      "primal"
+     ],
+     "text": "As UC Pod. — [UC Pod: The UC Pod’s crew can communicate with starships in sensor range using a primal comms relay incorporated into its magic conduit. Attempting to Hack Comms against a UC Pod requires a Nature check instead of a Computers check.]"
+    },
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Primal Bond",
+     "cost": "reaction",
+     "traits": [
+      "healing",
+      "primal"
+     ],
+     "text": "Trigger The UC Gardenship takes damage and has 83 or fewer HP; Effect The UC Gardenship gains fast healing 10, which ends when it has 84 or more Hit Points."
+    },
+    {
+     "name": "heavy spore pod launcher",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "(1-zone burst, range 5 zones), Damage 2d12+6 acid",
+     "mode": "area-fire",
+     "weapon": "heavy spore pod launcher"
+    },
+    {
+     "name": "Deploy Seed",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Effect The Gardenship deploys a seed in its zone. The seed is a small starship object with AC 20, 10 HP, Hardness 5, and object immunities. The Gardenship can have only three deployed seeds at a given time. If it would deploy a fourth, one of its previously deployed seeds is destroyed."
+    },
+    {
+     "name": "Seed Migration",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Effect One deployed seed moves up to 2 zones within the Gardenship’s sensor range."
+    },
+    {
+     "name": "Verdant Growth",
+     "cost": "one-action",
+     "traits": [
+      "primal"
+     ],
+     "text": "Frequency once per round; Effect The Gardenship orders a deployed seed within sensor range to burst into unnatural plant growth. Starships in the seed’s zone take 5d6 piercing damage (DC 25 basic Reflex save). Living Starship See page 208."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 237
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "uc-arkship",
+   "name": "UC Arkship",
+   "level": 11,
+   "size": "gargantuan",
+   "rarity": "common",
+   "traits": [
+    "primal",
+    "starship"
+   ],
+   "faction": "Xenowardens",
+   "family": "Xenowardens",
+   "perception": 21,
+   "sensorRange": 8,
+   "speed": 3,
+   "skills": {
+    "nature": 23,
+    "piloting": 21
+   },
+   "abilities": {
+    "str": 8,
+    "dex": 3,
+    "con": 7,
+    "int": 3,
+    "wis": 4,
+    "cha": 5
+   },
+   "ac": 30,
+   "fort": 24,
+   "ref": 18,
+   "will": 21,
+   "hp": 190,
+   "sp": 0,
+   "fortify": 0,
+   "weaknesses": "fire 20",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "heavy lightning cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "primal thorn lance",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Deploy Thorn Barrier",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Primal Astrofire",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Primal Bond",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "primal comms",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "primal thorn lance",
+     "kind": "melee",
+     "attack": 22,
+     "traits": [],
+     "damage": "2d12+20 slashing plus 1d12 persistent piercing damage"
+    },
+    {
+     "name": "heavy lightning cannon",
+     "kind": "ranged",
+     "attack": 22,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d12+8 electricity"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Primal Comms",
+     "cost": "passive",
+     "traits": [
+      "primal"
+     ],
+     "text": "As UC Pod. — [UC Pod: The UC Pod’s crew can communicate with starships in sensor range using a primal comms relay incorporated into its magic conduit. Attempting to Hack Comms against a UC Pod requires a Nature check instead of a Computers check.]"
+    },
+    {
+     "name": "Primal Astrofire",
+     "cost": "two-actions",
+     "traits": [
+      "fire",
+      "primal"
+     ],
+     "text": "The UC Arkship blasts a zone in sensor range with primal flame, dealing 6d6 fire damage in a 2-zone burst (DC 30 basic Fortitude save).",
+     "relocated": true
+    },
+    {
+     "name": "Deploy Thorn Barrier",
+     "cost": "three-actions",
+     "traits": [
+      "primal"
+     ],
+     "text": "The Arkship plants a barrier of rapidly propagating thorny vegetation between two zones within sensor range. Everything on either side of the barrier has cover from starships on the opposite side. All starships in the zones adjacent to the barrier when it’s first planted and starships that move through the barrier take 6d6 piercing damage (DC 28 basic Reflex save). The barrier is a starship object and has AC 10, 86 HP, and Hardness 10; it has object immunities and is immune to critical damage. It can also be targeted by any effects that can target a starship in either zone it’s adjacent to.",
+     "relocated": true
+    },
+    {
+     "name": "Primal Bond",
+     "cost": "reaction",
+     "traits": [
+      "healing",
+      "primal"
+     ],
+     "text": "Trigger The UC Arkship takes damage and has 95 or fewer HP; Effect The UC Arkship gains fast healing 20, which ends when it has 96 HP or more Hit Points.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 237
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

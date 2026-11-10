@@ -1,0 +1,26 @@
+<section class="tsc-builder">
+  <fieldset><legend>1. {{localize "SF2eTSC.builder.basics"}}</legend>
+    <div class="tsc-row-inputs">
+      <label>{{localize "SF2eTSC.ui.name"}} <input type="text" name="name" value="{{d.name}}" required></label>
+      <label>{{localize "SF2eTSC.ui.starshipType"}} <select name="kind"><option value="player" {{#unless npc}}selected{{/unless}}>{{localize "SF2eTSC.roleTypes.player"}}</option><option value="npc" {{#if npc}}selected{{/if}}>{{localize "SF2eTSC.roleTypes.npc"}}</option></select></label>
+      <label>{{localize "SF2eTSC.ui.level"}} <input type="number" name="level" value="{{d.level}}" min="1" max="20"></label>
+      <label>{{localize "SF2eTSC.ui.frame"}} <select name="frame">{{#each frames}}<option value="{{id}}" {{#if sel}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+      <label>{{localize "SF2eTSC.ui.size"}} <select name="size">{{#each sizes}}<option value="{{id}}" {{#if sel}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
+      <button type="button" data-action="recalc"><i class="fa-solid fa-calculator"></i> {{localize "SF2eTSC.builder.recalc"}}</button>
+    </div></fieldset>
+  <fieldset><legend>2. {{localize "SF2eTSC.builder.stats"}}</legend><p class="tsc-dim">{{localize "SF2eTSC.ui.frameHint"}}</p>
+    <div class="tsc-row-inputs">
+      <label>{{localize "SF2eTSC.ui.hullPoints"}} <input type="number" name="hp" value="{{stats.hp}}"></label><label>{{localize "SF2eTSC.ui.shieldPoints"}} <input type="number" name="sp" value="{{stats.sp}}"></label>
+      <label>{{localize "SF2eTSC.ui.ac"}} <input type="number" name="ac" value="{{stats.ac}}"></label><label>{{localize "SF2eTSC.ui.fortitude"}} <input type="number" name="fort" value="{{stats.fort}}"></label>
+      <label>{{localize "SF2eTSC.ui.reflex"}} <input type="number" name="ref" value="{{stats.ref}}"></label><label>{{localize "SF2eTSC.ui.will"}} <input type="number" name="will" value="{{stats.will}}"></label>
+      <label>{{localize "SF2eTSC.ui.speed"}} <input type="number" name="speed" value="{{stats.speed}}"></label><label>{{localize "SF2eTSC.ui.sensorRange"}} <input type="number" name="sensor" value="{{stats.sensor}}"></label>
+      {{#if npc}}<label>{{localize "SF2eTSC.ui.perception"}} <input type="number" name="perception" value=""></label>{{/if}}
+    </div></fieldset>
+  <fieldset><legend>3. {{localize "SF2eTSC.ui.battleStations"}}</legend>{{#each stations}}<label class="tsc-check"><input type="checkbox" name="station.{{id}}" {{#if checked}}checked{{/if}}> {{name}}</label>{{/each}}</fieldset>
+  {{#unless npc}}
+  <fieldset><legend>4. {{localize "SF2eTSC.tabs.weapons"}}</legend><select name="weapon"><option value="">—</option>{{#each weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select></fieldset>
+  <fieldset><legend>5. {{localize "SF2eTSC.ui.expansionBays"}}</legend><textarea name="bays" rows="3" placeholder="{{localize 'SF2eTSC.builder.baysHint'}}"></textarea></fieldset>
+  <fieldset><legend>6. {{localize "SF2eTSC.ui.crew"}}</legend>{{#each characters}}<label class="tsc-check"><input type="checkbox" name="crew.{{uuid}}"> {{name}}</label>{{/each}}</fieldset>
+  {{/unless}}
+  <footer><button type="submit"><i class="fa-solid fa-check"></i> {{localize "SF2eTSC.builder.create"}}</button></footer>
+</section>

@@ -1,0 +1,1039 @@
+{
+ "faction": "Starships of the Vast",
+ "ships": [
+  {
+   "id": "long-haul-freighter",
+   "name": "Long-haul Freighter",
+   "level": 1,
+   "size": "small",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 7,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 4,
+    "piloting": 6
+   },
+   "abilities": {
+    "str": 3,
+    "dex": 1,
+    "con": 4,
+    "int": 1,
+    "wis": 2,
+    "cha": 2
+   },
+   "ac": 16,
+   "fort": 10,
+   "ref": 4,
+   "will": 7,
+   "hp": 70,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Drop Cargo",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "scrap gun",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Hard Burn",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "scrap gun",
+     "kind": "ranged",
+     "attack": 7,
+     "traits": [
+      "range increment 2 zones",
+      "tech"
+     ],
+     "damage": "1d6+3 bludgeoning"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drop Cargo",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per day; Effect The Long-Haul Freighter releases some of its cargo, creating a crate cluster in its current zone. Moving into a crate cluster costs an extra 1 zone of movement, and starships have concealment while within the cluster against attacks from starships outside the affected zone."
+    },
+    {
+     "name": "Hard Burn",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Long-Haul Freighter Boosts Thrusters three times. It can’t Change Heading until the start of its next turn."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 242
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "dominion-derelict",
+   "name": "Dominion Derelict",
+   "level": 3,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "aberration",
+    "cosmic",
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 6,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 9,
+    "piloting": 8,
+    "stealth": 10
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 1,
+    "int": 2,
+    "wis": 3,
+    "cha": -2
+   },
+   "ac": 18,
+   "fort": 6,
+   "ref": 12,
+   "will": 9,
+   "hp": 45,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "Ambush!",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Lie in Wait",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Malleable Dodge",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 12,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8+6 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Ambush!",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger An enemy moves within 1 zone of the Dominion Derelict; Requirements The Dominion Derelict is under the effect of Lie in Wait; Effect The Dominion Derelict springs to life, then makes a light laser cannon Strike against the triggering enemy. The target is off-guard to this Strike."
+    },
+    {
+     "name": "Malleable Dodge",
+     "cost": "reaction",
+     "traits": [
+      "occult"
+     ],
+     "text": "Trigger An enemy targets the Dominion Derelict with a Strike; Effect The Dominion Derelict’s hull twists disturbingly, gaining a +2 circumstance bonus to its AC against the triggering Strike."
+    },
+    {
+     "name": "Lie in Wait",
+     "cost": "passive",
+     "traits": [
+      "occult"
+     ],
+     "text": "The Dominion Derelict can spend 10 minutes to disguise itself and mask its presence, appearing to be an ordinary wreck until it takes any other action. A starship that’s Seeking Starships can attempt a Perception check against the Dominion Derelict’s Stealth DC to detect its true nature."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 242
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "jinsul-breacher",
+   "name": "Jinsul Breacher",
+   "level": 3,
+   "size": "medium",
+   "rarity": "common",
+   "traits": [
+    "jinsul",
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 9,
+   "sensorRange": 4,
+   "speed": 4,
+   "skills": {
+    "computers": 9,
+    "piloting": 8
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 3,
+    "con": 3,
+    "int": 3,
+    "wis": 1,
+    "cha": 1
+   },
+   "ac": 19,
+   "fort": 10,
+   "ref": 10,
+   "will": 6,
+   "hp": 40,
+   "sp": 0,
+   "fortify": 0,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "breaching ram",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "light laser cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Rapid Redeployment",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Deploy Breachers",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "light laser cannon",
+     "kind": "ranged",
+     "attack": 10,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "1d8+6 fire"
+    },
+    {
+     "name": "breaching ram",
+     "kind": "melee",
+     "attack": 10,
+     "traits": [
+      "analog"
+     ],
+     "damage": "1d10+6 piercing plus Deploy Breachers"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Deploy Breachers",
+     "cost": "free-action",
+     "traits": [],
+     "text": "Frequency once per day; Trigger The Jinsul Breacher deals damage to a starship’s Hull Points with its breaching ram; Effect When the Jinsul Breacher deals damage to a starship’s Hull Points with its breaching ram, it creates a boarding pod (page 250) in a space on the target starship with a jinsul trooper (Starfinder Alien Core 98) on board."
+    },
+    {
+     "name": "Rapid Redeployment",
+     "cost": "one-action",
+     "traits": [],
+     "text": "Frequency once per round; Effect The Jinsul Breacher transfers crew through its delivery ducts. Until the end of the Jinsul Breacher’s turn, it gains a +2 circumstance bonus to attacks with its light laser cannon or its breaching ram and a –2 circumstance penalty to attacks with the other."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 243
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "jinsul-carrier",
+   "name": "Jinsul Carrier",
+   "level": 5,
+   "size": "large",
+   "rarity": "common",
+   "traits": [
+    "jinsul",
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 15,
+   "sensorRange": 5,
+   "speed": 3,
+   "skills": {
+    "computers": 13,
+    "piloting": 12
+   },
+   "abilities": {
+    "str": 2,
+    "dex": 4,
+    "con": 4,
+    "int": 5,
+    "wis": 3,
+    "cha": 2
+   },
+   "ac": 21,
+   "fort": 13,
+   "ref": 13,
+   "will": 9,
+   "hp": 70,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "drone-console",
+     "actions": [
+      {
+       "name": "Command Servitor Drone",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Deploy Servitor Drone",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Pontiff’s Blessing",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "laser cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "laser cannon",
+     "kind": "ranged",
+     "attack": 13,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "2d8+6 fire"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Command Servitor Drone",
+     "cost": "one-action",
+     "traits": [],
+     "text": "One servitor drone within sensors moves up to 2 zones, then swings its bladed arms against an enemy within 0 zones. The target takes 2d10 slashing damage (DC 22 basic Reflex save)."
+    },
+    {
+     "name": "Deploy Servitor Drone",
+     "cost": "one-action",
+     "traits": [],
+     "text": "The Jinsul Carrier deploys a servitor drone in its zone. The servitor drone is a tiny starship object with AC 22, 15 HP, Hardness 5, and object immunities. The Jinsul Carrier can have only four deployed servitor drones at a given time. If it would deploy a fifth, one of its previously deployed servitor drones is destroyed.",
+     "relocated": true
+    },
+    {
+     "name": "Pontiff’s Blessing",
+     "cost": "one-action",
+     "traits": [
+      "magical"
+     ],
+     "text": "The Jinsul Carrier transfers any number of Shield Points from itself to a servitor drone or jinsul starship within sensor range.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 243
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "shadari-voidbringer",
+   "name": "Shadari Voidbringer",
+   "level": 10,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 19,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "computers": 17,
+    "piloting": 19
+   },
+   "abilities": {
+    "str": 7,
+    "dex": 5,
+    "con": 3,
+    "int": 5,
+    "wis": 6,
+    "cha": 3
+   },
+   "ac": 29,
+   "fort": 16,
+   "ref": 19,
+   "will": 22,
+   "hp": 140,
+   "sp": 20,
+   "fortify": 10,
+   "immunities": "starship immunities",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Entropic Shields",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "disintegrator cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Entropic Ray",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "disintegrator cannon",
+     "kind": "ranged",
+     "attack": 21,
+     "traits": [
+      "range increment 5 zones",
+      "tech"
+     ],
+     "damage": "2d12+12 acid"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Entropic Shields",
+     "cost": "reaction",
+     "traits": [],
+     "text": "Trigger The Shadari Voidbringer takes energy damage to its Shield Points; Effect The Shadari Voidbringer gains resistance 5 to the triggering damage, and its current zone becomes an entropic field that lasts for 1 round. Starships that enter or start their turn in the entropic field take 4d6 damage of the same type as the triggering damage with a DC 28 basic Reflex save."
+    },
+    {
+     "name": "Entropic Ray",
+     "cost": "two-actions",
+     "traits": [],
+     "text": "The Shadari Voidbringer unleashes a blast of entropic energy in a 3-zone line in the direction of its heading. Affected starships take 6d6 acid damage (DC 28 basic Reflex save); on a critical failure, they become off-guard for 1 round."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 243
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "dominion-seeder",
+   "name": "Dominion Seeder",
+   "level": 13,
+   "size": "huge",
+   "rarity": "common",
+   "traits": [
+    "aberration",
+    "cosmic",
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 23,
+   "sensorRange": 7,
+   "speed": 2,
+   "skills": {
+    "athletics": 27,
+    "computers": 27,
+    "occultism": 27,
+    "piloting": 24
+   },
+   "abilities": {
+    "str": 7,
+    "dex": 5,
+    "con": 4,
+    "int": 5,
+    "wis": 8,
+    "cha": 2
+   },
+   "ac": 34,
+   "fort": 20,
+   "ref": 23,
+   "will": 26,
+   "hp": 180,
+   "sp": 30,
+   "fortify": 15,
+   "immunities": "glitching, starship immunities (except poison and void)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "plasma cannon",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Pseudopod",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Telekinetic Crush",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "thought disruption",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "shipmind’s control",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "plasma cannon",
+     "kind": "ranged",
+     "attack": 25,
+     "traits": [
+      "range increment 4 zones",
+      "tech"
+     ],
+     "damage": "3d8+8 fire plus 1d8 electricity and thought disruption"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Shipmind’s Control",
+     "cost": "passive",
+     "traits": [],
+     "text": "Thanks to its shipmind taking full control of its functions, a Dominion Seeder can react far more freely than most starships. It is permanently quickened and can use the extra action only to Change Heading. In addition, it isn’t off-guard to attacks made from the opposite direction as its heading."
+    },
+    {
+     "name": "Pseudopod",
+     "cost": "one-action",
+     "traits": [
+      "attack"
+     ],
+     "text": "The Dominion Seeder extends a grotesque pseudopod, tossing its foes aside. It attempts an Athletics check against the Reflex DC of a starship within 1 zone; on a success, it switches the target’s heading."
+    },
+    {
+     "name": "Telekinetic Crush",
+     "cost": "two-actions",
+     "traits": [
+      "occult"
+     ],
+     "text": "Frequency once per hour; Effect The Dominion Seeder telekinetically slams asteroids and space debris into a zone within sensor range. Starships in the targeted zone take 14d6 bludgeoning damage (DC 33 basic Reflex save)."
+    },
+    {
+     "name": "Thought Disruption",
+     "cost": "passive",
+     "traits": [
+      "occult"
+     ],
+     "text": "When the Dominion Seeder hits with its plasma cannon, the target must succeed at a DC 33 Will save or one of its battle stations of the Dominion Seeder’s choice becomes malfunctioning. If the battle station is helmed, the creature helming it takes 3d8 mental damage and becomes stupefied 1 for round."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 244
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "alghollthu-warshell",
+   "name": "Alghollthu Warshell",
+   "level": 14,
+   "size": "uncommon",
+   "rarity": "common",
+   "traits": [
+    "huge",
+    "aberration",
+    "cosmic"
+   ],
+   "faction": "Starships of the Vast",
+   "family": "Starships of the Vast",
+   "perception": 28,
+   "sensorRange": 6,
+   "speed": 3,
+   "skills": {
+    "deception": 30,
+    "occultism": 28,
+    "piloting": 24
+   },
+   "abilities": {
+    "str": 4,
+    "dex": 5,
+    "con": 4,
+    "int": 7,
+    "wis": 5,
+    "cha": 8
+   },
+   "ac": 34,
+   "fort": 22,
+   "ref": 25,
+   "will": 28,
+   "hp": 244,
+   "sp": 0,
+   "fortify": 0,
+   "stations": [
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Locomotion Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "Mindwarp Field",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "nanite scrying",
+       "unique": false,
+       "shared": true
+      },
+      {
+       "name": "Psychic Mutiny",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "thought blast",
+       "unique": false,
+       "shared": false
+      }
+     ],
+     "label": "Magic Organelle"
+    },
+    {
+     "type": "custom",
+     "actions": [
+      {
+       "name": "nanite scrying",
+       "unique": false,
+       "shared": true
+      }
+     ],
+     "label": "Natural Senses"
+    }
+   ],
+   "strikes": [
+    {
+     "name": "thought blast",
+     "kind": "ranged",
+     "attack": 29,
+     "traits": [
+      "magical",
+      "range increment 4 zones"
+     ],
+     "damage": "3d10+12 force"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Living Starship",
+     "cost": "passive",
+     "traits": [],
+     "text": "See page 208."
+    },
+    {
+     "name": "Nanite Scrying",
+     "cost": "passive",
+     "traits": [
+      "aura"
+     ],
+     "text": "2 zones. The Warshell constantly disperses its controller’s nanites, spreading their influence. It ignores the concealed and hidden conditions of starships within the area, and it always knows the exact positions of the crew and any other creatures within those starships."
+    },
+    {
+     "name": "Mindwarp Field",
+     "cost": "two-actions",
+     "traits": [
+      "magical"
+     ],
+     "text": "Frequency once per hour; Effect The Warshell projects a dissonant cosmic field through its nanites, distorting space around it. For 1 minute, it becomes concealed to all starships that are more than 2 zones away."
+    },
+    {
+     "name": "Psychic Mutiny",
+     "cost": "two-actions",
+     "traits": [
+      "magical",
+      "mental",
+      "incapacitation"
+     ],
+     "text": "The Warshell injects nanites into a starship within its nanite scrying aura, attempting to seize control of a crew member. One creature of the Warshell’s choice aboard the starship must attempt a DC 34 Will save and then becomes immune to Psychic Mutiny for 24 hours. Critical Success The creature is unaffected. Success The creature is controlled by the Warshell for its first action on its next turn. Failure The creature is controlled by the Warshell for 1 minute. It can attempt a new save at the end of each of its turns, and the effect ends immediately if the Warshell uses Psychic Mutiny against a different target. Critical Failure As failure, but the creature can’t attempt a new save at the end of its turns. affected starship must attempt a DC 36 Fortitude save; on a failure, one of its battle stations of the Biotech Sporehall’s choice becomes malfunctioning. If the battle station is helmed, the creature helming it takes 8d6 poison damage (DC 36 basic Fortitude save)."
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 244
+   },
+   "needsReview": false,
+   "review": []
+  },
+  {
+   "id": "biotech-sporehall",
+   "name": "Biotech Sporehall",
+   "level": 16,
+   "size": "uncommon",
+   "rarity": "common",
+   "traits": [
+    "gargantuan",
+    "tech"
+   ],
+   "faction": "Starships of the Vast",
+   "family": null,
+   "perception": 28,
+   "sensorRange": 7,
+   "speed": 2,
+   "skills": {
+    "computers": 28,
+    "nature": 32,
+    "piloting": 26
+   },
+   "abilities": {
+    "str": 9,
+    "dex": 4,
+    "con": 10,
+    "int": 6,
+    "wis": 6,
+    "cha": 5
+   },
+   "ac": 36,
+   "fort": 31,
+   "ref": 25,
+   "will": 28,
+   "hp": 300,
+   "sp": 34,
+   "fortify": 17,
+   "immunities": "glitching, starship immunities (except poison and void)",
+   "stations": [
+    {
+     "type": "generator",
+     "actions": [
+      {
+       "name": "Fortify Shield Points",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "gunnery",
+     "actions": [
+      {
+       "name": "heavy spore cannon",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "magic-conduit",
+     "actions": [
+      {
+       "name": "Agitate Mycelium",
+       "unique": true,
+       "shared": false
+      },
+      {
+       "name": "mycelial infection",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Spread Mycelium",
+       "unique": true,
+       "shared": false
+      }
+     ]
+    },
+    {
+     "type": "pilot",
+     "actions": [
+      {
+       "name": "Boost Thrusters",
+       "unique": false,
+       "shared": false
+      },
+      {
+       "name": "Change Heading",
+       "unique": false,
+       "shared": false
+      }
+     ]
+    }
+   ],
+   "strikes": [
+    {
+     "name": "heavy spore cannon",
+     "kind": "ranged",
+     "attack": 32,
+     "traits": [
+      "range increment 4 zones"
+     ],
+     "damage": "3d12+15 bludgeoning plus mycelial infection"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Mycelial Infection",
+     "cost": "passive",
+     "traits": [
+      "primal"
+     ],
+     "text": "When the Biotech Sporehall deals damage to a starship’s Hull Points with its heavy spore cannon, the spores latch onto the target’s hull and stretch inside. The"
+    },
+    {
+     "name": "Agitate Mycelium",
+     "cost": "two-actions",
+     "traits": [
+      "primal"
+     ],
+     "text": "Requirements A starship within sensor range has a battle station that’s malfunctioning due to mycelial infection; Effect The mycelium begins to spread through that starship. The Biotech Sporehall uses mycelial infection on the required starship even though the Biotech Sporehall hasn’t dealt additional damage to its Hull Points.",
+     "relocated": true
+    },
+    {
+     "name": "Spread Mycelium",
+     "cost": "two-actions",
+     "traits": [
+      "electricity",
+      "primal"
+     ],
+     "text": "The Biotech Sporehall extends countless microscopic-charged tendrils in a 0-zone emanation, damaging any who approach. Enemies that enter or start their turn in the area take 8d6 electricity damage (DC 36 basic Fortitude save). On subsequent turns, the Biotech Sporehall can Sustain the effect once per turn to increase the size of the emanation by 1 zone, and the effect lasts until the Biotech Sporehall leaves its current zone.",
+     "relocated": true
+    }
+   ],
+   "source": {
+    "book": "Starfinder Tech Core",
+    "page": 245
+   },
+   "needsReview": false,
+   "review": []
+  }
+ ]
+}

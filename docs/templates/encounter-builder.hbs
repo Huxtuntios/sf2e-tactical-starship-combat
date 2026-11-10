@@ -1,0 +1,23 @@
+<section class="tsc-encounter">
+  <p><strong>{{localize "SF2eTSC.ui.playerStarship"}}:</strong> {{ship}} · <strong>{{localize "SF2eTSC.ui.crew"}}:</strong> {{crew}}</p>
+  <p class="tsc-enc-party">
+    {{localize "SF2eTSC.encounter.partyLevel"}}: <button type="button" data-action="adjust" data-field="level" data-delta="-1" data-current="{{partyLevel}}" aria-label="−">−</button> <strong>{{partyLevel}}</strong> <button type="button" data-action="adjust" data-field="level" data-delta="1" data-current="{{partyLevel}}" aria-label="+">+</button>
+    · {{localize "SF2eTSC.encounter.partySize"}}: <button type="button" data-action="adjust" data-field="size" data-delta="-1" data-current="{{partySize}}" aria-label="−">−</button> <strong>{{partySize}}</strong> <button type="button" data-action="adjust" data-field="size" data-delta="1" data-current="{{partySize}}" aria-label="+">+</button>
+    <button type="button" data-action="adjust" data-field="reset" title="{{localize 'SF2eTSC.encounter.autoHint'}}"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+  </p>
+  {{#if small}}<p class="tsc-warn-box">⚠ {{localize "SF2eTSC.encounter.smallCrewHint"}}</p>{{/if}}
+  <div class="tsc-gm-box"><strong>{{localize "SF2eTSC.encounter.xp"}}: {{est.xp}}</strong> · {{localize "SF2eTSC.encounter.threatEstimate"}}: <strong>{{threat}}</strong>{{#if beyond}} ⚠ {{localize "SF2eTSC.encounter.beyond"}}{{/if}}</div>
+  <div class="tsc-enc-threats" role="group" aria-label="{{localize 'SF2eTSC.encounter.targetThreat'}}">{{localize "SF2eTSC.encounter.targetThreat"}}:
+    {{#each threats}}<button type="button" data-action="setThreat" data-threat="{{id}}" class="{{#if active}}active{{/if}}" aria-pressed="{{active}}">{{label}} <small>({{budget}})</small></button>{{/each}}</div>
+  <h4>{{localize "SF2eTSC.encounter.suggestions"}} — {{target}}, {{localize "SF2eTSC.encounter.remaining"}} {{remaining}}</h4>
+  {{#if suggestions.length}}<table class="tsc-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.encounter.count"}}</th><th>{{localize "SF2eTSC.encounter.xp"}}</th><th>{{localize "SF2eTSC.encounter.alone"}}</th><th></th></tr></thead>
+  <tbody>{{#each suggestions}}<tr><td>{{label}}{{#if faction}} <small class="tsc-dim">{{faction}}</small>{{/if}}</td><td>×{{count}}</td><td>{{total}}</td><td><span class="tsc-threat {{rating.threatClass}}" title="{{localize 'SF2eTSC.encounter.shareHint' share=rating.share}}">{{rating.threatLabel}}{{#if rating.tooHigh}} ⚠{{/if}}</span></td><td>{{#if ../isGM}}<button type="button" data-action="importSuggestion" data-id="{{id}}" data-count="{{count}}"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.encounter.add"}}</button>{{/if}}</td></tr>{{/each}}</tbody></table>
+  {{else}}<p class="tsc-dim">{{localize "SF2eTSC.encounter.noSuggestions"}}</p>{{/if}}
+  <h4>{{localize "SF2eTSC.encounter.hazardSuggestions"}} — {{target}}, {{localize "SF2eTSC.encounter.remaining"}} {{remaining}}</h4>
+  {{#if hazardSuggestions.length}}<table class="tsc-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.ui.type"}}</th><th>{{localize "SF2eTSC.encounter.xp"}}</th><th>{{localize "SF2eTSC.encounter.alone"}}</th><th></th></tr></thead>
+  <tbody>{{#each hazardSuggestions}}<tr><td>{{label}}{{#if fills}} <small class="tsc-dim">✓ {{localize "SF2eTSC.encounter.fills"}}</small>{{/if}}</td><td>{{kindLabel}}</td><td>{{xp}}</td><td><span class="tsc-threat {{rating.threatClass}}" title="{{localize 'SF2eTSC.encounter.shareHint' share=rating.share}}">{{rating.threatLabel}}{{#if rating.tooHigh}} ⚠{{/if}}</span></td><td>{{#if ../isGM}}<button type="button" data-action="importHazard" data-id="{{id}}"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.encounter.add"}}</button>{{/if}}</td></tr>{{/each}}</tbody></table>
+  {{else}}<p class="tsc-dim">{{localize "SF2eTSC.encounter.noHazardSuggestions"}}</p>{{/if}}
+  <h4>{{localize "SF2eTSC.encounter.inWorld"}}</h4>
+  <table class="tsc-table"><thead><tr><th></th><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.ui.type"}}</th><th>{{localize "SF2eTSC.ui.level"}}</th><th>{{localize "SF2eTSC.encounter.xp"}}</th><th>{{localize "SF2eTSC.encounter.alone"}}</th></tr></thead>
+  <tbody>{{#each entries}}<tr><td><input type="checkbox" data-action="toggle" data-uuid="{{uuid}}" {{#if checked}}checked{{/if}} aria-label="{{name}}"></td><td>{{name}}</td><td>{{kindLabel}}</td><td>{{level}}</td><td>{{rating.xp}}</td><td><span class="tsc-threat {{rating.threatClass}}" title="{{localize 'SF2eTSC.encounter.shareHint' share=rating.share}}">{{rating.threatLabel}}{{#if rating.tooHigh}} ⚠{{/if}}</span></td></tr>{{/each}}</tbody></table>
+</section>

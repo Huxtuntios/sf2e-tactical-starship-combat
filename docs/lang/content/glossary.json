@@ -1,0 +1,84 @@
+{
+ "_comment": "Single source of Russian game terms. Used by tools/build-packs.mjs (journals, compendium items) and checked against lang/ru.json by tests/unit/glossary-080.test.mjs.",
+ "grades": {
+  "commercial": "коммерческая",
+  "tactical": "тактическая",
+  "advanced": "продвинутая",
+  "superior": "превосходная",
+  "elite": "элитная",
+  "paragon": "образцовая",
+  "ultimate": "предельная"
+ },
+ "damageTypes": {
+  "acid": "кислота",
+  "piercing": "колющий",
+  "fire": "огонь",
+  "electricity": "электричество",
+  "bludgeoning": "дробящий",
+  "slashing": "рубящий",
+  "cold": "холод",
+  "sonic": "звук",
+  "force": "силовой"
+ },
+ "traits": {
+  "agile": "быстрое",
+  "analog": "аналоговое",
+  "automatic": "автоматическое",
+  "boost": "усиление",
+  "burst": "взрыв",
+  "caster": "заклинательское",
+  "concussive": "сотрясающее",
+  "critical": "критическое",
+  "flame": "пламя",
+  "forceful": "силовое",
+  "nonlethal": "несмертельное",
+  "ordinance": "боеприпас",
+  "ordnance": "боеприпас",
+  "razing": "разрушительное",
+  "tech": "технологическое",
+  "unwieldy": "громоздкое",
+  "volley": "залповое",
+  "area": "площадное",
+  "cone": "конус",
+  "line": "линия",
+  "aeon": "эон",
+  "zone": "зона",
+  "zones": "зоны"
+ },
+ "categories": {
+  "simple": "простое",
+  "martial": "воинское",
+  "advanced": "продвинутое"
+ },
+ "groups": {
+  "corrosive": "коррозийное",
+  "projectile": "снарядное",
+  "laser": "лазерное",
+  "shock": "шоковое"
+ },
+ "advancement": {
+  "grade": "Ступень",
+  "level": "Уровень",
+  "upgrades": "Улучшения",
+  "helmedAC": "КД (станция занята)",
+  "helmedReflex": "Рефлекс (станция занята)",
+  "helmedFortitude": "Стойкость (станция занята)",
+  "helmedWill": "Воля (станция занята)",
+  "sensorIncrease": "Дальность сенсоров +",
+  "damageDice": "Кости урона",
+  "tracking": "Наведение",
+  "drones": "Дроны"
+ },
+ "costs": {
+  "reaction": "реакция",
+  "free": "свободное",
+  "passive": "пассивное",
+  "1": "1 действие",
+  "2": "2 действия",
+  "3": "3 действия"
+ },
+ "terms": {
+  "ac": "КД",
+  "traits": "Признаки"
+ }
+}

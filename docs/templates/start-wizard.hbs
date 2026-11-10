@@ -1,0 +1,42 @@
+<section class="tsc-wizard">
+{{#if none}}<p class="tsc-hint">{{localize "SF2eTSC.wizard.noPlayerShip"}}</p>{{/if}}
+<fieldset class="tsc-presets"><legend>{{localize "SF2eTSC.wizard.presets"}}</legend>
+  <div class="tsc-row-inputs"><select name="presetPick">{{#each presets}}<option value="{{id}}">{{name}}</option>{{else}}<option value="">{{localize "SF2eTSC.wizard.noPresets"}}</option>{{/each}}</select>
+  <button type="button" data-action="loadPreset" {{#unless presets.length}}disabled{{/unless}}><i class="fa-solid fa-download"></i> {{localize "SF2eTSC.wizard.presetLoad"}}</button>
+  <button type="button" data-action="deletePreset" {{#unless presets.length}}disabled{{/unless}} aria-label="{{localize 'SF2eTSC.wizard.presetDelete'}}"><i class="fa-solid fa-trash"></i></button></div>
+</fieldset>
+<fieldset><legend>1. {{localize "SF2eTSC.ui.playerStarship"}}</legend>
+  {{#each player}}<div class="tsc-row-inputs"><label class="tsc-check"><input type="checkbox" name="ship.{{{dotsafe uuid}}}" {{#if checked}}checked{{/if}}> {{name}} <small>({{localize "SF2eTSC.ui.level"}} {{level}})</small></label>
+    <label class="tsc-zone-in">{{localize "SF2eTSC.wizard.startZone"}} <input type="number" name="shipZone.{{{dotsafe uuid}}}" value="{{zone}}" min="1"></label><label>{{localize "SF2eTSC.ui.detection"}} <select name="shipDetection.{{{dotsafe uuid}}}"><option value="identified" selected>{{localize "SF2eTSC.detection.identified"}}</option><option value="observed">{{localize "SF2eTSC.detection.observed"}}</option><option value="hidden">{{localize "SF2eTSC.detection.hidden"}}</option><option value="undetected">{{localize "SF2eTSC.detection.undetected"}}</option></select></label></div>{{/each}}
+</fieldset>
+<fieldset><legend>2. {{localize "SF2eTSC.ui.crew"}}</legend>
+  <p class="tsc-dim">{{localize "SF2eTSC.wizard.crewHint"}} <em>{{scope}}</em></p>
+  {{#each crewGroups}}<div class="tsc-crew-group" data-crew-group="{{{dotsafe shipUuid}}}" {{#unless visible}}hidden{{/unless}}>
+    <h4>{{shipName}}</h4>
+    {{#each members}}<label class="tsc-check {{#if missing}}tsc-bad{{/if}}"><input type="checkbox" name="member.{{{dotsafe uuid}}}" {{#if checked}}checked{{/if}} {{#if missing}}data-locked="true" disabled{{/if}}{{#if observer}} data-locked="true" disabled{{/if}}> {{> tscOccupant occupant size="sm"}}
+      <small class="tsc-dim">{{#if missing}}{{localize "SF2eTSC.crew.missingActor"}}{{else}}{{#if observer}}{{localize "SF2eTSC.roles.observer"}}{{else}}{{#if station}}{{station}}{{else}}{{localize "SF2eTSC.wizard.freeCrew"}}{{/if}}{{/if}}{{/if}}{{#if inCombat}} · {{localize "SF2eTSC.wizard.alreadyInCombat"}}{{/if}}</small></label>{{else}}<p class="tsc-hint">{{localize "SF2eTSC.crew.empty"}}</p>{{/each}}
+  </div>{{/each}}
+  {{#if characters.length}}<details><summary>{{localize "SF2eTSC.wizard.otherCharacters"}}</summary>
+  {{#each characters}}<label class="tsc-check"><input type="checkbox" name="crew.{{{dotsafe uuid}}}" {{#if checked}}checked{{/if}}> {{name}}</label>{{/each}}</details>{{/if}}
+</fieldset>
+<fieldset><legend>3. {{localize "SF2eTSC.ui.sensorMap"}}</legend>
+  <label class="tsc-zone-in">{{localize "SF2eTSC.ui.zoneCount"}} <input type="number" name="zones" value="{{zones}}" min="{{zoneMin}}" max="{{zoneMax}}"></label>
+</fieldset>
+<fieldset><legend>4. {{localize "SF2eTSC.ui.enemyShips"}}</legend>
+  
+  {{#each enemies}}<div class="tsc-row-inputs"><label class="tsc-check"><input type="checkbox" name="enemy.{{{dotsafe uuid}}}"> {{name}} <small>({{level}})</small></label><input type="number" name="enemyZone.{{{dotsafe uuid}}}" value="{{zone}}" min="1" aria-label="{{localize 'SF2eTSC.ui.zone'}}"><label class="tsc-zone-in" data-tooltip="{{localize 'SF2eTSC.wizard.countHint'}}">× <input type="number" name="enemyCount.{{{dotsafe uuid}}}" value="1" min="1" max="10" aria-label="{{localize 'SF2eTSC.wizard.count'}}"></label><input type="text" class="tsc-copy-zones" name="enemyZones.{{{dotsafe uuid}}}" placeholder="{{localize 'SF2eTSC.wizard.copyZonesPh'}}" data-tooltip="{{localize 'SF2eTSC.wizard.copyZonesHint'}}" aria-label="{{localize 'SF2eTSC.wizard.copyZones'}}"><label>{{localize "SF2eTSC.ui.detection"}} <select name="enemyDetection.{{{dotsafe uuid}}}"><option value="identified">{{localize "SF2eTSC.detection.identified"}}</option><option value="observed" selected>{{localize "SF2eTSC.detection.observed"}}</option><option value="hidden">{{localize "SF2eTSC.detection.hidden"}}</option><option value="undetected">{{localize "SF2eTSC.detection.undetected"}}</option></select></label></div>{{else}}<p class="tsc-hint">—</p>{{/each}}
+</fieldset>
+<fieldset><legend>5. {{localize "SF2eTSC.ui.hazards"}}</legend>
+  {{#each hazards}}<div class="tsc-row-inputs"><label class="tsc-check"><input type="checkbox" name="hazard.{{{dotsafe uuid}}}"> {{name}} <small>({{level}}{{#if complex}}, {{localize "SF2eTSC.hazards.complex"}}{{/if}})</small></label><input type="number" name="hazardZone.{{{dotsafe uuid}}}" value="{{zone}}" min="1" aria-label="{{localize 'SF2eTSC.ui.zone'}}"><label class="tsc-zone-in" data-tooltip="{{localize 'SF2eTSC.wizard.countHint'}}">× <input type="number" name="hazardCount.{{{dotsafe uuid}}}" value="1" min="1" max="10" aria-label="{{localize 'SF2eTSC.wizard.count'}}"></label><input type="text" class="tsc-copy-zones" name="hazardZones.{{{dotsafe uuid}}}" placeholder="{{localize 'SF2eTSC.wizard.copyZonesPh'}}" data-tooltip="{{localize 'SF2eTSC.wizard.copyZonesHint'}}" aria-label="{{localize 'SF2eTSC.wizard.copyZones'}}"></div>{{else}}<p class="tsc-hint">—</p>{{/each}}
+</fieldset>
+<fieldset><legend>6. {{localize "SF2eTSC.wizard.objects"}}</legend>
+  <div class="tsc-obj-rows" data-obj-rows></div>
+  <template data-obj-template><div class="tsc-row-inputs tsc-obj-row"><input type="text" data-f="name" placeholder="{{localize 'SF2eTSC.ui.name'}}"><select data-f="type">{{#each objectTypes}}<option value="{{id}}">{{label}}</option>{{/each}}</select><input type="number" data-f="zone" min="1" value="{{midZone}}" aria-label="{{localize 'SF2eTSC.ui.zone'}}"><input type="text" data-f="art" placeholder="{{localize 'SF2eTSC.mapAppearance.objectArt'}}" aria-label="{{localize 'SF2eTSC.mapAppearance.objectArt'}}"><button type="button" data-action="pickObjectArt" aria-label="{{localize 'SF2eTSC.mapAppearance.objectArt'}}"><i class="fa-solid fa-image"></i></button><button type="button" data-action="removeObjRow" aria-label="{{localize 'SF2eTSC.wizard.removeObject'}}"><i class="fa-solid fa-xmark"></i></button></div></template>
+  <button type="button" data-action="addObjRow"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addObject"}}</button>
+</fieldset>
+<footer>
+  <input type="text" name="presetName" placeholder="{{localize 'SF2eTSC.wizard.presetName'}}">
+  <button type="button" data-action="savePreset"><i class="fa-solid fa-floppy-disk"></i> {{localize "SF2eTSC.wizard.presetSave"}}</button>
+  <button type="submit" {{#if none}}disabled{{/if}}><i class="fa-solid fa-play"></i> {{localize "SF2eTSC.ui.start"}}</button>
+</footer>
+</section>

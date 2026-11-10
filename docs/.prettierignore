@@ -1,0 +1,11 @@
+node_modules/
+packs/
+packs-src/
+dist/
+.work/
+lang/content/
+data/
+tools/i18n/ru/
+tools/content-pipeline/ship-report.json
+# Foundry Handlebars permits conditional attributes unsupported by Prettier's Glimmer parser.
+templates/
