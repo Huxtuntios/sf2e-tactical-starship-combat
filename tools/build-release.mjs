@@ -71,13 +71,14 @@ export function validateReleaseCompatibility(manifest) {
 }
 
 function collect(root, relative, entries) {
+  const name = posix(relative);
+  if (name.startsWith("packs/") && /\.(?:dbtmp|db-wal|db-shm)$/.test(name)) return;
   const file = path.join(root, relative);
   const stat = fs.lstatSync(file);
   if (stat.isSymbolicLink()) throw new Error(`Release paths must not be symbolic links: ${relative}`);
   if (stat.isDirectory()) {
     for (const name of fs.readdirSync(file).sort()) collect(root, path.join(relative, name), entries);
   } else {
-    const name = posix(relative);
     if (SOURCE_ONLY_DOCS.has(name) || /(?:^|\/)(?:__pycache__|\.DS_Store|LOCK|LOG|LOG\.old)(?:\/|$)/.test(name) || name.endsWith(".pyc"))
       return;
     entries[name] = [new Uint8Array(fs.readFileSync(file)), { mtime: ZIP_DATE }];
