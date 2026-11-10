@@ -11,14 +11,22 @@ import { basicSaveMultiplier } from "../actions/dice.mjs";
 import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
 import { DEGREE } from "../constants.mjs";
 import { hazardStealthDC } from "./hazard-stealth.mjs";
+import { addPrivateContact } from "../sensor/private-contacts.mjs";
 
 export const hazardFlags = (actor) => actor?.flags?.[MODULE_ID]?.[FLAGS.HAZARD] ?? null;
 export const isStarshipHazard = (actor) => !!hazardFlags(actor)?.isStarshipHazard;
 
 /** Add a hazard actor to the sensor map and/or mark it for the ship map. */
-export async function placeHazard(hazardActor, { zone = 1, span = 1, map = "sensor", detection = null } = {}) {
+export async function placeHazard(hazardActor, { zone = 1, span = 1, map = "sensor", detection = null, publicActor = false } = {}) {
   const combat = activeStarshipCombat();
   if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
+  // Закрытая постановка не публикует UUID в Combat или module socket.
+  // Маркер на Ship Map и автоматизация требуют явного полного раскрытия.
+  if (!publicActor && map === "sensor" && (detection === null || detection === "undetected")) {
+    await addPrivateContact(combat, hazardActor, zone);
+    return true;
+  }
+  if (publicActor !== true || detection !== "identified") throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
   const flags = hazardFlags(hazardActor) ?? {};
   const state = foundry.utils.deepClone(getTsc(combat));
   if (map === "sensor" || map === "both") {

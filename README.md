@@ -1,5 +1,13 @@
 # SF2e Tactical Starship Combat
 
+## Experimental 0.17.1-dev.11
+
+**Partial, unpublished; use only in a backed-up test world.** World NPC ships and hazards can be staged as private contacts; custom contacts can be created privately. Observed publishes an anonymous position, Hidden and Unnoticed remain withheld, and full identification requires confirmation. This does **not** prove real Foundry privacy; do not rely on it for secrets. Install Mine remains GM notes, not inventory or automatically applied modifications; stale plan replacement is rejected. See `docs/work-in-progress-0.17.1-dev.11.md` and `MANUAL-TEST-0.17.1-dev.11-ru.md`. Install the supplied ZIP manually; automatic-update links are omitted.
+
+## Experimental 0.17.1-dev.10
+
+New NPC contacts may be staged in a separate GM-owned journal and explicitly revealed as identified. This is **partial and not privacy-verified in a real multiplayer Foundry server**: no intermediate detection levels or combat integration for staged contacts. Do not rely on it for secrets. Other Actor permissions and modules may expose them. Install Mine is a GM-confirmed preparation note, not applied effects or onboard inventory. See `docs/work-in-progress-0.17.1-dev.10.md` and `MANUAL-TEST-0.17.1-dev.10-ru.md`. Back up a test world and install the supplied ZIP manually; download URL is unpublished.
+
 [Русская версия](README.ru.md) · [User guide](docs/guide-en.md) · [Releases](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases) · [Report a bug](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues)
 
 ![Foundry VTT 14](https://img.shields.io/badge/Foundry_VTT-14-informational)
@@ -12,7 +20,7 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **0.17.0 is an experimental, test-world build, not a verified release.** Back up your world first. See `docs/work-in-progress-0.17.0.md` for incomplete features and the live test plan.
+> **0.17.1-dev.9 is experimental and unpublished.** Back up a test world and install the supplied ZIP manually; its download URL points to an unpublished future release. Toolbelt integration has only source review and mock/browser testing, not live verification. Better Chat merged, injected and split damage cards are refused for ships; see `docs/work-in-progress-0.17.1-dev.9.md`. **Sensor Map contacts are not private from players.** No action/reaction economy is tracked.
 
 > **Sensor Map:** very large background images can cause freezes. A user reported problems with an 8100 × 11700-pixel image; consider reducing its dimensions. The cause and performance limits have not been established.
 
@@ -40,7 +48,7 @@ This does **not** convert a world between systems or migrate already imported SF
 
 ## Toolbelt and Workbench
 
-Ship checks are exposed through the native `actor.getStatistic` API. This allows SF2e inline save links and **PF2e Toolbelt Target Helper** to request Fortitude, Reflex and Will for vehicle-based player ships as well as NPC ships. Perception and stored ship skills use the same adapter as the ship sheet. Select the **ship token**, not a crew token, when making a ship save.
+Ship checks are exposed through the native `actor.getStatistic` API. The adapter is intended to allow SF2e inline save links and **PF2e Toolbelt Target Helper** to request Fortitude, Reflex and Will for vehicle-based player ships as well as NPC ships. Perception and stored ship skills use the same adapter as the ship sheet. Select the **ship token**, not a crew token, when making a ship save.
 
 The bridge chains the existing lookup only for actors explicitly marked as module starships. Ordinary actors, unknown statistics and external module settings are unchanged. Statistics are read on demand; NPC native modifiers are preserved. It does not create duplicate chat rolls or apply damage automatically.
 

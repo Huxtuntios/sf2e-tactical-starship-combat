@@ -82,18 +82,18 @@ test("history is GM-only and shows exact shields/hull deltas plus reason", async
   assert.equal(game.messages.size, 0);
   assert.equal(r.reason, "попадание лазера");
   assert.match(historySummary(r.before, r.after), /Щиты: 20 → 8. Корпус: без изменений/);
-  assert.equal(r.undoable, true);
+  assert.equal(r.undoable, false);
   assert.equal(actor.flags[M].history, undefined);
 });
 test("0.12 guarded undo restores module state but keeps unrelated system fields", async () => {
   const { actor } = setup();
   await patchStarship(actor, (d) => {
-    d.sp.value = 8;
+    d.heading = "left";
   });
   const [m] = historyEntries();
   actor.system.details = { biography: "keep me" };
   await undoChange(m.id);
-  assert.equal(readStarship(actor).sp.value, 20);
+  assert.equal(readStarship(actor).heading, "right");
   assert.equal(actor.system.details.biography, "keep me");
   assert.equal(m.flags[M].history.undone, true);
   await assert.rejects(undoChange(m.id));
@@ -101,18 +101,18 @@ test("0.12 guarded undo restores module state but keeps unrelated system fields"
 test("0.12 undo refuses incompatible later edits including manual system HP edits", async () => {
   const { actor } = setup();
   await patchStarship(actor, (d) => {
-    d.sp.value = 8;
+    d.heading = "left";
   });
   const [m] = historyEntries();
   await actor.update({ "system.attributes.hp.value": 99 });
   await assert.rejects(undoChange(m.id));
-  assert.equal(readStarship(actor).sp.value, 8);
+  assert.equal(readStarship(actor).heading, "left");
 });
 test("0.12 undo refuses changed combat budgets, turn or round", async () => {
   const { actor } = setup();
   const combat = makeStarshipCombat();
   await patchStarship(actor, (d) => {
-    d.sp.value = 8;
+    d.heading = "left";
   });
   const [m] = historyEntries();
   combat.round++;
@@ -146,16 +146,16 @@ test("0.12 stale expected snapshots rejected inside serialized actor write", asy
   });
   await assert.rejects(writeStarship(actor, before, { expected: before, history: false }));
 });
-test("0.12 manual damage draft can be reversed; normal action drafts cannot", async () => {
+test("damage drafts and normal action drafts cannot be reversed", async () => {
   const { actor } = setup();
   const draft = new Draft(null);
   draft.allowUndo = true;
   await applyDamageInDraft(draft, actor.uuid, { amount: 12, source: "лазер", silent: true });
   await draft.commit();
   const [m] = historyEntries();
-  assert.equal(m.flags[M].history.undoable, true);
-  await undoChange(m.id);
-  assert.equal(readStarship(actor).sp.value, 20);
+  assert.equal(m.flags[M].history.undoable, false);
+  await assert.rejects(undoChange(m.id));
+  assert.equal(readStarship(actor).sp.value, 8);
   const action = new Draft(null);
   (await action.ship(actor.uuid)).data.sp.value = 7;
   await action.commit();
@@ -219,7 +219,7 @@ test("legacy trusted GM whisper remains readable and undoable", async () => {
   await patchStarship(
     actor,
     (d) => {
-      d.sp.value = 8;
+      d.heading = "left";
     },
     { history: false }
   );
@@ -232,8 +232,34 @@ test("legacy trusted GM whisper remains readable and undoable", async () => {
   });
   assert.equal(historyEntries()[0].id, old.id);
   await undoChange(old.id);
-  assert.equal(readStarship(actor).sp.value, 20);
+  assert.equal(readStarship(actor).heading, "right");
   assert.equal(old.flags[M].history.undone, true);
+});
+test("legacy HP/SP history remains readable but cannot undo possible damage", async () => {
+  const { actor } = setup();
+  const before = snapshot(readStarship(actor));
+  await patchStarship(
+    actor,
+    (d) => {
+      d.sp.value = 8;
+    },
+    { history: false }
+  );
+  const after = snapshot(readStarship(actor));
+  const old = await ChatMessage.create({
+    whisper: [game.user.id],
+    flags: {
+      [M]: { history: { schema: 1, shipUuid: actor.uuid, before, after, undoable: true, undone: false, guard: null, at: Date.now() } }
+    }
+  });
+  const writes = globalThis.__writes.length;
+  const messages = game.messages.size;
+  assert.equal(historyEntries()[0].id, old.id);
+  await assert.rejects(undoChange(old.id));
+  assert.equal(readStarship(actor).sp.value, 8);
+  assert.equal(old.flags[M].history.undone, false);
+  assert.equal(globalThis.__writes.length, writes);
+  assert.equal(game.messages.size, messages);
 });
 test("0.12 forged player history flags are neither displayed nor executable", async () => {
   const { actor, setUser } = setup();

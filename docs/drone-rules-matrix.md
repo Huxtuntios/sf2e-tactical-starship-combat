@@ -31,3 +31,17 @@ Deploy and Retrieve are individual station actions with GM-authoritative state c
 Base Drone Block is implemented for module single-target weapon Strikes against player ships, including sheet-deferred damage; it is not implemented for external/Toolbelt damage, spells, area attacks or NPC defender ships. It is deliberately not offered when Drone Shield Protocol is installed on that console. The chosen drone, cooldown, attack-specific resistance and target damage are staged together with conflict checking on the target actor. This is not a multi-document transaction: combat/chat/other actors remain separate writes, and real multiplayer or Foundry 14 / SF2e 1.7.0 behavior is not verified. Rounding half level down follows the usual game convention and needs source/GM review.
 
 The GM can remove an armed mine or mark a manually adjudicated detonation; the latter does not roll, save, select targets or apply damage. Mine records are preserved and the operation is not reversible through Undo. All other previously listed drone actions and all three upgrade effects are still unimplemented.
+
+## 0.17.1-dev.3 status
+
+No new drone game effect or upgrade is implemented in this stage. Deploy/Retrieve and mine placement retain existing checks; the three remote socket actions gain a bounded process-local duplicate receipt, not a distributed transaction. Mine plan, GM move and GM close reject globally ambiguous ship-local IDs. Detonation, target selection, saves, damage, mine modifications, Repair Hull and the three upgrades remain GM adjudications; movement remains GM-assisted. The Repair Hull base DC and outcome dice also appear in indexed AoN builder excerpts, but full requirements, exact context and system integration remain unverified. The current manual HP/SP repair is not that drone action. No action/reaction economy is tracked.
+
+## 0.17.1-dev.4: verified source and partial Repair Hull
+
+The user supplied Tech Core printed pp. 179, 184 and 192–193, so the previous source-access caveat is superseded for those excerpts. For Repair Hull the printed action has two actions, not a timed 1-hour/1-day extension. The new module action supports **only the console's own ship** on the active combat Sensor Map; other ships and outside-combat use remain manual. Native Crafting, tier rank/DC, critical success, success, failure and critical failure are handled; no cost accounting is performed. Save, history, combat, native rule hooks and chat are not a single cross-document transaction.
+
+The printed Drone Block wording says half the operator's level; the user summary says ship level. The module retains its existing operator-level calculation pending clarification. All other drone-specific effects and upgrades remain as previously documented, including manual GM decisions for mine detonation and targets.
+
+## 0.17.1-dev.5 status (supersedes older status sections)
+
+Modify Starship Mine: a GM-confirmed helper stores Smart or Targeting on a specific mine, with strict current-turn and same-zone checks and conservative timing. GM handles exclusion, damage, saves and final detonation; no Install Mine automation is implied. Other unimplemented drone actions and upgrades remain manual. Drone Block remains operator-level as confirmed by the user and covered by a regression test. No live Foundry verification.

@@ -79,7 +79,7 @@ export class MapAppearanceApplication extends TscApp {
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
         selected: id === a.arrowPosition
       })),
-      directions: ["left", "right", "up", "down"].map((id) => ({
+      directions: ["left", "right", "up", "down", "unknown"].map((id) => ({
         id,
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
         selected: id === transform.baseDirection

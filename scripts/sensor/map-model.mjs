@@ -110,6 +110,12 @@ export function applySensorOp(s, payload, opts = {}) {
       return { ...s, objects: [...s.objects, { span: 1, ...payload.object, zone: Math.min(Math.max(1, payload.object.zone), s.zones) }] };
     case "remove":
       return removeObject(s, payload.key);
+    case "setHeading": {
+      const o = findObject(s, payload.key);
+      return o?.type === "starship" && !o.heading && ["left", "right"].includes(payload.heading)
+        ? setHeading(s, payload.key, payload.heading)
+        : s;
+    }
     case "flip": {
       const o = findObject(s, payload.key);
       return o?.heading ? setHeading(s, payload.key, o.heading === "left" ? "right" : "left") : s;
@@ -137,11 +143,12 @@ export function applySensorOp(s, payload, opts = {}) {
         zoneInfo: {
           ...s.zoneInfo,
           [payload.zone]: {
+            ...(s.zoneInfo?.[payload.zone] ?? {}),
             cover: !!payload.info.cover,
             concealment: !!payload.info.concealment,
             special: payload.info.special ?? "",
             publicNotes: payload.info.publicNotes ?? "",
-            gmNotes: payload.info.gmNotes ?? ""
+            gmNotes: s.zoneInfo?.[payload.zone]?.gmNotes ?? ""
           }
         }
       };

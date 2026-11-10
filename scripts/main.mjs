@@ -3,6 +3,7 @@ import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
 import { registerHistoryHandlers } from "./history/history.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
 import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
+import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
 import { registerToolbeltDamage } from "./integrations/toolbelt-damage.mjs";
 import { MODULE_ID, MODULE_TITLE, DATA_VERSION, HOOK_EVENTS } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
@@ -127,6 +128,7 @@ Hooks.once("ready", async () => {
   registerControls();
   checkCausodesConflict();
   registerRefreshHooks();
+  registerPetCabinMonitor();
   onClientEvent("openSensorMap", () => {
     if (moduleSetting("autoOpenSensorMap")) openSensorMap();
   });
@@ -189,6 +191,7 @@ function registerRefreshHooks() {
   for (const hook of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"])
     Hooks.on(hook, (entry) => {
       if (game.user.isGM && entry.flags?.[MODULE_ID]?.historyStore) refreshApps("history");
+      if (game.user.isGM && entry.flags?.[MODULE_ID]?.privateSensor) refreshApps("combat");
     });
   const crewChanged = (actor) => {
     if (actor instanceof Actor && !isStarship(actor) && isCrewMember(actor)) refreshApps("crew", actor);

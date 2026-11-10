@@ -42,7 +42,8 @@ function reversibleDroneMovement(before, after) {
 export function reversible(before, after) {
   const keys = changedFields(before, after);
   if (keys.length === 1 && keys[0] === "drones") return reversibleDroneMovement(before, after);
-  return keys.length > 0 && keys.every((k) => ["hp", "sp", "effects", "heading", "offKilter"].includes(k));
+  // Старые записи не различают ручную правку HP/SP и последствия урона, чата или боя.
+  return keys.length > 0 && keys.every((k) => ["effects", "heading", "offKilter"].includes(k));
 }
 export function combatGuard(combat = activeStarshipCombat()) {
   if (!combat) return null;
@@ -151,8 +152,9 @@ export async function undoChange(messageId) {
   const recordId = journal ? String(messageId).slice(2) : null;
   const message = recordId ? journalEntry(journal, recordId) : game.messages.get(messageId);
   const r = message?.flags?.[MODULE_ID]?.history;
-  if ((!journal && !trustedRecord(message)) || !r?.undoable || r.undone || !equalState(r.guard, combatGuard()))
+  if ((!journal && !trustedRecord(message)) || !r?.undoable || r.undone || !r.before || !r.after || !equalState(r.guard, combatGuard()))
     throw new Error(T("SF2eTSC.qol.undoConflict"));
+  if (!reversible(r.before, r.after)) throw new Error(T("SF2eTSC.qol.undoUnsafe"));
   const { loadStarship, readStarship, writeStarship } = await import("../starship/starship-state.mjs");
   const actor = await loadStarship(r.shipUuid);
   if (!equalState(snapshot(readStarship(actor)), r.after)) throw new Error(T("SF2eTSC.qol.undoConflict"));

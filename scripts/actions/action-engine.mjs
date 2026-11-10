@@ -26,6 +26,7 @@ import { registerHandler } from "../socket.mjs";
 import { fromUuidSafe, fromUuidSync_, T, moduleSetting, levelDC } from "../utils/foundry.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
 import { executeDroneMovement } from "./drone-actions.mjs";
+import { executeDroneRepair } from "./drone-repair.mjs";
 
 export const actionLabel = (a) => (game.i18n.has(`SF2eTSC.actions.${a.id}`) ? T(`SF2eTSC.actions.${a.id}`) : ct(a.name));
 const REPAIR_IDS = ["repair-station", "jump-start"];
@@ -252,6 +253,10 @@ async function executeActionNow(params) {
     if (parent || params.dryRun) fail("invalidData");
     return executeDroneMovement({ user, ship, crewUuid, stationId: params.stationId, options, action });
   }
+  if (action.id === "repair-hull-drone") {
+    if (parent || params.dryRun) fail("invalidData");
+    return executeDroneRepair({ user, ship, crewUuid, stationId: params.stationId, options, action });
+  }
   const combat = activeStarshipCombat();
   const draft = parent ?? new Draft(combat);
   const entry = await draft.ship(shipUuid);
@@ -473,6 +478,7 @@ export const CLIENT_OPTION_KEYS = Object.freeze([
   "weaponId",
   "droneId",
   "mineId",
+  "repairId",
   "gmOverride",
   "sheetRoll",
   "mapChoice",

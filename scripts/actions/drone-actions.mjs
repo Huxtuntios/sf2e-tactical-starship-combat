@@ -1,6 +1,6 @@
 import { changeDrone } from "../engine/drone-state.mjs";
 import { Content } from "../content/loader.mjs";
-import { patchStarship, stationOf } from "../starship/starship-state.mjs";
+import { patchStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { can } from "../crew/permissions.mjs";
@@ -21,8 +21,9 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
     ship,
     (data) => {
       if (!user.isGM && !can(user, ship, "operateStation")) throw new Error(T("SF2eTSC.errors.noPermission"));
-      const station = stationOf(data, stationId);
-      if (!station || station.type !== "drone-console" || station.helmedBy !== crewUuid)
+      const matches = data.stations.filter((s) => s?.id === stationId);
+      const station = matches[0];
+      if (matches.length !== 1 || !station || station.type !== "drone-console" || station.helmedBy !== crewUuid)
         throw new Error(T("SF2eTSC.errors.notHelming", { station: T("SF2eTSC.stations.drone-console") }));
       if (station.malfunctioning || data.destroyed)
         throw new Error(T(`SF2eTSC.errors.${station.malfunctioning ? "malfunctioning" : "shipDestroyed"}`));
@@ -37,7 +38,8 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
                 {
                   definition: Content.stations.get("drone-console"),
                   droneTypes: Content.drones,
-                  worldTime: game.time?.worldTime
+                  worldTime: game.time?.worldTime,
+                  combat: activeStarshipCombat()
                 }
               );
         const record = data.drones.find((d) => d?.id === options.droneId && d?.stationId === stationId);
@@ -76,13 +78,16 @@ export function deployMine(data, { stationId, droneId, mineId, shipUuid, crewUui
   if (!combat?.id || !Number.isInteger(combat.round) || combat.round < 1) throw new Error("mineMap");
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(mineId ?? "")) throw new Error("invalid");
   if (!Array.isArray(data.drones)) throw new Error("legacy");
-  const drone = data.drones.find(
-    (d) => d?.id === droneId && d?.stationId === stationId && d?.tscVersion === 1 && d?.ref === "pyrotechnics-drone" && d?.deployed === true
-  );
-  if (!drone) throw new Error("legacy");
+  const matches = data.drones.filter((d) => d?.id === droneId);
+  if (matches.length !== 1) throw new Error("legacy");
+  const drone = matches[0];
+  if (drone.stationId !== stationId || drone.tscVersion !== 1 || drone.ref !== "pyrotechnics-drone" || drone.deployed !== true)
+    throw new Error("legacy");
   if (drone.mines != null && !Array.isArray(drone.mines)) throw new Error("legacy");
   const mines = drone.mines ?? [];
-  const old = data.drones.flatMap((d) => (Array.isArray(d?.mines) ? d.mines : [])).find((m) => m?.id === mineId);
+  const oldMatches = data.drones.flatMap((d) => (Array.isArray(d?.mines) ? d.mines : [])).filter((m) => m?.id === mineId);
+  if (oldMatches.length > 1) throw new Error("legacy");
+  const old = oldMatches[0];
   if (old) {
     if (old.droneId === droneId && old.shipUuid === shipUuid && old.operatorUuid === crewUuid) return false;
     throw new Error("invalid");

@@ -110,7 +110,7 @@ export function normalizeObjectTransform(value = {}) {
     rotation: normalizeAngle(v.rotation),
     flipX: v.flipX === true,
     flipY: v.flipY === true,
-    baseDirection: ["right", "left", "up", "down"].includes(v.baseDirection) ? v.baseDirection : "right"
+    baseDirection: ["right", "left", "up", "down", "unknown"].includes(v.baseDirection) ? v.baseDirection : "right"
   };
 }
 /** Отражение выводится из курса, а не накапливается от событий. Курс карты сегодня только left/right. */

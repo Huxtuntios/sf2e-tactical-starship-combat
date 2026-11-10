@@ -1,5 +1,47 @@
 # Testing
 
+## 0.17.1-dev.11 verification
+
+See `work-in-progress-0.17.1-dev.11.md` and `MANUAL-TEST-0.17.1-dev.11-ru.md`. Unit/mock and Chromium tests cannot verify Foundry server access, real SF2e, Toolbelt, multiplayer, failover or network behaviour. No live test has been run.
+
+## 0.17.1-dev.10 verification
+
+See `work-in-progress-0.17.1-dev.10.md` for exact test results and limitations. The new private-store and drag-handler tests use Foundry mocks; the mock does **not** model server-side journal filtering, and cannot prove secrecy. Install Mine tests cover confirmed notes, preserved fields, invalid/duplicate inputs, non-GM refusal and replays. Chromium fixtures render mock data, not real Foundry or actual Toolbelt. Follow `MANUAL-TEST-0.17.1-dev.10-ru.md` on a backed-up test world and separate logged-in clients.
+
+## 0.17.1-dev.9 verification
+
+Source review compared Toolbelt tags 3.60.0 and 3.61.3 and downloaded their release manifests; no Toolbelt source is included in this project and no Toolbelt/system files were modified. Tests model the specific inspected DOM/data contracts, not Toolbelt's complete runtime. `tests/unit/pet-monitor-0179.test.mjs` covers observed ending events, persistent end marker, duplicate station rejection, stale queued session, no-op and non-GM behavior; `toolbelt-0142.test.mjs` covers module Harry effects on PC/NPC statistic adapters, and `toolbelt-damage-0143.test.mjs` covers Better Chat refusal. `smoke-toolbelt-damage.mjs` models asynchronously added target rows and an unresolvable previously recognized target in local Chromium. `npm ci --no-audit --no-fund` completed; `npm run check` passed formatting, lint, content validation, pack build and 536/536 unit/architecture tests. `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` passed 47/47 local browser fixtures. Full results are in `work-in-progress-0.17.1-dev.9.md`. Real Foundry, actual Toolbelt execution, multiple clients and network failure remain untested; use `MANUAL-TEST-0.17.1-dev.9-ru.md`.
+
+## 0.17.1-dev.8 verification
+
+The focused additions in `tests/unit/drone-assist-0178.test.mjs` cover guided mine damage and per-target receipts, duplicate/concurrent requests in one process, stale state, GM permission, Harry effects and timing, potential Intercept hints, per-drone protocol/cooldown, pet cabin and movement hints. They use mocked documents and system APIs; they do not exercise a real Foundry server or prove privacy or failover. `npm ci --no-audit --no-fund` completed; `npm run check` passed formatting, lint, content validation, pack generation and 528/528 unit/architecture tests. `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` passed 47/47 browser fixtures. Full details are recorded in `work-in-progress-0.17.1-dev.8.md`; the explicitly unexecuted real-world checklist is `MANUAL-TEST-0.17.1-dev.8-ru.md`.
+
+## 0.17.1-dev.7 verification
+
+Baseline dev.6 in this workspace: `npm run check` 493 unit/architecture tests; `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` 45 fixtures. The new `tests/unit/drone-soft-0177.test.mjs` covers basic damage degrees, Targeting and Smart, manual fallback, changed state, partial/cancelled progress, Harry outcomes and DC, GM permission, and Intercept per-drone use, replays, receipt limits and same-process concurrency. `tools/smoke-drone-soft.mjs` adds two local Chromium dialog fixtures. These are mocks and local browser fixtures, not real Foundry or multiplayer tests.
+
+Final dev.7 results: `npm run check` — 512/512 unit/architecture tests, formatting, ESLint, content validation and pack generation; `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` — 47/47 browser fixtures.. No live tests were run. Detailed, explicitly unexecuted GM/two-player/multiple-GM, reconnection, privacy and SF2e/PF2e checks are in `MANUAL-TEST-0.17.1-dev.7-ru.md`. Exercise system APIs and defenses in Foundry before using results; check for partial progress after disconnect rather than retrying blindly.
+
+## 0.17.1-dev.6 verification
+
+`tests/unit/mine-targets-0176.test.mjs` covers mapped source/targets, hazards, duplicate IDs, invalid zones, unknown or unresolvable Actors, selected Smart exception, GM whispers, escaping, stale dialog, cancellation and same-client concurrent clicks. `tools/smoke-mine-targets.mjs` supplies two Chromium fixtures from the actual generated dialog. These are mocks and local HTML, not Foundry. See `work-in-progress-0.17.1-dev.6.md` and `MANUAL-TEST-0.17.1-dev.6-ru.md` for the unexecuted real-world checklist.
+
+## 0.17.1-dev.5 verification
+
+See `work-in-progress-0.17.1-dev.5.md` for results and limitations. `tests/unit/mine-modification-0175.test.mjs` exercises both choices, expiry boundaries, preserved fields, movement, replays, conflicts, GM-only permissions, manual cards, cancellation and Drone Block's operator-level calculation. `tools/smoke-mine-modification.mjs` renders the production template for GM and player in local Chromium; these tests are not a Foundry world. The unexecuted ordered live-world checklist is `MANUAL-TEST-0.17.1-dev.5-ru.md` in the source archive.
+
+## 0.17.1-dev.4 experimental checks
+
+See `work-in-progress-0.17.1-dev.4.md` for exact results and source-review scope; `MANUAL-TEST-0.17.1-dev.4-ru.md` contains the unexecuted live-world checklist. `tests/unit/drone-repair-0174.test.mjs` exercises four degrees, all proficiency tiers and their outcomes, native-roll failure, permissions, ambiguous IDs, target restrictions, conflicts, repeated/concurrent requests, modifier scoping, receipt limits, UI-to-handler mock and save/cleanup failures. Mock and browser tests are not Foundry execution or evidence of multi-GM safety.
+
+## 0.17.1-dev.3 experimental checks
+
+Baseline dev.2: `npm run check` 446 Node tests and `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` 41 fixtures. dev.3: `npm run check` passed 454/454 Node tests with formatting, lint, content validation and pack build; `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` passed 41/41 fixtures. Details and environment are recorded in `work-in-progress-0.17.1-dev.3.md`. New focused tests cover same-ID socket coalescing, conflicting payload, stale replay, cross-station mine ambiguity, rejected repair, permission revocation, save/initiative order and legacy HP/SP Undo refusal. These use mocks, not Foundry. The full live checklist is `MANUAL-TEST-0.17.1-dev.3-ru.md` in the source archive. No real installation or multi-client test was available.
+
+## 0.17.1-dev.2 experimental checks
+
+See `work-in-progress-0.17.1-dev.2.md` and `REPORT-0.17.1-dev.2-ru.md` for the focused mock tests and ordered live-world checklist. These checks do not certify Foundry or multiplayer.
+
 ## 0.16.1-dev.6 experimental checks
 
 `tests/unit/native-attack-0166.test.mjs` exercises chat modes, target validation, four attack degrees, MAP, separate events and weapons, deferred damage, system callback, duplicate-event receipts, simulated GM/player socket authorization and non-retry on ambiguous roll failure. `tools/smoke-native-attack.mjs` checks that rerendering leaves native HTML intact and damage controls do not duplicate. These are mocks and local Chromium, not live Foundry or SF2e 1.7.0. See `work-in-progress-0.16.6.md` for the outstanding test-world checklist.
@@ -196,3 +238,15 @@ Live checklist (not executed by the offline test suite):
 4. Open select menus on each target OS: selected, hovered, disabled and long entries; use arrows, Enter, Escape and Tab. Validate actual native popup contrast and assistive technology.
 5. On the map retain art, custom colors, background and filters; switch both client themes and re-open the appearance editor. Custom colors can be incompatible with a chosen palette.
 6. Create and edit a ship, crew assignments, stations, weapons and bays; search history and exercise guarded undo in a disposable world. Verify no gameplay or document changes result from theme changes. Repeat with optional integrations on/off.
+
+## 0.17.1-dev.1 verification plan
+
+Automated: `npm run check` and `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui`. Mock tests cover input validation, world/Compendium UUID resolution, permission checks, duplicate requests, disclosure and preserving visual state; a local DOM fixture exercises drag events. These do not exercise Foundry.
+
+Live test (not performed): back up a disposable Foundry 14.370 / SF2e 1.7.0 world, with a GM and at least two player clients. Drag a visible player ship, NPC ship, and hazard from the directory and from a compendium; cancel and confirm disclosure. Check zone, artwork, source UUID, duplicate moves, no-op repeats, invalid zones/types/UUIDs, player permissions and reload. Never use this feature for secret hazards: the underlying Combat flags are not private. Test locked Compendium Actors separately and use world Actors for gameplay writes.
+
+Hide course arrows with single and crowded zones, test art and fallback alignment. Choose left/right base direction, switch headings with Auto Mirror on/off, check manual X/Y flips, rotation, repeated renders, absent heading and Unknown base; verify old maps retain their orientation. Compare each catalogue weapon's `system.category` with builder and installed summary, custom explicit ranks, unknown/malformed entries, and English/Russian. Repeat concurrent client operations, GM disconnect/failover and all old regression plans; mocks do not establish safety.
+
+## 0.17.1-dev.4: Repair Hull
+
+After the dev.3 baseline (454 unit/architecture tests and 41 browser fixtures), `npm run check` passed 473/473 and `CHROMIUM_PATH=/usr/local/bin/chromium npm run test:ui` passed 41/41. `tests/unit/drone-repair-0174.test.mjs` exercises the supported self-ship route, four degrees, DC/rank combinations, invalid state/permissions, stale state, duplicate and concurrent requests, failure to save, and old-field preservation. These are mocks, not a Foundry runtime or multi-client test. Live checks and explicit outstanding scenarios are in `MANUAL-TEST-0.17.1-dev.4-ru.md`; none has been executed.

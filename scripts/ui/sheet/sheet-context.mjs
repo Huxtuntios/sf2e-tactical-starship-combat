@@ -1,3 +1,4 @@
+import { petOnboardStatus } from "../../actions/pet-onboard.mjs";
 import { stationDCRows, linkContextDCs } from "../../rolls/context-dc.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { effectCaption } from "../effect-editor.mjs";
@@ -15,7 +16,7 @@ import { gradeIndex } from "../../engine/advancement.mjs";
 import { permissionsFor, roleOf } from "../../crew/permissions.mjs";
 import { COST_ICON } from "../action-runner.mjs";
 import { actionLabel } from "../../actions/action-engine.mjs";
-import { T } from "../../utils/foundry.mjs";
+import { T, fromUuidSync_ } from "../../utils/foundry.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
 import { traitsText, damageTypeLabel, stationTypeLabel } from "../../utils/labels.mjs";
 import { formatKv, NPC_COSTS } from "../sheet-edit.mjs";
@@ -66,6 +67,14 @@ export async function buildSheetContext(sheet) {
       occupied: !!st.helmedBy,
       upgradeSection: stationUpgradeView(sheet, data, st, upgradeOpts),
       droneInventory: droneInventory(data, st, def),
+      droneProtocol:
+        st.type === "drone-console" && data.upgrades.filter((u) => u.ref === "drone-shield-protocol" && u.stationId === st.id).length === 1,
+      mineShell:
+        st.type === "drone-console" && data.upgrades.filter((u) => u.ref === "mine-deployment-shell" && u.stationId === st.id).length === 1,
+      petShell:
+        st.type === "drone-console" && data.upgrades.filter((u) => u.ref === "pet-drone-shell" && u.stationId === st.id).length === 1,
+      petSession: st.tscPetOnboard ?? null,
+      petActive: !!st.tscPetOnboard && petOnboardStatus(data, st, fromUuidSync_(st.tscPetOnboard.petUuid), game.time?.worldTime),
       droneRows:
         st.type === "drone-console"
           ? (Array.isArray(data.drones) ? data.drones : [])

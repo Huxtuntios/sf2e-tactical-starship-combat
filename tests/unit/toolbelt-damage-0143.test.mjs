@@ -243,3 +243,14 @@ test("Toolbelt damage: message receipt protects after bounded actor receipts are
   assert.equal(readStarship(s.actor).sp.value, 4);
   assert.equal(s.actor.system.attributes.hp.value, 30);
 });
+
+test("Toolbelt Better Chat merge, injection and split fail closed before ship mutation", async () => {
+  for (const flag of [{ mergeDamage: { merged: true, data: [] } }, { injected: true }, { splitted: true }]) {
+    const s = await scenario();
+    s.message.flags["pf2e-toolbelt"] = { betterChat: flag };
+    const before = globalThis.__writes.length;
+    await assert.rejects(s.apply(), /merged|Объедин|Merged/i);
+    assert.equal(readStarship(s.actor).sp.value, 12);
+    assert.equal(globalThis.__writes.length, before);
+  }
+});

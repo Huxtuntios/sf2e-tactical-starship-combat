@@ -90,7 +90,8 @@ test("every derived PF2e pack matches its SF2e source, preserving all IDs and ru
       count++;
     }
   }
-  assert.equal(count, 540);
+  // Repair Hull добавляет английскую и русскую записи действия.
+  assert.equal(count, 542);
 });
 
 test("PF2e pack conversion is non-mutating and refuses unverified external UUIDs", () => {

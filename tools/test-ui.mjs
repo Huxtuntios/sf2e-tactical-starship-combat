@@ -9,9 +9,13 @@ const out = path.join(root, "dist", "ui-tests");
 fs.mkdirSync(out, { recursive: true });
 const fixtures = [
   ["smoke-sheet-theme.mjs", "sheets"],
+  ["smoke-mine-modification.mjs", "mine-modification"],
+  ["smoke-mine-targets.mjs", "mine-targets"],
+  ["smoke-drone-soft.mjs", "drone-soft"],
   ["smoke-qol.mjs", "interaction"],
   ["smoke-window-themes.mjs", "windows"],
   ["smoke-map-appearance.mjs", "map"],
+  ["smoke-sensor-drop.mjs", "sensor-drop"],
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],

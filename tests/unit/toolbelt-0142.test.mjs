@@ -171,3 +171,29 @@ test("actual Barrow Dirgesinger action card has normalized save text and native 
   assert.ok(!content.includes("(@Check"));
   setContentTranslations("en", {});
 });
+
+test("Toolbelt bridge reads Harry module effects for PC and NPC ships without repeated penalties", async () => {
+  const { makeStarshipCombat } = await import("../helpers/foundry-mock.mjs");
+  const { applyHarryEffect } = await import("../../scripts/actions/harry-apply.mjs");
+  for (const role of ["player", "npc"]) {
+    const { actor } = await scenario(role);
+    if (role === "npc") {
+      actor._source = { system: { saves: { reflex: { value: 6 } } } };
+      actor.saves.reflex = new Statistic(actor, { slug: "reflex", modifiers: [{ modifier: 6 }, { modifier: 2 }] });
+    }
+    const before = actor.getStatistic("reflex").mod;
+    const combat = makeStarshipCombat({ objects: [{ key: actor.uuid, zone: 1 }] });
+    const params = {
+      targetUuid: actor.uuid,
+      sourceUuid: "Actor.source",
+      messageId: `harry-${role}`,
+      degree: 1,
+      combatId: combat.id,
+      validate: async () => true
+    };
+    assert.equal(await applyHarryEffect(params), true);
+    assert.equal(await applyHarryEffect(params), false);
+    for (let i = 0; i < 3; i++) assert.equal(actor.getStatistic("reflex").mod, before - 2);
+    if (role === "npc") assert.equal(actor.saves.reflex.mod, 8, "native source statistic is not mutated");
+  }
+});

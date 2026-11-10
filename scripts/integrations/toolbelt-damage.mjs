@@ -24,10 +24,14 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
   root.dataset.tscDamageWired = "1";
   const targetsFor = (row) => (row.dataset.targetUuid ? [resolve(row.dataset.targetUuid)].filter(Boolean) : selected());
   const busy = new Set();
+  // Ранее распознанную цель нельзя тихо передать нативной обработке при потере UUID.
+  const knownShipRows = new WeakMap();
   const refresh = () => {
     for (const row of root.querySelectorAll(".damage-application")) {
       const targets = targetsFor(row);
       const shipsOnly = targets.length > 0 && targets.every((target) => isStarship(actorOf(target)));
+      if (row.dataset.targetUuid && shipsOnly) knownShipRows.set(row, row.dataset.targetUuid);
+      else if (row.dataset.targetUuid && targets.length) knownShipRows.delete(row);
       let controls = row.querySelector(".tsc-ship-damage-controls");
       if (!shipsOnly) {
         controls?.remove();
@@ -73,6 +77,12 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
     if (!row || !root.contains(row)) return;
     const targets = targetsFor(row);
     const ships = targets.filter((target) => isStarship(actorOf(target)));
+    if (!targets.length && row.dataset.targetUuid && knownShipRows.get(row) === row.dataset.targetUuid) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ui.notifications.warn(T("SF2eTSC.toolbelt.targetUnavailable"));
+      return;
+    }
     if (!ships.length) return;
     const healing = Number(button.dataset.multiplier) < 0;
     if (healing && !button.dataset.tscShipDamage) return;

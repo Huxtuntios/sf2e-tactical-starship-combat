@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.17.1-dev.11 — experimental, unpublished
+
+- Stage new world hazards and NPC ships from drag/drop and the content browser; private custom contacts can be created, renamed, moved and removed. Observed publishes only an anonymous marker; Hidden and Unnoticed remain withheld. Full reveal needs confirmation. No real multiplayer privacy verification.
+- Guard the public hazard API against accidental disclosure, preserve old zone GM notes but stop accepting new GM notes through the shared socket, and guard Install Mine plan edits against stale snapshots. Install Mine remains manual notes, not inventory or actual effects.
+- Existing Toolbelt safeguards and Drone Block are unchanged. No action/reaction economy. See the dev.11 report and manual test plan.
+
+## 0.17.1-dev.10 — experimental, unpublished
+
+- Added experimental GM-only staging of new world NPC ship contacts outside shared Combat flags and module socket messages. Full identification can be explicitly published; intermediate detection, full integration and real multiplayer privacy remain unverified. Do not use for actual secrets until live verification.
+- Added a GM-confirmed Install Mine preparation record for up to four individually labelled mines and personal mechanic mods. These are notes, not automatic onboard inventory or applied mine effects.
+- No action/reaction economy. Existing Toolbelt safeguards and Drone Block remain unchanged. See `docs/work-in-progress-0.17.1-dev.10.md` and the manual test plan.
+
+## 0.17.1-dev.9 — experimental, unpublished
+
+- Compare Toolbelt 3.60.0 and 3.61.3 source and release manifests. For ship damage, explicitly refuse Better Chat merged, injected or split cards: Toolbelt can replace message IDs or change rolls, so old receipts cannot reliably establish whether damage was already applied. A previously recognized target row whose token UUID becomes unresolvable also fails closed instead of falling through to native damage. Ordinary actors retain their native path. This is a limited integration, not full Toolbelt compatibility.
+- The active GM now records the end of an onboard-pet session when it observes world-time expiry, loss of helm, pet HP reaching zero, deletion, or loss of the upgrade. The end marker cannot reactivate after recovery; session replacement is guarded. Native quickened, voluntary exit, companion movement, cleanup and events missed while no active GM remain manual.
+- New GM-side and browser-mock tests; no real Foundry or Toolbelt execution. Sensor Map secrets, Install Mine and other dev.8 gaps remain. No action/reaction spending. Back up and install the supplied ZIP manually; the manifest points to an unpublished future release. See `docs/work-in-progress-0.17.1-dev.9.md`.
+
+## 0.17.1-dev.8 — experimental, unpublished
+
+- Extend the existing mine guide: GM-confirmed per-target application via the ship damage engine, progress and bounded target receipts; confirm closure separately. The map may omit targets. A GM-only local movement hint proposes manual consideration of a reaction; it is not automatic detonation and does not cover every movement path.
+- Harry Sensors can apply module-only ship effects, not native SF2e conditions; success requires a unique ship combatant for expiry. Intercept receives a limited pre-roll hint but remains a manually applied penalty. Shield Protocol and Fetch and Fix add per-drone, GM-confirmed manual records and combat-anchored cooldown; they do not integrate resistance with attacks. Pet cabin adds a GM-confirmed session and derived status; quickened and final cleanup are manual.
+- New Sensor Map contacts are **not private**: existing Combat flags are replicated to players. The requested unnoticed-by-default feature is not implemented; do not place undiscovered secrets on the map. Install Mine and other listed gaps remain. No action/reaction spending is tracked.
+- Optional module flags change on use, without migration. Receipts are bounded and cannot guarantee distributed exactly-once. No live Foundry or multiplayer validation; back up a test world and install the supplied ZIP manually. Manifest download is a future, unpublished URL. See `docs/work-in-progress-0.17.1-dev.8.md`.
+
+## 0.17.1-dev.7 — experimental, unpublished
+
+- Extend the GM mine helper with optional native typed damage and per-target Reflex rolls, manual input when unavailable, basic-save raw damage and a single private progress card. The GM must verify all targets, apply defenses and damage, and separately close the mine. No automatic reaction, mine detonation, HP/SP write, recovery or exactly-once guarantee.
+- Add a GM Harry Sensors helper: resolve the higher class/spell DC when available, select a mapped same-zone target, roll Will or enter a result manually, and show the outcome. Conditions and expiration remain manual.
+- Add a GM-confirmed record of a manually applied Intercept Munitions penalty. It does not modify or recalculate an attack. Per-drone use resets on Retrieve; bounded receipts reduce repeat writes. Optional fields are added to the individual drone on use, without migration; Actor flags are not secret. No action/reaction spending is tracked.
+- Experimental only, not verified in real Foundry or multiplayer. Install the supplied ZIP manually in a backed-up test world; the manifest URL is for an unpublished future release. See `docs/work-in-progress-0.17.1-dev.7.md`.
+
+## 0.17.1-dev.6 — experimental, unpublished
+
+- GM-only mine resolution aid lists mapped ships in the mine zone, including the source ship, and allows zero or one explicitly selected Smart Mine exception. It rejects ambiguous or invalid map records and stale dialogs. This is a preview and private manual instruction, not automatic saves, damage, mine detonation or a complete list of unrecorded ships.
+- Prevent concurrent openings for the same mine within one client while the dialog is pending. This is not deduplication between GMs, durable exactly-once or a guarantee against repeated intentional cards. No Actor/Combat data fields or migrations are added; Repair Hull, Drone Block and dev.5 mine modification storage remain unchanged.
+- All other requested drone effects remain unimplemented or manual. No real Foundry/multiplayer verification was possible. Install the supplied ZIP manually in a backed-up test world; the manifest points to a future, unpublished release. See `docs/work-in-progress-0.17.1-dev.6.md`.
+
+## 0.17.1-dev.5 — experimental, test worlds only
+
+- Add a GM-confirmed, limited Modify Starship Mine helper for an individual deployed mine: Smart and Targeting are recorded on that mine and checked against the operator’s next turn. The GM confirms the Modify class feature; no action or reaction spending is tracked. Detonation, exclusion, saves and damage remain manual. Targeting’s manual damage formula includes the Intelligence bonus, minimum 1.
+- Require the operator’s current turn, a deployed pyrotechnics drone, same zone, a unique mine/station/drone and an unchanged combat order. Changed or unverifiable timing is refused for GM review. Existing unknown modifications are not overwritten. New optional per-mine modification and bounded 512-ID receipt fields are added only on use; no migration. Replays do not apply twice within these receipts, but this is not a distributed transaction.
+- Drone Block continues to use half the operator’s level; the user confirmed the PDF wording. Added a regression with different ship and operator levels. Protocol, Fetch and Fix, Harry Sensors, Intercept Munitions, Install Mine and Onboard Pet are not automated. Repair Hull is unchanged.
+- GM/player template fixtures and mock tests do not prove Foundry behavior or multiplayer safety. This is unpublished; the manifest URL points to a future release and the ZIP must be installed manually. See the dev.5 report and manual test plan.
+
+## 0.17.1-dev.4 — experimental, test worlds only
+
+- Partial Repair Hull: an authorized operator at a helmed console with an unambiguously deployed repair drone can repair **that console’s own ship only**, on the active combat map. Native Crafting check, DC tiers with proficiency, all four outcomes and module damage handling; no action/reaction spending is tracked. Other ships require GM adjudication.
+- A bounded durable operation-ID map is added to the ship Actor on a completed attempt, including an unsuccessful roll; a matching replay never repeats it. The process-local socket receipt also covers this action. This changes module-owned ship flags, not drone or mine records; no migration. At 512 receipts it fails closed. Neither receipt nor queue guarantees atomicity during GM failover or external writes.
+- Other drone abilities and upgrades remain manual; no live Foundry test was available. The supplied Tech Core PDF says Drone Block is half the operator’s level; the user’s summary says ship level. Existing behavior is unchanged pending clarification. The manifest download URL is an unpublished-release placeholder; install the delivered ZIP manually.
+
+## 0.17.1-dev.3 — experimental, test worlds only
+
+- Reject ambiguous mine, drone and station IDs across the ship in mine planning, movement and closing. Keep orphaned records for GM review. No migration.
+- For three drone socket actions only, coalesce exact duplicate authenticated requests using a short-lived in-memory receipt. This is not exactly-once across GM failover, reconnect, new request IDs, local GM calls, cache eviction or expiry.
+- Validate GM repair inputs and recheck permissions inside the ship queue. Save repair before initiative cleanup; a failed cleanup requires manual GM correction without repeating repair.
+- Refuse Undo of HP/SP changes, including old records: their source and external side effects cannot be safely reconstructed. Other existing narrow guards remain. No action/reaction economy was added.
+- Drone effects and upgrades are still incomplete; no live Foundry multiplayer certification. See `docs/work-in-progress-0.17.1-dev.3.md`. The dev.3 download URL is an unpublished release placeholder; install the delivered ZIP manually.
+
+## 0.17.1-dev.2 — experimental, test worlds only
+
+- Harden existing drone actions: reject ambiguous drone and station IDs, and block new deployment when a console is over capacity, has an unknown capacity or has unassigned/orphaned records. Retrieval remains available in over-capacity situations. Existing data are not migrated or deleted.
+- Deploy/Retrieve availability and selection use the same state checks; this is a preview and the active GM still validates the request. Reject ambiguous drone IDs for mine placement and Drone Block and duplicate mine IDs on retry.
+- The full Drone Console, protocol effects, action economy, complete no-op audit, security/failover and live Foundry multiplayer remain unfinished. See `docs/work-in-progress-0.17.1-dev.2.md`.
+
+## 0.17.1-dev.1 — experimental, test worlds only
+
+- GM can drop a world or Compendium starship Actor or hazard Actor directly on a Sensor Map zone. The active GM resolves and validates the Actor and zone, associates its UUID without importing or modifying it, and moves an existing matching record instead of duplicating it. Existing map-object drag remains available. Before adding a **new, publicly identified** object, an explicit disclosure confirmation is required.
+- Secret placement is **not implemented**: the Combat flag is replicated to clients, and UI redaction is not a security boundary. Do not use this drop feature for hidden hazards or unidentified ships. Existing map entries and detection behavior are not migrated. Compendium-linked documents may be read-only; gameplay operations that modify them must be tested or use a world Actor.
+- Center the image/fallback in each card when there is no course arrow, including crowded zones. Use the existing autoMirror implementation; for new Actor drops the base artwork direction is initially Unknown and absent headings are not guessed. The GM can choose an initial left/right course in object details; world ship and map updates are separate writes. Set a known left/right base direction to enable automatic mirroring. Existing maps retain their old defaults.
+- The generated starship-weapon Items expose `system.category` (simple/martial/advanced); the shipped catalogue has no required rank. Show this category as a category, not as a fabricated required rank. Resolve installed weapon metadata via `weaponRef`, and show a rank only when explicitly provided. Existing weapon records are not migrated.
+- Added GM-authority, mocked concurrent/repeated request, Compendium, malformed input, category and offline DOM tests. Real Foundry v14.370/SF2e 1.7.0, multi-client sockets, hidden-information security and Compendium gameplay remain unverified. Previously documented unfinished drone actions, upgrades, no-op audit, GM Override, Undo and performance profiling remain incomplete.
+
 ## 0.17.0 — experimental build, test worlds only
 
 This numbered build consolidates the changes since 0.16.0 and extends Sensor Map presentation. It is **not a verified release**: back up worlds and test with Foundry and all clients before production. No GitHub release is published by this build.

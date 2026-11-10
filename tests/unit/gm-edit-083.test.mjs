@@ -42,6 +42,10 @@ test("0.8.3 GM edit requests", () => {
     { name: "sensorUpdate", payload: { op: "flip", combatId: "C", key: "K" } }
   ]);
   assert.deepEqual(gmEditRequests({ field: "heading", value: "left", current: "left" }), []);
+  assert.deepEqual(gmEditRequests({ field: "heading", value: "left", current: "", key: "K", combatId: "C" }), [
+    { name: "sensorUpdate", payload: { op: "setHeading", combatId: "C", key: "K", heading: "left" } }
+  ]);
+  assert.deepEqual(gmEditRequests({ field: "heading", value: "invalid", current: "" }), []);
   assert.equal(gmEditRequests({ field: "status", value: "inoperable", shipUuid: "A" }).length, 2);
 });
 

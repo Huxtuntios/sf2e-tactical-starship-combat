@@ -37,7 +37,12 @@ export function gmEditRequests({ field, value, shipUuid, key, current, max, comb
     if (v === null) return [];
     return [{ name: "patchShip", payload: { shipUuid, patch: { [field]: { value: v } } } }];
   }
-  if (field === "heading") return value && value !== current ? [{ name: "sensorUpdate", payload: { op: "flip", combatId, key } }] : [];
+  if (field === "heading") {
+    if (!["left", "right"].includes(value) || value === current) return [];
+    return [
+      { name: "sensorUpdate", payload: { op: current ? "flip" : "setHeading", combatId, key, ...(current ? {} : { heading: value }) } }
+    ];
+  }
   if (field === "status") return statusPatches(value).map((patch) => ({ name: "patchShip", payload: { shipUuid, patch } }));
   return [];
 }

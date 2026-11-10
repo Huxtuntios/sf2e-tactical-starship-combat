@@ -1,3 +1,4 @@
+import { eligibleInterceptHints } from "../actions/intercept-hint.mjs";
 /** Weapon attack without a module chat declaration. All execution remains on the active GM. */
 import { MODULE_ID } from "../constants.mjs";
 import { executeAction, sanitizeActionRequest, targetRuleInput } from "../actions/action-engine.mjs";
@@ -99,6 +100,15 @@ async function resolveOnce(user, payload, eventId) {
     }).catch(() => false);
     if (!approved) throw new Error(T("SF2eTSC.modifiers.denied"));
   }
+  // Подсказка видна только активному GM, не атакующему игроку. Триггер попадания ещё не установлен.
+  const interceptDrones = eligibleInterceptHints(dry.ctx.target?.data);
+  if (interceptDrones.length)
+    ui.notifications?.info?.(
+      T("SF2eTSC.interceptAssist.preRollHint", {
+        ship: dry.ctx.target.actor?.name ?? "?",
+        drones: interceptDrones.join(", ")
+      })
+    );
   let message = null;
   const res = await executeAction({
     ...req,

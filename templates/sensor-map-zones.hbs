@@ -14,7 +14,7 @@
         <div class="tsc-zone-objects">
         {{#each objects}}
           <button type="button" class="tsc-obj type-{{type}} st-{{status}} {{#if selected}}selected{{/if}} {{#if current}}current{{/if}} {{#if target}}tgt-{{target}}{{/if}} {{#if hiddenObj}}gm-hidden{{/if}}" data-action="selectObject" data-object-key="{{key}}" title="{{label}} — {{statusLabel}}{{#if hp}} — {{localize 'SF2eTSC.ui.hp'}} {{hp}}{{#if sp}} · {{localize 'SF2eTSC.ui.sp'}} {{sp}}{{/if}}{{/if}}{{#if targetLabel}} — {{targetLabel}}{{/if}}" aria-label="{{label}} {{statusLabel}}">
-            <span class="tsc-obj-visual arrow-{{#if arrowPosition}}{{arrowPosition}}{{else}}right{{/if}}">
+            <span class="tsc-obj-visual {{#if arrow}}has-course-arrow{{else}}no-course-arrow{{/if}} arrow-{{#if arrowPosition}}{{arrowPosition}}{{else}}right{{/if}}">
               <span class="tsc-obj-icon" style="transform: rotate({{transform.rotation}}deg) scale({{transform.scaleX}}, {{transform.scaleY}})">{{#if art}}<img class="tsc-object-art" src="{{art}}" alt="" draggable="false"><span hidden>{{icon}}</span>{{else}}{{icon}}{{/if}}</span>
               {{#if arrow}}<span class="tsc-obj-arrow" aria-label="{{heading}}">{{#if arrowCustom}}<img class="tsc-course-image" src="{{arrowImage}}" alt="" draggable="false" style="transform: rotate({{arrowRotation}}deg)"><span hidden>{{arrow}}</span>{{else}}{{#if arrowEmoji}}<span class="tsc-course-emoji" style="transform: rotate({{arrowRotation}}deg)">➡️</span>{{else}}{{arrow}}{{/if}}{{/if}}</span>{{/if}}
             </span>

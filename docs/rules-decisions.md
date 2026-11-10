@@ -1,5 +1,29 @@
 # Rules decisions and disputed points
 
+## 0.17.1-dev.11 — Install Mine
+
+Tech Core p. 184 modifies up to four mines _inside_ an undeployed drone; Deploy Starship Mine on p. 193 is a distinct action. A map mine is not created by Install Mine, and personal mechanic mods are not mapped to deployed starship Smart/Targeting mods. The helper is a manual plan only; its saved labels and mod text are not effects or proof of inventory, prerequisites or validity. GM must verify effects and their duration.
+
+## 0.17.1-dev.10
+
+Tech Core p. 184 describes Install Mine as Modify on up to four starship mines in an undeployed pyrotechnics drone, as if they were the mechanic’s own Mine Exocortex mines. Tech Core pp. 36–37 describe personal mods and expiry; they are not interchangeable with starship Smart/Targeting Mine results. The current module has no authoritative onboard mine inventory or reliable personal mod list. The new helper records GM-verified labels as notes only; it does not grant, activate, transfer or expire effects. A note is not proof that an effect is valid. No costs are tracked.
+
+## Pet cabin ending and Toolbelt (0.17.1-dev.9)
+
+**[TC]** The pet cabin effect ends on the rule's ending conditions; no action economy is added. **[MOD]** Observed time, helm, zero HP, Actor deletion and upgrade removal mark the session ended permanently on the active GM, but native quickened and unobservable events require GM handling. **[MOD safety]** Better Chat changes message identities or roll content, so transformed damage cards are refused for ships until GM review; this is an implementation safeguard, not a game rule.
+
+## Drone aids (0.17.1-dev.8)
+
+**[TC]** Tech Core printed pages 184–185 and 192–193 are the rules source, with the user confirming the PDF where their paraphrase differed; Drone Block uses half the operator's level. **[MOD]** Mine assistance uses basic-save results and the existing module damage engine only after GM confirmation; a map is not proof of complete targets. Harry effects are module-only, not native conditions. Shield Protocol and Fetch use GM-confirmed records and a conservative combat anchor, not a simulation of Strike resistance. Pet quickened and its restricted use are manual. Install Mine personal-mod rules are not substituted for starship mine mods. No action/reaction expenditure or counters are implemented. These choices are incomplete tooling, not a change to the tabletop rules.
+
+## Smart Mine GM aid (0.17.1-dev.6)
+
+**[TC]** A Smart Mine can exclude one ship in its zone from its detonation. **[MOD]** The helper permits zero or one explicit exclusion, only if the existing modification timing is valid; it lists ships from the current sensor map, not the entire world. The GM verifies missing targets and resolves all saves, damage, exclusion and detonation manually. No character action or reaction expenditure is tracked.
+
+## Drone safety (0.17.1-dev.2)
+
+**[MOD]** To avoid choosing arbitrary old or conflicting records, deployment is refused when console capacity is unknown, exceeded or assignments are ambiguous; retrieval is allowed even if capacity is exceeded. Duplicate IDs are rejected, not repaired automatically. This is a conservative implementation guard, not a claim that Tech Core contains this specific restriction. Action and reaction costs remain tracked at the table.
+
 Legend: **[TC]** = Tech Core rule as printed · **[SF2e]** = how the SF2e 1.6.0 system behaves · **[MOD]** = module
 simplification/interpretation (configurable where noted).
 
@@ -73,3 +97,27 @@ simplification/interpretation (configurable where noted).
 
 - **[TC]** cone = origin zone + N zones along heading; burst N from a border zone, burst 0 = single zone; line N zones.
   Auto-Fire cone size and unspecified area sizes are not fixed by the text → GM settings (default: half the weapon range).
+
+## 0.17.1-dev.3: evidence and safety
+
+Indexed [AoN builder](https://2e.aonsrd.com/tactical-starship-combat/builder) excerpts corroborate Repair Hull base DC and dice, with higher Crafting DC tiers, but the full source text and real SF2e API were not available for validation. No drone effect was inferred or newly automated. The user explicitly excluded action/reaction spending; this stage adds no accounting or action-availability gate. To avoid unsafe rollback of consequences, HP/SP history entries cannot be undone, including legacy entries whose provenance cannot be established.
+
+## 0.17.1-dev.4: Tech Core and Repair Hull
+
+The supplied Tech Core PDF, printed p. 193, describes Repair Hull as two actions, base DC 15, critical success 2d6, success 1d6, critical failure 1d6 piercing, and expert/master/legendary DC 20/30/40 with +10/+30/+50 to healing. Display the cost but do not track or spend actions. The additional 1-hour/1-day extension in the user's paraphrase is not present in the supplied printed p. 193 passage; it is not implemented.
+
+Printed p. 179 states Drone Block resistance is half **your** level (operator). The user's paraphrase says ship level. Existing operator-level behavior remains pending clarification; do not silently substitute one for the other. No rule is inferred for unimplemented integrations.
+
+## 0.17.1-dev.5: mine helper and Drone Block confirmation
+
+**[TC]** Printed Tech Core p. 193 grants Smart Mine (exclude one starship) or Targeting Mine (Intelligence modifier, minimum 1), until the end of the operator's next turn. **[MOD]** GM confirms the class feature; this helper supports only the current operator's turn, one unambiguous mine and one active mod at a time. A changed combatant order or missing anchor is an error, not an invented expiry. The resulting detonation remains manual and has no automatic target exclusion or damage. Mine Exocortex on printed p. 37 uses different personal-scale mods; Install Mine is not implemented by this helper.
+
+**[TC]** Printed p. 179 bases Drone Block on half the operator's level. The user confirmed the PDF wording; this resolves the earlier paraphrase conflict. Existing code and behavior were preserved, with a test where ship and operator levels differ. No action or reaction expenditure is tracked.
+
+## 0.17.1-dev.7: осторожные помощники для мин и Scramble
+
+**[TC]** Приложенный Tech Core, печатные стр. 184 и 193: для Pyrotechnics выбор fire/piercing, basic Reflex против class DC, Smart исключает один корабль, Targeting добавляет Intelligence минимум 1; Harry Sensors использует больший class/spell DC, Will и зависящие от степени условия; Intercept Munitions даёт –2 circumstance к вызывающей атаке и восстанавливается после Retrieve Drone. Подтверждённый PDF имеет приоритет над пересказом, когда они расходятся.
+
+**[MOD]** Помощник мины делает общий типизированный бросок и отдельные спасброски только для представленных на карте кораблей и выводит сырой basic-урон до защит. Карта может быть неполной. Применение урона, определение реакции и закрытие мины — вручную. Harry лишь показывает результат, без создания или истечения состояний. `class-spell` проверен по исходникам SF2e 1.6.0, не на действующем сервере; если надёжного DC нет, ведущий вводит его вручную. Intercept — отметка подтверждённого вручную штрафа, а не изменение законченного или будущего Strike. Никакая стоимость действий не учитывается.
+
+**[MOD]** Операции чат/бросок/Actor не объединены в транзакцию. Прогресс-карточка не является гарантией единичного выполнения; ручное восстановление требует проверки мира. Shield Protocol, Fetch and Fix, Install Mine и Onboard Pet не реализованы в этом этапе, поскольку пока не подтверждена безопасная интеграция с состояниями, временем и системными API.

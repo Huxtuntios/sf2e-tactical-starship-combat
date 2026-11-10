@@ -63,6 +63,9 @@ export function weaponEntry(w, id, stationId = null) {
     range: w.range,
     traits: (w.traits ?? []).map(normalizeTrait),
     category: w.category,
+    ...(["untrained", "trained", "expert", "master", "legendary"].includes(w.requiredProficiency)
+      ? { requiredProficiency: w.requiredProficiency }
+      : {}),
     group: w.group,
     stationId
   };

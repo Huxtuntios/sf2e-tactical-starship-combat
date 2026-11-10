@@ -6,6 +6,14 @@
 - The compendium folder **Tactical Starship Combat** contains the Tech Core starships, starship hazards, station action items, starship weapons, station/frame/equipment references, the tactical starship combat rules (EN/RU), the starship exploration activities (EN/RU, reference items without automation) and this guide. The starship, hazard, action, weapon, upgrade and exploration packs have _English_ and _Русский_ folders.
 - Module tools are in the **Token** controls (left): **Sensor Map**, **Station HUD**, and for the GM **Start Combat** and a **Toolbox** (Crew manager, Hazard Browser, Starship Builder, Encounter Builder, Diagnostics).
 
+## Sensor Map Actor drop (0.17.1-dev.1)
+
+The GM may drag a starship or hazard Actor from the Actors directory or an Actor Compendium to a zone. New drops require confirming that the object is publicly revealed; never use this drop for hidden hazards or secret ships. Combat flags are shared and interface redaction does not secure secret data. An existing matching Actor is moved without resetting artwork or adding a duplicate. World and Compendium references are retained, not imported. Compendium Actors can be read-only and gameplay mutations are not guaranteed; import a world copy first if necessary. Real Foundry and multi-client behavior must still be tested.
+
+If no heading is present it is not guessed. The GM can select its initial left/right course in the object's GM tools; this also updates a world ship, but a Compendium Actor is left untouched. The base direction of new ship art starts Unknown; set it explicitly to left or right in the object's image settings for autoMirror. When a course arrow is absent, the artwork is centered within its card.
+
+Weapon selections and the installed-weapon list display the catalogue category (Simple, Martial, Advanced) separately from an explicitly provided required proficiency rank. The generated Item stores category in `system.category`; no rank is inferred from it.
+
 ## Sensor Map visual controls (0.17.0, experimental)
 
 The GM opens the palette in the Sensor Map toolbar. Course arrows support None, Text, Emoji and Custom Image; use the Foundry File Picker, then Save. The arrow's size, gap, position and opacity are encounter-wide. A missing custom image falls back to text. Open an identified object's artwork controls to set its image angle, horizontal/vertical flips and the direction the unmodified artwork faces. The reset controls operate on the form; Save persists the changes. Transformations affect artwork, not the clickable object or game coordinates. Only GM users can edit appearance; existing movement permissions are unchanged.

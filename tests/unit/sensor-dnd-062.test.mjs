@@ -5,14 +5,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const src = ["scripts/ui/sensor-map-app.mjs", "scripts/sensor/map-model.mjs", "scripts/sensor/map-handlers.mjs"]
+const src = [
+  "scripts/ui/sensor-map-app.mjs",
+  "scripts/ui/sensor-drop-ui.mjs",
+  "scripts/sensor/map-model.mjs",
+  "scripts/sensor/map-handlers.mjs"
+]
   .map((f) => fs.readFileSync(path.join(root, f), "utf8"))
   .join("\n");
 const hbs = ["bar", "zones", "detail"].map((p) => fs.readFileSync(path.join(root, `templates/sensor-map-${p}.hbs`), "utf8")).join("\n");
 const css = fs.readFileSync(path.join(root, "styles/main.css"), "utf8");
 
 test("sensor map: drag and drop + player move permissions", () => {
-  assert.ok(src.includes("#wireDragDrop") && src.includes("dragstart") && src.includes('"drop"'));
+  assert.ok(src.includes("wireSensorMapDragDrop") && src.includes("dragstart") && src.includes('"drop"'));
   assert.ok(src.includes('export const PLAYER_SENSOR_OPS = ["move", "shift"]'));
   assert.ok(/case "move":/.test(src));
   assert.ok(src.includes("canMoveKey(user, getTsc(combat), payload.key)"));

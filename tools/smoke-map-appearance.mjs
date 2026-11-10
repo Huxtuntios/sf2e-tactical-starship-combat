@@ -77,7 +77,17 @@ zones[8].objects.push({
   label: "None",
   icon: "◐",
   status: "operational",
-  type: "planet",
+  type: "starship",
+  art: ship,
+  transform: { rotation: 0, scaleX: -1, scaleY: 1 }
+});
+zones[8].objects.push({
+  key: "no-arrow-2",
+  label: "Other",
+  icon: "🚀",
+  art: ship,
+  status: "operational",
+  type: "starship",
   transform: { rotation: 0, scaleX: 1, scaleY: 1 }
 });
 zones[5].objects.push({ key: "unknown", label: "Контакт α", icon: "○", status: "operational", type: "contact" });
@@ -128,6 +138,10 @@ check('arrow-top',getComputedStyle(arrow.closest('.tsc-obj-visual')).flexDirecti
 check('text-arrow',shipButton.querySelector('.tsc-obj-arrow').textContent.trim()==='→');
 check('emoji-arrow-rotated',getComputedStyle(app.querySelector('[data-object-key="emoji"] .tsc-course-emoji')).transform.startsWith('matrix(-1'));
 check('none-arrow',!app.querySelector('[data-object-key="no-arrow"] .tsc-obj-arrow'));
+const noArrow=app.querySelector('[data-object-key="no-arrow"]'), noArrowIcon=noArrow.querySelector('.tsc-obj-icon');const a=noArrow.getBoundingClientRect(), b=noArrowIcon.getBoundingClientRect();
+check('no-arrow-image-centered',Math.abs((a.left+a.right)/2-(b.left+b.right)/2)<1);
+const a2=app.querySelector('[data-object-key="no-arrow-2"]').getBoundingClientRect();check('multiple-objects-no-overlap',a.bottom<=a2.top);
+check('no-arrow-mirror',getComputedStyle(noArrowIcon).transform.startsWith('matrix(-1'));
 check('arrow-does-not-capture-pointer',getComputedStyle(shipButton.querySelector('.tsc-obj-arrow')).pointerEvents==='none');
 check('background-filter',getComputedStyle(app.querySelector('.tsc-map-background')).filter.includes('blur(2px)'));
 const zoneRoot=app.querySelector('.tsc-zones');check('scrolls',zoneRoot.scrollWidth>zoneRoot.clientWidth);zoneRoot.scrollLeft=100;check('scroll-position',zoneRoot.scrollLeft>0);

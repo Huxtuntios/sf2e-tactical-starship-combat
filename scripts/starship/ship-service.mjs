@@ -1,4 +1,10 @@
-import { moveOwnedMine } from "../actions/mine-resolution.mjs";
+import { saveInstallMinePlan } from "../actions/install-mine-plan.mjs";
+import { updateProtocolDrone } from "../actions/protocol-manual.mjs";
+import { updatePetCabin } from "../actions/pet-onboard.mjs";
+import { markManualIntercept } from "../actions/intercept-manual.mjs";
+import { modifyOwnedMine } from "../actions/mine-modification.mjs";
+import { combatGuard, snapshot } from "../history/history.mjs";
+import { moveOwnedMine, uniqueOwnedMine } from "../actions/mine-resolution.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { computeShipStats } from "./stats.mjs";
@@ -23,6 +29,7 @@ import { stationTypeLabel } from "../utils/labels.mjs";
 import { upgradeCatalog } from "../content/loader.mjs";
 import { randomId } from "../utils/ids.mjs";
 import { changeDrone } from "../engine/drone-state.mjs";
+import { log } from "../utils/logging.mjs";
 
 const EDITABLE_LISTS = ["weapons", "upgrades", "expansionBays", "effects", "strikes", "npcActions", "drones"];
 
@@ -170,6 +177,157 @@ export function registerShipHandlers() {
     return true;
   });
 
+  // Только подтверждённая ведущим ручная отметка; системный Strike этот обработчик не меняет.
+  registerHandler("markManualIntercept", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    if (payload.confirmManual !== true) throw new Error(T("SF2eTSC.interceptAssist.invalid"));
+    const actor = await ship(payload.shipUuid);
+    const combat = activeStarshipCombat();
+    if (!combat?.id || payload.combatId !== combat.id) throw new Error(T("SF2eTSC.interceptAssist.invalid"));
+    let changed;
+    const writeOptions = { reason: T("SF2eTSC.interceptAssist.title"), undoable: false, announce: false };
+    try {
+      changed = await patchStarship(
+        actor,
+        async (data) => {
+          if (!user.isGM || activeStarshipCombat()?.id !== combat.id) throw new Error("invalid");
+          writeOptions.expected = snapshot(data);
+          writeOptions.expectedCombat = combatGuard(combat);
+          const operator = await fromUuidSafe(payload.operatorUuid);
+          if (
+            !user.isGM ||
+            !operator ||
+            operator.documentName !== "Actor" ||
+            operator.uuid !== payload.operatorUuid ||
+            activeStarshipCombat()?.id !== combat.id
+          )
+            throw new Error("invalid");
+          return markManualIntercept(data, payload);
+        },
+        writeOptions
+      );
+    } catch (err) {
+      throw new Error(T("SF2eTSC.interceptAssist.invalid"), { cause: err });
+    }
+    if (!changed) return false;
+    try {
+      const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+      if (!recipients.length) throw new Error("missing GM");
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        whisper: recipients,
+        content: `<p>${foundry.utils.escapeHTML(T("SF2eTSC.interceptAssist.recorded", { drone: payload.droneId, strike: payload.strikeRef }))}</p><p>${foundry.utils.escapeHTML(T("SF2eTSC.interceptAssist.manual"))}</p>`
+      });
+    } catch (err) {
+      log.error("Intercept marker saved, but chat failed", err);
+      ui.notifications?.warn?.(T("SF2eTSC.interceptAssist.cardFailed"));
+    }
+    return true;
+  });
+
+  // Ручной план: не переносит персональные модификации на развёрнутые мины автоматически.
+  registerHandler("installMinePlan", async ({ user, payload }) => {
+    if (!user?.isGM || payload.confirmed !== true) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    const writeOptions = { reason: T("SF2eTSC.installMine.title"), undoable: false, announce: false };
+    const changed = await patchStarship(
+      actor,
+      async (data) => {
+        writeOptions.expected = snapshot(data);
+        const operator = await fromUuidSafe(payload.operatorUuid);
+        if (!operator || operator.documentName !== "Actor" || operator.uuid !== payload.operatorUuid)
+          throw new Error(T("SF2eTSC.installMine.invalid"));
+        try {
+          return saveInstallMinePlan(data, payload);
+        } catch (err) {
+          throw new Error(T("SF2eTSC.installMine.invalid"), { cause: err });
+        }
+      },
+      writeOptions
+    );
+    if (changed) {
+      try {
+        const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        if (!recipients.length) throw new Error("missing GM");
+        const esc = foundry.utils.escapeHTML;
+        const rows = payload.entries.map((e) => `<li>${esc(e.mine.trim())}: ${esc(e.mod.trim())}</li>`).join("");
+        await ChatMessage.create({
+          whisper: recipients,
+          speaker: ChatMessage.getSpeaker({ actor }),
+          content: `<p><strong>${esc(T("SF2eTSC.installMine.title"))}</strong></p><ul>${rows}</ul><p>${esc(T("SF2eTSC.installMine.card"))}</p>`
+        });
+      } catch (err) {
+        log.error("Install Mine plan saved but card failed", err);
+        ui.notifications?.warn?.(T("SF2eTSC.installMine.cardFailed"));
+      }
+    }
+    return changed;
+  });
+
+  // Ведущий подтверждает Modify; проверка и запись выполняются в очереди активного GM.
+  registerHandler("modifyDroneMine", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    if (payload.confirmPrerequisite !== true) throw new Error(T("SF2eTSC.errors.invalidData"));
+    const actor = await ship(payload.shipUuid);
+    const writeOptions = { reason: T("SF2eTSC.mineModify.title"), undoable: false, announce: false };
+    let operatorName = "";
+    const changed = await patchStarship(
+      actor,
+      async (data) => {
+        if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+        const combat = activeStarshipCombat();
+        writeOptions.expected = snapshot(data);
+        const stations = data.stations.filter((s) => s?.id === payload.stationId);
+        const operator = stations.length === 1 ? await fromUuidSafe(stations[0].helmedBy) : null;
+        if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+        if (!combat || activeStarshipCombat()?.id !== combat.id) throw new Error(T("SF2eTSC.mineModify.invalid"));
+        const map = getTsc(combat);
+        const objects = map.objects.filter((o) => o?.key === actor.uuid);
+        if (objects.length !== 1) throw new Error(T("SF2eTSC.mineModify.invalid"));
+        writeOptions.expectedCombat = combatGuard(combat);
+        operatorName = operator?.name ?? "";
+        try {
+          return modifyOwnedMine({
+            data,
+            shipUuid: actor.uuid,
+            stationId: payload.stationId,
+            droneId: payload.droneId,
+            mineId: payload.mineId,
+            operator,
+            combat,
+            shipZone: objects[0].zone,
+            origin: payload.origin,
+            type: payload.type,
+            modificationId: payload.modificationId
+          });
+        } catch (err) {
+          throw new Error(T("SF2eTSC.mineModify.invalid"), { cause: err });
+        }
+      },
+      writeOptions
+    ).catch((err) => {
+      if (err.message === T("SF2eTSC.qol.undoConflict")) throw new Error(T("SF2eTSC.mineModify.changed"), { cause: err });
+      throw err;
+    });
+    if (changed) {
+      try {
+        const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        if (!recipients.length) throw new Error("No GM recipients");
+        const esc = foundry.utils.escapeHTML;
+        const kind = T(`SF2eTSC.mineModify.${payload.type}`);
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor }),
+          whisper: recipients,
+          content: `<p><strong>${esc(T("SF2eTSC.mineModify.title"))}</strong> — ${esc(actor.name)} / ${esc(operatorName)}</p><p>${esc(T("SF2eTSC.mineModify.card", { kind }))}</p>`
+        });
+      } catch (err) {
+        log.error("Mine modification was saved, but the GM card failed", err);
+        ui.notifications?.warn?.(T("SF2eTSC.mineModify.cardFailed"));
+      }
+    }
+    return changed;
+  });
+
   // GM attests the prerequisite; mutations are serialized and validated against current ship/map state.
   registerHandler("moveDroneMine", async ({ user, payload }) => {
     if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
@@ -206,6 +364,97 @@ export function registerShipHandlers() {
     );
   });
 
+  registerHandler("protocolDroneManual", async ({ user, payload }) => {
+    if (!user?.isGM || payload.confirmed !== true) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid),
+      combat = activeStarshipCombat();
+    const operator = await fromUuidSafe(payload.operatorUuid);
+    if (
+      !combat ||
+      combat.id !== payload.combatId ||
+      !operator ||
+      operator.documentName !== "Actor" ||
+      operator.uuid !== payload.operatorUuid
+    )
+      throw new Error(T("SF2eTSC.protocolAssist.invalid"));
+    const opts = { reason: T("SF2eTSC.protocolAssist.title"), undoable: false, announce: false };
+    let changed;
+    try {
+      changed = await patchStarship(
+        actor,
+        (data) => {
+          if (activeStarshipCombat()?.id !== combat.id) throw new Error("combat");
+          opts.expected = snapshot(data);
+          opts.expectedCombat = combatGuard(combat);
+          return updateProtocolDrone(data, { ...payload, combat });
+        },
+        opts
+      );
+    } catch (err) {
+      throw new Error(T("SF2eTSC.protocolAssist.invalid"), { cause: err });
+    }
+    if (changed) {
+      try {
+        const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        if (!recipients.length) throw new Error("missing GM");
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor }),
+          whisper: recipients,
+          content: `<p>${foundry.utils.escapeHTML(T(payload.op === "block" ? "SF2eTSC.protocolAssist.blockRecorded" : "SF2eTSC.protocolAssist.fetchRecorded", { drone: payload.droneId }))}</p>`
+        });
+      } catch (err) {
+        log.error("Drone protocol state saved, but card failed", err);
+        ui.notifications?.warn?.(T("SF2eTSC.protocolAssist.cardFailed"));
+      }
+    }
+    return { changed };
+  });
+
+  // GM удостоверяется в родстве, допустимом типе компаньона и близости: по Actor они не определяются надёжно.
+  registerHandler("petCabin", async ({ user, payload }) => {
+    if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const actor = await ship(payload.shipUuid);
+    const pet = payload.op === "start" ? await fromUuidSafe(payload.petUuid) : null;
+    const operator = payload.op === "start" ? await fromUuidSafe(payload.operatorUuid) : null;
+    if (payload.op === "start" && (!operator || operator.documentName !== "Actor" || operator.uuid !== payload.operatorUuid))
+      throw new Error(T("SF2eTSC.petCabin.invalid"));
+    let changed;
+    try {
+      changed = await patchStarship(
+        actor,
+        (data) =>
+          updatePetCabin(data, {
+            stationId: payload.stationId,
+            pet,
+            operatorUuid: payload.operatorUuid,
+            op: payload.op,
+            operationId: payload.operationId,
+            sessionId: payload.sessionId,
+            now: game.time?.worldTime,
+            confirmed: payload.confirmed === true
+          }),
+        { reason: T("SF2eTSC.petCabin.title"), undoable: false, announce: false }
+      );
+    } catch (err) {
+      throw new Error(T("SF2eTSC.petCabin.invalid"), { cause: err });
+    }
+    if (changed) {
+      try {
+        const recipients = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        if (!recipients.length) throw new Error("missing GM");
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor }),
+          whisper: recipients,
+          content: `<p>${foundry.utils.escapeHTML(T(payload.op === "start" ? "SF2eTSC.petCabin.started" : "SF2eTSC.petCabin.ended"))}</p>`
+        });
+      } catch (err) {
+        log.error("Pet cabin saved, but card failed", err);
+        ui.notifications?.warn?.(T("SF2eTSC.petCabin.cardFailed"));
+      }
+    }
+    return { changed };
+  });
+
   // GM-only bookkeeping after manual mine resolution; never performs a roll or applies damage.
   registerHandler("closeDroneMine", async ({ user, payload }) => {
     if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
@@ -215,14 +464,15 @@ export function registerShipHandlers() {
     await patchStarship(
       actor,
       (data) => {
-        const drones = Array.isArray(data.drones) ? data.drones : [];
-        const matches = drones.filter((d) => d?.tscVersion === 1 && d.id === payload.droneId && d.stationId === payload.stationId);
-        if (matches.length !== 1 || !Array.isArray(matches[0].mines)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
-        const mines = matches[0].mines.filter((m) => m?.id === payload.mineId && m.droneId === matches[0].id && m.shipUuid === actor.uuid);
-        if (mines.length !== 1) throw new Error(T("SF2eTSC.droneBlock.invalid"));
-        if (mines[0].state !== "armed") return;
-        mines[0].state = payload.resolution;
-        mines[0].resolvedBy = user.id;
+        let mine;
+        try {
+          ({ mine } = uniqueOwnedMine(data, { ...payload, shipUuid: actor.uuid }));
+        } catch (err) {
+          throw new Error(T("SF2eTSC.droneBlock.invalid"), { cause: err });
+        }
+        if (mine.state !== "armed") return;
+        mine.state = payload.resolution;
+        mine.resolvedBy = user.id;
         changed = true;
       },
       { reason: T("SF2eTSC.droneBlock.mineHistory"), undoable: false, announce: false }
@@ -342,25 +592,45 @@ export function registerShipHandlers() {
   });
   registerHandler("gmRepair", async ({ user, payload }) => {
     await vitals(user, payload.shipUuid);
-    if (payload.clearMalfunctions && !user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const amount = (value) => {
+      if (value === undefined || value === null) return 0;
+      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(T("SF2eTSC.errors.invalidData"));
+      return value;
+    };
+    const hp = amount(payload.hp);
+    const sp = amount(payload.sp);
+    if (payload.clearMalfunctions != null && typeof payload.clearMalfunctions !== "boolean")
+      throw new Error(T("SF2eTSC.errors.invalidData"));
+    if (payload.clearMalfunctions === true && !user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
     const s = await ship(payload.shipUuid);
+    let lostCompromised = false;
     await patchStarship(s, (d) => {
+      // Полномочия могли измениться, пока запрос ожидал очередь корабля.
+      if (!user.isGM && !can(user, s, "adjustVitals")) throw new Error(T("SF2eTSC.errors.gmOnly"));
       const before = d.hp.value;
-      if (payload.hp) d.hp.value = Math.min(d.hp.max, d.hp.value + payload.hp);
-      if (payload.sp) d.sp.value = Math.min(d.sp.max, d.sp.value + payload.sp);
+      if (hp) d.hp.value = Math.min(d.hp.max, d.hp.value + hp);
+      if (sp) d.sp.value = Math.min(d.sp.max, d.sp.value + sp);
       const r = resolveHullRestored({ compromised: d.compromised, wrecked: d.wrecked, inoperable: d.inoperable }, before, d.hp.value);
       d.compromised = r.compromised;
       d.wrecked = r.wrecked;
       d.inoperable = r.inoperable;
-      if (payload.clearMalfunctions)
+      if (payload.clearMalfunctions === true)
         d.stations.forEach((st) => {
           st.malfunctioning = false;
         });
-      if (r.lostCompromised) {
-        const c = activeStarshipCombat();
-        if (c) Initiative.leaveCompromised(c, s);
-      }
+      lostCompromised = r.lostCompromised;
     });
+    if (lostCompromised) {
+      const combat = activeStarshipCombat();
+      if (combat) {
+        try {
+          await Initiative.leaveCompromised(combat, s);
+        } catch (err) {
+          log.error("Repair was saved, but compromised initiative cleanup failed", err);
+          ui.notifications?.warn?.(T("SF2eTSC.errors.repairInitiativeFailed"));
+        }
+      }
+    }
     return true;
   });
   registerHandler("hullIntegrity", async ({ user, payload }) => {

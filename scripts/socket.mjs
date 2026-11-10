@@ -15,6 +15,44 @@ const handlers = new Map();
 const pending = new Map();
 const TIMEOUT_MS = 15000;
 
+// Только транспортные повторы отдельных команд дронов. Это не постоянный журнал и не гарантия при смене GM.
+const DRONE_ACTIONS = new Set(["deploy-drone", "retrieve-drone", "deploy-starship-mine", "repair-hull-drone"]);
+const DRONE_REPLAY_TTL_MS = 120000;
+const DRONE_REPLAY_MAX = 512;
+const droneRequests = new Map();
+
+function droneReplay(msg, sender, fn) {
+  if (msg.type !== "executeAction" || !DRONE_ACTIONS.has(msg.payload?.actionId)) return fn();
+  const invalid = () => ({ ok: false, error: game.i18n.localize("SF2eTSC.errors.invalidData") });
+  if (typeof msg.requestId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(msg.requestId)) return Promise.resolve(invalid());
+  let fingerprint;
+  try {
+    fingerprint = JSON.stringify(msg.payload);
+  } catch {
+    return Promise.resolve(invalid());
+  }
+  if (typeof fingerprint !== "string" || fingerprint.length > 8192) return Promise.resolve(invalid());
+  const now = Date.now();
+  for (const [key, value] of droneRequests) if (value.done && value.expiresAt <= now) droneRequests.delete(key);
+  const key = JSON.stringify([sender.id, msg.requestId]);
+  const previous = droneRequests.get(key);
+  if (previous) return previous.fingerprint === fingerprint ? previous.result : Promise.resolve(invalid());
+  while (droneRequests.size >= DRONE_REPLAY_MAX) {
+    const oldest = [...droneRequests].find(([, value]) => value.done);
+    if (!oldest) return Promise.resolve(invalid());
+    droneRequests.delete(oldest[0]);
+  }
+  const entry = { fingerprint, done: false, expiresAt: 0, result: null };
+  entry.result = Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      entry.done = true;
+      entry.expiresAt = Date.now() + DRONE_REPLAY_TTL_MS;
+    });
+  droneRequests.set(key, entry);
+  return entry.result;
+}
+
 export function registerHandler(type, fn) {
   handlers.set(type, fn);
 }
@@ -47,12 +85,14 @@ export async function dispatchSocketMessage(msg, senderId, env) {
     let res;
     if (!fn) res = { ok: false, error: `Unknown request type ${msg.type}` };
     else {
-      try {
-        res = { ok: true, result: await fn({ userId: sender.id, user: sender, payload: msg.payload ?? {}, remote: true }) };
-      } catch (err) {
-        log.warn(`request ${msg.type} rejected`, err);
-        res = { ok: false, error: err.message };
-      }
+      res = await droneReplay(msg, sender, async () => {
+        try {
+          return { ok: true, result: await fn({ userId: sender.id, user: sender, payload: msg.payload ?? {}, remote: true }) };
+        } catch (err) {
+          log.warn(`request ${msg.type} rejected`, err);
+          return { ok: false, error: err.message };
+        }
+      });
     }
     env.emit({ kind: "response", requestId: msg.requestId, to: sender.id, ...res });
   } else if (msg.kind === "response") {

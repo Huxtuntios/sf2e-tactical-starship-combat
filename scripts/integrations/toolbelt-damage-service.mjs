@@ -19,6 +19,9 @@ const rejectDamage = (key) => {
 
 /** Только реальные типизированные экземпляры броска; клиент не присылает готовое число урона. */
 export function damagePartsFromMessage(message, rollIndex, multiplier, addend = 0) {
+  // Better Chat создаёт новые ID или меняет состав броска; исходные квитанции нельзя надёжно сопоставить.
+  const betterChat = message?.flags?.["pf2e-toolbelt"]?.betterChat;
+  if (betterChat?.mergeDamage || betterChat?.injected || betterChat?.splitted) rejectDamage("mergedUnsupported");
   if (!message?.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage || message.flags?.[MODULE_ID]?.autoAppliedDamage)
     rejectDamage("unsupported");
   if (message.rolls?.some((roll) => roll.options?.splashOnly)) rejectDamage("unsupported");

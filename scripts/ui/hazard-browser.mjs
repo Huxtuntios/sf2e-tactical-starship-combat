@@ -2,9 +2,9 @@ import { TscApp, tpl } from "./base-app.mjs";
 import { Content } from "../content/loader.mjs";
 import { Importer } from "../content/importer.mjs";
 import { MODULE_ID } from "../constants.mjs";
-import { placeHazard } from "../hazards/hazard-engine.mjs";
+import { addPrivateContact } from "../sensor/private-contacts.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
-import { T } from "../utils/foundry.mjs";
+import { T, isActiveGM } from "../utils/foundry.mjs";
 import { notifyError, notifyInfo } from "../utils/logging.mjs";
 import { pickActorImage } from "./image-edit.mjs";
 import { checkLinksHTML } from "../content/inline-checks.mjs";
@@ -130,28 +130,12 @@ export class ContentBrowser extends TscApp {
     (await fromUuid(t.dataset.uuid))?.sheet.render(true);
   }
   static async #place(e, t) {
+    if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
     const a = await ContentBrowser.#ensureActor(t.dataset.id, this.mode);
-    if (this.mode === "hazards") await placeHazard(a, { zone: Number(t.dataset.zone) || 1, map: "sensor" });
-    else {
-      const { addObject } = await import("../engine/sensor-ops.mjs");
-      const { mutateTsc } = await import("../combat/tsc-state.mjs");
-      const { readStarship } = await import("../starship/starship-state.mjs");
-      const c = activeStarshipCombat();
-      const d = readStarship(a);
-      await mutateTsc(c, (s) =>
-        addObject(s, {
-          key: a.uuid,
-          actorUuid: a.uuid,
-          type: "starship",
-          name: a.name,
-          zone: Math.max(1, s.zones - 1),
-          heading: "left",
-          level: d.level,
-          detection: { party: "observed" }
-        })
-      );
-      if (!c.combatants.some((x) => x.actorId === a.id)) await c.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
-    }
+    const c = activeStarshipCombat();
+    if (!c) throw new Error(T("SF2eTSC.errors.noCombat"));
+    const { getTsc } = await import("../combat/tsc-state.mjs");
+    await addPrivateContact(c, a, this.mode === "hazards" ? Number(t.dataset.zone) || 1 : Math.max(1, getTsc(c).zones - 1));
     notifyInfo("SF2eTSC.ui.placed", { name: a.name });
   }
   static async #updateAll() {

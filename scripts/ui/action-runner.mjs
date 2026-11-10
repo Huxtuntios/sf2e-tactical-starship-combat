@@ -17,6 +17,7 @@ import { ct } from "../content/content-i18n.mjs";
 import { randomId } from "../utils/ids.mjs";
 import { stationEffects } from "../starship/effects.mjs";
 import { beginNativeWeaponAttack } from "./native-attack.mjs";
+import { eligibleDroneMovements } from "../engine/drone-state.mjs";
 const skillLabel = (s) => {
   const k = `SF2eTSC.skills.${String(s).toLowerCase()}`;
   return game.i18n.has(k) ? T(k) : s;
@@ -57,9 +58,33 @@ export function previewAction(action, { ship, crew, station, combat = activeStar
     reasons.push(T("SF2eTSC.errors.frequencyUsed"));
   if (tsc && !findObject(tsc, ship.uuid) && ["moveAlongHeading"].some(() => action.id === "boost-thrusters"))
     reasons.push(T("SF2eTSC.errors.notPlaced"));
+  const droneHard = [];
+  if (["deploy-drone", "retrieve-drone"].includes(action.id)) {
+    const matchingStations = data.stations.filter((s) => s?.id === station?.id);
+    if (
+      matchingStations.length !== 1 ||
+      matchingStations[0].type !== "drone-console" ||
+      !matchingStations[0].helmedBy ||
+      (crew && matchingStations[0].helmedBy !== crew.uuid) ||
+      matchingStations[0].malfunctioning ||
+      data.destroyed
+    ) {
+      droneHard.push(T("SF2eTSC.droneControl.errors.station"));
+    } else {
+      const op = action.id === "deploy-drone" ? "deploy" : "retrieve";
+      const env = {
+        definition: Content.stations.get("drone-console"),
+        droneTypes: Content.drones,
+        worldTime: game.time?.worldTime,
+        combat: activeStarshipCombat()
+      };
+      if (!eligibleDroneMovements(data, station.id, op, env).length) droneHard.push(T("SF2eTSC.droneControl.errors.noEligible"));
+    }
+  }
+  reasons.push(...droneHard);
   // warn mode (default): only "no starship combat" really blocks; every rule problem is a warning on an enabled button
   if (moduleSetting("ruleEnforcement") === "strict") return { enabled: reasons.length === 0, reasons, warnings: [] };
-  const hard = !combat ? [T("SF2eTSC.errors.noCombat")] : [];
+  const hard = [...(!combat ? [T("SF2eTSC.errors.noCombat")] : []), ...droneHard];
   return { enabled: hard.length === 0, reasons: hard, warnings: reasons.filter((r) => !hard.includes(r)) };
 }
 
@@ -73,6 +98,7 @@ function targetRange(action, ship, weaponRange) {
 /** Ask for the options an action needs (cost variant, spell rank, skill, DC tier, weapon, target station, area origin). */
 async function promptOptions(action, { ship, crew, station, target }) {
   const fields = [];
+  if (action.id === "repair-hull-drone") fields.push(`<p class="hint">${foundry.utils.escapeHTML(T("SF2eTSC.droneRepair.hint"))}</p>`);
   if (action.id === "boost-battle-station") {
     const data = readStarship(ship);
     const combat = activeStarshipCombat();
@@ -104,13 +130,22 @@ async function promptOptions(action, { ship, crew, station, target }) {
   if (["deploy-drone", "retrieve-drone", "deploy-starship-mine"].includes(action.id)) {
     const deployed = action.id !== "deploy-drone";
     const records = readStarship(ship).drones;
-    const drones = (Array.isArray(records) ? records : []).filter(
-      (d) =>
-        d?.tscVersion === 1 &&
-        d.stationId === station?.id &&
-        d.deployed === deployed &&
-        (!action.requiresDroneType || d.ref === action.requiresDroneType)
-    );
+    const drones =
+      action.id === "deploy-starship-mine"
+        ? (Array.isArray(records) ? records : []).filter(
+            (d) =>
+              d?.tscVersion === 1 &&
+              d.stationId === station?.id &&
+              d.deployed === deployed &&
+              d.ref === action.requiresDroneType &&
+              records.filter((other) => other?.id === d.id).length === 1
+          )
+        : eligibleDroneMovements(readStarship(ship), station?.id, deployed ? "retrieve" : "deploy", {
+            definition: Content.stations.get("drone-console"),
+            droneTypes: Content.drones,
+            worldTime: game.time?.worldTime,
+            combat: activeStarshipCombat()
+          });
     if (!drones.length) {
       notifyError("SF2eTSC.errors.generic", { message: T("SF2eTSC.droneControl.errors.noEligible") });
       return null;
@@ -227,6 +262,7 @@ export async function runAction(action, ctx) {
     const opts = await promptOptions(action, { ship, crew, station, target: targetObj });
     if (opts === null) return;
     if (action.id === "deploy-starship-mine") opts.mineId = randomId("mine");
+    if (action.id === "repair-hull-drone") opts.repairId = randomId("repair");
     const send = (extra = {}) =>
       request("executeAction", {
         shipUuid: ship.uuid,
@@ -239,7 +275,7 @@ export async function runAction(action, ctx) {
       await send();
     } catch (err) {
       // GM may override any restriction after seeing why it was refused
-      if (game.user.isGM) {
+      if (game.user.isGM && action.id !== "repair-hull-drone") {
         const go = await foundry.applications.api.DialogV2.confirm({
           classes: ["sf2e-tsc"],
           window: { title: T("SF2eTSC.ui.gmOverride") },

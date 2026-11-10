@@ -1644,6 +1644,20 @@
    "builtin": "npc-strike"
   },
   {
+   "id": "repair-hull-drone",
+   "slug": "repair-hull",
+   "name": "Repair Hull",
+   "station": "drone-console",
+   "minGrade": "commercial",
+   "cost": 2,
+   "traits": ["healing", "manipulate", "station"],
+   "text": "Attempt a Crafting check to repair a starship in your zone. Critical success: regain 2d6 Hull Points; success: regain 1d6 Hull Points; critical failure: take 1d6 piercing damage. Expert DC 20 adds 10, master DC 30 adds 30, legendary DC 40 adds 50 to Hull Points regained.",
+   "source": {"book": "Starfinder Tech Core", "page": 193},
+   "requiresDroneType": "repair-drone",
+   "check": {"kind": "skill", "skills": ["crafting"], "dc": {"type": "fixed", "value": 15}, "dcOptions": [{"dc": 20, "bonus": 10}, {"dc": 30, "bonus": 30}, {"dc": 40, "bonus": 50}]},
+   "effects": [{"type": "manual", "text": "This experimental implementation supports only the console's own ship; other targets require GM resolution."}]
+  },
+  {
    "id": "deploy-starship-mine",
    "slug": "deploy-starship-mine",
    "name": "Deploy Starship Mine",

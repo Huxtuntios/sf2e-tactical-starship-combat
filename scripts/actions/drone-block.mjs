@@ -6,8 +6,13 @@ export async function stageDroneBlock({ draft, targetUuid, stationId, crew, dron
   if (!strikeId || !Number.isFinite(worldTime)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
   const entry = await draft.ship(targetUuid);
   const data = entry.data;
-  const station = data.stations.find((s) => s.id === stationId && s.type === "drone-console" && s.helmedBy === crew?.uuid);
-  const drone = data.drones?.find((d) => d?.id === droneId && d.stationId === stationId && d.tscVersion === 1 && d.deployed === true);
+  const stations = data.stations.filter((s) => s?.id === stationId);
+  const drones = Array.isArray(data.drones) ? data.drones.filter((d) => d?.id === droneId) : [];
+  const station = stations.length === 1 && stations[0].type === "drone-console" && stations[0].helmedBy === crew?.uuid ? stations[0] : null;
+  const drone =
+    drones.length === 1 && drones[0].stationId === stationId && drones[0].tscVersion === 1 && drones[0].deployed === true
+      ? drones[0]
+      : null;
   const level = crew?.system?.details?.level?.value ?? crew?.level;
   if (!station || station.malfunctioning || data.destroyed || !drone || !Number.isInteger(level) || level < 1)
     throw new Error(T("SF2eTSC.droneBlock.invalid"));

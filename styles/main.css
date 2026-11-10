@@ -2051,3 +2051,9 @@ a.tsc-cond:focus-visible {
 .tsc-map-appearance .tsc-transform-buttons button {
   flex: 1 1 auto;
 }
+
+/* Отсутствующая стрелка не оставляет пустого места: центрируется изображение внутри карточки. */
+.tsc-sensor-map .tsc-obj-visual.no-course-arrow {
+  grid-column: 1 / -1;
+  justify-content: center;
+}

@@ -2,6 +2,17 @@
 {{#unless noCombat}}
     {{#if detail}}
       <h3>{{detail.label}}</h3>
+      {{#if detail.privateContact}}
+      <p>{{detail.detectionLabel}} — {{localize "SF2eTSC.ui.zone"}} {{detail.zone}}</p>
+      <p class="tsc-hint">{{localize "SF2eTSC.privateMap.hint"}}</p>
+      {{#if detail.actorUuid}}<button type="button" data-action="privateOpen" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
+      {{#if detail.canRename}}<button type="button" data-action="privateRename" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.rename"}}</button>{{/if}}
+      <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">{{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="privateDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}</div>
+      <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="-1">◀</button>
+      <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="1">▶</button>
+      <button type="button" data-action="privateReveal" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.reveal"}}</button>
+      <button type="button" data-action="privateRemove" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.removeObject"}}</button>
+      {{else}}
       <dl>{{#each detail.rows}}<dt>{{k}}</dt><dd>{{v}}</dd>{{/each}}</dl>
       {{#if detail.vitals}}
       <div class="tsc-vitals-edit">
@@ -22,7 +33,7 @@
         {{#if detail.typeOptions}}<label>{{localize "SF2eTSC.ui.type"}} <select data-object-type="{{detail.key}}">{{#each detail.typeOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/if}}
         {{#if detail.gm}}
         <div class="tsc-gm-edit">
-          {{#if detail.gm.heading}}<label>{{localize "SF2eTSC.ui.heading"}} <select data-gm-ship="heading" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}" data-current="{{detail.gm.heading}}">{{#each detail.gm.headings}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>{{/if}}
+          <label>{{localize "SF2eTSC.ui.heading"}} <select data-gm-ship="heading" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}" data-current="{{detail.gm.heading}}">{{#unless detail.gm.heading}}<option value="" selected>{{localize "SF2eTSC.mapVisual.positions.unknown"}}</option>{{/unless}}{{#each detail.gm.headings}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
           <label>{{localize "SF2eTSC.ui.status"}} <select data-gm-ship="status" data-ship="{{detail.gm.shipUuid}}" data-key="{{detail.key}}">{{#each detail.gm.statuses}}<option value="{{id}}" {{#if active}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
         </div>
         {{/if}}
@@ -40,6 +51,7 @@
           {{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="setDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}
         </div>
       </details>
+      {{/if}}
       {{/if}}
     {{else}}
       <p class="tsc-hint">{{localize "SF2eTSC.ui.selectObject"}}</p>
