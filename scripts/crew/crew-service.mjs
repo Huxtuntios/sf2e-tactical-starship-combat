@@ -132,9 +132,11 @@ async function releaseStation({ user, payload }) {
   const data = readStarship(ship);
   const station = payload.stationId ? stationOf(data, payload.stationId) : data.stations.find((s) => s.helmedBy === payload.crewUuid);
   if (!station) return false;
-  const crewActor = await fromUuidSafe(station.helmedBy);
-  if (!(user.isGM || can(user, ship, "assignCrew") || (crewActor && canControlCrewActor(user, crewActor))))
-    throw new Error(T("SF2eTSC.errors.noPermission"));
+  const occupantUuid = station.helmedBy;
+  const crewActor = await fromUuidSafe(occupantUuid);
+  const crewEntry = data.crew.find((member) => member.actorUuid === occupantUuid);
+  const controlsOccupant = crewActor && (canControlCrewActor(user, crewActor) || (!!crewEntry?.userId && crewEntry.userId === user.id));
+  if (!(user.isGM || can(user, ship, "assignCrew") || controlsOccupant)) throw new Error(T("SF2eTSC.errors.noPermission"));
   await patchStarship(ship, (d) => {
     releaseStationIn(d, station.id);
   });

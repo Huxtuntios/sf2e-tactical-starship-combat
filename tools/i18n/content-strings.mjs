@@ -8,9 +8,10 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { linkChecks } from "../../scripts/content/inline-checks.mjs";
 
-export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, "data", p), "utf8"));
 
 /** Fields holding display text, per content kind. Ids, slugs, traits (SF2eTSC.traits.*), dice and numbers are excluded. */

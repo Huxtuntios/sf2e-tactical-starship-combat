@@ -16,6 +16,8 @@ const fixtures = [
   ["smoke-window-themes.mjs", "windows"],
   ["smoke-map-appearance.mjs", "map"],
   ["smoke-sensor-drop.mjs", "sensor-drop"],
+  ["smoke-contact-editor.mjs", "contact-editor"],
+  ["smoke-crew-stations.mjs", "crew-stations"],
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],

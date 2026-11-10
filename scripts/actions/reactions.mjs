@@ -3,7 +3,7 @@ import { gradeAtLeast } from "../engine/advancement.mjs";
 import { emitClientEvent, onClientEvent, registerHandler, request } from "../socket.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
-import { stageDroneBlock } from "./drone-block.mjs";
+import { stageDroneBlock, stageDroneShieldProtocolBlock } from "./drone-block.mjs";
 import { can } from "../crew/permissions.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { publicLabel } from "../chat/attack-card/model.mjs";
@@ -33,16 +33,16 @@ export const Reactions = {
                 (d) => d?.tscVersion === 1 && d.stationId === st.id && d.deployed === true && Content.drones.some((t) => t.id === d.ref)
               )
             : [];
-        if (
-          a.id === "drone-block" &&
-          (!drones.length || (targetData.upgrades ?? []).some((u) => u.ref === "drone-shield-protocol" && u.stationId === st.id))
-        )
-          continue;
+        if (a.id === "drone-block" && !drones.length) continue;
         offers.push({
           actionId: a.id,
           stationId: st.id,
           crewUuid: st.helmedBy,
           crewName: crew?.name ?? "?",
+          ...(a.id === "drone-block" &&
+          (targetData.upgrades ?? []).some((upgrade) => upgrade.ref === "drone-shield-protocol" && upgrade.stationId === st.id)
+            ? { manualOnly: true }
+            : {}),
           ...(drones.length ? { drones: drones.map((d) => ({ id: d.id, ref: d.ref })) } : {})
         });
       }
@@ -54,7 +54,7 @@ export const Reactions = {
    * Ask crews whether to use a reaction. Resolves to a combined result { shieldAbsorb, bypassHull, resistance }.
    * Never blocks longer than WAIT_MS and never prompts when no reaction applies.
    */
-  async ask(ctx, target, { amount, traits, crit }) {
+  async ask(ctx, target, { amount, traits, crit, attackLabel }) {
     const result = {};
     if (ctx.options.skipReactions) return result;
     const offers = this.eligible(target.data, ctx.tsc, ctx.combat);
@@ -95,16 +95,44 @@ export const Reactions = {
         if (!user.isGM && (!crew?.testUserPermission?.(user, "OWNER") || !can(user, target.actor, "operateStation")))
           throw new Error(T("SF2eTSC.errors.noPermission"));
         if (offer.actionId === "drone-block") {
-          const resistance = await stageDroneBlock({
+          const level = crew?.system?.details?.level?.value ?? crew?.level;
+          if (!Number.isInteger(level) || level < 1) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+          const previewResistance = Math.floor(level / 2);
+          const drone = target.data.drones?.find((d) => d.id === use);
+          const notes = [];
+          if (drone?.ref === "scramble-drone" && drone.tscInterceptUsed === true) notes.push(T("SF2eTSC.droneBlock.interceptNote"));
+          if (drone?.ref === "pyrotechnics-drone" && ((drone.mineStock?.length ?? 0) > 0 || (drone.mines?.length ?? 0) > 0))
+            notes.push(T("SF2eTSC.droneBlock.mineNote"));
+          const mode = await confirmDroneBlock({
+            target: target.actor.name,
+            attacker: attackerLabel,
+            attack: attackLabel ?? T("SF2eTSC.attackCard.resultTitle"),
+            amount,
+            resistance: previewResistance,
+            drone: ct(Content.drones.find((type) => type.id === drone?.ref)?.name ?? drone?.ref ?? ""),
+            notes,
+            manualOnly: offer.manualOnly
+          });
+          if (!mode) continue;
+          const resistance = await (offer.manualOnly ? stageDroneShieldProtocolBlock : stageDroneBlock)({
             draft: ctx.draft,
             targetUuid: target.uuid,
             stationId: offer.stationId,
             crew,
             droneId: use,
             strikeId: ctx.strikeId,
+            combat: ctx.combat,
             worldTime: game.time?.worldTime
           });
           result.resistance = Math.max(result.resistance ?? 0, resistance);
+          if (mode === "manual")
+            result.manualDamage = {
+              amount,
+              resistance,
+              attack: attackLabel ?? "",
+              target: target.actor.name,
+              protocolManual: !!offer.manualOnly
+            };
           continue;
         }
         const { executeAction } = await import("./action-engine.mjs");
@@ -126,6 +154,41 @@ export const Reactions = {
     return result;
   }
 };
+
+export async function confirmDroneBlock({ target, attacker, attack, amount, resistance, drone, notes = [], manualOnly = false }) {
+  const Dialog = foundry.applications.api.DialogV2;
+  if (typeof Dialog?.prompt !== "function") {
+    ui.notifications.warn(
+      T(manualOnly ? "SF2eTSC.droneBlock.protocolManualFallback" : "SF2eTSC.droneBlock.manualFallback", { resistance, amount })
+    );
+    return "manual";
+  }
+  const details = {
+    target: foundry.utils.escapeHTML(target),
+    attacker: foundry.utils.escapeHTML(attacker),
+    attack: foundry.utils.escapeHTML(attack),
+    amount,
+    resistance,
+    drone: foundry.utils.escapeHTML(drone)
+  };
+  const confirmation = manualOnly ? T("SF2eTSC.droneBlock.protocolConfirm", details) : T("SF2eTSC.droneBlock.confirm", details);
+  const mode = await Dialog.prompt({
+    classes: ["sf2e-tsc"],
+    window: { title: T("SF2eTSC.droneBlock.confirmTitle"), icon: "fa-solid fa-shield-halved" },
+    content: `<p>${confirmation}</p>${notes.map((note) => `<p class="tsc-hint">${foundry.utils.escapeHTML(note)}</p>`).join("")}${
+      manualOnly
+        ? ""
+        : `<label>${T("SF2eTSC.droneBlock.resolution")} <select name="resolution"><option value="automatic">${T("SF2eTSC.droneBlock.automatic")}</option><option value="manual">${T("SF2eTSC.droneBlock.manual")}</option></select></label>`
+    }`,
+    ok: {
+      label: T(manualOnly ? "SF2eTSC.droneBlock.manual" : "SF2eTSC.reaction.useBtn"),
+      callback: (_event, button) => (manualOnly ? "manual" : button.form.elements.resolution.value)
+    },
+    rejectClose: false
+  });
+  return mode === "automatic" || mode === "manual" ? mode : null;
+}
+
 /** Only the user the prompt was sent to (or a GM) may answer it. Exported for regression tests. */
 export function resolveReactionResponse({ user, payload }) {
   const w = waiting.get(payload?.requestId);

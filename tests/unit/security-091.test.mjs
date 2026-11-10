@@ -12,15 +12,17 @@ async function setup() {
   (await import("../../scripts/crew/crew-service.mjs")).registerCrewHandlers();
   (await import("../../scripts/starship/ship-service.mjs")).registerShipHandlers();
   const emitted = [];
+  let requestNumber = 0;
   const send = async (userId, type, payload) => {
-    await socket.dispatchSocketMessage({ kind: "request", type, requestId: `r${emitted.length}`, payload }, userId, {
+    const requestId = `r${requestNumber++}`;
+    await socket.dispatchSocketMessage({ kind: "request", type, requestId, payload }, userId, {
       users: game.users,
       selfId: "gm",
       isActiveGM: true,
       clientEvents: new Map(),
       emit: (m) => emitted.push(m)
     });
-    return emitted.at(-1);
+    return emitted.find((message) => message.requestId === requestId);
   };
   return { send };
 }
@@ -83,6 +85,44 @@ test("0.9.1: canJoinShip / canClaimStation rules", async () => {
     crew: [{ actorUuid: other.uuid, name: "Other", userId: "p1", role: "crew" }]
   });
   assert.equal(canClaimStation(p1, linked, other), true, "an existing entry linked to the user can still move stations (0.8.6)");
+});
+
+test("concurrent claims cannot assign two crew members to one station", async () => {
+  const { send } = await setup();
+  const ship = makeShip({
+    id: "race-station",
+    name: "Party ship",
+    role: "player",
+    owners: ["p1", "p2"],
+    stations: [{ id: "pilot-1", name: "Pilot", type: "pilot" }]
+  });
+  const p1 = makeCharacter({ id: "race-pc1", name: "Pilot One", owners: ["p1"] });
+  const p2 = makeCharacter({ id: "race-pc2", name: "Pilot Two", owners: ["p2"] });
+  const results = await Promise.all([
+    send("p1", "claimStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: p1.uuid }),
+    send("p2", "claimStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: p2.uuid })
+  ]);
+  assert.equal(results.filter((result) => result.ok).length, 1);
+  assert.equal(results.filter((result) => !result.ok).length, 1);
+  const assigned = ship.flags[M].starship.stations.find((station) => station.id === "pilot-1").helmedBy;
+  assert.ok([p1.uuid, p2.uuid].includes(assigned));
+  assert.equal(ship.flags[M].starship.crew.filter((member) => member.stationId === "pilot-1").length, 1);
+});
+
+test("a user linked to a crew entry can release their assigned station without actor ownership", async () => {
+  const { send } = await setup();
+  const actor = makeCharacter({ id: "linked-pc", name: "Linked pilot", owners: ["p2"] });
+  const ship = makeShip({
+    id: "linked-ship",
+    name: "Party ship",
+    role: "player",
+    owners: ["p1"],
+    stations: [{ id: "pilot-1", name: "Pilot", type: "pilot", helmedBy: actor.uuid }],
+    crew: [{ actorUuid: actor.uuid, name: actor.name, userId: "p1", role: "crew", stationId: "pilot-1" }]
+  });
+  const result = await send("p1", "releaseStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: actor.uuid });
+  assert.equal(result.ok, true);
+  assert.equal(ship.flags[M].starship.stations.find((station) => station.id === "pilot-1").helmedBy, null);
 });
 
 /* ------------------------------------------------------------------ must fix 2: only starships are written */

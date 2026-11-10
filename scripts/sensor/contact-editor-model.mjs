@@ -17,7 +17,12 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
     loading,
     filter: state.filter ?? "",
     name: state.name ?? "",
-    choices: choices.map((c) => ({ ...c, selected: c.uuid === state.uuid })),
+    choices: choices.map((c) => ({
+      ...c,
+      kindLabel: T(`SF2eTSC.contactEditor.kinds.${c.kind ?? "hazard"}`),
+      roleLabel: c.role ? T(`SF2eTSC.roles.${c.role}`) : "",
+      selected: c.uuid === state.uuid
+    })),
     zones: Array.from({ length: zones }, (_, i) => ({ id: i + 1, selected: i + 1 === (state.zone ?? 1) })),
     detections: DETECTION_LEVELS.map((id) => ({
       id,

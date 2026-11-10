@@ -1,11 +1,11 @@
 {
   "name": "sf2e-tactical-starship-combat",
-  "version": "0.17.1-dev.12",
+  "version": "0.17.1-dev.13",
   "private": true,
   "type": "module",
   "description": "Tactical starship combat for Foundry VTT v14 / Starfinder Second Edition (sf2e)",
   "scripts": {
-    "test": "node --test \"tests/unit/*.test.mjs\" \"tests/architecture/*.test.mjs\"",
+    "test": "node --test \"tests/unit/*.test.mjs\" \"tests/architecture/*.test.mjs\" \"tests/integration/*.test.mjs\"",
     "test:full": "node tools/build-packs.mjs && npm test",
     "lint": "eslint scripts tools tests --max-warnings 0",
     "lint:fix": "eslint scripts --fix",

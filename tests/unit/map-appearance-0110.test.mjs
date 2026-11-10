@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import Handlebars from "handlebars";
 import {
   DEFAULT_MAP_APPEARANCE,
@@ -298,11 +299,14 @@ test("0.11.0 glossary terminology is consistent in UI, build inputs and all comp
     fs
       .readdirSync(path, { withFileTypes: true })
       .flatMap((e) => (e.isDirectory() ? walk(`${path}/${e.name}`) : /\.(json|md)$/.test(e.name) ? [`${path}/${e.name}`] : []));
-  for (const dir of roots.filter((name) => fs.existsSync(new URL(`../../${name}`, import.meta.url))))
-    for (const file of walk(new URL(`../../${dir}`, import.meta.url).pathname)) {
+  for (const dir of roots) {
+    const root = new URL(`../../${dir}`, import.meta.url);
+    if (!fs.existsSync(root)) continue;
+    for (const file of walk(fileURLToPath(root))) {
       const text = fs.readFileSync(file, "utf8");
       assert.ok(!/(?<![А-Яа-яЁё])(?:КБ|[Чч]ерт(?:а|ы|у|ой|ами|е)?)(?![А-Яа-яЁё])/.test(text), file);
     }
+  }
 });
 
 test("unchanged map background styles are not reassigned on unrelated renders", () => {

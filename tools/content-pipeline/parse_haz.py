@@ -95,7 +95,7 @@ for h in out:
     d = desc_of(h["text"])[:40]
     hit = [a for a in aon.values() if d and any(d in x for x in a["body"])]
     h["aon"] = hit[0]["name"] if hit else None
-# rename pdf segments matched to AoN names
+# Rename source segments matched to AoN names.
 for h in out:
     if h["aon"] and h["aon"].upper() != h["name"]:
         print("RENAME", h["name"], "->", h["aon"].upper())

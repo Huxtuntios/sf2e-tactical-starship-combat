@@ -93,6 +93,20 @@ export function registerAttackCards() {
       const host = el.querySelector(".message-content") ?? el;
       const controls = document.createElement("div");
       controls.className = "tsc-native-attack-controls";
+      if (c.damageResult?.manual) {
+        const note = document.createElement("p");
+        note.className = "tsc-hint";
+        const messages = [
+          T("SF2eTSC.droneBlock.manualResult", {
+            amount: c.damageResult.amount,
+            resistance: c.damageResult.resistance
+          })
+        ];
+        if (c.damageResult.protocolManual)
+          messages.push(T("SF2eTSC.droneBlock.protocolManualResult", { resistance: c.damageResult.resistance }));
+        note.textContent = messages.join(" ");
+        controls.append(note);
+      }
       if (c.result?.pendingDamage && !c.damageApplied) {
         const damage = document.createElement("button");
         damage.type = "button";

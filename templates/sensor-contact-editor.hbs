@@ -11,9 +11,9 @@
   {{else}}
     <label>{{localize "SF2eTSC.contactEditor.filter"}} <input type="search" name="filter" value="{{filter}}" autocomplete="off"></label>
     {{#if loading}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.loading"}}</p>{{/if}}
-    <label>{{localize "SF2eTSC.contactEditor.hazard"}}
-      <select name="uuid" size="8" aria-label="{{localize 'SF2eTSC.contactEditor.hazard'}}">
-        {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if pack}} — {{pack}}{{/if}}{{#if visible}} ⚠{{/if}}</option>{{/each}}
+    <label>{{localize "SF2eTSC.contactEditor.actor"}}
+      <select name="uuid" size="8" aria-label="{{localize 'SF2eTSC.contactEditor.actor'}}">
+        {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{kindLabel}}{{#if roleLabel}} · {{roleLabel}}{{/if}} — {{name}}{{#if pack}} — {{pack}}{{/if}}{{#if visible}} ⚠{{/if}}</option>{{/each}}
       </select>
     </label>
     {{#unless choices.length}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.noChoices"}}</p>{{/unless}}

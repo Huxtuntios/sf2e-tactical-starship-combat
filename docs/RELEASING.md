@@ -113,7 +113,7 @@ npm run build:release
 
 Результаты локальной сборки появятся в `dist/`. На Linux Chromium может требовать `npx playwright install --with-deps chromium`.
 
-Не коммитьте `node_modules`, `packs`, `packs-src`, `dist`, `.work`, исходные PDF и секреты: `.gitignore` уже настроен. Не переиспользуйте опубликованный номер для другого кода.
+Не коммитьте `node_modules`, `packs`, `packs-src`, `dist`, `.work`, исходные printed source и секреты: `.gitignore` уже настроен. Не переиспользуйте опубликованный номер для другого кода.
 
 ## Справка GitHub
 

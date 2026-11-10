@@ -6,8 +6,10 @@ import {
   setPrivateContactZone,
   worldHazardChoices,
   importHazardCopy,
+  compendiumHazardChoices,
   actorVisibleToPlayers
 } from "../../scripts/sensor/contact-service.mjs";
+import { defaultStarship } from "../../scripts/engine/validation.mjs";
 import { privateContacts } from "../../scripts/sensor/private-contacts.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { contactEditorContext } from "../../scripts/sensor/contact-editor-model.mjs";
@@ -23,6 +25,17 @@ function hazard(id, name = "Secret hazard", extra = {}) {
   const h = new MockActor({ id, type: "hazard", name, ...extra });
   game.actors.set(h.id, h);
   return h;
+}
+function starship(id, name = "Enemy ship", role = "npc", extra = {}) {
+  const ship = new MockActor({
+    id,
+    type: role === "player" ? "vehicle" : "npc",
+    name,
+    flags: { [MODULE]: { starship: { ...defaultStarship(), role } } },
+    ...extra
+  });
+  game.actors.set(ship.id, ship);
+  return ship;
 }
 const text = (combat) => JSON.stringify(combat.flags);
 
@@ -66,6 +79,35 @@ test("identified placement discloses the Actor only after confirmation", async (
   const o = getTsc(combat).objects[0];
   assert.deepEqual([o.actorUuid, o.type, o.zone, o.detection.party], [h.uuid, "hazard", 2, "identified"]);
   assert.deepEqual(privateContacts(combat.id), []);
+});
+
+test("world Starship Actors use private NPC contacts and confirmed public Player contacts", async () => {
+  const combat = setup();
+  const npcShip = starship("npc-ship");
+  await addSensorContact(combat, { source: "world", uuid: npcShip.uuid, zone: 3, detection: "hidden" });
+  assert.equal(privateContacts(combat.id)[0].actorUuid, npcShip.uuid);
+  assert.deepEqual(getTsc(combat).objects, []);
+  assert.equal(
+    (combat.combatants ?? []).some((c) => c.actorId === npcShip.id),
+    false
+  );
+
+  const playerShip = starship("player-ship", "Party ship", "player", { owners: ["p1"] });
+  await assert.rejects(
+    addSensorContact(combat, { source: "world", uuid: playerShip.uuid, zone: 2, detection: "observed", confirmed: true })
+  );
+  await addSensorContact(combat, {
+    source: "world",
+    uuid: playerShip.uuid,
+    zone: 2,
+    detection: "identified",
+    confirmed: true
+  });
+  assert.equal(getTsc(combat).objects[0].actorUuid, playerShip.uuid);
+  assert.equal(
+    (combat.combatants ?? []).some((c) => c.actorId === playerShip.id),
+    false
+  );
 });
 
 test("an Actor already visible to players cannot be hidden: only confirmed identified placement", async () => {
@@ -152,6 +194,50 @@ test("compendium hazard becomes a private world copy per placement; failed place
   assert.equal(privateContacts(combat.id).length, before);
   // не компендий и не опасность
   await assert.rejects(importHazardCopy("Actor.h", { resolve: async () => ({ documentName: "Actor", type: "hazard", pack: null }) }));
+});
+
+test("compendium Starship Actor copies are independent and the index exposes them", async () => {
+  setup();
+  const flags = { [MODULE]: { starship: { ...defaultStarship(), role: "npc" } } };
+  const source = {
+    documentName: "Actor",
+    type: "npc",
+    pack: "world.starships",
+    uuid: "Compendium.world.starships.Actor.enemy",
+    flags,
+    toObject: () => ({ _id: "enemy", name: "Enemy ship", type: "npc", flags: structuredClone(flags) })
+  };
+  const original = JSON.stringify(source.toObject());
+  const copy = await importHazardCopy(source.uuid, {
+    resolve: async () => source,
+    createActor: async (data) => {
+      assert.equal(data._id, undefined);
+      assert.deepEqual(data.ownership, { default: 0 });
+      return new MockActor({ type: data.type, name: data.name, flags: data.flags });
+    }
+  });
+  assert.notEqual(copy.uuid, source.uuid);
+  assert.equal(JSON.stringify(source.toObject()), original);
+  assert.equal(copy.flags[MODULE].starship.role, "npc");
+
+  game.packs = [
+    {
+      documentName: "Actor",
+      collection: "world.starships",
+      metadata: { label: "Starships" },
+      getIndex: async ({ fields }) => {
+        assert.ok(fields.includes(`flags.${MODULE}.starship.isStarship`));
+        return [
+          { _id: "enemy", uuid: source.uuid, name: source.name, type: source.type, flags },
+          { _id: "ordinary", name: "Ordinary NPC", type: "npc" }
+        ];
+      }
+    }
+  ];
+  assert.deepEqual(
+    (await compendiumHazardChoices()).map((choice) => [choice.uuid, choice.kind, choice.role]),
+    [[source.uuid, "starship", "npc"]]
+  );
 });
 
 test("input validation and mine-managed actors are rejected", async () => {

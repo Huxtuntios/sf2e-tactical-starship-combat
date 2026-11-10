@@ -126,7 +126,7 @@ for a in A["ships"]:
     )
     issues = []
     if not cand:
-        issues.append("no PDF statblock matched")
+        issues.append("no printed statblock matched")
         p = {}
     else:
         if len(cand) > 1:
@@ -138,7 +138,7 @@ for a in A["ships"]:
         pv = p.get(k)
         av = st.get(k)
         if pv is not None and av is not None and pv != av:
-            issues.append(f"{k}: PDF {pv} vs AoN {av} (PDF used)")
+            issues.append(f"{k}: print {pv} vs AoN {av} (print used)")
         return pv if pv is not None else av
 
     f, fac, oid = old[a["name"].lower()]
@@ -367,6 +367,6 @@ for fn, fac in files.items():
     json.dump(dict(faction=fac, ships=lst), open(OUT + fn, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
 report = [(s["name"], s["review"]) for _, s in ships]
 json.dump(report, open(str(WORK / "ship_report.json"), "w", encoding="utf-8"), indent=1, ensure_ascii=False)
-print(len(ships), "unused pdf", [P[i]["page"] for i in range(len(P)) if i not in used])
+print(len(ships), "unused source pages", [P[i]["page"] for i in range(len(P)) if i not in used])
 c = collections.Counter(i.split(":")[0] if ":" in i else i for _, iss in report for i in iss)
 print(c.most_common(30))

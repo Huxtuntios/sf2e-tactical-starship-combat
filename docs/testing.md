@@ -1,8 +1,12 @@
 # Testing
 
-## 0.17.1-dev.12 verification
+## 0.17.1-dev.13 verification
 
-`npm run check` (Prettier, ESLint, content validation, pack build, unit/architecture tests with a mocked Foundry) was run; see `work-in-progress-0.17.1-dev.12.md` for the counts. Chromium fixtures were **not** run (no browser in the build environment). The unit tests drive the real socket handlers and `executeAction` against a mock, which proves module logic only. Private-contact privacy, Actor/Folder creation in a real SF2e world, dialogs and multi-client behaviour are **unverified**; follow `MANUAL-TEST-0.17.1-dev.12-ru.md`.
+Exact local results are recorded in `work-in-progress-0.17.1-dev.13.md`. CI #23 (`c64ffd4`) had `check` pass and `ui` fail at 46/47 assertions. The UI failure was the fixture's stale selector for the Install Mine button, not Chromium startup or the logged Node/action deprecation warnings. The dev.13 worktree's `npm run check`, `npm run package` and `npm run test:ui` are run locally; no updated hosted CI run can contain uncommitted files without committing/pushing, which were explicitly prohibited. The UI fixtures use local Chromium and mocks. Real Foundry, actual SF2e/PF2e runtime, compendium indexes, separate clients, network privacy and GM failover remain unverified; follow `docs/MANUAL-TEST-0.17.1-dev.13-ru.md`.
+
+## 0.17.1-dev.12 CI baseline
+
+The target commit's hosted CI run #23 is diagnosed in `work-in-progress-0.17.1-dev.13.md`: `check` passed, while `ui` failed at one stale fixture selector (46/47 assertions). The dev.13 follow-up includes the local reruns and manual checklist. These records are not a claim that dev.12 had a live Foundry or multi-client test.
 
 ## 0.17.1-dev.11 verification
 
@@ -59,7 +63,7 @@ See `work-in-progress-0.17.1-dev.2.md` and `REPORT-0.17.1-dev.2-ru.md` for the f
 - `npm run check`: Prettier-supported source files, ESLint with zero warnings, content/reference validation, 11 compiled packs and **311 Node tests**. Pack tests reopen all packs with the actual LevelDB reader.
 - `npm run test:ui`: **33 local Chromium pages** — 20 ship-sheet fixtures, one interaction fixture, eight Station HUD/Crew Manager fixtures, two Sensor Map assertion fixtures and two static appearance-form previews. The two static previews are not full interaction tests.
 - `npm run build:release`: portable runtime ZIP, matching root/external manifest, 11 packs and SHA-256 checksums. Packaging regression tests reject version mismatches and developer-only payloads.
-- Optional Python provenance tools: nine files pass Python syntax checks and Black. The original extraction pipeline was **not** rerun against the source PDFs/dumps.
+- Optional Python provenance tools: nine files pass Python syntax checks and Black. The original extraction pipeline was **not** rerun against the source materials/dumps.
 - `npm audit`: no reported vulnerabilities in the installed development dependency tree at preparation time; audit results can change later.
 
 Use `npm ci` from a clean checkout, then `npm run check`. Install Chromium once with `npx playwright install chromium` before UI checks. Linux CI uses `--with-deps`. `CHROMIUM_PATH` can select an existing Chromium executable for local runs.

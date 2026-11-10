@@ -1,16 +1,16 @@
 /**
- * Общий путь добавления объектов на Sensor Map для GM (dev.12). Развивает приватную карту dev.10–dev.11 и
+ * Общий путь добавления объектов на Sensor Map для GM (dev.13). Развивает приватную карту dev.10–dev.12 и
  * не вводит ни второй карты, ни отдельной механики контактов:
  *
- * - опасность мира → закрытый журнал приватных контактов (addPrivateContact);
- * - опасность компендия → приватная копия в мире (владение NONE для игроков), затем тот же путь, чтобы каждая
+ * - опасность или звездолёт из мира → закрытый журнал приватных контактов (addPrivateContact);
+ * - опасность или звездолёт из компендия → приватная копия в мире (владение NONE для игроков), затем тот же путь, чтобы каждая
  *   установка имела собственный документ и состояние; копия удаляется, если размещение не удалось;
  * - пользовательский контакт без Actor → addPrivateCustom;
  * - начальное состояние: undetected/hidden остаются только в закрытом журнале; observed публикует анонимный
  *   маркер, identified публикует личность — оба требуют явного подтверждения (confirmed === true).
  *
  * Правила передачи сведений не меняются; этот модуль только оркестрирует существующие операции. Приватность
- * в настоящем Foundry с несколькими клиентами НЕ проверена (см. MANUAL-TEST-0.17.1-dev.12-ru.md).
+ * в настоящем Foundry с несколькими клиентами НЕ проверена (см. docs/MANUAL-TEST-0.17.1-dev.13-ru.md).
  */
 import { MODULE_ID, DETECTION_LEVELS } from "../constants.mjs";
 import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
@@ -19,6 +19,7 @@ import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "./private-contacts.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { MINE_FLAG } from "./mine-contact.mjs";
+import { isStarship, readStarship } from "../starship/starship-state.mjs";
 
 export const CONTACT_SOURCES = Object.freeze(["world", "compendium", "custom"]);
 const NONE = 0;
@@ -28,40 +29,61 @@ export function actorVisibleToPlayers(actor) {
   return (game.users?.contents ?? []).some((u) => !u.isGM && actor.testUserPermission?.(u, "LIMITED"));
 }
 
-/** Опасности мира, пригодные как контакты (мины дронов управляются собственным циклом и не предлагаются). */
+function isContactActor(actor) {
+  return (actor?.type === "hazard" && !actor.flags?.[MODULE_ID]?.[MINE_FLAG]) || isStarship(actor);
+}
+
+function contactChoice(actor, extra = {}) {
+  const starship = isStarship(actor);
+  return {
+    uuid: actor.uuid,
+    name: actor.name,
+    visible: actorVisibleToPlayers(actor),
+    kind: starship ? "starship" : "hazard",
+    ...(starship ? { role: readStarship(actor).role } : {}),
+    ...extra
+  };
+}
+
+/** Hazards and Starship Actors from the world; drone mines use their own contact lifecycle. */
 export function worldHazardChoices() {
   return (game.actors?.contents ?? [])
-    .filter((a) => a.type === "hazard" && !a.pack && !a.isToken && !a.flags?.[MODULE_ID]?.[MINE_FLAG])
-    .map((a) => ({ uuid: a.uuid, name: a.name, visible: actorVisibleToPlayers(a) }))
+    .filter((a) => isContactActor(a) && !a.pack && !a.isToken)
+    .map((a) => contactChoice(a))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Опасности из доступных GM компендиев Actor. Индекс загружается по требованию. */
+/** Hazards and Starship Actors from accessible Actor compendiums. */
 export async function compendiumHazardChoices() {
   const out = [];
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Actor") continue;
     try {
-      const index = await pack.getIndex({ fields: ["type"] });
+      const index = await pack.getIndex({
+        fields: ["type", `flags.${MODULE_ID}.starship.isStarship`, `flags.${MODULE_ID}.starship.role`]
+      });
       for (const e of index)
-        if (e.type === "hazard")
+        if (e.type === "hazard" || e.flags?.[MODULE_ID]?.starship?.isStarship) {
           out.push({
             uuid: e.uuid ?? `Compendium.${pack.collection}.Actor.${e._id}`,
             name: e.name,
+            kind: e.flags?.[MODULE_ID]?.starship?.isStarship ? "starship" : "hazard",
+            ...(e.flags?.[MODULE_ID]?.starship?.isStarship ? { role: e.flags[MODULE_ID].starship.role } : {}),
             pack: pack.metadata?.label ?? pack.collection
           });
+        }
     } catch {
-      /* недоступный компендий пропускается, остальные остаются доступными */
+      /* An unavailable compendium does not prevent browsing the others. */
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Приватная мировая копия опасности из компендия. Возвращает созданный документ. */
+/** Creates an independent world copy of a hazard or Starship Actor from a compendium. */
 export async function importHazardCopy(sourceUuid, deps = {}) {
   if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
   const source = await (deps.resolve ?? fromUuidSafe)(sourceUuid);
-  if (!source || source.documentName !== "Actor" || source.type !== "hazard" || !source.pack)
+  if (!source || source.documentName !== "Actor" || !isContactActor(source) || !source.pack)
     throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
   const data = source.toObject();
   delete data._id;
@@ -109,11 +131,12 @@ export async function addSensorContact(combat, spec, deps = {}) {
     imported = true;
   } else {
     actor = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
-    if (!actor || actor.documentName !== "Actor" || actor.uuid !== spec.uuid || actor.type !== "hazard" || actor.pack || actor.isToken)
+    if (!actor || actor.documentName !== "Actor" || actor.uuid !== spec.uuid || !isContactActor(actor) || actor.pack || actor.isToken)
       throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
-    if (actor.flags?.[MODULE_ID]?.[MINE_FLAG]) throw new Error(T("SF2eTSC.mineContact.managed"));
   }
   try {
+    if (isStarship(actor) && readStarship(actor).role === "player" && !actorVisibleToPlayers(actor))
+      throw new Error(T("SF2eTSC.privateMap.actorExposed"));
     // Actor, уже доступный игрокам, нельзя скрыть: допустимо только открытое размещение с подтверждением.
     if (actorVisibleToPlayers(actor)) {
       if (spec.detection !== "identified" || spec.confirmed !== true) throw new Error(T("SF2eTSC.privateMap.actorExposed"));

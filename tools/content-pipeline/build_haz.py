@@ -206,14 +206,14 @@ for p in P:
                 continue
             first = False if KEY.match(l) else first
             ent.append(l)
-        h = build(an.replace("'", "’"), ent, a["level"], a["traits"], a["page"], "aon+pdf")
-        # cross-check with PDF
-        hp = build(an, pdf_entries(p["text"]), a["level"], a["traits"], p["page"], "pdf")
+        h = build(an.replace("'", "’"), ent, a["level"], a["traits"], a["page"], "aon+print")
+        # Cross-check against the printed source.
+        hp = build(an, pdf_entries(p["text"]), a["level"], a["traits"], p["page"], "print")
         iss = []
         for k in ("stealthDC", "stealthBonus", "ac", "fort", "ref", "will", "hardness", "hp", "bt"):
             if h.get(k) != hp.get(k):
-                iss.append(f"{k}: AoN {h.get(k)} vs PDF {hp.get(k)}")
-        # prefer PDF numbers when present
+                iss.append(f"{k}: AoN {h.get(k)} vs print {hp.get(k)}")
+        # Prefer printed values when present.
         for k in ("stealthDC", "stealthBonus", "ac", "fort", "ref", "will", "hardness", "hp", "bt"):
             if hp.get(k) is not None:
                 h[k] = hp[k]
@@ -224,8 +224,8 @@ for p in P:
         an_names = {x["name"] for x in h["actions"]}
         for x in hp["actions"]:
             if x["name"] not in an_names:
-                h["actions"].append(dict(x, source="pdf"))
-                iss.append(f'action {x["name"]} only in PDF')
+                h["actions"].append(dict(x, source="print"))
+                iss.append(f'action {x["name"]} only in print source')
         if not h.get("strikes") and hp.get("strikes"):
             h["strikes"] = hp["strikes"]
     else:
@@ -234,8 +234,8 @@ for p in P:
         if p["level"] is not None and p["level"] != lvl:
             pass
         tr = o["traits"]
-        h = build(o["name"], pdf_entries(p["text"]), lvl, (["complex"] if o["isComplex"] else []) + tr, p["page"], "pdf")
-        iss = ["not on AoN dump: parsed from PDF only, traits/level from 0.1.0 data"]
+        h = build(o["name"], pdf_entries(p["text"]), lvl, (["complex"] if o["isComplex"] else []) + tr, p["page"], "print")
+        iss = ["not on AoN dump: parsed from print source only, traits/level from 0.1.0 data"]
     h["needsReview"] = bool(h.get("unparsed")) or any(not i.startswith("not on AoN") and not i.startswith("action ") for i in iss)
     h["review"] = iss + [f"unparsed: {u[:80]}" for u in h.pop("unparsed", [])]
     out.append(h)

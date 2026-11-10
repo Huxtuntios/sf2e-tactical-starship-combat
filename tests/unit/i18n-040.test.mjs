@@ -2,11 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { installFoundryMock } from "../helpers/foundry-mock.mjs";
 import { setContentTranslations, ct, ctPlain, ctList } from "../../scripts/content/content-i18n.mjs";
 import { collectStrings } from "../../tools/i18n/content-strings.mjs";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const flat = (o, p = "", out = {}) => {
   for (const [k, v] of Object.entries(o)) {
     const key = p ? `${p}.${k}` : k;
@@ -76,6 +77,11 @@ const ALLOWED_LATIN = new Set([
   "JSON",
   "Tech",
   "Core",
+  "Drone",
+  "Block",
+  "Intercept",
+  "Munitions",
+  "Retrieve",
   "d20",
   "UUID",
   "ID",

@@ -41,7 +41,7 @@ Generated `packs/`, `packs-src/`, `node_modules/`, `.work/` and `dist/` must sta
 
 ## Pull requests
 
-Describe the user-facing change, data migrations and limits. Run `npm run check`; run UI tests for window/template/style changes. Mention which Foundry/system versions and player/GM scenarios were actually tested. Do not describe offline fixtures as live Foundry validation. Never include world data, credentials, source PDFs or third-party artwork.
+Describe the user-facing change, data migrations and limits. Run `npm run check`; run UI tests for window/template/style changes. Mention which Foundry/system versions and player/GM scenarios were actually tested. Do not describe offline fixtures as live Foundry validation. Never include world data, credentials, source materials or third-party artwork.
 
 Optional Python provenance tools use Python 3.11+ and Black (`tools/content-pipeline/requirements-dev.txt`). They are not needed to build packs or release the module.
 

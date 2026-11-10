@@ -1,12 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installFoundryMock } from "../helpers/foundry-mock.mjs";
-import { stageDroneBlock } from "../../scripts/actions/drone-block.mjs";
+import { readFileSync } from "node:fs";
+import { installFoundryMock, loadContentFromDisk, makeCharacter, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
+import { stageDroneBlock, stageDroneShieldProtocolBlock } from "../../scripts/actions/drone-block.mjs";
+import { Draft } from "../../scripts/actions/draft.mjs";
 import { moveOwnedMine } from "../../scripts/actions/mine-resolution.mjs";
 import { changeDrone } from "../../scripts/engine/drone-state.mjs";
+import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
+import { confirmDroneBlock, Reactions } from "../../scripts/actions/reactions.mjs";
+import { Content } from "../../scripts/content/loader.mjs";
 
-// Аудит Drone Block (dev.12). Тесты фиксируют ТЕКУЩЕЕ поведение, включая спорные места: они не доказывают соответствие
-// напечатанному тексту Tech Core (текст в этом пакете не проверялся по источнику заново).
+// AoN verifies base Drone Block's zero resistance at level 1 and 10-minute return. Other interactions remain conservative
+// because the available rules text does not expressly resolve them.
 const crew = (level) => ({ uuid: "Actor.op", system: { details: { level: { value: level } } } });
 function draftOf(extra = {}) {
   const data = {
@@ -20,6 +25,7 @@ function draftOf(extra = {}) {
         tscVersion: 1,
         ref: "pyrotechnics-drone",
         deployed: true,
+        mineStock: [{ id: "stored-1", installed: { mods: ["smart-mine"] } }],
         mines: [{ id: "m1", droneId: "d2", operatorUuid: "Actor.op", combatId: "c", zone: 3, state: "armed" }]
       }
     ],
@@ -39,6 +45,24 @@ const stage = (draft, over = {}) =>
     worldTime: 1000,
     ...over
   });
+
+async function setup() {
+  installFoundryMock();
+  await loadContentFromDisk();
+  Content.drones = JSON.parse(readFileSync("data/equipment/misc.json", "utf8")).drones;
+  const operator = makeCharacter({ id: "protocol-operator", name: "Operator", owners: ["p1"] });
+  operator.system.details = { level: { value: 8 } };
+  const ship = makeShip({
+    id: "protocol-target",
+    name: "Defender",
+    stations: [{ id: "dc", type: "drone-console", grade: "commercial", helmedBy: operator.uuid }],
+    crew: [{ actorUuid: operator.uuid, role: "crew", stationId: "dc" }],
+    extra: { drones: [{ id: "d1", ref: "repair-drone", stationId: "dc", tscVersion: 1, deployed: true }] }
+  });
+  const combat = makeStarshipCombat({ objects: [{ key: ship.uuid, zone: 1 }] });
+  await combat.createEmbeddedDocuments("Combatant", [{ _id: "protocol-operator-turn", actorId: operator.id, initiative: 20 }]);
+  return { operator, ship, combat };
+}
 
 test("resistance is half the operator's level rounded down; the drone is retrieved for 10 minutes", async () => {
   installFoundryMock();
@@ -83,7 +107,114 @@ test("invalid requests change nothing: wrong crew, undeployed or foreign drone, 
   }
 });
 
-test("OPEN QUESTION (current behavior): Drone Block does not reset a recorded Intercept Munitions use", async () => {
+test("Drone Shield Protocol offers a GM-confirmed manual path without base retrieval or cooldown", async () => {
+  const { operator, ship, combat } = await setup();
+  await patchStarship(
+    ship,
+    (data) => {
+      data.upgrades.push({ id: "shield-protocol", ref: "drone-shield-protocol", stationId: "dc" });
+    },
+    { history: false }
+  );
+  const { resolveReactionResponse } = await import("../../scripts/actions/reactions.mjs");
+  let prompt;
+  foundry.applications.api.DialogV2.prompt = async (config) => {
+    prompt = config;
+    return "manual";
+  };
+  game.socket.emit = (_event, message) => {
+    if (message.kind === "event" && message.type === "reactionPrompt")
+      resolveReactionResponse({
+        user: game.users.get("p1"),
+        payload: { requestId: message.payload.requestId, use: true, droneId: "d1" }
+      });
+  };
+  const draft = new Draft(combat);
+  const entry = await draft.ship(ship.uuid);
+  const attacker = makeShip({ id: "protocol-attacker", name: "Raider", role: "npc" });
+  const result = await Reactions.ask(
+    { draft, tsc: draft.tsc, combat, options: {}, strikeId: "protocol-strike", ship: attacker },
+    { uuid: ship.uuid, actor: ship, data: entry.data },
+    { amount: 12, traits: [], crit: false, attackLabel: "Plasma bolt" }
+  );
+  assert.equal(result.resistance, 4);
+  assert.equal(result.manualDamage.protocolManual, true);
+  assert.match(prompt.content, /up to two blocks/);
+  assert.match(prompt.content, /first block destroys it/);
+  assert.doesNotMatch(prompt.content, /value="automatic"/);
+  await draft.commit();
+
+  const after = readStarship(ship);
+  assert.equal(after.drones[0].deployed, true);
+  assert.equal(after.drones[0].availableAt, undefined);
+  assert.equal(after.drones[0].tscProtocolBlocks, 1);
+  assert.equal(after.drones[0].tscProtocolFetchPending, true);
+  assert.equal(after.droneBlockReceipts, undefined);
+  assert.equal(after.droneProtocolManualReceipts, undefined);
+  const protocolReceipt = JSON.parse(after.drones[0].tscProtocolReceipts[0]);
+  assert.equal(protocolReceipt[1], "block");
+  assert.equal(protocolReceipt[4], "protocol-strike");
+  const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
+  const { default: Handlebars } = await import("handlebars");
+  const h = Handlebars.create();
+  h.registerHelper("localize", (key) => game.i18n.localize(key));
+  h.registerHelper("eq", (a, b) => a === b);
+  for (const partial of ["tscOccupant", "tscStationUpgrades", "tscShipUpgrades", "tscUpgradeItem"]) h.registerPartial(partial, "");
+  h.registerPartial("modules/sf2e-tactical-starship-combat/templates/crew-ship.hbs", "");
+  const html = h.compile(readFileSync("templates/starship-sheet.hbs", "utf8"))(
+    await buildSheetContext({ document: ship, isNpc: false, tab: "stations", tabs: ["stations"] })
+  );
+  assert.match(html, /Blocks recorded 1\/2/);
+  assert.match(html, /data-action="protocolDroneManual" data-op="fetch"/);
+  const replay = new Draft(combat);
+  await assert.rejects(() =>
+    stageDroneShieldProtocolBlock({
+      draft: replay,
+      targetUuid: ship.uuid,
+      stationId: "dc",
+      crew: operator,
+      droneId: "d1",
+      strikeId: "protocol-strike",
+      combat
+    })
+  );
+  assert.equal(readStarship(ship).drones[0].tscProtocolBlocks, 1);
+});
+
+test("starship sheet reports drone cooldown only from finite world time", async () => {
+  const { ship } = await setup();
+  await patchStarship(
+    ship,
+    (data) => {
+      data.drones[0].deployed = false;
+      data.drones[0].availableAt = 700;
+    },
+    { history: false }
+  );
+  const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
+  const { default: Handlebars } = await import("handlebars");
+  const h = Handlebars.create();
+  h.registerHelper("localize", (key) => game.i18n.localize(key));
+  h.registerHelper("eq", (a, b) => a === b);
+  for (const partial of ["tscOccupant", "tscStationUpgrades", "tscShipUpgrades", "tscUpgradeItem"]) h.registerPartial(partial, "");
+  h.registerPartial("modules/sf2e-tactical-starship-combat/templates/crew-ship.hbs", "");
+  const context = () => buildSheetContext({ document: ship, isNpc: false, tab: "stations", tabs: ["stations"] });
+
+  game.time.worldTime = 400;
+  let sheet = await context();
+  assert.equal(sheet.stations[0].droneRows[0].cooldownLabel, "Redeploy in 5 min");
+  assert.match(h.compile(readFileSync("templates/starship-sheet.hbs", "utf8"))(sheet), /Redeploy in 5 min/);
+
+  game.time.worldTime = undefined;
+  sheet = await context();
+  assert.equal(sheet.stations[0].droneRows[0].cooldownLabel, game.i18n.localize("SF2eTSC.droneControl.cooldownUnknown"));
+
+  game.time.worldTime = 700;
+  sheet = await context();
+  assert.equal(sheet.stations[0].droneRows[0].cooldownLabel, game.i18n.localize("SF2eTSC.droneControl.redeployReady"));
+});
+
+test("Drone Block preserves Intercept Munitions use; only explicit Retrieve resets it", async () => {
   installFoundryMock();
   const { draft, entry } = draftOf();
   await stage(draft);
@@ -99,12 +230,13 @@ test("OPEN QUESTION (current behavior): Drone Block does not reset a recorded In
   assert.equal(data.drones[0].tscInterceptUsed, false);
 });
 
-test("OPEN QUESTION (current behavior): after Drone Block on a pyrotechnics drone its armed mines cannot be moved by the helper until redeployment", async () => {
+test("Drone Block preserves armed Pyrotechnics Drone mine records without enabling use while the drone is returned", async () => {
   installFoundryMock();
   const { draft, entry } = draftOf();
   await stage(draft, { droneId: "d2" });
   const mine = entry.data.drones[1].mines[0];
   assert.equal(mine.state, "armed"); // мина не снимается автоматически
+  assert.deepEqual(entry.data.drones[1].mineStock, entry.before.drones[1].mineStock);
   assert.throws(
     () =>
       moveOwnedMine({
@@ -124,4 +256,55 @@ test("OPEN QUESTION (current behavior): after Drone Block on a pyrotechnics dron
       }),
     /drone|mine/
   );
+});
+
+test("GM confirmation names the specific Strike and offers automatic or manual damage resolution", async () => {
+  installFoundryMock();
+  let prompt;
+  foundry.applications.api.DialogV2.prompt = async (config) => {
+    prompt = config;
+    return "manual";
+  };
+  assert.equal(
+    await confirmDroneBlock({
+      target: "Defender",
+      attacker: "Raider",
+      attack: "Plasma bolt",
+      amount: 12,
+      resistance: 3,
+      drone: "Scramble Drone",
+      notes: ["Retrieve Drone interaction needs GM review."]
+    }),
+    "manual"
+  );
+  assert.match(prompt.content, /Plasma bolt/);
+  assert.match(prompt.content, /Defender/);
+  assert.match(prompt.content, /value="automatic"/);
+  assert.match(prompt.content, /value="manual"/);
+  assert.match(prompt.content, /Retrieve Drone interaction needs GM review/);
+});
+
+test("GM protocol confirmation is manual-only and never promises the base cooldown", async () => {
+  installFoundryMock();
+  let prompt;
+  foundry.applications.api.DialogV2.prompt = async (config) => {
+    prompt = config;
+    return config.ok.callback(null, { form: { elements: {} } });
+  };
+  assert.equal(
+    await confirmDroneBlock({
+      target: "Defender",
+      attacker: "Raider",
+      attack: "Plasma bolt",
+      amount: 12,
+      resistance: 3,
+      drone: "Scramble Drone",
+      manualOnly: true
+    }),
+    "manual"
+  );
+  assert.match(prompt.content, /up to two blocks/);
+  assert.match(prompt.content, /first block destroys it/);
+  assert.doesNotMatch(prompt.content, /value="automatic"/);
+  assert.match(prompt.content, /10-minute cooldown/);
 });

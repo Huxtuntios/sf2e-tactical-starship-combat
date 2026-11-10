@@ -1,5 +1,18 @@
 # Rules decisions and disputed points
 
+## 0.17.1-dev.13 — Drone Block and adjacent rules
+
+**[TC, printed p.179]** Drone Block requires at least one deployed drone, grants resistance against the triggering Strike equal to half the operator's level, and separately says that the used drone is retrieved and can't be deployed again for 10 minutes. The effect is not conditional on resistance being positive: at level 1 the resistance is 0, but the drone still returns and enters the 10-minute restriction. The module applies the resistance only to the exact damage card/Strike approved by the GM and uses the existing starship damage pipeline.
+**[AoN]** [Drone Block](https://2e.aonsrd.com/actions/585-drone-block).
+
+**[TC, printed p.184]** Drone Shield Protocol is a separate upgrade: it permits up to two Drone Blocks per drone before retrieval, with the first destroying its shield, and grants Fetch and Fix; Fetch and Fix immediately retrieves and repairs the drone, with a two-round redeployment restriction if its shield was destroyed. The attack-card reaction now exposes a GM-confirmed manual-only path for a console with this upgrade. It applies no base retrieval/cooldown and does not invent shield, use-count or Fetch and Fix state; a strike-specific receipt prevents replay, while the GM manually applies resistance and tracks the upgrade's effects.
+
+**[TC, printed p.193]** Intercept Munitions says it cannot be used with that drone until you “Retrieve Drone to retrieve this scramble drone.” Drone Block says the drone is retrieved, but the text does not specify whether this automatic return counts as the named Retrieve Drone action. The module therefore does not clear `tscInterceptUsed` on Drone Block; only the explicit Retrieve transition clears it. A GM warning appears when the selected Scramble Drone has recorded Intercept use. This is conservative module behavior, not a definitive rules interpretation.
+**[AoN]** [Intercept Munitions](https://2e.aonsrd.com/actions/576-intercept-munitions).
+
+**[TC, printed pp.192–193]** Pyrotechnics Drone mines are described as shielded starship mines deployed in the starship's zone; Deploy Starship Mine creates a mine there, and the drone's actions are available while it is deployed. The cited text does not say whether returning the drone removes deployed mines or whether stored mines inside the drone persist through return/redeployment. TSC does not alter either mine records or stock on Drone Block and disables drone-dependent operations while the drone is returned; the GM is warned to inspect/review before redeploying or using it. This preserves current data and is not a rules ruling.
+**[AoN]** [Pyrotechnics Drone](https://2e.aonsrd.com/tactical-starship-combat/drones/1-pyrotechnics-drone) · [Deploy Starship Mine](https://2e.aonsrd.com/actions/569-deploy-starship-mine).
+
 ## 0.17.1-dev.11 — Install Mine
 
 Tech Core p. 184 modifies up to four mines _inside_ an undeployed drone; Deploy Starship Mine on p. 193 is a distinct action. A map mine is not created by Install Mine, and personal mechanic mods are not mapped to deployed starship Smart/Targeting mods. The helper is a manual plan only; its saved labels and mod text are not effects or proof of inventory, prerequisites or validity. GM must verify effects and their duration.
@@ -14,7 +27,7 @@ Tech Core p. 184 describes Install Mine as Modify on up to four starship mines i
 
 ## Drone aids (0.17.1-dev.8)
 
-**[TC]** Tech Core printed pages 184–185 and 192–193 are the rules source, with the user confirming the PDF where their paraphrase differed; Drone Block uses half the operator's level. **[MOD]** Mine assistance uses basic-save results and the existing module damage engine only after GM confirmation; a map is not proof of complete targets. Harry effects are module-only, not native conditions. Shield Protocol and Fetch use GM-confirmed records and a conservative combat anchor, not a simulation of Strike resistance. Pet quickened and its restricted use are manual. Install Mine personal-mod rules are not substituted for starship mine mods. No action/reaction expenditure or counters are implemented. These choices are incomplete tooling, not a change to the tabletop rules.
+**[TC]** Tech Core printed pages 184–185 and 192–193 are the rules source, with the user confirming the printed wording where their paraphrase differed; Drone Block uses half the operator's level. **[MOD]** Mine assistance uses basic-save results and the existing module damage engine only after GM confirmation; a map is not proof of complete targets. Harry effects are module-only, not native conditions. Shield Protocol and Fetch use GM-confirmed records and a conservative combat anchor, not a simulation of Strike resistance. Pet quickened and its restricted use are manual. Install Mine personal-mod rules are not substituted for starship mine mods. No action/reaction expenditure or counters are implemented. These choices are incomplete tooling, not a change to the tabletop rules.
 
 ## Smart Mine GM aid (0.17.1-dev.6)
 
@@ -67,7 +80,7 @@ simplification/interpretation (configurable where noted).
   (0.1.0 made the target off-guard to everyone.)
 - **Lock On [TC]** "−1 status to AC against _your_ Strikes, −1 circumstance to Reflex against _your_ Area/Auto-Fire" —
   restricted to the source ship in 0.2.0.
-- **Hack Battle Station / Hack Munition** — in the PDF the critical-failure line ("your starship takes −1 circumstance
+- **Hack Battle Station / Hack Munition** — in the printed rules text the critical-failure line ("your starship takes −1 circumstance
   penalty to Will saves for 1 round") flows into the next column next to Hack Battle Station; by layout and wording it is
   part of **Hack Munition** (reaction). 0.2.0 moved it. If your printing differs, edit `station-actions.json`.
 - **Clear a Path [TC]** grants an ally a reaction Strike or a bonus to the _next_ Strike. **[MOD]** modelled as an AC
@@ -104,7 +117,7 @@ Indexed [AoN builder](https://2e.aonsrd.com/tactical-starship-combat/builder) ex
 
 ## 0.17.1-dev.4: Tech Core and Repair Hull
 
-The supplied Tech Core PDF, printed p. 193, describes Repair Hull as two actions, base DC 15, critical success 2d6, success 1d6, critical failure 1d6 piercing, and expert/master/legendary DC 20/30/40 with +10/+30/+50 to healing. Display the cost but do not track or spend actions. The additional 1-hour/1-day extension in the user's paraphrase is not present in the supplied printed p. 193 passage; it is not implemented.
+Tech Core, printed p. 193, describes Repair Hull as two actions, base DC 15, critical success 2d6, success 1d6, critical failure 1d6 piercing, and expert/master/legendary DC 20/30/40 with +10/+30/+50 to healing. Display the cost but do not track or spend actions. The additional 1-hour/1-day extension in the user's paraphrase is not present in the printed p. 193 passage; it is not implemented.
 
 Printed p. 179 states Drone Block resistance is half **your** level (operator). The user's paraphrase says ship level. Existing operator-level behavior remains pending clarification; do not silently substitute one for the other. No rule is inferred for unimplemented integrations.
 
@@ -112,11 +125,11 @@ Printed p. 179 states Drone Block resistance is half **your** level (operator). 
 
 **[TC]** Printed Tech Core p. 193 grants Smart Mine (exclude one starship) or Targeting Mine (Intelligence modifier, minimum 1), until the end of the operator's next turn. **[MOD]** GM confirms the class feature; this helper supports only the current operator's turn, one unambiguous mine and one active mod at a time. A changed combatant order or missing anchor is an error, not an invented expiry. The resulting detonation remains manual and has no automatic target exclusion or damage. Mine Exocortex on printed p. 37 uses different personal-scale mods; Install Mine is not implemented by this helper.
 
-**[TC]** Printed p. 179 bases Drone Block on half the operator's level. The user confirmed the PDF wording; this resolves the earlier paraphrase conflict. Existing code and behavior were preserved, with a test where ship and operator levels differ. No action or reaction expenditure is tracked.
+**[TC]** Printed p. 179 bases Drone Block on half the operator's level. The user confirmed this wording; this resolves the earlier paraphrase conflict. Existing code and behavior were preserved, with a test where ship and operator levels differ. No action or reaction expenditure is tracked.
 
 ## 0.17.1-dev.7: осторожные помощники для мин и Scramble
 
-**[TC]** Приложенный Tech Core, печатные стр. 184 и 193: для Pyrotechnics выбор fire/piercing, basic Reflex против class DC, Smart исключает один корабль, Targeting добавляет Intelligence минимум 1; Harry Sensors использует больший class/spell DC, Will и зависящие от степени условия; Intercept Munitions даёт –2 circumstance к вызывающей атаке и восстанавливается после Retrieve Drone. Подтверждённый PDF имеет приоритет над пересказом, когда они расходятся.
+**[TC]** Предоставленный Tech Core, печатные стр. 184 и 193: для Pyrotechnics выбор fire/piercing, basic Reflex против class DC, Smart исключает один корабль, Targeting добавляет Intelligence минимум 1; Harry Sensors использует больший class/spell DC, Will и зависящие от степени условия; Intercept Munitions даёт –2 circumstance к вызывающей атаке и восстанавливается после Retrieve Drone. Текст Tech Core имеет приоритет над пересказом, когда они расходятся.
 
 **[MOD]** Помощник мины делает общий типизированный бросок и отдельные спасброски только для представленных на карте кораблей и выводит сырой basic-урон до защит. Карта может быть неполной. Применение урона, определение реакции и закрытие мины — вручную. Harry лишь показывает результат, без создания или истечения состояний. `class-spell` проверен по исходникам SF2e 1.6.0, не на действующем сервере; если надёжного DC нет, ведущий вводит его вручную. Intercept — отметка подтверждённого вручную штрафа, а не изменение законченного или будущего Strike. Никакая стоимость действий не учитывается.
 

@@ -1,12 +1,21 @@
 # Changelog
 
+## 0.17.1-dev.13 — experimental, unpublished
+
+- Fix CI UI regression: update the mine-modification smoke fixture to select the actual `installMineStock` action without weakening GM/player assertions.
+- Sensor Map add menu supports world and compendium Starship Actors as well as Hazards. Each compendium placement creates a new world Actor; preserve drag-and-drop, private contacts, explicit disclosure confirmation, and no public Combatant for hidden contacts.
+- Add character-sheet station chooser during active starship combat. Claim and release use the existing Crew service and revalidate station occupancy through its per-ship serialized updates.
+- Add GM-confirmed Drone Block from native Strike damage cards, with drone and Strike selection, operator-level resistance through the existing damage pipeline, a manual-resolution path, and the 10-minute return/cooldown. Preserve Intercept and mine state; show a GM warning where Tech Core does not specify the effect of automatic retrieval.
+- With Drone Shield Protocol installed, offer a GM-confirmed manual-only path and strike receipt. Do not apply base retrieval/cooldown or invent shield/use-count state; show the required manual follow-up on the attack card.
+- Add English/Russian UI text, unit/UI coverage, a concurrent `Crew.claim`/`Crew.release` service integration test, the dev.13 manual checklist and source/limitation documentation. No action/reaction accounting; no real Foundry or multiplayer validation.
+
 ## 0.17.1-dev.12 — experimental, unpublished
 
 - Sensor Map: one GM window to add objects — world hazard, compendium hazard (private world copy per placement, deleted if placement fails) or custom contact — with an initial detection state (undetected/hidden stay private; observed and identified need confirmation). Private contacts gain an absolute zone selector; public hazards with known identity open their existing Hazard sheet. The previous quick-add for environment objects stays as a separate button.
 - Install Mine: prepared mines are now stored inside the undeployed Pyrotechnics Drone (`drone.mineStock`) with GM-confirmed modifications chosen from the operator's known Mine Exocortex modifications (`station.tscKnownMineMods`). Up to four mines per action, replay-safe, mechanic class checked when it can be determined (GM override). Personal modifications stay opaque notes: they are not Smart/Targeting and have no automatic effect. Old dev.10/11 plan notes are left untouched.
 - Deploy Starship Mine: a stored mine can be deployed under its own id keeping its modifications; plain deployment is unchanged. Each deployed mine gets its own Hazard Actor (players OBSERVER, in a "Starship mines" folder) and a public Sensor Map contact linked by `mineRef`. Move, detonation and removal of the mine update or remove the contact and mark the Actor. The contact cannot be moved, retyped or removed directly, and generic hazard automation skips it. Projection failures never roll back the saved mine; `syncMineContact` is idempotent.
 - `api.addSensorContact`, `api.syncMineContact`, `api.privacyProbe` added. The probe only reports what the current client sees and never claims security.
-- Drone Block reviewed; no behavior changed. Two open rules questions are recorded in `docs/work-in-progress-0.17.1-dev.12.md`. No action/reaction accounting. Not verified in real Foundry; Chromium fixtures not run.
+- Drone Block reviewed; no behavior changed. The follow-up work in `docs/work-in-progress-0.17.1-dev.13.md` records the source review and resolves/flags open questions. No action/reaction accounting. Not verified in real Foundry; Chromium fixtures not run for that build.
 
 ## 0.17.1-dev.11 — experimental, unpublished
 
@@ -50,14 +59,14 @@
 
 - Add a GM-confirmed, limited Modify Starship Mine helper for an individual deployed mine: Smart and Targeting are recorded on that mine and checked against the operator’s next turn. The GM confirms the Modify class feature; no action or reaction spending is tracked. Detonation, exclusion, saves and damage remain manual. Targeting’s manual damage formula includes the Intelligence bonus, minimum 1.
 - Require the operator’s current turn, a deployed pyrotechnics drone, same zone, a unique mine/station/drone and an unchanged combat order. Changed or unverifiable timing is refused for GM review. Existing unknown modifications are not overwritten. New optional per-mine modification and bounded 512-ID receipt fields are added only on use; no migration. Replays do not apply twice within these receipts, but this is not a distributed transaction.
-- Drone Block continues to use half the operator’s level; the user confirmed the PDF wording. Added a regression with different ship and operator levels. Protocol, Fetch and Fix, Harry Sensors, Intercept Munitions, Install Mine and Onboard Pet are not automated. Repair Hull is unchanged.
+- Drone Block continues to use half the operator’s level; the user confirmed the printed wording. Added a regression with different ship and operator levels. Protocol, Fetch and Fix, Harry Sensors, Intercept Munitions, Install Mine and Onboard Pet are not automated. Repair Hull is unchanged.
 - GM/player template fixtures and mock tests do not prove Foundry behavior or multiplayer safety. This is unpublished; the manifest URL points to a future release and the ZIP must be installed manually. See the dev.5 report and manual test plan.
 
 ## 0.17.1-dev.4 — experimental, test worlds only
 
 - Partial Repair Hull: an authorized operator at a helmed console with an unambiguously deployed repair drone can repair **that console’s own ship only**, on the active combat map. Native Crafting check, DC tiers with proficiency, all four outcomes and module damage handling; no action/reaction spending is tracked. Other ships require GM adjudication.
 - A bounded durable operation-ID map is added to the ship Actor on a completed attempt, including an unsuccessful roll; a matching replay never repeats it. The process-local socket receipt also covers this action. This changes module-owned ship flags, not drone or mine records; no migration. At 512 receipts it fails closed. Neither receipt nor queue guarantees atomicity during GM failover or external writes.
-- Other drone abilities and upgrades remain manual; no live Foundry test was available. The supplied Tech Core PDF says Drone Block is half the operator’s level; the user’s summary says ship level. Existing behavior is unchanged pending clarification. The manifest download URL is an unpublished-release placeholder; install the delivered ZIP manually.
+- Other drone abilities and upgrades remain manual; no live Foundry test was available. The supplied Tech Core text says Drone Block is half the operator’s level; the user’s summary says ship level. Existing behavior is unchanged pending clarification. The manifest download URL is an unpublished-release placeholder; install the delivered ZIP manually.
 
 ## 0.17.1-dev.3 — experimental, test worlds only
 
@@ -369,7 +378,7 @@ v14 / sf2e 1.6.0 world** — see the 0.10.0 checklist in `docs/testing.md`.
 - Validation: `patchShip`, `setStation`, `equipment`, `addStation` and `applyFrame` type-check every value before it is stored (integers for level, AC, saves, speed…, known grades / station types / sizes / roles, lists and maps of the right shape). Wrong-type values are rejected with the field name instead of breaking the sheets. `addStation` can no longer seat a crew member or set runtime state.
 - Combat tracker: exact Hull and Shield Points are shown only to the GM and to users who can view the ship (owner, observer, crew); enemy pools are hidden from players, matching the sensor map.
 - Chat: labels of clicked check / damage links are escaped again before the chat message is built; only `@Damage[…]` payloads are posted from damage links.
-- Release: the download zip only contains what Foundry needs (no `tests/`, build tools, PDF parsing pipeline, `ship-report.json`, `__pycache__` or internal audit docs). Tests that read `packs-src/` skip when it is not present.
+- Release: the download zip only contains what Foundry needs (no `tests/`, build tools, print-source parsing pipeline, `ship-report.json`, `__pycache__` or internal audit docs). Tests that read `packs-src/` skip when it is not present.
 - Docs: known limitations and README updated (test count, ship-joining rules, tracker visibility).
 
 ## 0.8.9
@@ -464,7 +473,7 @@ v14 / sf2e 1.6.0 world** — see the 0.10.0 checklist in `docs/testing.md`.
 ### Notes
 
 - Ship saves were re-checked against Tech Core: they already depend on the crew (helmed station item bonus), as does AC (pilot).
-- Two upgrades stay marked for review: Primal Shielding (text interrupted by a sidebar in the PDF) and Weapon Crystal (action glyphs).
+- Two upgrades stay marked for review: Primal Shielding (text interrupted by a sidebar in the printed text) and Weapon Crystal (action glyphs).
 
 ## 0.7.2
 
@@ -669,7 +678,7 @@ v14 / sf2e 1.6.0 world** — see the 0.10.0 checklist in `docs/testing.md`.
 
 **Content**
 
-- All 74 starships and 32 hazards rebuilt from the Tech Core PDF (bbox layout) cross-checked with Archives of Nethys;
+- All 74 starships and 32 hazards rebuilt from the Tech Core text (bbox layout) cross-checked with Archives of Nethys;
   discrepancies recorded per entry and in `docs/data-audit.md` (e.g. Sovereign Dominator SP 32, not 132).
 - NPC strikes now carry traits and range increments; 30 non-standard stations (Hangar Bay, organelles, …) kept as custom stations.
 - Hazards: correct simple/complex flags, stealth DC/modifier, AC/saves/HP/hardness, routines, resets, strikes, special rules.

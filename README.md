@@ -1,8 +1,8 @@
 # SF2e Tactical Starship Combat
 
-## Experimental 0.17.1-dev.12
+## Experimental 0.17.1-dev.13
 
-**Partial, unpublished; use only in a backed-up test world.** The Sensor Map now has one GM window for adding objects: a world hazard, a compendium hazard (a private world copy per placement) or a custom contact, each with an initial detection state. Install Mine now stores prepared mines (with GM-confirmed modifications) inside the undeployed Pyrotechnics Drone; Deploy Starship Mine can place a stored or plain mine, creating its own Hazard Actor and Sensor Map contact that follow the mine record through move, detonation and removal. **Contact privacy was NOT verified in a real multi-client Foundry**; use `api.privacyProbe()` and `MANUAL-TEST-0.17.1-dev.12-ru.md`. Browser (Chromium) fixtures were not run for this build. See `docs/work-in-progress-0.17.1-dev.12.md`. Install the supplied ZIP manually; automatic-update links are omitted.
+**Experimental, unpublished; install only in a backed-up test world.** Sensor Map's GM add menu now supports world and compendium Hazard and Starship Actors; compendium placements create separate world copies. Existing drag-and-drop remains. Hidden contacts are not added as public Combatants; public disclosure requires GM confirmation. Privacy is **not verified in a real multi-client Foundry**. Character sheets expose claim/release station controls during active starship combat. Native Strike damage cards now offer a GM-confirmed Drone Block flow: select the defender's drone and exact Strike, then apply resistance through the module damage engine or resolve manually. Resistance is half the operator's level, rounded down; the drone is returned for 10 minutes even when resistance is 0. Returned drones show their remaining cooldown, or an unavailable-time status if world time cannot be read. With Drone Shield Protocol, the GM confirms manual-only resolution; the existing per-drone ledger records block uses and pending Fetch and Fix for the sheet, while the GM still adjudicates shield state and applies the effect manually. The base retrieval/10-minute cooldown is not applied. Intercept Munitions and Pyrotechnics Drone mine interactions with base automatic return remain flagged for GM review. No action/reaction economy is tracked. See `docs/work-in-progress-0.17.1-dev.13.md` and `docs/MANUAL-TEST-0.17.1-dev.13-ru.md`. Install the supplied ZIP manually; no release was published.
 
 ## Experimental 0.17.1-dev.11
 
@@ -173,6 +173,6 @@ UI checks render actual templates in local Chromium; they do not start Foundry. 
 
 Maintained by **[Huxtuntios](https://github.com/Huxtuntios)** with AI assistance and contributions from the module's contributors.
 
-Rules content is based on Starfinder Second Edition, © Paizo Inc., using the ORC License. This is an unofficial fan project, not endorsed by Paizo or Foundry Gaming. No Paizo artwork, source PDFs, system code or other modules are bundled.
+Rules content is based on Starfinder Second Edition, © Paizo Inc., using the ORC License. This is an unofficial fan project, not endorsed by Paizo or Foundry Gaming. No Paizo artwork, source materials, system code or other modules are bundled.
 
 See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The existing **ORC** licensing is preserved; this repository is not MIT-licensed.

@@ -27,6 +27,16 @@ import { stationUpgradeView, shipUpgradeView } from "./sheet-upgrades.mjs";
 import { droneInventory } from "../../engine/drone-inventory.mjs";
 import { weaponSummary } from "../weapon-summary.mjs";
 
+function droneCooldownLabel(drone) {
+  if (drone.deployed || drone.availableAt == null) return null;
+  const worldTime = game.time?.worldTime;
+  if (!Number.isFinite(drone.availableAt) || !Number.isFinite(worldTime)) return T("SF2eTSC.droneControl.cooldownUnknown");
+  const remaining = drone.availableAt - worldTime;
+  return remaining > 0
+    ? T("SF2eTSC.droneControl.cooldownRemaining", { minutes: Math.ceil(remaining / 60) })
+    : T("SF2eTSC.droneControl.redeployReady");
+}
+
 export async function buildSheetContext(sheet) {
   const actor = sheet.document;
   const data = readStarship(actor);
@@ -83,6 +93,7 @@ export async function buildSheetContext(sheet) {
               .filter((d) => d?.stationId === st.id && d?.tscVersion === 1)
               .map((d) => ({
                 ...d,
+                cooldownLabel: droneCooldownLabel(d),
                 stock: stockSummary(d),
                 mines: (Array.isArray(d.mines) ? d.mines : [])
                   .filter((m) => m && !["removed", "detonated"].includes(m.state))

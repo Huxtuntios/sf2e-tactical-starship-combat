@@ -104,7 +104,7 @@ test("content: 74 Tech Core starships with complete core statistics", () => {
     }
   }
   const dom = ships.find((s) => s.id === "sovereign-dominator");
-  assert.equal(dom.sp, 32, "PDF value (AoN dump shows 132)");
+  assert.equal(dom.sp, 32, "printed value (AoN dump shows 132)");
 });
 test("content: 32 hazards, stealth + complexity + routine for complex ones", () => {
   assert.equal(hazards.length, 32);

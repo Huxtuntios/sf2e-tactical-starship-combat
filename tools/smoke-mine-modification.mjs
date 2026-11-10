@@ -74,7 +74,7 @@ for (const role of ["gm", "p1"]) {
   });
   const content = h.compile(fs.readFileSync(`${root}/templates/starship-sheet.hbs`, "utf8"))(ctx);
   const html = `<!doctype html><meta charset="utf-8"><main id="app">${content}</main><pre id="result">waiting</pre><script>
-  const app=document.querySelector('#app'); const btn=app.querySelector('[data-action="modifyDroneMine"]'); const install=app.querySelector('[data-action="installMinePlan"]');
+  const app=document.querySelector('#app'); const btn=app.querySelector('[data-action="modifyDroneMine"]'); const install=app.querySelector('[data-action="installMineStock"]');
   const checks=[{name:'gm-only-control',pass:${role === "gm"} ? !!btn : !btn}, {name:'mine-context',pass:${role === "gm"} ? btn?.dataset.mineId==='m1' && btn.dataset.droneId==='d1' && btn.dataset.stationId==='s1' && btn.dataset.zone==='3' : true}, {name:'install-gm-only',pass:${role === "gm"} ? !!install && install.dataset.droneId==='aboard' : !install}, {name:'install-plan-visibility',pass:${role === "gm"} ? app.textContent.includes('Smart Mine') : !app.textContent.includes('Smart Mine')}, {name:'recorded-label',pass:${role === "gm"} ? app.textContent.includes('Умная мина') && app.textContent.includes('перед применением проверьте срок') : true}];
   document.querySelector('#result').textContent=JSON.stringify({checks,passed:checks.every(c=>c.pass)});</script>`;
   fs.writeFileSync(`${out}/${role}.html`, html.replaceAll('src="modules/sf2e-tactical-starship-combat/', `src="${rootUrl}/`));

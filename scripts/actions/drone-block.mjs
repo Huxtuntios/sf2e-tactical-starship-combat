@@ -1,11 +1,9 @@
 import { snapshot } from "../history/history.mjs";
 import { T } from "../utils/foundry.mjs";
+import { randomId } from "../utils/ids.mjs";
+import { updateProtocolDrone } from "./protocol-manual.mjs";
 
-/** Stage a base Drone Block inside the target ship's damage draft. Never works as an unbound standalone action. */
-export async function stageDroneBlock({ draft, targetUuid, stationId, crew, droneId, strikeId, worldTime }) {
-  if (!strikeId || !Number.isFinite(worldTime)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
-  const entry = await draft.ship(targetUuid);
-  const data = entry.data;
+function selectedDrone(data, stationId, crew, droneId) {
   const stations = data.stations.filter((s) => s?.id === stationId);
   const drones = Array.isArray(data.drones) ? data.drones.filter((d) => d?.id === droneId) : [];
   const station = stations.length === 1 && stations[0].type === "drone-console" && stations[0].helmedBy === crew?.uuid ? stations[0] : null;
@@ -16,15 +14,56 @@ export async function stageDroneBlock({ draft, targetUuid, stationId, crew, dron
   const level = crew?.system?.details?.level?.value ?? crew?.level;
   if (!station || station.malfunctioning || data.destroyed || !drone || !Number.isInteger(level) || level < 1)
     throw new Error(T("SF2eTSC.droneBlock.invalid"));
+  return { drone, level };
+}
+
+function ensureStrikeUnused(data, strikeId) {
+  const receipts = data.droneBlockReceipts;
+  if (receipts != null && !Array.isArray(receipts)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+  if ((receipts ?? []).some((receipt) => receipt?.strikeId === strikeId)) throw new Error(T("SF2eTSC.droneBlock.repeated"));
+}
+
+function appendReceipt(entry, data, field, receipt) {
+  entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
+  data[field] = [...(data[field] ?? []), receipt];
+}
+
+/** Stage a base Drone Block inside the target ship's damage draft. Never works as an unbound standalone action. */
+export async function stageDroneBlock({ draft, targetUuid, stationId, crew, droneId, strikeId, worldTime }) {
+  if (!strikeId || !Number.isFinite(worldTime)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+  const entry = await draft.ship(targetUuid);
+  const data = entry.data;
+  const { drone, level } = selectedDrone(data, stationId, crew, droneId);
   // Protocol changes the basic return/cooldown rule; don't silently apply the wrong version.
   if ((data.upgrades ?? []).some((u) => u.ref === "drone-shield-protocol" && u.stationId === stationId))
     throw new Error(T("SF2eTSC.droneBlock.protocolManual"));
-  if (data.droneBlockReceipts != null && !Array.isArray(data.droneBlockReceipts)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
-  if ((data.droneBlockReceipts ?? []).some((r) => r?.strikeId === strikeId)) throw new Error(T("SF2eTSC.droneBlock.repeated"));
+  ensureStrikeUnused(data, strikeId);
   // Compare against persisted target state in the GM's per-actor queue before the one Actor.update.
-  entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
   drone.deployed = false;
   drone.availableAt = worldTime + 600;
-  data.droneBlockReceipts = [...(data.droneBlockReceipts ?? []), { strikeId, droneId, stationId, crewUuid: crew.uuid }];
+  appendReceipt(entry, data, "droneBlockReceipts", { strikeId, droneId, stationId, crewUuid: crew.uuid });
+  return Math.floor(level / 2);
+}
+
+/** Record the confirmed manual block in the existing protocol ledger, without applying the base return or cooldown. */
+export async function stageDroneShieldProtocolBlock({ draft, targetUuid, stationId, crew, droneId, strikeId, combat }) {
+  if (!strikeId || !combat?.id) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+  const entry = await draft.ship(targetUuid);
+  const data = entry.data;
+  const { level } = selectedDrone(data, stationId, crew, droneId);
+  if (!(data.upgrades ?? []).some((upgrade) => upgrade.ref === "drone-shield-protocol" && upgrade.stationId === stationId))
+    throw new Error(T("SF2eTSC.droneBlock.invalid"));
+  const changed = updateProtocolDrone(data, {
+    stationId,
+    droneId,
+    operatorUuid: crew.uuid,
+    operationId: randomId("drone-protocol"),
+    op: "block",
+    strikeRef: strikeId,
+    combat,
+    confirmed: true
+  });
+  if (!changed) throw new Error(T("SF2eTSC.droneBlock.repeated"));
+  entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
   return Math.floor(level / 2);
 }

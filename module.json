@@ -2,7 +2,7 @@
   "id": "sf2e-tactical-starship-combat",
   "title": "SF2e Tactical Starship Combat",
   "description": "Tactical starship combat for Starfinder Second Edition: player and NPC starships, battle stations, a zone-based Sensor Map, starship hazards and a data-driven action engine. Every PC keeps their normal initiative and turn; the player ship gets no extra turn. Also supports PF2e with active SF2e Anachronism.",
-  "version": "0.17.1-dev.12",
+  "version": "0.17.1-dev.13",
   "authors": [
     {
       "name": "Huxtuntios",

@@ -7,6 +7,8 @@ import { canConvert } from "../integrations/causodes.mjs";
 import { defaultStarship } from "../engine/validation.mjs";
 import { notifyWarn, notifyInfo } from "../utils/logging.mjs";
 import { DATA_VERSION } from "../constants.mjs";
+import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { CrewStationsApplication } from "./crew-stations-app.mjs";
 
 /** Marks an existing vehicle (player ship) or npc (enemy ship) as a starship. Ordinary vehicles are never converted implicitly. */
 export async function convertToStarship(actor, role = actor.type === "vehicle" ? "player" : "npc") {
@@ -90,22 +92,39 @@ export function registerControls() {
 
   // header button on the system's own sheets for starship actors (opens the starship sheet)
   const openSheet = (actor) => (actor.type === "vehicle" ? openStarshipSheet(actor) : openNPCStarshipSheet(actor));
+  const openCrewStations = (actor) => new CrewStationsApplication(actor).render(true);
   const isOurSheet = (app) => !!app?.options?.classes?.includes("tsc-sheet");
   // the system's own (AppV1) sheets use the first hook, AppV2 sheets the second
   Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
     const actor = sheet.actor ?? sheet.document;
-    if (!actor || !isStarship(actor) || isOurSheet(sheet)) return;
-    buttons.unshift({
-      label: T("SF2eTSC.ui.starshipSheet"),
-      class: "tsc-open",
-      icon: "fa-solid fa-rocket",
-      onclick: () => openSheet(actor)
-    });
+    if (!actor || isOurSheet(sheet)) return;
+    if (isStarship(actor))
+      buttons.unshift({
+        label: T("SF2eTSC.ui.starshipSheet"),
+        class: "tsc-open",
+        icon: "fa-solid fa-rocket",
+        onclick: () => openSheet(actor)
+      });
+    if (actor.type === "character" && activeStarshipCombat())
+      buttons.unshift({
+        label: T("SF2eTSC.crewStations.title"),
+        class: "tsc-crew-stations",
+        icon: "fa-solid fa-users",
+        onclick: () => openCrewStations(actor)
+      });
   });
   Hooks.on("getHeaderControlsApplicationV2", (app, controls) => {
     const actor = app.document;
-    if (app.document?.documentName !== "Actor" || !isStarship(actor) || isOurSheet(app)) return;
-    controls.push({ icon: "fa-solid fa-rocket", label: "SF2eTSC.ui.starshipSheet", action: "tscOpen", onClick: () => openSheet(actor) });
+    if (app.document?.documentName !== "Actor" || isOurSheet(app)) return;
+    if (isStarship(actor))
+      controls.push({ icon: "fa-solid fa-rocket", label: "SF2eTSC.ui.starshipSheet", action: "tscOpen", onClick: () => openSheet(actor) });
+    if (actor.type === "character" && activeStarshipCombat())
+      controls.push({
+        icon: "fa-solid fa-users",
+        label: "SF2eTSC.crewStations.title",
+        action: "tscCrewStations",
+        onClick: () => openCrewStations(actor)
+      });
   });
   Hooks.on("renderTokenHUD", (hud, html) => {
     const actor = hud.object?.actor;

@@ -2,7 +2,7 @@ import re, subprocess, sys, html, tempfile
 from pathlib import Path
 
 if len(sys.argv) != 5:
-    raise SystemExit("Usage: python extract_stream.py PDF FIRST LAST OUT")
+    raise SystemExit("Usage: python extract_stream.py SOURCE FIRST LAST OUT")
 P = sys.argv[1]
 first, last, out = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
 NAV = set("INTRODUCTION TECH ANCESTRIES".split())

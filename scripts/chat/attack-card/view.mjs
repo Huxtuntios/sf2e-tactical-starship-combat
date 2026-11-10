@@ -149,24 +149,40 @@ export function makeCardRenderer(labels = {}) {
         if (c.damageRoll) rl.push(row(T("SF2eTSC.rolls.damageRolled"), escapeHtml(`${c.damageRoll.total} (${c.damageRoll.formula})`)));
         if (c.damageApplied && c.damageResult) {
           const d = c.damageResult;
-          rl.push(
-            row(
-              T("SF2eTSC.rolls.damageApplied"),
-              escapeHtml(
-                [
-                  `${T("SF2eTSC.ui.sp")} −${d.shield}`,
-                  `${T("SF2eTSC.ui.hp")} −${d.hull}`,
-                  d.immune ? T("SF2eTSC.chat.immune") : null,
-                  d.resisted ? `${T("SF2eTSC.chat.resistance")} −${d.resisted}` : null,
-                  d.hardness ? `${T("SF2eTSC.chat.hardness")} −${d.hardness}` : null,
-                  d.weakness ? `${T("SF2eTSC.chat.weakness")} +${d.weakness}` : null,
-                  d.destroyed ? T("SF2eTSC.chat.destroyed") : null
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
+          if (d.manual) {
+            rl.push(
+              row(
+                T("SF2eTSC.rolls.damageApplied"),
+                escapeHtml(T("SF2eTSC.droneBlock.manualResult", { amount: d.amount, resistance: d.resistance }))
               )
-            )
-          );
+            );
+            if (d.protocolManual)
+              rl.push(
+                row(
+                  T("SF2eTSC.droneBlock.protocolManualTitle"),
+                  escapeHtml(T("SF2eTSC.droneBlock.protocolManualResult", { resistance: d.resistance }))
+                )
+              );
+          } else {
+            rl.push(
+              row(
+                T("SF2eTSC.rolls.damageApplied"),
+                escapeHtml(
+                  [
+                    `${T("SF2eTSC.ui.sp")} −${d.shield}`,
+                    `${T("SF2eTSC.ui.hp")} −${d.hull}`,
+                    d.immune ? T("SF2eTSC.chat.immune") : null,
+                    d.resisted ? `${T("SF2eTSC.chat.resistance")} −${d.resisted}` : null,
+                    d.hardness ? `${T("SF2eTSC.chat.hardness")} −${d.hardness}` : null,
+                    d.weakness ? `${T("SF2eTSC.chat.weakness")} +${d.weakness}` : null,
+                    d.destroyed ? T("SF2eTSC.chat.destroyed") : null
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                )
+              )
+            );
+          }
         }
         if (!c.damageApplied)
           dmgBox = `<div class="tsc-btn-row"><button type="button" data-tsc-attack="damage"><i class="fa-solid fa-burst"></i> ${escapeHtml(T(c.damageRoll ? "SF2eTSC.rolls.rerollDamage" : "SF2eTSC.rolls.rollDamage"))}</button>${c.damageRoll ? `<button type="button" data-tsc-attack="apply" data-gm-only="1"><i class="fa-solid fa-heart-crack"></i> ${escapeHtml(T("SF2eTSC.rolls.applyDamage"))}</button>` : ""}</div>`;

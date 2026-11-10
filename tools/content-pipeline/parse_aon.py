@@ -65,7 +65,7 @@ json.dump(dict(ships=out, families=fams), open(str(WORK / "aon_ships.json"), "w"
 for f in fams.values():
     print(f["name"], len(f["common"]), len(f["members"]))
 
-# Feed the PDF parser from the current station/action names, not a private development file.
+# Feed the source parser from the current station/action names, not a private development file.
 names = set()
 for ship in out:
     for line in ship["body"]:

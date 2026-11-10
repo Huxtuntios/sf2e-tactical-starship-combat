@@ -63,7 +63,7 @@ Modify Starship Mine is only a GM-confirmed helper for an individually identifie
 
 The optional `tscMineModification` and `tscModificationReceipts` fields are stored on the specific mine only when used. A GM-only button or whisper does not make Actor flags private; users with access to the ship Actor may be able to read these fields. The effect is evaluated through the end of the operator’s next turn; the expired record stays as metadata and is not applied by the helper. The active combat, unique operator and unchanged combatant order must be available. Reordered, removed or ambiguous combatants, other combats and malformed timing are refused; GM must review. Rewinding combat time or leaving and re-entering a combat can change expiry interpretation; do not rely on it without GM review. One active mod at a time is an intentionally conservative limitation, not a rule that mods cannot stack. 512 IDs per mine is a hard fail-closed cap; clearing them permits old requests to run again. The map/Actor/history/chat are separate writes; concurrent GMs or outside writers and failover are not exactly-once. After a lost response, inspect the mine and card before using a new request ID.
 
-Harry Sensors, Intercept Munitions, Drone Shield Protocol/Fetch and Fix, Mine Deployment Shell/Install Mine and Pet Drone Shell/Onboard Pet remain unimplemented. The GM must adjudicate them. Repair Hull’s dev.4 restrictions still apply. Drone Block continues to use half the operator’s level; the user confirmed the PDF wording, superseding the pending-clarification note in dev.4. No live Foundry tests or multi-client verification were available; see the dev.5 manual in the source archive.
+Harry Sensors, Intercept Munitions, Drone Shield Protocol/Fetch and Fix, Mine Deployment Shell/Install Mine and Pet Drone Shell/Onboard Pet remain unimplemented. The GM must adjudicate them. Repair Hull’s dev.4 restrictions still apply. Drone Block continues to use half the operator’s level; the user confirmed the printed wording, superseding the pending-clarification note in dev.4. No live Foundry tests or multi-client verification were available; see the dev.5 manual in the source archive.
 
 ## 0.17.1-dev.4
 
@@ -71,7 +71,7 @@ Repair Hull is **partial**: only the console’s own ship, on the active combat 
 
 A completed attempt persists `droneRepairReceipts` on the ship Actor, atomically with the effect, even when Hull/Shield Points do not change; that receipt-only write creates no history record. Same ID and arguments cannot apply twice while the receipt exists; different IDs are different attempts. Store is capped at 512 and refuses further attempts when full or malformed; GM review is required. It is not a distributed transaction or failover guarantee: concurrent active GMs or external document writes can race, and a successful Actor save is not atomic with combat, history, system roll hooks or chat. Before retrying after a timeout inspect ship state and chat. No migration or changes to individual drone/mine record format; back up older worlds.
 
-The native check runs without a system chat card and does not fall back to plain d20 when unsupported. A module action card reports the result and effect. SF2e/PF2e source code was reviewed, not executed in Foundry. Initiative or card failures after saving cause a warning, not an automatic repeat. The native check’s system rule hooks can have independent effects and are not rolled back on a later failure. Harry Sensors, Intercept Munitions, Drone Shield Protocol, Mine Deployment Shell, full Pyrotechnics and Pet Drone Shell remain unimplemented. The supplied PDF and user summary disagree on whose level Drone Block uses; existing operator-level calculation is unchanged pending clarification.
+The native check runs without a system chat card and does not fall back to plain d20 when unsupported. A module action card reports the result and effect. SF2e/PF2e source code was reviewed, not executed in Foundry. Initiative or card failures after saving cause a warning, not an automatic repeat. The native check’s system rule hooks can have independent effects and are not rolled back on a later failure. Harry Sensors, Intercept Munitions, Drone Shield Protocol, Mine Deployment Shell, full Pyrotechnics and Pet Drone Shell remain unimplemented. The supplied text and user summary disagree on whose level Drone Block uses; existing operator-level calculation is unchanged pending clarification.
 
 ## 0.17.1-dev.3
 
@@ -112,7 +112,7 @@ Content was parsed and reconciled from Tech Core/AoN sources. Review unusual wor
 
 `starship` deliberately remains English in both interface languages. Core Russian terminology uses the project's glossary (including КД and Признаки).
 
-ORC notices were preserved, not legally certified. Before public distribution, verify the exact attribution and licensed/reserved material notices for the source publications. No source PDFs or third-party character/ship art are bundled.
+ORC notices were preserved, not legally certified. Before public distribution, verify the exact attribution and licensed/reserved material notices for the source publications. No source materials or third-party character/ship art are bundled.
 
 ## Publication
 

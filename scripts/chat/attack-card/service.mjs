@@ -286,10 +286,29 @@ export async function applyAttackCardDamage({ user, payload }) {
         ? await Reactions.ask(
             { draft, combat: draft.combat, tsc: draft.tsc, options: {}, strikeId, ship: attacker, droneBlockOnly: true },
             { uuid: pd.targetUuid, actor: target, data: entry.data },
-            { amount: card.damageRoll.total, traits: pd.traits ?? [], crit: !!pd.crit }
+            {
+              amount: card.damageRoll.total,
+              traits: pd.traits ?? [],
+              crit: !!pd.crit,
+              attackLabel: card.weapon?.name ?? card.action?.name ?? pd.source ?? ""
+            }
           )
         : {};
     entry.data.appliedStrikeReceipts = [...(entry.data.appliedStrikeReceipts ?? []), strikeId];
+    if (rx.manualDamage) {
+      await draft.commit();
+      await updateCard(message, {
+        damageApplied: true,
+        damageResult: {
+          manual: true,
+          amount: card.damageRoll.total,
+          resistance: rx.resistance ?? 0,
+          protocolManual: !!rx.manualDamage.protocolManual,
+          appliedBy: user.id
+        }
+      });
+      return { ok: true, manual: true, resistance: rx.resistance ?? 0 };
+    }
     const d = await applyDamageInDraft(draft, pd.targetUuid, {
       amount: card.damageRoll.total,
       damageType: pd.damageType,

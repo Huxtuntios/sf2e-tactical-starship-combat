@@ -130,11 +130,14 @@ test("refuses invalid selection, missing time and protocol without side effects"
   );
   const draft = new Draft(null);
   await assert.rejects(() => stageDroneBlock(input(draft, ship, crew)));
-  assert.equal(Reactions.eligible(readStarship(ship), null, null).filter((o) => o.actionId === "drone-block").length, 0);
+  const offer = Reactions.eligible(readStarship(ship), null, null).find((o) => o.actionId === "drone-block");
+  assert.equal(offer.manualOnly, true);
+  assert.deepEqual(offer.drones, [{ id: "d1", ref: "repair-drone" }]);
 });
 
 test("prompt binds response to offered drone and authenticated operator", async () => {
   const { crew, ship } = await setup();
+  foundry.applications.api.DialogV2.prompt = async () => "automatic";
   const { resolveReactionResponse } = await import("../../scripts/actions/reactions.mjs");
   const draft = new Draft(null);
   const entry = await draft.ship(ship.uuid);
@@ -181,6 +184,7 @@ test("duplicate Strike receipt is rejected even if drone was redeployed", async 
 
 test("sheet attack prompts on damage application and protects against reapplication", async () => {
   const { crew, ship } = await setup();
+  foundry.applications.api.DialogV2.prompt = async () => "automatic";
   const { makeStarshipCombat, dice } = await import("../helpers/foundry-mock.mjs");
   const { executeNativeAttack } = await import("../../scripts/chat/native-attack.mjs");
   const { rollAttackCardDamage, applyAttackCardDamage } = await import("../../scripts/chat/attack-card/service.mjs");
@@ -226,6 +230,7 @@ test("sheet attack prompts on damage application and protects against reapplicat
 
 test("station Strike consumes exactly the chosen drone and applies its resistance", async () => {
   const { ship } = await setup();
+  foundry.applications.api.DialogV2.prompt = async () => "automatic";
   const { makeStarshipCombat, dice } = await import("../helpers/foundry-mock.mjs");
   const { executeNativeAttack } = await import("../../scripts/chat/native-attack.mjs");
   const { resolveReactionResponse } = await import("../../scripts/actions/reactions.mjs");

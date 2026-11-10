@@ -1,4 +1,4 @@
-/** GM window: add an object to the Sensor Map (world hazard, compendium hazard, custom contact) with a detection state. */
+/** GM window: add a world/compendium Hazard or Starship Actor, or a custom contact, with a detection state. */
 import { TscApp, tpl } from "./base-app.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import { T } from "../utils/foundry.mjs";

@@ -1,0 +1,27 @@
+<section class="tsc-crew-stations-root">
+  <p class="tsc-hint">{{localize "SF2eTSC.crewStations.intro" actor=actorName}}</p>
+  {{#if empty}}<p class="tsc-hint">{{localize "SF2eTSC.crew.noShips"}}</p>{{/if}}
+  {{#each ships}}
+  <article class="tsc-station" data-ship-row>
+    <header><h4>{{name}}</h4></header>
+    {{#if currentStation}}
+    <p>{{localize "SF2eTSC.crewStations.current" station=currentStation.name}}</p>
+    <button type="button" data-action="release" data-ship-uuid="{{uuid}}" data-station-id="{{currentStation.id}}">
+      <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> {{localize "SF2eTSC.crewStations.release"}}
+    </button>
+    {{else}}
+    <p class="tsc-hint">{{localize "SF2eTSC.crewStations.unassigned"}}</p>
+    {{/if}}
+    {{#if freeStations.length}}
+    <label>{{localize "SF2eTSC.crewStations.available"}}
+      <select data-station-choice aria-label="{{localize 'SF2eTSC.crewStations.available'}}">
+        {{#each freeStations}}<option value="{{id}}">{{name}}{{#if malfunctioning}} — {{localize "SF2eTSC.crewStations.malfunctioning"}}{{/if}}</option>{{/each}}
+      </select>
+    </label>
+    <button type="button" data-action="claim" data-ship-uuid="{{uuid}}" {{#if claimDisabled}}disabled{{/if}}>
+      <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> {{localize "SF2eTSC.crewStations.claim"}}
+    </button>
+    {{/if}}
+  </article>
+  {{/each}}
+</section>

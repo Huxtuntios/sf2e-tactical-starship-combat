@@ -55,7 +55,7 @@ See `work-in-progress-0.17.1-dev.2.md` and `REPORT-0.17.1-dev.2-ru.md` for the f
 - `npm run check`: Prettier-supported source files, ESLint with zero warnings, content/reference validation, 11 compiled packs and **311 Node tests**. Pack tests reopen all packs with the actual LevelDB reader.
 - `npm run test:ui`: **33 local Chromium pages** — 20 ship-sheet fixtures, one interaction fixture, eight Station HUD/Crew Manager fixtures, two Sensor Map assertion fixtures and two static appearance-form previews. The two static previews are not full interaction tests.
 - `npm run build:release`: portable runtime ZIP, matching root/external manifest, 11 packs and SHA-256 checksums. Packaging regression tests reject version mismatches and developer-only payloads.
-- Optional Python provenance tools: nine files pass Python syntax checks and Black. The original extraction pipeline was **not** rerun against the source PDFs/dumps.
+- Optional Python provenance tools: nine files pass Python syntax checks and Black. The original extraction pipeline was **not** rerun against the source materials/dumps.
 - `npm audit`: no reported vulnerabilities in the installed development dependency tree at preparation time; audit results can change later.
 
 Use `npm ci` from a clean checkout, then `npm run check`. Install Chromium once with `npx playwright install chromium` before UI checks. Linux CI uses `--with-deps`. `CHROMIUM_PATH` can select an existing Chromium executable for local runs.
