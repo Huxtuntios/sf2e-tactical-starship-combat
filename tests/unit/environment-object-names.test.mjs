@@ -209,8 +209,64 @@ test("legacy Sensor Map public submit succeeds when its private journal is inval
     assert.equal(result, true);
     assert.equal(closed, true);
     assert.equal(errorElement.hidden, true);
+    assert.ok(
+      globalThis.__notes.some(([kind, message]) => kind === "error" && message === game.i18n.localize("SF2eTSC.privateMap.invalidStore"))
+    );
     assert.equal(getTsc(combat).objects.at(-1).name, "Asteroid 1");
     assert.equal(getTsc(combat).objects.at(-1).zone, 2);
+  } finally {
+    foundry.applications.api.DialogV2 = originalDialog;
+    if (originalUx === undefined) delete foundry.applications.ux;
+    else foundry.applications.ux = originalUx;
+  }
+});
+
+test("open legacy dialog checks private names from its captured combat after an active-combat switch", async () => {
+  installFoundryMock();
+  const capturedCombat = makeStarshipCombat();
+  await addPrivateCustom(capturedCombat, "Asteroid 1", 1);
+  const otherCombat = makeStarshipCombat();
+  await addPrivateCustom(otherCombat, "Asteroid 2", 1);
+  game.combat = capturedCombat;
+
+  const { SensorMapApplication, registerSensorHandlers } = await import("../../scripts/ui/sensor-map-app.mjs");
+  registerSensorHandlers();
+  const originalDialog = foundry.applications.api.DialogV2;
+  const originalUx = foundry.applications.ux;
+  let dialogOptions;
+  class CapturedDialog {
+    constructor(options) {
+      dialogOptions = options;
+    }
+    render() {
+      return this;
+    }
+  }
+  foundry.applications.api.DialogV2 = CapturedDialog;
+  foundry.applications.ux = {
+    FormDataExtended: class {
+      constructor(form) {
+        this.object = form.object;
+      }
+    }
+  };
+  const app = { _privateObjects: [], render() {} };
+  const errorElement = { hidden: true, textContent: "" };
+  let closed = false;
+  try {
+    await SensorMapApplication.DEFAULT_OPTIONS.actions.addPublicObject.call(app);
+    game.combat = otherCombat;
+    app._privateObjects = [{ name: "Asteroid 2" }];
+
+    const result = await dialogOptions.buttons[0].callback(
+      {},
+      { form: { object: { name: "", type: "asteroid", zone: 3 } } },
+      { element: { querySelector: () => errorElement }, close: async () => (closed = true) }
+    );
+    assert.equal(result, true);
+    assert.equal(closed, true);
+    assert.equal(getTsc(capturedCombat).objects[0].name, "Asteroid 2");
+    assert.deepEqual(getTsc(otherCombat).objects, []);
   } finally {
     foundry.applications.api.DialogV2 = originalDialog;
     if (originalUx === undefined) delete foundry.applications.ux;
