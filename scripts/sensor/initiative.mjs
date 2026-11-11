@@ -1,7 +1,12 @@
 import { MODULE_ID } from "../constants.mjs";
 import { isStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { privateContacts } from "./private-contacts.mjs";
-import { SENSOR_CONTACT_COMBATANT_IMAGE, SENSOR_CONTACT_COMBATANT_NAME } from "./actor-instance.mjs";
+import {
+  backfillPrivateSensorActorCombatant,
+  privateSensorActorCombatant,
+  SENSOR_CONTACT_COMBATANT_IMAGE,
+  SENSOR_CONTACT_COMBATANT_NAME
+} from "./actor-instance.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { isActiveGM, T, fromUuidSafe, escapeHtml } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
@@ -105,6 +110,11 @@ async function addActorLocked(combatId, input) {
 
   const existing = combatantForActor(combat, actor);
   if (existing) {
+    if (isPrivate) {
+      if (privateSensorActorCombatant(combat, actor) !== existing) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, existing);
+      return { status: "existing", item: { name, hidden: true } };
+    }
     if (hidden && (!existing.hidden || existing.name !== displayName || existing.img !== SENSOR_CONTACT_COMBATANT_IMAGE))
       await existing.update({ hidden: true, name: displayName, img: SENSOR_CONTACT_COMBATANT_IMAGE });
     return { status: "existing", item: { name, hidden } };
@@ -128,6 +138,11 @@ async function addActorLocked(combatId, input) {
 
   const duplicate = combatantForActor(combat, actor);
   if (duplicate) {
+    if (isPrivate) {
+      if (privateSensorActorCombatant(combat, actor) !== duplicate) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, duplicate);
+      return { status: "existing", item: { name, hidden: true } };
+    }
     if (hidden && (!duplicate.hidden || duplicate.name !== displayName || duplicate.img !== SENSOR_CONTACT_COMBATANT_IMAGE))
       await duplicate.update({ hidden: true, name: displayName, img: SENSOR_CONTACT_COMBATANT_IMAGE });
     return { status: "existing", item: { name, hidden } };

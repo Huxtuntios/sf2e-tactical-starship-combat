@@ -218,6 +218,115 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
   assert.equal(combat.flags[MODULE_ID].tsc.objects.filter((object) => object.actorUuid === actor.uuid).length, 1);
 });
 
+test("legacy private initiative entries without combatId can be revealed in their owning Combat", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "legacy-private-source", name: "Legacy interceptor", role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 4,
+    detection: "undetected"
+  });
+  const actor = fromUuidSync(placement.actorUuid);
+  assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
+  const original = combat.combatants.find((entry) => entry.actorId === actor.id);
+  delete original.flags[MODULE_ID].sensorMapInitiative.combatId;
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, true);
+
+  await changePrivateContact(combat, placement.key, "reveal");
+
+  const combatants = combat.combatants.filter((entry) => entry.actorId === actor.id);
+  assert.equal(combatants.length, 1);
+  assert.equal(combatants[0].id, original.id);
+  assert.equal(combatants[0].hidden, false);
+  assert.equal(combatants[0].name, actor.name);
+  assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
+});
+
+test("repeated private add backfills combatId on a legacy entry without creating a duplicate", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "repeat-legacy-source", name: "Legacy scout", role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 3,
+    detection: "undetected"
+  });
+  const actor = fromUuidSync(placement.actorUuid);
+  assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
+  const original = combat.combatants.find((entry) => entry.actorId === actor.id);
+  delete original.flags[MODULE_ID].sensorMapInitiative.combatId;
+
+  assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "existing");
+
+  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
+  assert.equal(original.hidden, true);
+  assert.equal(original.name, "Contact");
+});
+
+test("reveal rejects a private Actor Combatant that is not the safe generic hidden entry", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "unsafe-private-source", name: "Exposed raider", role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "undetected"
+  });
+  const actor = fromUuidSync(placement.actorUuid);
+  const [unrelated] = await combat.createEmbeddedDocuments("Combatant", [
+    {
+      actorId: actor.id,
+      name: actor.name,
+      img: actor.img,
+      hidden: false,
+      flags: { [MODULE_ID]: { sensorMapInitiative: { contactDesignation: true } } }
+    }
+  ]);
+
+  await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
+
+  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(unrelated.hidden, false);
+  assert.equal(unrelated.name, actor.name);
+  assert.equal(privateContacts(combat.id).length, 1);
+  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
+});
+
+test("reveal rejects a generic hidden Combatant associated with another Combat", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "other-combat-source", name: "Unrelated contact", role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "undetected"
+  });
+  const actor = fromUuidSync(placement.actorUuid);
+  const [unrelated] = await combat.createEmbeddedDocuments("Combatant", [
+    {
+      actorId: actor.id,
+      name: "Contact",
+      img: "icons/svg/mystery-man.svg",
+      hidden: true,
+      flags: {
+        [MODULE_ID]: {
+          sensorMapInitiative: { contactDesignation: true, combatId: "another-combat" }
+        }
+      }
+    }
+  ]);
+
+  await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
+
+  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(unrelated.name, "Contact");
+  assert.equal(unrelated.flags[MODULE_ID].sensorMapInitiative.combatId, "another-combat");
+  assert.equal(privateContacts(combat.id).length, 1);
+  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
+});
+
 test("a failed reveal restores the existing hidden initiative entry and can be retried", async () => {
   const combat = setup();
   const source = makeShip({ id: "rollback-private-source", name: "Hidden scout", role: "npc" });

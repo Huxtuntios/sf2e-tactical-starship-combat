@@ -63,7 +63,12 @@ export function privateSensorActorCombatant(combat, actor) {
   const combatants = combat?.combatants?.contents ?? [...(combat?.combatants ?? [])];
   const matches = combatants.filter((combatant) => {
     const ref = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
-    return combatant.actorId === actor.id && ref?.combatId === combat.id && ref.contactDesignation === true;
+    return (
+      combatant.actorId === actor.id &&
+      combatant.combat?.id === combat.id &&
+      ref?.contactDesignation === true &&
+      (ref.combatId === combat.id || !Object.hasOwn(ref, "combatId"))
+    );
   });
   if (matches.length !== 1) return null;
   const [combatant] = matches;
@@ -72,12 +77,23 @@ export function privateSensorActorCombatant(combat, actor) {
     : null;
 }
 
+export async function backfillPrivateSensorActorCombatant(combat, actor, combatant) {
+  if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
+  await combatant.update({
+    hidden: true,
+    name: SENSOR_CONTACT_COMBATANT_NAME,
+    img: SENSOR_CONTACT_COMBATANT_IMAGE,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id
+  });
+}
+
 export async function revealSensorActorCombatant(combat, actor, combatant) {
   if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
   await combatant.update({
     hidden: false,
     name: actor.name,
     img: actor.img,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id,
     [`flags.${MODULE_ID}.sensorMapInitiative.contactDesignation`]: false
   });
 }
@@ -89,6 +105,7 @@ export async function restorePrivateSensorActorCombatant(combat, actor, combatan
     hidden: true,
     name: SENSOR_CONTACT_COMBATANT_NAME,
     img: SENSOR_CONTACT_COMBATANT_IMAGE,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id,
     [`flags.${MODULE_ID}.sensorMapInitiative.contactDesignation`]: true
   });
 }
