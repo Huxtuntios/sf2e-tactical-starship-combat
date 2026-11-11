@@ -45,6 +45,7 @@ export const DEFAULT_MAP_APPEARANCE = Object.freeze({
   backgroundFlipX: false,
   backgroundFlipY: false
 });
+export const ARROW_APPEARANCE_FIELDS = Object.freeze(["arrowMode", "arrowImage", "arrowSize", "arrowGap", "arrowPosition", "arrowOpacity"]);
 const clamp = (v, min, max, fallback) =>
   v === "" || v == null || !Number.isFinite(Number(v)) ? fallback : Math.max(min, Math.min(max, Number(v)));
 const hex = (v) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : "");
@@ -88,6 +89,13 @@ export function normalizeMapAppearance(value = {}) {
     backgroundFlipX: a.backgroundFlipX === true,
     backgroundFlipY: a.backgroundFlipY === true
   };
+}
+/** Resolve an object's complete arrow-format override against the current global settings. */
+export function resolveArrowAppearance(globalAppearance, objectOverride) {
+  const global = normalizeMapAppearance(globalAppearance);
+  const override = objectOverride && typeof objectOverride === "object" ? objectOverride : {};
+  const normalized = normalizeMapAppearance({ ...global, ...override });
+  return Object.fromEntries(ARROW_APPEARANCE_FIELDS.map((field) => [field, normalized[field]]));
 }
 /** Called only with the redacted object from viewFor: unknown contacts must never resolve a document. */
 export function objectArtwork(object, appearance, resolve = () => null) {

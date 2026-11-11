@@ -46,10 +46,32 @@ try {
         const formCount = await page.locator("form").count();
         let passed = formCount === 1;
         if (folder === "map" && name.startsWith("form-object")) {
+          const arrowAppearanceOptions = await page
+            .locator('select[name="arrowAppearanceMode"] option')
+            .evaluateAll((options) => options.map((option) => option.value));
           const mirrorOptions = await page
             .locator('select[name="autoMirrorOverride"] option')
             .evaluateAll((options) => options.map((option) => option.value));
-          passed = passed && mirrorOptions.includes("inherit") && mirrorOptions.includes("on") && mirrorOptions.includes("off");
+          const arrowFields = await page
+            .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
+            .count();
+          const resetEnabled = !(await page.locator('[data-action="resetArrowAppearance"]').isDisabled());
+          const isOverride = name.includes("form-object-override");
+          const values = await page
+            .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
+            .evaluateAll((inputs) => inputs.map((input) => input.value));
+          const selectedMode = await page.locator('select[name="arrowAppearanceMode"]').inputValue();
+          passed =
+            passed &&
+            mirrorOptions.includes("inherit") &&
+            mirrorOptions.includes("on") &&
+            mirrorOptions.includes("off") &&
+            arrowAppearanceOptions.includes("inherit") &&
+            arrowAppearanceOptions.includes("override") &&
+            arrowFields === 4 &&
+            resetEnabled &&
+            selectedMode === (isOverride ? "override" : "inherit") &&
+            values.join("|") === (isOverride ? "object-arrow.webp|31|8|0.4" : "global-arrow.webp|22|5|0.75");
         }
         results.push({ file: `${folder}/${name}`, passed, errors });
       } else {

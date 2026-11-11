@@ -28,7 +28,7 @@ import { buildHudContext, runHudAction } from "./hud-model.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
-import { normalizeMapAppearance, objectArtwork, visualTransform } from "../sensor/appearance.mjs";
+import { normalizeMapAppearance, objectArtwork, resolveArrowAppearance, visualTransform } from "../sensor/appearance.mjs";
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 
@@ -200,6 +200,7 @@ export class SensorMapApplication extends TscApp {
       }
     }
     const appearance = normalizeMapAppearance(tsc.appearance);
+    const arrowAppearance = resolveArrowAppearance(appearance, o.arrowAppearance);
     const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
     const cls = Targeting.current && !o.privateContact ? Targeting.classify(tsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
@@ -210,12 +211,15 @@ export class SensorMapApplication extends TscApp {
       art: objectArtwork(o, tsc.appearance, (uuid) => resolved.get(uuid) ?? null),
       type: o.type,
       heading: o.heading,
-      arrow: ["left", "right"].includes(o.heading) && appearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
-      arrowEmoji: appearance.arrowMode === "emoji",
-      arrowCustom: appearance.arrowMode === "custom" && !!appearance.arrowImage,
-      arrowImage: appearance.arrowImage,
+      arrow: ["left", "right"].includes(o.heading) && arrowAppearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
+      arrowEmoji: arrowAppearance.arrowMode === "emoji",
+      arrowCustom: arrowAppearance.arrowMode === "custom" && !!arrowAppearance.arrowImage,
+      arrowImage: arrowAppearance.arrowImage,
       arrowRotation: o.heading === "left" ? 180 : 0,
-      arrowPosition: appearance.arrowPosition,
+      arrowPosition: arrowAppearance.arrowPosition,
+      arrowSize: arrowAppearance.arrowSize,
+      arrowGap: arrowAppearance.arrowGap,
+      arrowOpacity: arrowAppearance.arrowOpacity,
       transform,
 
       status,
