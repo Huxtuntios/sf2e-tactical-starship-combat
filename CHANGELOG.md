@@ -2,6 +2,7 @@
 
 ## 0.17.1-dev.13 — experimental, unpublished
 
+- Simplify Sensor Map contact detection: selecting a state applies it immediately, without an extra checkbox or confirmation dialog. Keep the existing private journal, anonymous map projection, Actor ownership, and combat data formats.
 - Fix CI UI regression: update the mine-modification smoke fixture to select the actual `installMineStock` action without weakening GM/player assertions.
 - Every Sensor Map Actor placement now creates a persistent independent world Actor copied from its template; repeated placements no longer move the same UUID. Copies retain template provenance, private contacts receive no player permissions or Combatant until revealed, NPC ships and complex hazards receive their own Combatant when public, and removing a contact cleans up its copy and initiative entry. Compendium imports and combat-start copies share the same Actor-copy helper.
 - Sensor Map copy regression coverage verifies two placements of one NPC remain independent after HP changes, with source state unchanged; privacy, reveal, initiative and deletion are covered by Foundry mocks. No real Foundry or multiplayer validation.

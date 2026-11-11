@@ -4,7 +4,6 @@
       <h3>{{detail.label}}</h3>
       {{#if detail.privateContact}}
       <p>{{detail.detectionLabel}} — {{localize "SF2eTSC.ui.zone"}} {{detail.zone}}</p>
-      <p class="tsc-hint">{{localize "SF2eTSC.privateMap.hint"}}</p>
       {{#if detail.actorUuid}}<button type="button" data-action="privateOpen" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
       {{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}
       {{#if detail.canRename}}<button type="button" data-action="privateRename" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.rename"}}</button>{{/if}}
