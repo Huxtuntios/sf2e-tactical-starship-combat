@@ -3,6 +3,7 @@ import { Targeting } from "./targeting.mjs";
 import { openSensorMap } from "./launchers.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { T, escapeHtml } from "../utils/foundry.mjs";
+import { rollEventOptions } from "../starship/stats.mjs";
 
 /** Per-attack modifiers are proposed by the player and explicitly approved by the GM before rolling. */
 export async function promptManualModifiers(knownModifiers) {
@@ -42,8 +43,9 @@ export async function promptManualModifiers(knownModifiers) {
 }
 
 /** Preview is a GM-validated, message-free operation; the chosen map target is revalidated at execution. */
-export async function beginNativeWeaponAttack(payload) {
+export async function beginNativeWeaponAttack(payload, event = null) {
   let current = payload;
+  const rollOptions = rollEventOptions(event);
   const preview = async (candidate) => {
     try {
       return { candidate, result: await request("previewNativeAttack", candidate) };
@@ -79,7 +81,13 @@ export async function beginNativeWeaponAttack(payload) {
           for (const warning of selected.result.warnings ?? []) ui.notifications.warn(warning);
           const manualModifiers = await promptManualModifiers(selected.result.knownModifiers);
           if (manualModifiers === null) return;
-          const result = await request("executeNativeAttack", { ...selected.candidate, eventId, combatId: info.combatId, manualModifiers });
+          const result = await request("executeNativeAttack", {
+            ...selected.candidate,
+            eventId,
+            combatId: info.combatId,
+            manualModifiers,
+            options: { ...selected.candidate.options, ...rollOptions }
+          });
           for (const warning of result?.warnings ?? []) ui.notifications.warn(warning);
         } catch (err) {
           notifyError("SF2eTSC.errors.generic", { message: err.message });

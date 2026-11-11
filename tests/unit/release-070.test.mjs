@@ -31,8 +31,9 @@ test("0.7.0: attack card uses MAP buttons and passes the choice to sensor-map ta
   const s = ATTACK();
   assert.ok(!s.includes("<select data-tsc-map"));
   assert.ok(s.includes("data-tsc-map-choice"));
-  assert.match(s, /beginCardTargeting\(message\.id, chosenMap\(\)\)/);
-  assert.match(s, /clientResolve\(messageId, key, cardMapChoice\.get\(messageId\) \?\? mapChoice\)/);
+  assert.match(s, /beginCardTargeting\(message\.id, chosenMap\(\), opts\)/);
+  assert.match(s, /clientResolve\(messageId, key, cardMapChoice\.get\(messageId\) \?\? mapChoice, rollOptions\)/);
+  assert.ok(s.includes("rollEventOptions(ev)"));
 });
 
 test("0.7.0: sensor map hover does not re-render (target pick works)", () => {

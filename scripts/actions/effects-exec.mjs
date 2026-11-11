@@ -128,6 +128,10 @@ const EXEC = {
           actor: targetActor,
           modifierOnly: computeShipStats(targetActor)[fx.save.type]
         });
+        if (!res) {
+          ctx.cancelled = true;
+          return;
+        }
         const mult = res ? basicSaveMultiplier(res.degree) : 1;
         amount = Math.floor(total * mult);
         crit = res?.degree === DEGREE.CRITICAL_FAILURE;

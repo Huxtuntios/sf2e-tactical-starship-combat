@@ -12,6 +12,7 @@ import { CARD_FLAG } from "./model.mjs";
 import { renderAttackCard, renderDiag } from "./render.mjs";
 import { declareAttack, resolveAttackCard, rollAttackCardDamage, applyAttackCardDamage } from "./service.mjs";
 import { previewNativeAttack, executeNativeAttack } from "../native-attack.mjs";
+import { rollEventOptions } from "../../starship/stats.mjs";
 
 /** Mark the chosen MAP button (DOM only). */
 export function setMapChoice(card, choice) {
@@ -25,9 +26,9 @@ export function setMapChoice(card, choice) {
 /* ----------------------------------------------------------------------------------------- client */
 /** Client-side MAP choice per open attack card (survives the card re-render). */
 export const cardMapChoice = new Map();
-async function clientResolve(messageId, targetKey, mapChoice = "0") {
+async function clientResolve(messageId, targetKey, mapChoice = "0", rollOptions = {}) {
   try {
-    await request("resolveAttackCard", { messageId, targetKey, mapChoice });
+    await request("resolveAttackCard", { messageId, targetKey, mapChoice, ...rollOptions });
   } catch (err) {
     if (game.user.isGM && !/already|уже|stale|устарел/i.test(err.message)) {
       const go = await foundry.applications.api.DialogV2.confirm({
@@ -38,7 +39,7 @@ async function clientResolve(messageId, targetKey, mapChoice = "0") {
       }).catch(() => false);
       if (go) {
         try {
-          await request("resolveAttackCard", { messageId, targetKey, mapChoice, gmOverride: true });
+          await request("resolveAttackCard", { messageId, targetKey, mapChoice, ...rollOptions, gmOverride: true });
         } catch (e2) {
           notifyError("SF2eTSC.errors.generic", { message: e2.message });
         }
@@ -48,7 +49,7 @@ async function clientResolve(messageId, targetKey, mapChoice = "0") {
 }
 
 /** Start a Sensor Map targeting session that resolves the card (same handler as the card buttons). */
-export async function beginCardTargeting(messageId, mapChoice = cardMapChoice.get(messageId) ?? "0") {
+export async function beginCardTargeting(messageId, mapChoice = cardMapChoice.get(messageId) ?? "0", rollOptions = {}) {
   const message = game.messages.get(messageId);
   const c = message?.flags?.[MODULE_ID]?.[CARD_FLAG];
   if (!c || c.status !== "open") return;
@@ -63,7 +64,7 @@ export async function beginCardTargeting(messageId, mapChoice = cardMapChoice.ge
     allowSelf: false,
     gm: false,
     messageId,
-    onPick: (key) => clientResolve(messageId, key, cardMapChoice.get(messageId) ?? mapChoice)
+    onPick: (key) => clientResolve(messageId, key, cardMapChoice.get(messageId) ?? mapChoice, rollOptions)
   });
   openSensorMap();
 }
@@ -182,10 +183,12 @@ export function registerAttackCards() {
           x.disabled = false;
         });
       };
-      if (b.dataset.tscAttack === "resolve") clientResolve(message.id, b.dataset.targetKey, chosenMap()).finally(done);
+      if (b.dataset.tscAttack === "resolve")
+        clientResolve(message.id, b.dataset.targetKey, chosenMap(), rollEventOptions(ev)).finally(done);
       else if (b.dataset.tscAttack === "map") {
         done();
-        beginCardTargeting(message.id, chosenMap());
+        const opts = rollEventOptions(ev);
+        beginCardTargeting(message.id, chosenMap(), opts);
       } else if (b.dataset.tscAttack === "damage")
         request("rollAttackCardDamage", { messageId: message.id })
           .catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }))

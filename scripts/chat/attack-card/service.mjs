@@ -194,7 +194,14 @@ export async function resolveAttackCard({ user, payload }) {
     const mapChoice = pickMapChoice(payload, card, MAP_CHOICES);
     const params = {
       ...card.request,
-      options: { ...card.request.options, targetKey, mapChoice, gmOverride: user.isGM && payload?.gmOverride === true }
+      options: {
+        ...card.request.options,
+        targetKey,
+        mapChoice,
+        skipDialog: payload?.skipDialog,
+        messageMode: payload?.messageMode,
+        gmOverride: user.isGM && payload?.gmOverride === true
+      }
     };
     const req = sanitizeActionRequest(params, user);
     let res;
@@ -203,6 +210,10 @@ export async function resolveAttackCard({ user, payload }) {
     } catch (err) {
       await updateCard(message, { status: "open", error: err.message });
       throw err;
+    }
+    if (res.cancelled) {
+      await updateCard(message, { status: "open", error: null });
+      return { ok: true, cancelled: true };
     }
     const tsc = combat ? getTsc(game.combats.get(combat.id)) : null;
     const tobj = tsc ? findObject(tsc, targetKey) : null;
