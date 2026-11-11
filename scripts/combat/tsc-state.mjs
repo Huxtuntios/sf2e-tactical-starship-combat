@@ -1,6 +1,7 @@
 import { MODULE_ID, FLAGS } from "../constants.mjs";
 import { normalizeSensorState } from "../engine/sensor-ops.mjs";
 import { findCombatantFor } from "../engine/crew-initiative.mjs";
+import { serialize } from "../utils/serial.mjs";
 
 const view = (c) => ({
   id: c.id,
@@ -22,17 +23,26 @@ export function activeStarshipCombat() {
 }
 
 /** GM-only write. Replaces arrays wholesale (objects, log) and merges maps. */
-export async function saveTsc(combat, state) {
+async function performSave(combat, state, { expected } = {}) {
   if (!game.user.isGM) throw new Error("saveTsc must run on a GM client");
+  if (expected !== undefined) {
+    const { equalState } = await import("../history/history.mjs");
+    if (!equalState(getTsc(combat), expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
+  }
   const existing = combat?.flags?.[MODULE_ID]?.[FLAGS.COMBAT];
   // Do not suppress the first initialization; compare normalized existing states only.
   if (existing && JSON.stringify(normalizeSensorState(existing)) === JSON.stringify(normalizeSensorState(state))) return combat;
   return combat.update({ [`flags.${MODULE_ID}.${FLAGS.COMBAT}`]: state });
 }
-export async function mutateTsc(combat, fn) {
-  const next = fn(foundry.utils.deepClone(getTsc(combat)));
-  await saveTsc(combat, next);
-  return next;
+export function saveTsc(combat, state, options = {}) {
+  return serialize(`tsc:${combat.id}`, () => performSave(combat, state, options));
+}
+export function mutateTsc(combat, fn) {
+  return serialize(`tsc:${combat.id}`, async () => {
+    const next = await fn(foundry.utils.deepClone(getTsc(combat)));
+    await performSave(combat, next);
+    return next;
+  });
 }
 
 /**

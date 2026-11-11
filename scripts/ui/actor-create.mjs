@@ -147,7 +147,8 @@ export async function createStarshipDialog() {
   if (r === "builder") return openBuilder();
   try {
     const name = String(r.name ?? "").trim() || T(`SF2eTSC.create.${r.kind}`);
-    const data = creationData(r.kind, { name, level: Number(r.level) || 1, frame: Content.frames.get(r.frame) });
+    const level = r.level === "" || r.level == null ? 1 : Number(r.level);
+    const data = creationData(r.kind, { name, level: Number.isFinite(level) ? level : 1, frame: Content.frames.get(r.frame) });
     const actor = await Actor.create(data, { [MODULE_ID]: { createKind: r.kind } });
     actor?.sheet?.render(true);
     return actor;

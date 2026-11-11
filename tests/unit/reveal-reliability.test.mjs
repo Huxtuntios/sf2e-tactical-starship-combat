@@ -6,6 +6,8 @@ import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { addSensorObjectToInitiative, addAllNpcShipsToInitiative } from "../../scripts/sensor/initiative.mjs";
 import { registerSensorHandlers } from "../../scripts/sensor/map-handlers.mjs";
+import { registerShipHandlers, Ship } from "../../scripts/starship/ship-service.mjs";
+import { serialize } from "../../scripts/utils/serial.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { T } from "../../scripts/utils/foundry.mjs";
 import {
@@ -488,6 +490,7 @@ function watchGuardWrites(env) {
 
 async function guardSocket(env, type, payload, senderId = "gm") {
   registerSensorHandlers();
+  registerShipHandlers();
   const responses = [];
   await dispatchSocketMessage(
     { kind: "request", type, requestId: "guard-request", payload: { combatId: env.combat.id, ...payload } },
@@ -497,6 +500,82 @@ async function guardSocket(env, type, payload, senderId = "gm") {
   assert.equal(responses.length, 1);
   return responses[0];
 }
+
+for (const spec of [{}, { custom: true }, { alias: true }]) {
+  test(`setZone API refuses pending Reveal exactly like sensorUpdate: ${JSON.stringify(spec)}`, async () => {
+    const env = await publishedPending(spec);
+    const object = env.combat.flags[MODULE_ID].tsc.objects[0];
+    if (spec.alias) object.key = "public-alias";
+    const before = structuredClone(env.combat.flags);
+    const journalBefore = structuredClone(env.journal.flags);
+    const writes = watchGuardWrites(env);
+    const response = await guardSocket(env, "sensorUpdate", { op: "move", key: object.key, zone: 8 });
+    await assert.rejects(Ship.setZone(object.key, 8), { message: response.error });
+    assert.equal(response.error, T("SF2eTSC.privateMap.recoveryRequired"));
+    assert.deepEqual(writes, []);
+    assert.deepEqual(env.combat.flags, before);
+    assert.deepEqual(env.journal.flags, journalBefore);
+    env.combat.flags[MODULE_ID].tsc.objects.push({ key: "beacon", type: "custom", zone: 3 });
+    assert.equal(await Ship.setZone("beacon", 6), true);
+    assert.equal(getTsc(env.combat).objects.find((o) => o.key === "beacon").zone, 6);
+    assert.deepEqual(env.journal.flags, journalBefore);
+  });
+}
+
+test("setZone API uses the shared sensor queue and preserves unrelated map and budget state", async () => {
+  installFoundryMock();
+  const ship = makeShip({ id: "api-ship", owners: ["p1"] });
+  const combat = makeStarshipCombat({ objects: [{ key: ship.uuid, zone: 2 }] });
+  combat.flags[MODULE_ID].tsc.budget = { untouched: { actions: 2, reactions: 1 } };
+  const budget = structuredClone(combat.flags[MODULE_ID].tsc.budget);
+  registerShipHandlers();
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  const queued = serialize(`sensor:${combat.id}`, async () => {
+    await gate;
+    combat.flags[MODULE_ID].tsc.objects.push({ key: "queued-beacon", type: "custom", zone: 4 });
+  });
+  const writes = globalThis.__writes.length;
+  const move = Ship.setZone(ship.uuid, 7);
+  try {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(globalThis.__writes.length, writes, "API move waits for the existing sensor queue");
+    assert.equal(getTsc(combat).objects[0].zone, 2);
+  } finally {
+    release();
+  }
+  await queued;
+  assert.equal(await move, true);
+  assert.equal(getTsc(combat).objects.find((o) => o.key === ship.uuid).zone, 7);
+  assert.equal(getTsc(combat).objects.find((o) => o.key === "queued-beacon").zone, 4);
+  assert.deepEqual(getTsc(combat).budget, budget);
+});
+
+test("setZone retains GM-only, active authority, managed mine and private projection guards", async () => {
+  const env = await setup();
+  const ship = makeShip({ id: "player-owned", owners: ["p1"] });
+  env.combat.flags[MODULE_ID].tsc.objects.push(
+    { key: ship.uuid, actorUuid: ship.uuid, type: "starship", zone: 2 },
+    { key: "managed-mine", type: "hazard", zone: 3, mineRef: { id: "mine" } }
+  );
+  const before = structuredClone(env.combat.flags);
+  const writes = watchGuardWrites(env);
+  for (const [key, sender, error] of [
+    [ship.uuid, "p1", "SF2eTSC.errors.gmOnly"],
+    ["managed-mine", "gm", "SF2eTSC.mineContact.managed"],
+    [env.key, "gm", "SF2eTSC.privateMap.invalidStore"]
+  ]) {
+    const response = await guardSocket(env, "setZone", { key, zone: 8 }, sender);
+    assert.equal(response.ok, false);
+    assert.equal(response.error, T(error));
+  }
+  game.user.active = false;
+  const inactive = await guardSocket(env, "setZone", { key: ship.uuid, zone: 8 });
+  assert.equal(inactive.ok, false);
+  assert.equal(inactive.error, T("SF2eTSC.errors.gmOnly"));
+  assert.deepEqual(writes, []);
+  assert.deepEqual(env.combat.flags, before);
+});
 
 const publicPendingOps = [
   { op: "move", zone: 8 },

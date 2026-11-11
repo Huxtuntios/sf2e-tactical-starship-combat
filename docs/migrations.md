@@ -1,8 +1,10 @@
 # Data versioning and migrations
 
-Every starship flag and the combat state carry `dataVersion` (current **1**). `scripts/engine/migration.mjs` holds ordered, pure steps keyed by the version they migrate _from_
-(`MIGRATIONS[0]` = unversioned → 1). On `ready` the active GM migrates all starships once (`dataVersion` world setting); reads of un-migrated data are migrated in memory so nothing breaks before that.
-To add a step: bump `DATA_VERSION` in `constants.mjs`, add `MIGRATIONS[n]`, add a unit test (`tests/unit/engine.test.mjs`), document it here.
+Starship flags and newly created combat state carry `dataVersion` (current **2**, `scripts/constants.mjs`). `scripts/engine/migration.mjs` holds ordered, pure steps keyed by the version they migrate _from_: `MIGRATIONS[0]` adds the version-1 stamp and missing station, crew, weapon, upgrade, expansion-bay and effect containers; `MIGRATIONS[1]` folds station upgrades into version 2.
+
+On `ready` the active GM migrates legacy starship flags once per world `dataVersion` setting (`scripts/main.mjs`). `readStarship` also migrates in memory before normalization (`scripts/starship/starship-state.mjs`); this is not a world-wide Contact/Combat flag migration. Back up older worlds and verify on a disposable copy; offline tests do not certify live migration.
+
+To add a step: bump `DATA_VERSION` in `scripts/constants.mjs`, add `MIGRATIONS[n]`, add a unit test (`tests/unit/engine.test.mjs`), document it here.
 
 ## Data version 2 (0.9.1)
 

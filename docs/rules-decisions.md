@@ -1,5 +1,20 @@
 # Rules decisions and disputed points
 
+Current implementation notes below supersede conflicting historical stage descriptions; historical rules wording is retained, not rewritten as new mechanics. See [testing](testing.md) for evidence tiers and live checks.
+
+## 0.17.1-dev.13 — Drone Block and adjacent rules
+
+**[TC, printed p.179]** Drone Block requires at least one deployed drone, grants resistance against the triggering Strike equal to half the operator's level, and separately says that the used drone is retrieved and can't be deployed again for 10 minutes. The effect is not conditional on resistance being positive: at level 1 the resistance is 0, but the drone still returns and enters the 10-minute restriction. The module applies the resistance only to the exact damage card/Strike approved by the GM and uses the existing starship damage pipeline.
+**[AoN]** [Drone Block](https://2e.aonsrd.com/actions/585-drone-block).
+
+**[TC, printed p.184]** Drone Shield Protocol is a separate upgrade: it permits up to two Drone Blocks per drone before retrieval, with the first destroying its shield, and grants Fetch and Fix; Fetch and Fix immediately retrieves and repairs the drone, with a two-round redeployment restriction if its shield was destroyed. The attack-card reaction exposes a GM-confirmed manual-only path for a console with this upgrade. It applies no base retrieval/cooldown or automatic resistance/shield handling. The existing per-drone ledger records the strike receipt, block count and pending Fetch and Fix; the GM manually applies resistance and adjudicates shield state. Fetch remains a separate, same-turn confirmed operation with a conservative combat-anchor lock (`scripts/actions/drone-block.mjs`, `scripts/actions/protocol-manual.mjs`). These flags are not an action/reaction budget.
+
+**[TC, printed p.193]** Intercept Munitions says it cannot be used with that drone until you “Retrieve Drone to retrieve this scramble drone.” Drone Block says the drone is retrieved, but the text does not specify whether this automatic return counts as the named Retrieve Drone action. The module therefore does not clear `tscInterceptUsed` on Drone Block; only the explicit Retrieve transition clears it. A GM warning appears when the selected Scramble Drone has recorded Intercept use. This is conservative module behavior, not a definitive rules interpretation.
+**[AoN]** [Intercept Munitions](https://2e.aonsrd.com/actions/576-intercept-munitions).
+
+**[TC, printed pp.192–193]** Pyrotechnics Drone mines are described as shielded starship mines deployed in the starship's zone; Deploy Starship Mine creates a mine there, and the drone's actions are available while it is deployed. The cited text does not say whether returning the drone removes deployed mines or whether stored mines inside the drone persist through return/redeployment. TSC does not alter either mine records or stock on Drone Block and disables drone-dependent operations while the drone is returned; the GM is warned to inspect/review before redeploying or using it. This preserves current data and is not a rules ruling.
+**[AoN]** [Pyrotechnics Drone](https://2e.aonsrd.com/tactical-starship-combat/drones/1-pyrotechnics-drone) · [Deploy Starship Mine](https://2e.aonsrd.com/actions/569-deploy-starship-mine).
+
 ## 0.17.1-dev.12 — Install Mine storage and Deploy Starship Mine
 
 Install Mine (Tech Core p. 184) modifies up to four of the starship mines inside a drone that has not deployed yet, as if they were mines of the operator's Mine Exocortex. The module records this as stored prepared mines in the drone with one GM-confirmed modification each; a stored mine cannot be modified again because the text does not describe re-modification. The mechanic requirement is checked from the character's class item when present; otherwise the GM confirms. Mine Exocortex modifications are not mapped to Smart/Targeting Mine (p. 193), which stay a separate helper on deployed mines. The recorded rules do not state how many mines a Pyrotechnics Drone holds, so plain mines are neither counted nor limited — **open question for the rules owner**.
@@ -56,12 +71,8 @@ simplification/interpretation (configurable where noted).
   recorded under `<stationId>:<actionId>` (two gunnery stations each get their own "once per round"); NPC abilities and
   actions without a station are tracked per ship.
 
-- **[SF2e] [MOD 0.4.0]** MAP is per _creature_ (the crew member who makes the attack, or the NPC ship), counted over its own turn
-  from attacks with the attack trait executed through the module (and native SF2e rolls with readable chat flags); −5/−10,
-  agile −4/−8; off-turn reactions use the current count. The penalty shown in the attack card is the one applied at roll time.
-- **[MOD 0.4.0]** Attack cards: declaration spends nothing; actions, frequency and MAP are consumed only when the attack resolves,
-  after re-validating the turn, range, line of sensors and target detection (warnings in warn mode, refusals in strict mode). A target that is hidden/undetected for the
-  attacker's side is not offered to players.
+- **[Historical MOD 0.4.0]** Earlier notes described per-creature attack counting from module/system rolls. The explicit MAP selection introduced in 0.6.0 supersedes that description; the current module does not count attacks, actions or reactions.
+- **[MOD]** Attack-card declaration does not spend resources. Resolution revalidates turn, range, line of sensors and target detection, and records supported station-action frequency; actions/reactions and the correct MAP choice remain the table's responsibility. Hidden/undetected targets are not offered to players. Local card locks and saved status do not guarantee exactly-once processing after failure.
 - **[MOD 0.4.0]** Crew in initiative: every crew member of a participating player ship (except observers, or only stationed crew,
   per setting) is a combatant with their own initiative, consistent with "PCs act on their own turns".
 

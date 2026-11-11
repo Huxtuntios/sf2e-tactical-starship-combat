@@ -4,8 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { unzipSync, strFromU8 } from "fflate";
+import { unzipSync, zipSync, strFromU8 } from "fflate";
 import { PROJECT_ROOT, releaseManifest, buildRelease } from "../../tools/build-release.mjs";
+import { verifyRelease } from "../../tools/verify-release.mjs";
 import { hazardAbilityHTML } from "../../scripts/content/ship-docs.mjs";
 
 const read = (name) => fs.readFileSync(path.join(PROJECT_ROOT, name), "utf8");
@@ -80,6 +81,9 @@ test("release ZIP excludes transient pack database artifacts", () => {
       fs.writeFileSync(path.join(packPath, "MANIFEST-000006"), "current");
       fs.writeFileSync(path.join(packPath, "MANIFEST-000002"), "stale");
     }
+    const undeclared = path.join(root, "packs", "obsolete-pack");
+    fs.mkdirSync(undeclared);
+    fs.writeFileSync(path.join(undeclared, "000001.ldb"), "not declared");
     for (const name of ["000006.dbtmp", "000006.db-wal", "000006.db-shm"])
       fs.writeFileSync(path.join(root, "packs", "starship-actions", name), "transient");
     fs.writeFileSync(path.join(root, "module.json"), JSON.stringify(manifest));
@@ -93,6 +97,7 @@ test("release ZIP excludes transient pack database artifacts", () => {
     buildRelease({ root, out });
     const names = Object.keys(unzipSync(fs.readFileSync(path.join(out, "module.zip"))));
     assert.ok(!names.some((name) => /\.(?:dbtmp|db-wal|db-shm)$/.test(name)));
+    assert.ok(!names.some((name) => name.startsWith("packs/obsolete-pack/")));
     for (const pack of manifest.packs) {
       assert.ok(names.includes(`${pack.path}/MANIFEST-000006`));
       assert.ok(!names.includes(`${pack.path}/MANIFEST-000002`));
@@ -135,6 +140,47 @@ test("release ZIP contains matching root manifest and complete packs, but no dev
         .digest("hex");
       assert.ok(sums.includes(`${hash}  ${name}`));
     }
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+for (const defect of ["manifest", "data", "current"]) {
+  test(`release verification rejects a pack with invalid ${defect} even when ZIP hashes match`, () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-pack-integrity-"));
+    try {
+      buildRelease({ out });
+      const files = unzipSync(fs.readFileSync(path.join(out, "module.zip")));
+      const prefix = `${source.packs[0].path}/`;
+      const current = `${prefix}CURRENT`;
+      if (defect === "manifest") delete files[`${prefix}${strFromU8(files[current]).trim()}`];
+      if (defect === "data")
+        for (const name of Object.keys(files)) if (name.startsWith(prefix) && /\.(?:ldb|log)$/.test(name)) delete files[name];
+      if (defect === "current") files[current] = new TextEncoder().encode("../other/MANIFEST-000001\n");
+      fs.writeFileSync(path.join(out, "module.zip"), zipSync(files));
+      const sums = ["module.json", "module.zip"]
+        .map(
+          (name) =>
+            `${crypto
+              .createHash("sha256")
+              .update(fs.readFileSync(path.join(out, name)))
+              .digest("hex")}  ${name}`
+        )
+        .join("\n");
+      fs.writeFileSync(path.join(out, "SHA256SUMS.txt"), `${sums}\n`);
+      assert.throws(() => verifyRelease(out), /pack (?:manifest|data|CURRENT)/);
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true });
+    }
+  });
+}
+
+test("release verification accepts intact assets and checks the expected tag", () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-pack-intact-"));
+  try {
+    buildRelease({ out });
+    assert.equal(verifyRelease(out, `v${source.version}`).version, source.version);
+    assert.throws(() => verifyRelease(out, "v0.0.0"), /release tag/);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }

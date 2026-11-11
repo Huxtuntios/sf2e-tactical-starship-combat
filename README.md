@@ -1,17 +1,5 @@
 # SF2e Tactical Starship Combat
 
-## Experimental 0.17.1-dev.13
-
-**Experimental, unpublished; install only in a backed-up test world.** Sensor Map placements of world or compendium Hazard and Starship Actors now create persistent, independent world Actor copies, preserving the source as a template. Each copy owns its HP, SP, conditions, effects, items and other system data; NPC ships and complex hazards get their own Combatant when publicly placed or revealed. Private contacts stay GM-only and gain no public Combatant until revealed; removing a contact removes its copy and associated Combatant. Existing drag-and-drop remains, and public disclosure requires GM confirmation. Privacy is **not verified in a real multi-client Foundry**. Character sheets expose claim/release station controls during active starship combat. Native Strike damage cards now offer a GM-confirmed Drone Block flow: select the defender's drone and exact Strike, then apply resistance through the module damage engine or resolve manually. Resistance is half the operator's level, rounded down; the drone is returned for 10 minutes even when resistance is 0. Returned drones show their remaining cooldown, or an unavailable-time status if world time cannot be read. With Drone Shield Protocol, the GM confirms manual-only resolution; the existing per-drone ledger records block uses and pending Fetch and Fix for the sheet, while the GM still adjudicates shield state and applies the effect manually. The base retrieval/10-minute cooldown is not applied. Intercept Munitions and Pyrotechnics Drone mine interactions with base automatic return remain flagged for GM review. No action/reaction economy is tracked. See `docs/work-in-progress-0.17.1-dev.13.md` and `docs/MANUAL-TEST-0.17.1-dev.13-ru.md`. Install the supplied ZIP manually; no release was published.
-
-## Experimental 0.17.1-dev.11
-
-**Partial, unpublished; use only in a backed-up test world.** World NPC ships and hazards can be staged as private contacts; custom contacts can be created privately. Observed publishes an anonymous position, Hidden and Unnoticed remain withheld, and full identification requires confirmation. This does **not** prove real Foundry privacy; do not rely on it for secrets. Install Mine remains GM notes, not inventory or automatically applied modifications; stale plan replacement is rejected. See `docs/work-in-progress-0.17.1-dev.11.md` and `MANUAL-TEST-0.17.1-dev.11-ru.md`. Install the supplied ZIP manually; automatic-update links are omitted.
-
-## Experimental 0.17.1-dev.10
-
-New NPC contacts may be staged in a separate GM-owned journal and explicitly revealed as identified. This is **partial and not privacy-verified in a real multiplayer Foundry server**: no intermediate detection levels or combat integration for staged contacts. Do not rely on it for secrets. Other Actor permissions and modules may expose them. Install Mine is a GM-confirmed preparation note, not applied effects or onboard inventory. See `docs/work-in-progress-0.17.1-dev.10.md` and `MANUAL-TEST-0.17.1-dev.10-ru.md`. Back up a test world and install the supplied ZIP manually; download URL is unpublished.
-
 [Русская версия](README.ru.md) · [User guide](docs/guide-en.md) · [Releases](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases) · [Report a bug](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues)
 
 ![Foundry VTT 14](https://img.shields.io/badge/Foundry_VTT-14-informational)
@@ -24,9 +12,7 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **0.17.1-dev.9 is experimental and unpublished.** Back up a test world and install the supplied ZIP manually; its download URL points to an unpublished future release. Toolbelt integration has only source review and mock/browser testing, not live verification. Better Chat merged, injected and split damage cards are refused for ships; see `docs/work-in-progress-0.17.1-dev.9.md`. **Sensor Map contacts are not private from players.** No action/reaction economy is tracked.
-
-> **Unpublished reliability follow-up:** Sensor Map retains its background layer through part replacement and caches visible Actor data per window. Large images use a PNG display copy capped at 4096 pixels; ordinary images and original files/paths are unchanged. A local Chromium fixture exercised an actual 8100 × 11700 PNG and 360 objects. Initial decoding still needs memory; CORS/canvas failures can use the full native image. Live Foundry performance remains unverified. Pending identification has an explicit GM recovery button; inspect conflicts before retrying.
+> **Pre-1.0; not live-certified.** The current 0.17.1-dev.13 build is experimental and unpublished. Use manual installation in a backed-up test world. Review [release readiness](docs/release-readiness.md), [the reality check](docs/reality-check.md) and [current limitations](docs/known-limitations.md) before campaign use or publication.
 
 ## Requirements
 
@@ -69,7 +55,7 @@ Ordinary actors and native healing buttons retain their existing behavior. Toolb
 
 Module attack cards keep their existing **Apply Damage** workflow. Newly generated attack-card damage rolls suppress duplicate native application buttons. Do not apply both paths from older chat cards created before this update. Reload the world after installing.
 
-Source review covered Toolbelt **3.59.2** and Workbench **7.7.5**. Workbench’s spell/creature automation is not a starship action engine: automatic station actions and CR scaling of module ship data are not added. Neither module is required. Automated mocks and local interface fixtures do not replace an in-world integration test.
+Current source review covered Toolbelt **3.60.0**; earlier notes covered **3.59.2** and Workbench **7.7.5**. Workbench’s spell/creature automation is not a starship action engine: automatic station actions and CR scaling of module ship data are not added. Neither module is required. Automated mocks and local interface fixtures do not replace an in-world integration test.
 
 ## Install
 
@@ -107,7 +93,7 @@ The module ID remains `sf2e-tactical-starship-combat`; existing settings and fla
 - **Station actions.** Data-driven actions use native SF2e checks where supported. Rule enforcement warns by default; strict enforcement is optional. Unknown/custom abilities fall back to manual adjudication.
 - **Damage and ship states.** Shield Points, Hull Points, resistances, weaknesses, immunities, compromised/wrecked states and hull-integrity checks. Use the module's damage tools for ships: native SF2e damage application does not account for module shields.
 - **Hazards.** Simple triggers and complex routines, with configurable GM prompts or automatic execution. Only supported text patterns are automated; other effects are reported for the GM.
-- **Content.** 74 starships, 32 hazards, 37 actions, 17 weapons, 34 upgrade entries and three frames, with English and Russian compendiums. Upgrades have station compatibility and capacity checks; not every upgrade effect is automated.
+- **Content.** 74 starships, 32 hazards, 39 actions, 17 weapons, 34 upgrade entries and three frames, with English and Russian compendiums. Upgrades have station compatibility and capacity checks; not every upgrade effect is automated.
 - **Sensor Map appearance.** Combat-scoped custom text/accent colors, portraits or simple symbols, object art overrides and an optional background with opacity, desaturation and blur; the light/dark UI palette is client-local. Unknown contacts do not reveal identifying artwork.
 - **Local themes.** All module windows share the client-local Module UI Theme setting: Follow Foundry, Light or Dark. Existing light/dark selections are retained. Other clients remain independent.
 - **Soft effect timing.** Turn-start/end anchors, round durations, manually confirmed conditions and sustain reminders. Evade displays actions spent. Reminders do not spend actions or extend effects automatically.
@@ -134,7 +120,8 @@ See [the guide](docs/guide-en.md) for all settings and controls.
 - [English guide](docs/guide-en.md) / [Русское руководство](docs/guide-ru.md)
 - [Known limitations](docs/known-limitations.md) and [manual test checklist](docs/testing.md)
 - [Rules decisions](docs/rules-decisions.md), [integrations](docs/integrations.md) and [API](docs/api.md)
-- [Changelog](CHANGELOG.md), [contributing](docs/CONTRIBUTING.md) and [publishing with GitHub Desktop](docs/RELEASING.md)
+- [Changelog](CHANGELOG.md), [contributing](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/CONTRIBUTING.md) and [publishing with GitHub Desktop](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/docs/RELEASING.md)
+- [Release readiness](docs/release-readiness.md) and [reality check](docs/reality-check.md)
 
 ```js
 const api = game.modules.get("sf2e-tactical-starship-combat").api;
@@ -149,7 +136,10 @@ Consult the API documentation before invoking state-changing methods.
 - Non-strike NPC abilities and many upgrade effects require GM adjudication.
 - Undo is conservative, not an atomic multi-document rollback. A saved intent and Actor receipt allow guarded recovery after history-finalization failure; changed Actor/Combat state still blocks retry. Pending recovery evidence cannot be overwritten or evicted at the 80-record limit. HP/SP, damage and critical states are not undoable. Direct system/other-module edits can prevent undo.
 - Arbitrary effect conditions, removed turn anchors and unusual initiative skips may require GM correction.
-- An active GM client is required for state-changing requests.
+- An active GM client is required for state-changing requests. No action/reaction economy is tracked.
+- Sensor Map contact privacy and live performance are unverified. Large backgrounds use a PNG display copy capped at 4096 pixels without changing the source; initial decoding and CORS/canvas fallback can still require the full image. Local 8100 × 11700 / 360-object fixtures are not live profiling.
+- Pending identification has an explicit GM recovery button; inspect document conflicts before retrying. Timeouts do not cancel a possibly completed GM operation.
+- Toolbelt has source/mock/browser evidence only. Better Chat merged, injected and split damage cards are refused for ships; resolve those manually after inspecting originals.
 
 ## Development
 
@@ -169,7 +159,7 @@ npx playwright install chromium
 npm run test:ui
 ```
 
-UI checks render actual templates in local Chromium; they do not start Foundry. Generated packs, dependencies, reports and ZIP files are ignored by Git. Canonical content is in `data/`; rebuild packs rather than editing LevelDB files. Optional historical content-extraction tools are documented separately in [the provenance pipeline](tools/content-pipeline/README.md).
+UI checks render actual templates in local Chromium; they do not start Foundry. Generated packs, dependencies and build outputs are ignored by Git; committed audit documentation is retained. Canonical content is in `data/`; rebuild packs rather than editing LevelDB files. Optional historical content-extraction tools are documented separately in [the provenance pipeline](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/blob/main/tools/content-pipeline/README.md).
 
 ## Credits and license
 

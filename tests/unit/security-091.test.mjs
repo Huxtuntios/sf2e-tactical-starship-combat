@@ -27,6 +27,41 @@ async function setup() {
   return { send };
 }
 const flag = (a) => a.flags[M].starship;
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+/** Hold the next Actor write while a release passes its old-occupant precheck and enters the queue. */
+async function interleaveRelease(t, { send, ship, occupant, write }) {
+  const blocked = deferred(),
+    resume = deferred(),
+    prechecked = deferred();
+  t.after(() => resume.resolve());
+  const update = ship.update.bind(ship);
+  ship.update = async (changes, ...args) => {
+    blocked.resolve();
+    await resume.promise;
+    return update(changes, ...args);
+  };
+  const writing = write();
+  await blocked.promise;
+  const testPermission = occupant.testUserPermission.bind(occupant);
+  occupant.testUserPermission = (user, permission) => {
+    const allowed = testPermission(user, permission);
+    if (user.id === "p1" && permission === "OWNER") prechecked.resolve();
+    return allowed;
+  };
+  const releasing = send("p1", "releaseStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: occupant.uuid });
+  // Resolving from the synchronous permission check resumes us only after the handler has queued its patch.
+  await prechecked.promise;
+  assert.equal(flag(ship).stations[0].helmedBy, occupant.uuid, "precheck sees the old occupant before the held write commits");
+  resume.resolve();
+  return Promise.all([writing, releasing]);
+}
 
 /* ------------------------------------------------------------------ must fix 1: crew access to ships */
 test("0.9.1: a player cannot add their PC as crew on an enemy (NPC) ship", async () => {
@@ -116,7 +151,6 @@ test("a user linked to a crew entry can release their assigned station without a
     id: "linked-ship",
     name: "Party ship",
     role: "player",
-    owners: ["p1"],
     stations: [{ id: "pilot-1", name: "Pilot", type: "pilot", helmedBy: actor.uuid }],
     crew: [{ actorUuid: actor.uuid, name: actor.name, userId: "p1", role: "crew", stationId: "pilot-1" }]
   });
@@ -124,6 +158,86 @@ test("a user linked to a crew entry can release their assigned station without a
   assert.equal(result.ok, true);
   assert.equal(ship.flags[M].starship.stations.find((station) => station.id === "pilot-1").helmedBy, null);
 });
+
+for (const linked of [false, true]) {
+  test(`queued ${linked ? "linked-user" : "owner"} release cannot evict a GM's replacement occupant`, { timeout: 3000 }, async (t) => {
+    const { send } = await setup();
+    const a = makeCharacter({ id: "old-occupant", name: "Old pilot", owners: linked ? ["p2"] : ["p1"] });
+    const b = makeCharacter({ id: "new-occupant", name: "New pilot", owners: ["p2"] });
+    const ship = makeShip({
+      id: "release-race",
+      name: "Party ship",
+      stations: [{ id: "pilot-1", type: "pilot", helmedBy: a.uuid }],
+      crew: [
+        { actorUuid: a.uuid, name: a.name, userId: linked ? "p1" : null, role: "crew", stationId: "pilot-1" },
+        { actorUuid: b.uuid, name: b.name, userId: "p2", role: "crew", stationId: null }
+      ]
+    });
+    const [claimed, released] = await interleaveRelease(t, {
+      send,
+      ship,
+      occupant: a,
+      write: () => send("gm", "claimStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: b.uuid, force: true })
+    });
+    assert.equal(claimed.ok, true);
+    assert.equal(released.ok, false);
+    assert.match(released.error, /noPermission|permission/i);
+    assert.equal(flag(ship).stations[0].helmedBy, b.uuid);
+    assert.equal(flag(ship).crew.find((c) => c.actorUuid === a.uuid).stationId, null);
+    assert.equal(flag(ship).crew.find((c) => c.actorUuid === b.uuid).stationId, "pilot-1");
+    assert.equal(globalThis.__writes.filter((w) => w.doc === ship.uuid).length, 1, "denied release never writes");
+  });
+}
+
+for (const userId of ["p1", "gm", "p2"]) {
+  test(`${userId === "p1" ? "occupant owner" : userId === "gm" ? "GM" : "ship assignCrew user"} can release an occupied station`, async () => {
+    const { send } = await setup();
+    const actor = makeCharacter({ id: "release-pc", name: "Pilot", owners: ["p1"] });
+    const ship = makeShip({
+      id: "release-ship",
+      name: "Party ship",
+      owners: ["p2"],
+      stations: [{ id: "pilot-1", type: "pilot", helmedBy: actor.uuid }],
+      crew: [{ actorUuid: actor.uuid, name: actor.name, userId: null, role: "crew", stationId: "pilot-1" }]
+    });
+    const result = await send(userId, "releaseStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: actor.uuid });
+    assert.equal(result.ok, true);
+    assert.equal(result.result, true);
+    assert.equal(flag(ship).stations[0].helmedBy, null);
+    assert.equal(flag(ship).crew[0].stationId, null);
+  });
+}
+
+for (const removed of [false, true]) {
+  test(`queued release is a no-op when its station is ${removed ? "removed" : "already free"}`, { timeout: 3000 }, async (t) => {
+    const { send } = await setup();
+    const { patchStarship } = await import("../../scripts/starship/starship-state.mjs");
+    const actor = makeCharacter({ id: "empty-pc", name: "Pilot", owners: ["p1"] });
+    const ship = makeShip({
+      id: "empty-ship",
+      name: "Party ship",
+      stations: [{ id: "pilot-1", type: "pilot", helmedBy: actor.uuid }],
+      crew: [{ actorUuid: actor.uuid, name: actor.name, role: "crew", stationId: "pilot-1" }]
+    });
+    const [, released] = await interleaveRelease(t, {
+      send,
+      ship,
+      occupant: actor,
+      write: () =>
+        patchStarship(ship, (data) => {
+          if (removed) data.stations = [];
+          else data.stations[0].helmedBy = null;
+        })
+    });
+    assert.equal(released.ok, true);
+    assert.equal(released.result, false);
+    assert.equal(flag(ship).crew[0].stationId, null);
+    assert.equal(globalThis.__writes.filter((w) => w.doc === ship.uuid).length, 1);
+    const again = await send("p1", "releaseStation", { shipUuid: ship.uuid, stationId: "pilot-1", crewUuid: actor.uuid });
+    assert.equal(again.ok, true);
+    assert.equal(again.result, false);
+  });
+}
 
 /* ------------------------------------------------------------------ must fix 2: only starships are written */
 test("0.9.1: ship and crew handlers refuse actors that are not starships", async () => {
