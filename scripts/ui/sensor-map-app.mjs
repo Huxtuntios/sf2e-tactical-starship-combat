@@ -11,7 +11,7 @@ import { viewFor, findObject } from "../engine/sensor-ops.mjs";
 import { readStarship, statusOf, isStarship } from "../starship/starship-state.mjs";
 import { computeShipStats } from "../starship/stats.mjs";
 import { request } from "../socket.mjs";
-import { T, moduleSetting, fromUuidSafe, escapeHtml } from "../utils/foundry.mjs";
+import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { wireSensorMapDragDrop } from "./sensor-drop-ui.mjs";
 import { SensorContactEditor } from "./sensor-contact-editor.mjs";
@@ -233,12 +233,14 @@ export class SensorMapApplication extends TscApp {
 
   async #detail(sel, tsc, isGM) {
     const obj = findObject(tsc, sel.key);
-    if (obj?.privateContact)
+    if (obj?.privateContact) {
+      const actor = isGM && obj.type === "starship" && obj.actorUuid ? await fromUuidSafe(obj.actorUuid) : null;
       return {
         key: obj.key,
         label: obj.name,
         privateContact: true,
         zone: obj.zone,
+        canAddToInitiative: !!(actor && isStarship(actor) && readStarship(actor).role === "npc"),
         zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
         canRename: obj.type === "custom",
@@ -249,6 +251,7 @@ export class SensorMapApplication extends TscApp {
           active: obj.detection.party === id
         }))
       };
+    }
     const actor = sel.type === "starship" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
     // Игровая информация об опасности — на существующем листе Hazard Actor; видимость определяют его права.
     const hazardActor = sel.type === "hazard" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
@@ -293,8 +296,6 @@ export class SensorMapApplication extends TscApp {
         actor &&
         isStarship(actor) &&
         readStarship(actor).role === "npc" &&
-        !obj.hidden &&
-        ["observed", "identified"].includes(obj.detection?.party) &&
         !obj.privateContact &&
         !obj.tscPrivateProjection,
       key: sel.key,
@@ -499,16 +500,15 @@ export class SensorMapApplication extends TscApp {
     this._initiativeRequests.add(key);
     try {
       const result = await request("sensorAddInitiative", { combatId: combat.id, key });
-      if (result.status === "added") ui.notifications?.info?.(T("SF2eTSC.initiative.addedOne", { name: result.item.name }));
-      else if (result.status === "existing") ui.notifications?.info?.(T("SF2eTSC.initiative.existingOne", { name: result.item.name }));
+      if (result.status === "added") ui.notifications?.info?.(T("SF2eTSC.initiative.addedOne"));
+      else if (result.status === "existing") ui.notifications?.info?.(T("SF2eTSC.initiative.existingOne"));
       else if (result.status === "skipped")
         ui.notifications?.warn?.(
           T("SF2eTSC.initiative.skippedOne", {
-            name: result.item.name,
-            reason: T(`SF2eTSC.initiative.reasons.${result.item.reason}`)
+            reason: T(`SF2eTSC.initiative.reasons.${result.reason}`)
           })
         );
-      else ui.notifications?.error?.(T("SF2eTSC.initiative.failedOne", { name: result.item.name }));
+      else ui.notifications?.error?.(T("SF2eTSC.initiative.failedOne"));
     } finally {
       this._initiativeRequests.delete(key);
     }
@@ -519,32 +519,8 @@ export class SensorMapApplication extends TscApp {
     this._addingAllNpcInitiative = true;
     try {
       const report = await request("sensorAddAllNpcInitiative", { combatId: combat.id });
-      const counts = {
-        added: report.added.length,
-        existing: report.existing.length,
-        skipped: report.skipped.length,
-        failed: report.failed.length
-      };
-      ui.notifications?.info?.(T("SF2eTSC.initiative.bulkSummary", counts));
-      const sections = ["added", "existing", "skipped", "failed"]
-        .map((key) => {
-          const items = report[key]
-            .map((item) => {
-              const reason =
-                item.reason && key !== "added" && key !== "existing"
-                  ? ` — ${escapeHtml(T(`SF2eTSC.initiative.reasons.${item.reason}`))}`
-                  : "";
-              const message = item.message ? ` — ${escapeHtml(item.message)}` : "";
-              return `<li>${escapeHtml(item.name)}${reason}${message}</li>`;
-            })
-            .join("");
-          return `<h3>${escapeHtml(T(`SF2eTSC.initiative.sections.${key}`, { count: counts[key] }))}</h3>${items ? `<ul>${items}</ul>` : `<p>${escapeHtml(T("SF2eTSC.initiative.none"))}</p>`}`;
-        })
-        .join("");
-      await ChatMessage.create({
-        content: `<h2>${escapeHtml(T("SF2eTSC.initiative.bulkTitle"))}</h2>${sections}`,
-        whisper: ChatMessage.getWhisperRecipients("GM").map((user) => user.id)
-      });
+      ui.notifications?.info?.(T("SF2eTSC.initiative.bulkSummary", report));
+      if (!report.reportCreated) ui.notifications?.warn?.(T("SF2eTSC.initiative.reportFailed"));
     } finally {
       this._addingAllNpcInitiative = false;
     }

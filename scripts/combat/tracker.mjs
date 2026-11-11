@@ -3,11 +3,13 @@ import { Initiative } from "./initiative.mjs";
 import { isStarshipCombat } from "./tsc-state.mjs";
 import { readStarship, statusOf } from "../starship/starship-state.mjs";
 import { T, escapeHtml } from "../utils/foundry.mjs";
+import { displayDesignation } from "../utils/designations.mjs";
 import { syncCrewCombatants } from "./crew-sync.mjs";
 import { openSensorMap, openStartWizard } from "../ui/launchers.mjs";
 import { can } from "../crew/permissions.mjs";
 
 const ICON = { ship: "🚀", compromised: "⚠🚀", hazard: "⚠" };
+const CONTACT_ICON = "icons/svg/mystery-man.svg";
 
 /**
  * exact Hull / Shield Points are shown only to viewers allowed to see the ship (GM, owner/observer of the
@@ -41,6 +43,22 @@ export function decorateTracker(app, element) {
     li.querySelector(".tsc-badge")?.remove();
     const c = combat.combatants.get(li.dataset.combatantId);
     if (!c?.actor) continue;
+    if (c.flags?.[MODULE_ID]?.sensorMapInitiative?.contactDesignation) {
+      const label = displayDesignation(c.name ?? "Contact");
+      const name = li.querySelector(".token-name, .combatant-name, .name");
+      if (name) {
+        name.textContent = label;
+        name.removeAttribute("title");
+        name.setAttribute("aria-label", label);
+      }
+      const image = li.querySelector("img.token-image, img");
+      if (image) {
+        image.src = CONTACT_ICON;
+        image.alt = label;
+        image.removeAttribute("title");
+      }
+      continue;
+    }
     const kind = Initiative.kindOf(c);
     let html = "";
     if (kind === "ship" || kind === "compromised") {
