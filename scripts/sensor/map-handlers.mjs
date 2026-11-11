@@ -9,8 +9,11 @@ import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-mod
 import { serialize } from "../utils/serial.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
+import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
 
 export function registerSensorHandlers() {
+  registerHandler("sensorAddInitiative", async ({ user, payload }) => addSensorObjectToInitiative(payload?.combatId, payload?.key, user));
+  registerHandler("sensorAddAllNpcInitiative", async ({ user, payload }) => addAllNpcShipsToInitiative(payload?.combatId, user));
   registerHandler("sensorUpdate", async ({ user, payload: raw }) =>
     serialize(`sensor:${String(raw?.combatId ?? "")}`, async () => {
       const combat = game.combats.get(raw.combatId);

@@ -171,6 +171,8 @@ export class MockCombatant {
       tokenId: data.tokenId ?? null,
       sceneId: data.sceneId ?? null,
       initiative: data.initiative ?? null,
+      customName: data.name ?? null,
+      img: data.img ?? globalThis.game.actors.get(data.actorId)?.img ?? null,
       flags: structuredClone(data.flags ?? {}),
       hidden: !!data.hidden
     });
@@ -179,7 +181,14 @@ export class MockCombatant {
     return globalThis.game.actors.get(this.actorId) ?? null;
   }
   get name() {
-    return this.actor?.name ?? "?";
+    return this.customName ?? this.actor?.name ?? "?";
+  }
+  async update(changes) {
+    if (Object.hasOwn(changes, "name")) this.customName = changes.name;
+    if (Object.hasOwn(changes, "img")) this.img = changes.img;
+    if (Object.hasOwn(changes, "hidden")) this.hidden = changes.hidden;
+    globalThis.__writes.push({ doc: `Combatant.${this.id}`, changes });
+    return this;
   }
 }
 

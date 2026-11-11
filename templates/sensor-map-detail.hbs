@@ -6,6 +6,7 @@
       <p>{{detail.detectionLabel}} — {{localize "SF2eTSC.ui.zone"}} {{detail.zone}}</p>
       <p class="tsc-hint">{{localize "SF2eTSC.privateMap.hint"}}</p>
       {{#if detail.actorUuid}}<button type="button" data-action="privateOpen" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
+      {{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}
       {{#if detail.canRename}}<button type="button" data-action="privateRename" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.rename"}}</button>{{/if}}
       <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">{{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="privateDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}</div>
       <label>{{localize "SF2eTSC.ui.zone"}} <select data-private-zone="{{detail.key}}">{{#each detail.zoneChoices}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
@@ -23,6 +24,7 @@
       {{/if}}
       <div class="tsc-detail-actions">
         {{#if detail.canOpen}}<button type="button" data-action="openSheet" data-key="{{detail.key}}"><i class="fa-solid fa-file-lines"></i> {{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
+        {{#if @root.isGM}}{{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}{{/if}}
         {{#if detail.canMove}}
           <button type="button" data-action="moveLeft" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}" title="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
           <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>

@@ -84,7 +84,9 @@ export class SensorMapApplication extends TscApp {
       cancelTargeting: SensorMapApplication.#cancel,
       dockAct: SensorMapApplication.#dockAct,
       dockPick: SensorMapApplication.#dockPick,
-      openCrew: () => openCrewManager()
+      openCrew: () => openCrewManager(),
+      addInitiative: guardPrivate(SensorMapApplication.#addInitiative),
+      addAllNpcInitiative: guardPrivate(SensorMapApplication.#addAllNpcInitiative)
     }
   };
   static PARTS = {
@@ -231,12 +233,14 @@ export class SensorMapApplication extends TscApp {
 
   async #detail(sel, tsc, isGM) {
     const obj = findObject(tsc, sel.key);
-    if (obj?.privateContact)
+    if (obj?.privateContact) {
+      const actor = isGM && obj.type === "starship" && obj.actorUuid ? await fromUuidSafe(obj.actorUuid) : null;
       return {
         key: obj.key,
         label: obj.name,
         privateContact: true,
         zone: obj.zone,
+        canAddToInitiative: !!(actor && isStarship(actor) && readStarship(actor).role === "npc"),
         zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
         canRename: obj.type === "custom",
@@ -247,6 +251,7 @@ export class SensorMapApplication extends TscApp {
           active: obj.detection.party === id
         }))
       };
+    }
     const actor = sel.type === "starship" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
     // Игровая информация об опасности — на существующем листе Hazard Actor; видимость определяют его права.
     const hazardActor = sel.type === "hazard" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
@@ -285,6 +290,14 @@ export class SensorMapApplication extends TscApp {
       typeOptions: objectTypeView(sel, isGM),
       vitals,
       canMove: canMoveKey(game.user, tsc, sel.key),
+      canAddToInitiative:
+        isGM &&
+        sel.type === "starship" &&
+        actor &&
+        isStarship(actor) &&
+        readStarship(actor).role === "npc" &&
+        !obj.privateContact &&
+        !obj.tscPrivateProjection,
       key: sel.key,
       label: displayDesignation(sel.label),
       type: sel.type,
@@ -477,6 +490,40 @@ export class SensorMapApplication extends TscApp {
         combatId: c.id,
         zones: Math.min(Math.max(Math.round(v), ZONE_LIMITS.min), ZONE_LIMITS.max)
       });
+  }
+  static async #addInitiative(_event, target) {
+    const combat = activeStarshipCombat();
+    const key = target.dataset.key;
+    if (!game.user.isGM || !combat || !key) return;
+    this._initiativeRequests ??= new Set();
+    if (this._initiativeRequests.has(key)) return;
+    this._initiativeRequests.add(key);
+    try {
+      const result = await request("sensorAddInitiative", { combatId: combat.id, key });
+      if (result.status === "added") ui.notifications?.info?.(T("SF2eTSC.initiative.addedOne"));
+      else if (result.status === "existing") ui.notifications?.info?.(T("SF2eTSC.initiative.existingOne"));
+      else if (result.status === "skipped")
+        ui.notifications?.warn?.(
+          T("SF2eTSC.initiative.skippedOne", {
+            reason: T(`SF2eTSC.initiative.reasons.${result.reason}`)
+          })
+        );
+      else ui.notifications?.error?.(T("SF2eTSC.initiative.failedOne"));
+    } finally {
+      this._initiativeRequests.delete(key);
+    }
+  }
+  static async #addAllNpcInitiative() {
+    const combat = activeStarshipCombat();
+    if (!game.user.isGM || !combat || this._addingAllNpcInitiative) return;
+    this._addingAllNpcInitiative = true;
+    try {
+      const report = await request("sensorAddAllNpcInitiative", { combatId: combat.id });
+      ui.notifications?.info?.(T("SF2eTSC.initiative.bulkSummary", report));
+      if (!report.reportCreated) ui.notifications?.warn?.(T("SF2eTSC.initiative.reportFailed"));
+    } finally {
+      this._addingAllNpcInitiative = false;
+    }
   }
   static #addContact() {
     const c = activeStarshipCombat();
