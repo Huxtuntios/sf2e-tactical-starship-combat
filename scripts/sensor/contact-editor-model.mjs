@@ -9,7 +9,7 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
   const needle = String(state.filter ?? "")
     .trim()
     .toLocaleLowerCase();
-  const choices = (needle ? list.filter((c) => c.name.toLocaleLowerCase().includes(needle)) : list).slice(0, 400);
+  const choices = needle ? list.filter((c) => c.name.toLocaleLowerCase().includes(needle)) : list;
   return {
     sources: CONTACT_SOURCES.map((id) => ({ id, label: T(`SF2eTSC.contactEditor.sources.${id}`), checked: id === source })),
     isCustom: source === "custom",

@@ -1759,7 +1759,7 @@
       "copyNote": "A separate world Actor is created for each placement, leaving the compendium source unchanged.",
       "add": "Add",
       "addPublic": "Add environment object (asteroid, station, …)",
-      "pick": "Choose a hazard first.",
+      "pick": "Choose a Hazard or Starship Actor first.",
       "nameRequired": "Enter a contact name.",
       "invalidSource": "This source cannot be used.",
       "invalidDetection": "Unknown detection state.",
