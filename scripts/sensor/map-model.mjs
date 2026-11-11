@@ -13,7 +13,13 @@ import {
   updateObject
 } from "../engine/sensor-ops.mjs";
 import { OBJECT_TYPES } from "./object-types.mjs";
-import { normalizeMapAppearance, normalizeObjectTransform, safeImagePath } from "./appearance.mjs";
+import {
+  ARROW_APPEARANCE_FIELDS,
+  normalizeMapAppearance,
+  normalizeObjectTransform,
+  resolveArrowAppearance,
+  safeImagePath
+} from "./appearance.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
 
 export const ICONS = {
@@ -107,6 +113,16 @@ export function applySensorOp(s, payload, opts = {}) {
       if (typeof patch.art === "string") out.art = safeImagePath(patch.art);
       if (patch.autoMirrorOverride === null || typeof patch.autoMirrorOverride === "boolean")
         out.autoMirrorOverride = patch.autoMirrorOverride;
+      if (patch.arrowAppearance === null) out.arrowAppearance = null;
+      else if (patch.arrowAppearance && typeof patch.arrowAppearance === "object" && !Array.isArray(patch.arrowAppearance)) {
+        const arrowPatch = Object.fromEntries(
+          ARROW_APPEARANCE_FIELDS.filter((field) => Object.hasOwn(patch.arrowAppearance, field)).map((field) => [
+            field,
+            patch.arrowAppearance[field]
+          ])
+        );
+        if (Object.keys(arrowPatch).length) out.arrowAppearance = resolveArrowAppearance(s.appearance, arrowPatch);
+      }
       return Object.keys(out).length ? updateObject(s, payload.key, out) : s;
     }
     case "art":

@@ -1471,6 +1471,13 @@
         "on": "On",
         "off": "Off"
       },
+      "arrowAppearanceMode": "Course arrow format",
+      "arrowAppearanceHint": "Choose whether this object follows the current global arrow settings or uses the values below for this object only.",
+      "arrowAppearanceOptions": {
+        "inherit": "Inherit global format",
+        "override": "Use custom format"
+      },
+      "resetArrowAppearance": "Reset arrow to global",
       "orientation": "Image orientation",
       "rotation": "Rotation (degrees)",
       "flipX": "Flip horizontal",

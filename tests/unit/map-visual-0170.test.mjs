@@ -6,6 +6,7 @@ import {
   normalizeAngle,
   normalizeObjectTransform,
   normalizeMapAppearance,
+  resolveArrowAppearance,
   visualTransform,
   changedFields
 } from "../../scripts/sensor/appearance.mjs";
@@ -101,6 +102,79 @@ test("object auto-mirroring overrides the global setting and recomputes from eac
   const legacy = state();
   assert.equal(viewFor(legacy)[0].autoMirrorOverride, null);
 });
+test("object arrow formats inherit live globals, override them, and reset without changing game state", () => {
+  assert.deepEqual(resolveArrowAppearance({}, null), {
+    arrowMode: "text",
+    arrowImage: "",
+    arrowSize: 18,
+    arrowGap: 4,
+    arrowPosition: "right",
+    arrowOpacity: 1
+  });
+  const global = {
+    arrowMode: "emoji",
+    arrowImage: "global-arrow.webp",
+    arrowSize: 20,
+    arrowGap: 6,
+    arrowPosition: "top",
+    arrowOpacity: 0.6,
+    autoMirror: true
+  };
+  let s = state();
+  s.appearance = global;
+
+  const inherited = viewFor(s)[0];
+  assert.deepEqual(resolveArrowAppearance(s.appearance, inherited.arrowAppearance), {
+    arrowMode: "emoji",
+    arrowImage: "global-arrow.webp",
+    arrowSize: 20,
+    arrowGap: 6,
+    arrowPosition: "top",
+    arrowOpacity: 0.6
+  });
+  s = applySensorOp(s, { op: "appearancePatch", appearance: { arrowSize: 28, arrowOpacity: 0.9 } });
+  assert.equal(resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance).arrowSize, 28);
+  assert.equal(resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance).arrowOpacity, 0.9);
+
+  const objectFormat = {
+    arrowMode: "custom",
+    arrowImage: "object-arrow.webp",
+    arrowSize: 32,
+    arrowGap: 3,
+    arrowPosition: "left",
+    arrowOpacity: 0.4
+  };
+  s = applySensorOp(s, { op: "objectVisual", key: ship.key, visual: { arrowAppearance: objectFormat } });
+  assert.deepEqual(resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance), objectFormat);
+  s = normalizeSensorState(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance), objectFormat);
+  s = applySensorOp(s, { op: "appearancePatch", appearance: { arrowMode: "none", arrowSize: 40 } });
+  assert.deepEqual(resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance), objectFormat);
+
+  s.objects[0].mapTransform = { rotation: 90, flipX: true, baseDirection: "right" };
+  const originalGameData = {
+    heading: s.objects[0].heading,
+    zone: s.objects[0].zone,
+    detection: structuredClone(s.objects[0].detection),
+    actorUuid: s.objects[0].actorUuid
+  };
+  const transform = visualTransform(s.objects[0].mapTransform, s.objects[0].heading, s.appearance.autoMirror);
+  assert.equal(transform.rotation, 90);
+  assert.equal(transform.auto, true);
+  assert.equal(transform.scaleX, 1);
+  assert.equal(s.objects[0].heading, originalGameData.heading);
+  assert.equal(s.objects[0].zone, originalGameData.zone);
+  assert.deepEqual(s.objects[0].detection, originalGameData.detection);
+  assert.equal(s.objects[0].actorUuid, originalGameData.actorUuid);
+
+  s = applySensorOp(s, { op: "objectVisual", key: ship.key, visual: { arrowAppearance: null } });
+  assert.equal(s.objects[0].arrowAppearance, null);
+  const reset = resolveArrowAppearance(s.appearance, viewFor(s)[0].arrowAppearance);
+  assert.equal(reset.arrowMode, "none");
+  assert.equal(reset.arrowSize, 40);
+  assert.equal(reset.arrowPosition, "top");
+  assert.equal(s.objects[0].heading, originalGameData.heading);
+});
 test("visual edits preserve game state, other objects and unknown data", () => {
   const s = state();
   s.objects[0].mapTransform = { custom: "preserve", rotation: 25 };
@@ -163,10 +237,28 @@ test("templates contain distinct controls and escape custom image paths", () => 
     objectMode: true,
     transform: {},
     directions: [],
-    autoMirrorOptions: [{ id: "inherit", selected: true }, { id: "on" }, { id: "off" }]
+    autoMirrorOptions: [{ id: "inherit", selected: true }, { id: "on" }, { id: "off" }],
+    arrowAppearance: {
+      arrowMode: "custom",
+      arrowImage: "object-arrow.webp",
+      arrowSize: 24,
+      arrowGap: 7,
+      arrowPosition: "left",
+      arrowOpacity: 0.5
+    },
+    arrowModes: [{ id: "custom", selected: true }],
+    positions: [{ id: "left", selected: true }],
+    arrowAppearanceOptions: [{ id: "inherit" }, { id: "override", selected: true }],
+    arrowAppearanceMode: "override",
+    arrowAppearanceOverridden: true
   });
   assert.match(obj, /name="autoMirrorOverride"/);
   for (const id of ["inherit", "on", "off"]) assert.match(obj, new RegExp(`value="${id}"`));
+  assert.match(obj, /name="arrowAppearanceMode"/);
+  for (const id of ["inherit", "override"]) assert.match(obj, new RegExp(`value="${id}"`));
+  for (const name of ["arrowMode", "arrowImage", "arrowSize", "arrowGap", "arrowPosition", "arrowOpacity"])
+    assert.match(obj, new RegExp(`name="${name}"`));
+  assert.match(obj, /data-action="resetArrowAppearance"/);
   for (const op of ["left", "right", "resetRotation", "resetFlipping", "resetAll"]) assert.match(obj, new RegExp(`data-op="${op}"`));
   const template = h.compile(fs.readFileSync(new URL("../../templates/sensor-map-zones.hbs", import.meta.url), "utf8"));
   const html = template({

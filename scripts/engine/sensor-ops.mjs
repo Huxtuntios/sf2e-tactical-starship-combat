@@ -144,6 +144,7 @@ export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], 
           ? o.autoMirrorOverride
           : null
         : undefined,
+      arrowAppearance: known ? o.arrowAppearance : undefined,
       span: o.span
     });
   }
