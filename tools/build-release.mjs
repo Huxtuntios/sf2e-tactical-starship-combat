@@ -70,18 +70,14 @@ export function validateReleaseCompatibility(manifest) {
   }
 }
 
-function collect(root, relative, entries, packManifests) {
-  const name = posix(relative);
-  if (name.startsWith("packs/") && /\.(?:dbtmp|db-wal|db-shm)$/.test(name)) return;
-  if (name.startsWith("packs/") && /\/(?:LOCK|LOG|LOG\.old)$/.test(name)) return;
-  const packManifest = name.match(/^(packs\/.+)\/(MANIFEST-\d+)$/);
-  if (packManifest && packManifests.get(packManifest[1]) !== packManifest[2]) return;
+function collect(root, relative, entries) {
   const file = path.join(root, relative);
   const stat = fs.lstatSync(file);
   if (stat.isSymbolicLink()) throw new Error(`Release paths must not be symbolic links: ${relative}`);
   if (stat.isDirectory()) {
-    for (const name of fs.readdirSync(file).sort()) collect(root, path.join(relative, name), entries, packManifests);
+    for (const name of fs.readdirSync(file).sort()) collect(root, path.join(relative, name), entries);
   } else {
+    const name = posix(relative);
     if (SOURCE_ONLY_DOCS.has(name) || /(?:^|\/)(?:__pycache__|\.DS_Store|LOCK|LOG|LOG\.old)(?:\/|$)/.test(name) || name.endsWith(".pyc"))
       return;
     entries[name] = [new Uint8Array(fs.readFileSync(file)), { mtime: ZIP_DATE }];
@@ -100,25 +96,14 @@ export function buildRelease({
     throw new Error("Manifest, package and lockfile versions must match.");
   const manifest = releaseManifest(source, repo);
   validateReleaseCompatibility(manifest);
-  const packManifests = new Map();
   for (const pack of manifest.packs) {
     const packPath = path.join(root, pack.path);
     const current = path.join(packPath, "CURRENT");
-    const manifestName = fs.existsSync(current) ? fs.readFileSync(current, "utf8").trim() : "";
-    if (!manifestName || !fs.existsSync(path.join(packPath, manifestName)))
+    if (!fs.existsSync(current) || !fs.existsSync(path.join(packPath, fs.readFileSync(current, "utf8").trim())))
       throw new Error(`Missing compiled pack ${pack.path}; run npm run build:packs first.`);
-    packManifests.set(posix(pack.path), manifestName);
   }
   const entries = {};
-  for (const relative of RUNTIME_PATHS) collect(root, relative, entries, packManifests);
-  for (const pack of manifest.packs) {
-    const packPath = posix(pack.path);
-    const current = entries[`${packPath}/CURRENT`];
-    const currentManifest = current ? new TextDecoder().decode(current[0]).trim() : "";
-    const expectedManifest = packManifests.get(packPath);
-    if (currentManifest !== expectedManifest || !entries[`${packPath}/${expectedManifest}`])
-      throw new Error(`Pack changed while packaging: ${pack.path}`);
-  }
+  for (const relative of RUNTIME_PATHS) collect(root, relative, entries);
   const json = `${JSON.stringify(manifest, null, 2)}\n`;
   entries["module.json"] = [strToU8(json), { mtime: ZIP_DATE }];
   // Foundry's installer expects module.json at the ZIP root, not inside an extra module directory.

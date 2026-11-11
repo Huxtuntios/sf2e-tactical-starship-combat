@@ -52,56 +52,6 @@ test("release builder refuses mismatching package versions before collecting fil
   }
 });
 
-test("release ZIP excludes transient pack database artifacts", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-release-artifacts-"));
-  try {
-    const manifest = {
-      ...source,
-      packs: [
-        { name: "starship-actions", path: "packs/starship-actions", type: "Item", system: "sf2e" },
-        { name: "starship-actions-pf2e", path: "packs/starship-actions-pf2e", type: "Item", system: "pf2e" }
-      ],
-      compatibility: { minimum: "13", verified: "13" },
-      relationships: {
-        systems: [
-          { id: "sf2e", type: "system", compatibility: { minimum: "13", verified: "13" } },
-          { id: "pf2e", type: "system", compatibility: { minimum: "13", verified: "13" } }
-        ]
-      }
-    };
-    for (const name of ["README.md", "README.ru.md", "CHANGELOG.md", "LICENSE", "THIRD-PARTY-NOTICES.md"])
-      fs.writeFileSync(path.join(root, name), "");
-    for (const name of ["assets", "data", "lang", "packs", "scripts", "styles", "templates", "docs"])
-      fs.mkdirSync(path.join(root, name), { recursive: true });
-    for (const pack of manifest.packs) {
-      const packPath = path.join(root, pack.path);
-      fs.mkdirSync(packPath, { recursive: true });
-      fs.writeFileSync(path.join(packPath, "CURRENT"), "MANIFEST-000006\n");
-      fs.writeFileSync(path.join(packPath, "MANIFEST-000006"), "current");
-      fs.writeFileSync(path.join(packPath, "MANIFEST-000002"), "stale");
-    }
-    for (const name of ["000006.dbtmp", "000006.db-wal", "000006.db-shm"])
-      fs.writeFileSync(path.join(root, "packs", "starship-actions", name), "transient");
-    fs.writeFileSync(path.join(root, "module.json"), JSON.stringify(manifest));
-    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: source.version }));
-    fs.writeFileSync(
-      path.join(root, "package-lock.json"),
-      JSON.stringify({ version: source.version, packages: { "": { version: source.version } } })
-    );
-
-    const out = path.join(root, "dist");
-    buildRelease({ root, out });
-    const names = Object.keys(unzipSync(fs.readFileSync(path.join(out, "module.zip"))));
-    assert.ok(!names.some((name) => /\.(?:dbtmp|db-wal|db-shm)$/.test(name)));
-    for (const pack of manifest.packs) {
-      assert.ok(names.includes(`${pack.path}/MANIFEST-000006`));
-      assert.ok(!names.includes(`${pack.path}/MANIFEST-000002`));
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
 test("release ZIP contains matching root manifest and complete packs, but no developer files", () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "tsc-release-"));
   try {

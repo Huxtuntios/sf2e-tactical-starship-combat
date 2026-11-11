@@ -2,7 +2,7 @@ import { TscApp, tpl } from "./base-app.mjs";
 import { Content } from "../content/loader.mjs";
 import { Importer } from "../content/importer.mjs";
 import { MODULE_ID } from "../constants.mjs";
-import { addSensorContact } from "../sensor/contact-service.mjs";
+import { addPrivateContact } from "../sensor/private-contacts.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { T, isActiveGM } from "../utils/foundry.mjs";
 import { notifyError, notifyInfo } from "../utils/logging.mjs";
@@ -135,12 +135,7 @@ export class ContentBrowser extends TscApp {
     const c = activeStarshipCombat();
     if (!c) throw new Error(T("SF2eTSC.errors.noCombat"));
     const { getTsc } = await import("../combat/tsc-state.mjs");
-    await addSensorContact(c, {
-      source: "world",
-      uuid: a.uuid,
-      zone: this.mode === "hazards" ? Number(t.dataset.zone) || 1 : Math.max(1, getTsc(c).zones - 1),
-      detection: "undetected"
-    });
+    await addPrivateContact(c, a, this.mode === "hazards" ? Number(t.dataset.zone) || 1 : Math.max(1, getTsc(c).zones - 1));
     notifyInfo("SF2eTSC.ui.placed", { name: a.name });
   }
   static async #updateAll() {

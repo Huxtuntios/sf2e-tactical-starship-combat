@@ -149,7 +149,6 @@ async function resolveOnce(user, payload, eventId) {
   }
   return {
     ok: true,
-    cancelled: !!res.cancelled,
     degree: res.degree,
     messageId: message?.id ?? null,
     warnings: (res.reports ?? []).filter((r) => String(r).startsWith("⚠"))

@@ -117,7 +117,7 @@ export async function postPilotingSave(actor, save) {
 }
 
 /** Roll a ship check / save / skill. dc is optional; without it no degree is computed or shown. */
-export async function rollShipCheck(actor, slug, { dc = null, event = null } = {}) {
+export async function rollShipCheck(actor, slug, { dc = null } = {}) {
   const row = shipCheckRows(actor).find((r) => r.slug === slug);
   if (!row) throw new Error(T("SF2eTSC.rolls.noSuchCheck", { slug: String(slug) }));
   const n = Number(dc);
@@ -128,7 +128,6 @@ export async function rollShipCheck(actor, slug, { dc = null, event = null } = {
     dc: dcv,
     label,
     actor,
-    event,
     modifierOnly: row.mod,
     extraRollOptions: ["starship", `starship-check:${slug}`]
   });

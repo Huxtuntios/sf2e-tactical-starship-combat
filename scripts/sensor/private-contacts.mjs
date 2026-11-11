@@ -5,17 +5,8 @@ import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
-import {
-  deleteSensorActorCombatant,
-  deleteSensorActorInstance,
-  ensureSensorActorCombatant,
-  isSensorActorInstance,
-  privateSensorActorCombatant,
-  revealSensorActorCombatant,
-  restorePrivateSensorActorCombatant
-} from "./actor-instance.mjs";
 
-// Отдельный JournalEntry без родительской папки и наследуемых прав; в Combat сохраняется только проекция карты.
+// Отдельный документ без родительской папки и наследуемых прав; секреты не входят в Combat и module socket.
 function requireGM() {
   if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
 }
@@ -28,15 +19,11 @@ function storeFor(combatId) {
   if (!doc) return null;
   const ownership = doc.ownership ?? {};
   const marker = doc.flags?.[MODULE_ID]?.privateSensor;
-  const users = game.users?.contents;
   if (
     doc.folder ||
     ownership.default !== 0 ||
     marker?.schema !== 1 ||
     !Array.isArray(marker.contacts) ||
-    typeof doc.testUserPermission !== "function" ||
-    !Array.isArray(users) ||
-    users.some((user) => !user.isGM && doc.testUserPermission(user, "LIMITED")) ||
     Object.entries(ownership).some(([id, level]) => id !== "default" && Number(level) > 0 && !game.users.get(id)?.isGM)
   )
     throw new Error(T("SF2eTSC.privateMap.invalidStore"));
@@ -89,11 +76,9 @@ function assertHiddenActor(actor, combat) {
   // Прямой доступ к Actor или Combatant не устраняется скрытием карты.
   if (typeof actor.testUserPermission !== "function" || !Array.isArray(game.users?.contents))
     throw new Error(T("SF2eTSC.privateMap.invalidActor"));
-  const actorCombatants = [...(combat.combatants ?? [])].filter((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id);
-  const privateInitiative = privateSensorActorCombatant(combat, actor);
   if (
     game.users.contents.some((u) => !u.isGM && actor.testUserPermission(u, "LIMITED")) ||
-    (actorCombatants.length > 0 && (actorCombatants.length !== 1 || actorCombatants[0] !== privateInitiative))
+    [...(combat.combatants ?? [])].some((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id)
   )
     throw new Error(T("SF2eTSC.privateMap.actorExposed"));
 }
@@ -159,13 +144,6 @@ async function saveProjection(combat, contact, remove = false) {
   await saveTsc(combat, { ...state, objects });
 }
 
-async function rollbackReveal(combat, actor, state, privateInitiative) {
-  if (privateInitiative) await restorePrivateSensorActorCombatant(combat, actor, privateInitiative);
-  else await deleteSensorActorCombatant(combat, actor.uuid);
-  await saveTsc(combat, state);
-  await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: true });
-}
-
 export async function addPrivateCustom(combat, name, zone) {
   requireGM();
   return serialize(`sensor:${combat.id}`, async () => {
@@ -202,7 +180,6 @@ export async function changePrivateContact(combat, key, op, zone) {
     const matching = contacts.filter((o) => o.key === key);
     if (!doc || matching.length !== 1) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     const contact = matching[0];
-    let pendingReveal = null;
     if (op === "move") {
       if (!validZone(combat, zone)) throw new Error(T("SF2eTSC.mapDrop.invalidZone"));
       if (contact.zone === zone) {
@@ -256,31 +233,12 @@ export async function changePrivateContact(combat, key, op, zone) {
               });
         }
         await saveTsc(combat, next);
-        if (actor && isSensorActorInstance(actor, combat.id)) {
-          const privateInitiative = privateSensorActorCombatant(combat, actor);
-          pendingReveal = { actor, state, privateInitiative };
-          try {
-            if (privateInitiative) await revealSensorActorCombatant(combat, actor, privateInitiative);
-            await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: false });
-            await ensureSensorActorCombatant(combat, actor);
-          } catch (error) {
-            await rollbackReveal(combat, actor, state, privateInitiative);
-            throw error;
-          }
-        }
       }
       contacts.splice(contacts.indexOf(contact), 1);
     } else throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-    try {
-      requireGM();
-      if (storeFor(combat.id)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-      await doc.update({ [`flags.${MODULE_ID}.privateSensor.contacts`]: contacts });
-    } catch (error) {
-      if (op === "reveal" && pendingReveal)
-        await rollbackReveal(combat, pendingReveal.actor, pendingReveal.state, pendingReveal.privateInitiative);
-      throw error;
-    }
-    if (op === "remove" && contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);
+    requireGM();
+    if (storeFor(combat.id)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    await doc.update({ [`flags.${MODULE_ID}.privateSensor.contacts`]: contacts });
     return true;
   });
 }

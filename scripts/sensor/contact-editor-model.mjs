@@ -9,7 +9,7 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
   const needle = String(state.filter ?? "")
     .trim()
     .toLocaleLowerCase();
-  const choices = needle ? list.filter((c) => c.name.toLocaleLowerCase().includes(needle)) : list;
+  const choices = (needle ? list.filter((c) => c.name.toLocaleLowerCase().includes(needle)) : list).slice(0, 400);
   return {
     sources: CONTACT_SOURCES.map((id) => ({ id, label: T(`SF2eTSC.contactEditor.sources.${id}`), checked: id === source })),
     isCustom: source === "custom",
@@ -28,6 +28,8 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
       id,
       label: T(`SF2eTSC.detection.${id}`),
       selected: id === (state.detection ?? "undetected")
-    }))
+    })),
+    needsConfirm: ["observed", "identified"].includes(state.detection),
+    confirmed: !!state.confirmed
   };
 }

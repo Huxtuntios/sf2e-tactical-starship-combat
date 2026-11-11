@@ -15,7 +15,6 @@ const fixtures = [
   ["smoke-qol.mjs", "interaction"],
   ["smoke-window-themes.mjs", "windows"],
   ["smoke-map-appearance.mjs", "map"],
-  ["smoke-environment-object.mjs", "environment-object"],
   ["smoke-sensor-drop.mjs", "sensor-drop"],
   ["smoke-contact-editor.mjs", "contact-editor"],
   ["smoke-crew-stations.mjs", "crew-stations"],
@@ -43,37 +42,7 @@ try {
       await page.goto(pathToFileURL(path.join(out, folder, name)).href);
       // The appearance forms are static previews; every other fixture exposes explicit assertions.
       if (name.startsWith("form-")) {
-        const formCount = await page.locator("form").count();
-        let passed = formCount === 1;
-        if (folder === "map" && name.startsWith("form-object")) {
-          const arrowAppearanceOptions = await page
-            .locator('select[name="arrowAppearanceMode"] option')
-            .evaluateAll((options) => options.map((option) => option.value));
-          const mirrorOptions = await page
-            .locator('select[name="autoMirrorOverride"] option')
-            .evaluateAll((options) => options.map((option) => option.value));
-          const arrowFields = await page
-            .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
-            .count();
-          const resetEnabled = !(await page.locator('[data-action="resetArrowAppearance"]').isDisabled());
-          const isOverride = name.includes("form-object-override");
-          const values = await page
-            .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
-            .evaluateAll((inputs) => inputs.map((input) => input.value));
-          const selectedMode = await page.locator('select[name="arrowAppearanceMode"]').inputValue();
-          passed =
-            passed &&
-            mirrorOptions.includes("inherit") &&
-            mirrorOptions.includes("on") &&
-            mirrorOptions.includes("off") &&
-            arrowAppearanceOptions.includes("inherit") &&
-            arrowAppearanceOptions.includes("override") &&
-            arrowFields === 4 &&
-            resetEnabled &&
-            selectedMode === (isOverride ? "override" : "inherit") &&
-            values.join("|") === (isOverride ? "object-arrow.webp|31|8|0.4" : "global-arrow.webp|22|5|0.75");
-        }
-        results.push({ file: `${folder}/${name}`, passed, errors });
+        results.push({ file: `${folder}/${name}`, passed: (await page.locator("form").count()) === 1, errors });
       } else {
         await page.waitForFunction(
           () => {

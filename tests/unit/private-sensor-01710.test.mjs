@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import { addPrivateContact, privateContacts, changePrivateContact } from "../../scripts/sensor/private-contacts.mjs";
-import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { viewFor } from "../../scripts/engine/sensor-ops.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
@@ -75,7 +74,7 @@ test("non-GM and inactive GM cannot access or mutate private records", async () 
   assert.equal(privateContacts(combat.id)[0].zone, 3);
 });
 
-test("the actual drop listener creates independent private Actors without publishing source UUID", async () => {
+test("the actual drop listener keeps new NPC UUID out of module socket and Combat", async () => {
   const { enemy, combat } = setup();
   const { wireSensorMapDragDrop } = await import("../../scripts/ui/sensor-drop-ui.mjs");
   const handlers = {};
@@ -87,32 +86,16 @@ test("the actual drop listener creates independent private Actors without publis
     { combatId: combat.id, movableKeys: [] },
     { resolve: async () => enemy, send: async () => calls++, warn: () => {} }
   );
-  const drop = () =>
-    handlers.drop({ preventDefault() {}, dataTransfer: { getData: () => JSON.stringify({ type: "Actor", uuid: enemy.uuid }) } });
-  await drop();
-  await drop();
+  await handlers.drop({ preventDefault() {}, dataTransfer: { getData: () => JSON.stringify({ type: "Actor", uuid: enemy.uuid }) } });
   assert.equal(calls, 0);
-  const contacts = privateContacts(combat.id);
-  assert.equal(contacts.length, 2);
-  assert.notEqual(contacts[0].actorUuid, enemy.uuid);
-  assert.notEqual(contacts[0].actorUuid, contacts[1].actorUuid);
-  assert.equal(fromUuidSync(contacts[0].actorUuid).flags[MODULE_ID].tacticalCopyOf, enemy.uuid);
-  assert.equal(fromUuidSync(contacts[1].actorUuid).flags[MODULE_ID].tacticalCopyOf, enemy.uuid);
-  assert.equal(fromUuidSync(contacts[0].actorUuid).ownership.default, 0);
-  assert.equal(combat.combatants.size, 0);
+  assert.equal(privateContacts(combat.id)[0].actorUuid, enemy.uuid);
   assert.equal(JSON.stringify(combat.flags).includes(enemy.uuid), false);
   assert.deepEqual(globalThis.__socket, []);
 });
 
-test("failed reveal journal write rolls back public state so the private instance can retry", async () => {
+test("failed reveal write preserves private state; retry does not duplicate public contact", async () => {
   const { enemy, combat } = setup();
-  const placement = await addSensorContact(combat, {
-    source: "world",
-    uuid: enemy.uuid,
-    zone: 2,
-    detection: "undetected"
-  });
-  const instance = fromUuidSync(placement.actorUuid);
+  await addPrivateContact(combat, enemy, 2);
   const [obj] = privateContacts(combat.id),
     doc = game.journal.contents[0];
   const update = doc.update.bind(doc);
@@ -125,18 +108,11 @@ test("failed reveal journal write rolls back public state so the private instanc
     return update(...args);
   };
   await assert.rejects(changePrivateContact(combat, obj.key, "reveal"));
-  assert.equal(getTsc(combat).objects.length, 0);
+  assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 1);
-  assert.equal(
-    combat.combatants.some((c) => c.actorId === instance.id),
-    false
-  );
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, true);
   await changePrivateContact(combat, obj.key, "reveal");
   assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 0);
-  assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, false);
 });
 
 test("a newly exposed Actor is not published by the staged reveal", async () => {

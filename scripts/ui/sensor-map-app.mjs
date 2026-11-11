@@ -1,6 +1,4 @@
 import { privateContacts, changePrivateContact, addPrivateCustom } from "../sensor/private-contacts.mjs";
-import { LEGACY_ENVIRONMENT_TYPES } from "../sensor/environment-object-names.mjs";
-import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } from "./legacy-environment-object-dialog.mjs";
 /**
  * Sensor Map (view). 0.8.1: rules live in ../sensor/map-model.mjs, GM handlers in ../sensor/map-handlers.mjs;
  * the window renders in three parts (bar | zones | detail) and refreshes only the affected ones.
@@ -28,7 +26,7 @@ import { buildHudContext, runHudAction } from "./hud-model.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
-import { normalizeMapAppearance, objectArtwork, resolveArrowAppearance, visualTransform } from "../sensor/appearance.mjs";
+import { normalizeMapAppearance, objectArtwork, visualTransform } from "../sensor/appearance.mjs";
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 
@@ -86,9 +84,7 @@ export class SensorMapApplication extends TscApp {
       cancelTargeting: SensorMapApplication.#cancel,
       dockAct: SensorMapApplication.#dockAct,
       dockPick: SensorMapApplication.#dockPick,
-      openCrew: () => openCrewManager(),
-      addInitiative: guardPrivate(SensorMapApplication.#addInitiative),
-      addAllNpcInitiative: guardPrivate(SensorMapApplication.#addAllNpcInitiative)
+      openCrew: () => openCrewManager()
     }
   };
   static PARTS = {
@@ -200,8 +196,7 @@ export class SensorMapApplication extends TscApp {
       }
     }
     const appearance = normalizeMapAppearance(tsc.appearance);
-    const arrowAppearance = resolveArrowAppearance(appearance, o.arrowAppearance);
-    const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
+    const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror);
     const cls = Targeting.current && !o.privateContact ? Targeting.classify(tsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
     return {
@@ -211,15 +206,12 @@ export class SensorMapApplication extends TscApp {
       art: objectArtwork(o, tsc.appearance, (uuid) => resolved.get(uuid) ?? null),
       type: o.type,
       heading: o.heading,
-      arrow: ["left", "right"].includes(o.heading) && arrowAppearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
-      arrowEmoji: arrowAppearance.arrowMode === "emoji",
-      arrowCustom: arrowAppearance.arrowMode === "custom" && !!arrowAppearance.arrowImage,
-      arrowImage: arrowAppearance.arrowImage,
+      arrow: ["left", "right"].includes(o.heading) && appearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
+      arrowEmoji: appearance.arrowMode === "emoji",
+      arrowCustom: appearance.arrowMode === "custom" && !!appearance.arrowImage,
+      arrowImage: appearance.arrowImage,
       arrowRotation: o.heading === "left" ? 180 : 0,
-      arrowPosition: arrowAppearance.arrowPosition,
-      arrowSize: arrowAppearance.arrowSize,
-      arrowGap: arrowAppearance.arrowGap,
-      arrowOpacity: arrowAppearance.arrowOpacity,
+      arrowPosition: appearance.arrowPosition,
       transform,
 
       status,
@@ -239,14 +231,12 @@ export class SensorMapApplication extends TscApp {
 
   async #detail(sel, tsc, isGM) {
     const obj = findObject(tsc, sel.key);
-    if (obj?.privateContact) {
-      const actor = isGM && obj.type === "starship" && obj.actorUuid ? await fromUuidSafe(obj.actorUuid) : null;
+    if (obj?.privateContact)
       return {
         key: obj.key,
         label: obj.name,
         privateContact: true,
         zone: obj.zone,
-        canAddToInitiative: !!(actor && isStarship(actor) && readStarship(actor).role === "npc"),
         zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
         canRename: obj.type === "custom",
@@ -257,7 +247,6 @@ export class SensorMapApplication extends TscApp {
           active: obj.detection.party === id
         }))
       };
-    }
     const actor = sel.type === "starship" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
     // Игровая информация об опасности — на существующем листе Hazard Actor; видимость определяют его права.
     const hazardActor = sel.type === "hazard" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
@@ -296,14 +285,6 @@ export class SensorMapApplication extends TscApp {
       typeOptions: objectTypeView(sel, isGM),
       vitals,
       canMove: canMoveKey(game.user, tsc, sel.key),
-      canAddToInitiative:
-        isGM &&
-        sel.type === "starship" &&
-        actor &&
-        isStarship(actor) &&
-        readStarship(actor).role === "npc" &&
-        !obj.privateContact &&
-        !obj.tscPrivateProjection,
       key: sel.key,
       label: displayDesignation(sel.label),
       type: sel.type,
@@ -475,7 +456,7 @@ export class SensorMapApplication extends TscApp {
     Targeting.end();
   }
   static async #dockAct(event, target) {
-    await runHudAction(this.dockIndex, target.dataset.actionId, event);
+    await runHudAction(this.dockIndex, target.dataset.actionId);
   }
   static #dockPick(event, target) {
     this.dockIndex = Number(target.dataset.index);
@@ -496,40 +477,6 @@ export class SensorMapApplication extends TscApp {
         combatId: c.id,
         zones: Math.min(Math.max(Math.round(v), ZONE_LIMITS.min), ZONE_LIMITS.max)
       });
-  }
-  static async #addInitiative(_event, target) {
-    const combat = activeStarshipCombat();
-    const key = target.dataset.key;
-    if (!game.user.isGM || !combat || !key) return;
-    this._initiativeRequests ??= new Set();
-    if (this._initiativeRequests.has(key)) return;
-    this._initiativeRequests.add(key);
-    try {
-      const result = await request("sensorAddInitiative", { combatId: combat.id, key });
-      if (result.status === "added") ui.notifications?.info?.(T("SF2eTSC.initiative.addedOne"));
-      else if (result.status === "existing") ui.notifications?.info?.(T("SF2eTSC.initiative.existingOne"));
-      else if (result.status === "skipped")
-        ui.notifications?.warn?.(
-          T("SF2eTSC.initiative.skippedOne", {
-            reason: T(`SF2eTSC.initiative.reasons.${result.reason}`)
-          })
-        );
-      else ui.notifications?.error?.(T("SF2eTSC.initiative.failedOne"));
-    } finally {
-      this._initiativeRequests.delete(key);
-    }
-  }
-  static async #addAllNpcInitiative() {
-    const combat = activeStarshipCombat();
-    if (!game.user.isGM || !combat || this._addingAllNpcInitiative) return;
-    this._addingAllNpcInitiative = true;
-    try {
-      const report = await request("sensorAddAllNpcInitiative", { combatId: combat.id });
-      ui.notifications?.info?.(T("SF2eTSC.initiative.bulkSummary", report));
-      if (!report.reportCreated) ui.notifications?.warn?.(T("SF2eTSC.initiative.reportFailed"));
-    } finally {
-      this._addingAllNpcInitiative = false;
-    }
   }
   static #addContact() {
     const c = activeStarshipCombat();
@@ -559,56 +506,34 @@ export class SensorMapApplication extends TscApp {
   }
   static async #addObject() {
     const c = activeStarshipCombat();
-    const typeOptions = LEGACY_ENVIRONMENT_TYPES.map((id) => ({ id, label: T(`SF2eTSC.objectTypes.${id}`) }));
-    const content = legacyEnvironmentObjectDialogContent({
-      nameLabel: T("SF2eTSC.ui.name"),
-      typeLabel: T("SF2eTSC.ui.type"),
-      zoneLabel: T("SF2eTSC.ui.zone"),
-      errorLabel: T("SF2eTSC.ui.customObjectNameRequired"),
-      typeOptions
-    });
-    new foundry.applications.api.DialogV2({
+    const types = ["asteroid", "station", "debris", "beacon", "planet", "custom"]
+      .map((t) => `<option value="${t}">${T(`SF2eTSC.objectTypes.${t}`)}</option>`)
+      .join("");
+    const data = await foundry.applications.api.DialogV2.prompt({
       classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.ui.addObject") },
-      content,
-      form: { closeOnSubmit: false },
-      buttons: [
-        {
-          action: "add",
-          label: T("SF2eTSC.contactEditor.add"),
-          default: true,
-          callback: (event, button, dialog) =>
-            submitLegacyEnvironmentObject(new foundry.applications.ux.FormDataExtended(button.form).object, {
-              dialog,
-              app: this,
-              combat: c,
-              existingObjects: () => {
-                const objects = getTsc(c).objects;
-                let contacts = [];
-                try {
-                  contacts = privateContacts(c.id);
-                } catch (error) {
-                  notifyError("SF2eTSC.errors.generic", { message: error.message });
-                }
-                return [...objects, ...contacts];
-              },
-              addCustom: (combat, name, zone) => addPrivateCustom(combat, name, zone),
-              addPublic: (combat, object) =>
-                request("sensorUpdate", {
-                  op: "add",
-                  combatId: combat.id,
-                  object: {
-                    key: foundry.utils.randomID(10),
-                    ...object,
-                    heading: null,
-                    detection: { party: "observed" }
-                  }
-                })
-            })
-        }
-      ],
+      content: `<div class="form-group"><label>${T("SF2eTSC.ui.name")}</label><input name="name" type="text"></div><div class="form-group"><label>${T("SF2eTSC.ui.type")}</label><select name="type">${types}</select></div><div class="form-group"><label>${T("SF2eTSC.ui.zone")}</label><input name="zone" type="number" min="1" value="1"></div>`,
+      ok: { callback: (e, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
       rejectClose: false
-    }).render({ force: true });
+    }).catch(() => null);
+    if (data?.name && data.type === "custom") {
+      await addPrivateCustom(c, data.name, Number(data.zone) || 1);
+      this.render();
+      return;
+    }
+    if (data?.name)
+      await request("sensorUpdate", {
+        op: "add",
+        combatId: c.id,
+        object: {
+          key: foundry.utils.randomID(10),
+          name: data.name,
+          type: data.type,
+          zone: Number(data.zone) || 1,
+          heading: null,
+          detection: { party: "observed" }
+        }
+      });
   }
   static async #privateMove(e, t) {
     const c = activeStarshipCombat(),
@@ -622,11 +547,28 @@ export class SensorMapApplication extends TscApp {
     this.render();
   }
   static async #privateReveal(e, t) {
-    await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
-    this.selected = null;
-    this.render();
+    const ok = await foundry.applications.api.DialogV2.confirm({
+      classes: ["sf2e-tsc"],
+      window: { title: T("SF2eTSC.privateMap.reveal") },
+      content: `<p>${T("SF2eTSC.privateMap.revealWarning")}</p>`,
+      rejectClose: false
+    }).catch(() => false);
+    if (ok) {
+      await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
+      this.selected = null;
+      this.render();
+    }
   }
   static async #privateDetect(e, t) {
+    if (t.dataset.level === "observed") {
+      const ok = await foundry.applications.api.DialogV2.confirm({
+        classes: ["sf2e-tsc"],
+        window: { title: T("SF2eTSC.ui.detection") },
+        content: `<p>${T("SF2eTSC.privateMap.observedWarning")}</p>`,
+        rejectClose: false
+      }).catch(() => false);
+      if (!ok) return;
+    }
     await changePrivateContact(activeStarshipCombat(), t.dataset.key, "detect", t.dataset.level);
     this.render();
   }

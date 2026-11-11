@@ -38,9 +38,6 @@ zones[1].objects.push({
   arrow: "→",
   heading: "right",
   arrowPosition: "right",
-  arrowSize: 24,
-  arrowGap: 7,
-  arrowOpacity: 0.6,
   transform: { rotation: 45, scaleX: -1, scaleY: 1 },
   hp: "75/100",
   sp: "20/30",
@@ -60,9 +57,6 @@ zones[3].objects.push({
   arrowPosition: "top",
   arrowCustom: true,
   arrowImage: "file:///missing-arrow-test.png",
-  arrowSize: 36,
-  arrowGap: 11,
-  arrowOpacity: 0.25,
   arrowRotation: 180,
   transform: { rotation: 0, scaleX: 1, scaleY: 1 }
 });
@@ -139,16 +133,8 @@ const shipButton=app.querySelector('[data-object-key="ship"]'); const icon=shipB
 check('object-visual-transform',getComputedStyle(icon).transform!=='none');
 const beforeRect=shipButton.getBoundingClientRect(); icon.style.transform='rotate(135deg) scale(1, -1)'; const afterRect=shipButton.getBoundingClientRect();
 check('transform-does-not-move-hitbox',beforeRect.x===afterRect.x&&beforeRect.y===afterRect.y&&beforeRect.width===afterRect.width&&beforeRect.height===afterRect.height);
-const shipArrow=shipButton.querySelector('.tsc-obj-arrow'), shipVisual=shipButton.querySelector('.tsc-obj-visual');
-check('ship-arrow-size',getComputedStyle(shipArrow).fontSize==='24px');
-check('ship-arrow-gap',getComputedStyle(shipVisual).gap==='7px');
-check('ship-arrow-opacity',getComputedStyle(shipArrow).opacity==='0.6');
 const arrow=app.querySelector('[data-object-key="planet"] .tsc-course-image');check('broken-arrow-fallback',arrow.hidden&&!arrow.nextElementSibling.hidden);
 check('arrow-top',getComputedStyle(arrow.closest('.tsc-obj-visual')).flexDirection==='column');
-const planetArrow=arrow.closest('.tsc-obj-arrow'), planetVisual=arrow.closest('.tsc-obj-visual');
-check('planet-arrow-size',getComputedStyle(arrow).width==='36px');
-check('planet-arrow-gap',getComputedStyle(planetVisual).gap==='11px');
-check('planet-arrow-opacity',getComputedStyle(planetArrow).opacity==='0.25');
 check('text-arrow',shipButton.querySelector('.tsc-obj-arrow').textContent.trim()==='→');
 check('emoji-arrow-rotated',getComputedStyle(app.querySelector('[data-object-key="emoji"] .tsc-course-emoji')).transform.startsWith('matrix(-1'));
 check('none-arrow',!app.querySelector('[data-object-key="no-arrow"] .tsc-obj-arrow'));
@@ -173,75 +159,9 @@ document.querySelector('#result').textContent=JSON.stringify({checks,passed:chec
     mutedColor: "#8aa0c0",
     accentColor: "#38bdf8"
   });
-  const objectContext = {
-    objectMode: true,
-    objectName: "Корабль игроков",
-    art: ship,
-    transform: { rotation: 0, flipX: false, flipY: false, baseDirection: "right" },
-    directions: [{ id: "right", label: "Вправо", selected: true }],
-    autoMirrorOptions: [
-      { id: "inherit", label: "Наследовать общую настройку", selected: true },
-      { id: "on", label: "Включить" },
-      { id: "off", label: "Выключить" }
-    ],
-    arrowAppearance: {
-      arrowMode: "emoji",
-      arrowImage: "global-arrow.webp",
-      arrowSize: 22,
-      arrowGap: 5,
-      arrowPosition: "top",
-      arrowOpacity: 0.75
-    },
-    arrowModes: [
-      { id: "none", label: "Нет" },
-      { id: "text", label: "Текст" },
-      { id: "emoji", label: "Эмодзи", selected: true },
-      { id: "custom", label: "Своя картинка" }
-    ],
-    positions: [
-      { id: "left", label: "Слева" },
-      { id: "right", label: "Справа" },
-      { id: "top", label: "Сверху", selected: true },
-      { id: "bottom", label: "Снизу" }
-    ],
-    arrowAppearanceOptions: [
-      { id: "inherit", label: "Наследовать", selected: true },
-      { id: "override", label: "Свой формат" }
-    ],
-    arrowAppearanceMode: "inherit",
-    arrowAppearanceOverridden: false
-  };
-  const objectForm = render("map-appearance", objectContext);
-  const objectOverrideForm = render("map-appearance", {
-    ...objectContext,
-    arrowAppearance: {
-      arrowMode: "custom",
-      arrowImage: "object-arrow.webp",
-      arrowSize: 31,
-      arrowGap: 8,
-      arrowPosition: "left",
-      arrowOpacity: 0.4
-    },
-    arrowModes: objectContext.arrowModes.map((option) => ({ ...option, selected: option.id === "custom" })),
-    positions: objectContext.positions.map((option) => ({ ...option, selected: option.id === "left" })),
-    arrowAppearanceOptions: objectContext.arrowAppearanceOptions.map((option) => ({
-      ...option,
-      selected: option.id === "override"
-    })),
-    arrowAppearanceMode: "override",
-    arrowAppearanceOverridden: true
-  });
   fs.writeFileSync(
     `${out}/form-${theme}.html`,
     `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#777;font:14px Arial}.application{width:500px;margin:20px auto}fieldset{border:1px solid #405574}</style><form class="application sf2e-tsc tsc-map-appearance"><div class="window-content">${form}</div></form>`
-  );
-  fs.writeFileSync(
-    `${out}/form-object-${theme}.html`,
-    `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#777;font:14px Arial}.application{width:500px;margin:20px auto}fieldset{border:1px solid #405574}</style><form class="application sf2e-tsc tsc-map-appearance"><div class="window-content">${objectForm}</div></form>`
-  );
-  fs.writeFileSync(
-    `${out}/form-object-override-${theme}.html`,
-    `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#777;font:14px Arial}.application{width:500px;margin:20px auto}fieldset{border:1px solid #405574}</style><form class="application sf2e-tsc tsc-map-appearance"><div class="window-content">${objectOverrideForm}</div></form>`
   );
 }
 console.log(`Wrote DOM smoke fixtures to ${out}`);

@@ -153,9 +153,9 @@ export function syncStationItems() {
 }
 
 /** Client: the "Perform on the ship" link inside the item description / chat card. */
-export async function runStationItemLink(el, event = null) {
+export async function runStationItemLink(el) {
   const { shipUuid, stationId, actionId, crewUuid } = el.dataset;
-  if (!shipUuid) return runPackActionLink(el, event);
+  if (!shipUuid) return runPackActionLink(el);
   const ship = await fromUuidSafe(shipUuid);
   const action = Content.actions.get(actionId);
   if (!ship || !action) return notifyWarn("SF2eTSC.stationItems.gone");
@@ -165,7 +165,7 @@ export async function runStationItemLink(el, event = null) {
   if (crewUuid && station.helmedBy !== crewUuid) return notifyWarn("SF2eTSC.stationItems.gone");
   if (!game.user.isGM && !crew?.testUserPermission?.(game.user, "OWNER")) return notifyWarn("SF2eTSC.errors.noPermission");
   const { runAction } = await import("../ui/action-runner.mjs");
-  return runAction(action, { ship, crew, station, event });
+  return runAction(action, { ship, crew, station });
 }
 
 /** Candidate crew actors of the clicking user: the sheet the link sits on, assigned character, controlled tokens. */
@@ -194,7 +194,7 @@ export function resolvePackAction(action, ships, crewUuids, { controlledShips = 
     }
   return null;
 }
-async function runPackActionLink(el, event = null) {
+async function runPackActionLink(el) {
   const action = Content.actions.get(el.dataset.actionId);
   if (!action) return notifyWarn("SF2eTSC.stationItems.gone");
   const controlledShips = (globalThis.canvas?.tokens?.controlled ?? []).map((t) => t.actor).filter((a) => a && isStarship(a));
@@ -203,7 +203,7 @@ async function runPackActionLink(el, event = null) {
   const crew = r.crewUuid ? await fromUuidSafe(r.crewUuid) : null;
   if (!game.user.isGM && !crew?.testUserPermission?.(game.user, "OWNER")) return notifyWarn("SF2eTSC.errors.noPermission");
   const { runAction } = await import("../ui/action-runner.mjs");
-  return runAction(action, { ship: r.ship, crew, station: r.station, event });
+  return runAction(action, { ship: r.ship, crew, station: r.station });
 }
 
 export function registerStationItems() {
@@ -241,7 +241,7 @@ export function registerStationItems() {
       if (!a) return;
       ev.preventDefault();
       ev.stopPropagation();
-      runStationItemLink(a, ev).catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }));
+      runStationItemLink(a).catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }));
     },
     true
   );

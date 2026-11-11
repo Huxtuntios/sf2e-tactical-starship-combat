@@ -667,12 +667,12 @@ export async function runShipAction(e, t) {
     (this.isNpc ? data.stations.find((s) => s.type === action.station || (s.actions ?? []).includes(action.name)) : null) ??
     null;
   const crew = station?.helmedBy ? fromUuidSync(station.helmedBy) : null;
-  await runAction(action, { ship: this.document, crew, station, event: e });
+  await runAction(action, { ship: this.document, crew, station });
 }
 /** Sheet rolls never spend, count or block actions / reactions (§9). */
 export async function rollCheck(e, t) {
   const raw = this.element.querySelector("[name=tscRollDC]")?.value ?? "";
-  await rollShipCheck(this.document, t.dataset.slug, { dc: raw === "" ? null : Number(raw), event: e });
+  await rollShipCheck(this.document, t.dataset.slug, { dc: raw === "" ? null : Number(raw) });
 }
 /** Post a Fortitude / Reflex / Will save against the ship's Piloting DC to the chat. */
 export async function pilotingSave(e, t) {
@@ -682,8 +682,7 @@ export async function sheetAttack(e, t) {
   const row = sheetAttackRows(this.document).find((r) => r.key === t.dataset.key);
   if (!row) return;
   if (!row.enabled) return notifyWarn("SF2eTSC.errors.generic", { message: row.reason });
-  const req = sheetAttackRequest(this.document, row, t.dataset.map ?? "0");
-  await beginNativeWeaponAttack(req, e);
+  await beginNativeWeaponAttack(sheetAttackRequest(this.document, row, t.dataset.map ?? "0"));
 }
 export async function sheetDamage(e, t) {
   await rollSheetDamage(this.document, t.dataset.key, { crit: t.dataset.crit === "true" });

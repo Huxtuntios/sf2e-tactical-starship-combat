@@ -115,11 +115,11 @@ export function buildHudContext(index = 0, list = findHelmedStations()) {
 }
 
 /** Run one catalogue action of the picked station through the normal client flow (target pick, options, GM execution). */
-export async function runHudAction(index, actionId, event = null) {
+export async function runHudAction(index, actionId) {
   const list = findHelmedStations();
   const sel = list[Math.min(Math.max(0, index), list.length - 1)];
   if (!sel) return;
   const action = Content.actions.get(actionId);
   if (!action) return;
-  await runAction(action, { ship: sel.ship, crew: sel.crew, station: sel.station, event });
+  await runAction(action, { ship: sel.ship, crew: sel.crew, station: sel.station });
 }

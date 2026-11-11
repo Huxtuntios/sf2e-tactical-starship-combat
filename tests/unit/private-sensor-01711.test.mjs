@@ -69,15 +69,6 @@ test("partial projection failure can be reconciled without exposing an Actor", a
   assert.equal(getTsc(combat).objects.length, 0);
   assert.equal(JSON.stringify(combat.flags).includes(ship.uuid), false);
 });
-test("private contact store follows Foundry JournalEntry permissions", async () => {
-  const { combat, ship } = setup();
-  await addPrivateContact(combat, ship, 2);
-  const journal = game.journal.contents[0];
-  assert.equal(journal.ownership.default, 0);
-  assert.equal(journal.testUserPermission(game.users.get("p1"), "LIMITED"), false);
-  journal.ownership.p1 = 2;
-  assert.throws(() => privateContacts(combat.id));
-});
 test("legacy GM zone notes are retained, not overwritten from a socket payload", () => {
   const before = { zoneInfo: { 1: { gmNotes: "old", oldField: 1 } } };
   const after = applySensorOp(before, { op: "zoneInfo", zone: 1, info: { gmNotes: "new" } });

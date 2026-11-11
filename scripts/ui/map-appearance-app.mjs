@@ -2,34 +2,14 @@ import { activeModuleTheme } from "./sheet/sheet-theme.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import {
-  ARROW_APPEARANCE_FIELDS,
   normalizeMapAppearance,
   DEFAULT_MAP_APPEARANCE,
-  resolveArrowAppearance,
   normalizeObjectTransform,
-  normalizeAutoMirrorOverride,
   normalizeAngle,
   changedFields,
   MAP_PALETTES,
   safeImagePath
 } from "../sensor/appearance.mjs";
-
-export function resetArrowAppearanceForm(form, globalAppearance) {
-  const globalArrow = resolveArrowAppearance(globalAppearance);
-  const mode = form.querySelector('select[name="arrowAppearanceMode"]');
-  if (mode) mode.value = "inherit";
-  for (const field of ARROW_APPEARANCE_FIELDS) {
-    const input = form.querySelector(`[name="${field}"]`);
-    if (input) input.value = globalArrow[field];
-  }
-  const image = form.querySelector('input[name="arrowImage"]');
-  const preview = form.querySelector('[data-image-preview="arrowImage"]');
-  if (preview) {
-    if (image?.value) preview.src = image.value;
-    else preview.removeAttribute("src");
-    preview.hidden = !image?.value;
-  }
-}
 
 const APPEARANCE_FIELDS = [
   "mode",
@@ -57,28 +37,6 @@ import { request } from "../socket.mjs";
 import { T } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 
-export function objectVisualFromForm(form, snapshot, globalAppearance) {
-  const next = normalizeObjectTransform({ ...form, flipX: !!form.flipX, flipY: !!form.flipY });
-  const transform = changedFields(snapshot, next, TRANSFORM_FIELDS);
-  const art = safeImagePath(form.art);
-  const selectedMirror = form.autoMirrorOverride;
-  const autoMirrorOverride =
-    selectedMirror === "on" ? true : selectedMirror === "off" ? false : selectedMirror === "inherit" ? null : snapshot.autoMirrorOverride;
-  const arrowAppearance = form.arrowAppearanceMode === "override" ? resolveArrowAppearance(globalAppearance, form) : null;
-  return {
-    ...(Object.keys(transform).length ? { transform } : {}),
-    ...(art !== snapshot.art ? { art } : {}),
-    ...(autoMirrorOverride !== snapshot.autoMirrorOverride ? { autoMirrorOverride } : {}),
-    ...(arrowAppearance === null
-      ? snapshot.arrowAppearanceOverride
-        ? { arrowAppearance: null }
-        : {}
-      : JSON.stringify(arrowAppearance) !== JSON.stringify(snapshot.arrowAppearanceOverride)
-        ? { arrowAppearance }
-        : {})
-  };
-}
-
 /** GM editor bound to one combat (never silently writes into a newly selected combat). */
 export class MapAppearanceApplication extends TscApp {
   static DEFAULT_OPTIONS = {
@@ -91,7 +49,6 @@ export class MapAppearanceApplication extends TscApp {
       browseImage: MapAppearanceApplication.#browse,
       clearImage: MapAppearanceApplication.#clearImage,
       transformControl: MapAppearanceApplication.#transformControl,
-      resetArrowAppearance: MapAppearanceApplication.#resetArrowAppearance,
       resetAppearance: MapAppearanceApplication.#reset
     }
   };
@@ -108,46 +65,24 @@ export class MapAppearanceApplication extends TscApp {
       palette = MAP_PALETTES[activeModuleTheme()];
     const object = this.key ? state.objects.find((o) => o.key === this.key) : null;
     const transform = normalizeObjectTransform(object?.mapTransform);
-    const autoMirrorOverride = normalizeAutoMirrorOverride(object?.autoMirrorOverride);
-    const arrowAppearanceOverride =
-      object?.arrowAppearance && typeof object.arrowAppearance === "object" ? resolveArrowAppearance(a, object.arrowAppearance) : null;
-    const arrowAppearance = resolveArrowAppearance(a, arrowAppearanceOverride);
     this._appearanceSnapshot = a;
-    this._objectSnapshot = {
-      art: safeImagePath(object?.art),
-      autoMirrorOverride,
-      arrowAppearanceOverride,
-      ...transform
-    };
+    this._objectSnapshot = { art: safeImagePath(object?.art), ...transform };
     return {
       transform,
       arrowModes: ["none", "text", "emoji", "custom"].map((id) => ({
         id,
         label: T(`SF2eTSC.mapVisual.arrowModes.${id}`),
-        selected: id === (this.key ? arrowAppearance : a).arrowMode
+        selected: id === a.arrowMode
       })),
       positions: ["left", "right", "top", "bottom"].map((id) => ({
         id,
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
-        selected: id === (this.key ? arrowAppearance : a).arrowPosition
+        selected: id === a.arrowPosition
       })),
       directions: ["left", "right", "up", "down", "unknown"].map((id) => ({
         id,
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
         selected: id === transform.baseDirection
-      })),
-      autoMirrorOptions: ["inherit", "on", "off"].map((id) => ({
-        id,
-        label: T(`SF2eTSC.mapVisual.autoMirrorOptions.${id}`),
-        selected: (autoMirrorOverride === null ? "inherit" : autoMirrorOverride ? "on" : "off") === id
-      })),
-      autoMirrorOverride,
-      arrowAppearance,
-      arrowAppearanceMode: arrowAppearanceOverride ? "override" : "inherit",
-      arrowAppearanceOptions: ["inherit", "override"].map((id) => ({
-        id,
-        label: T(`SF2eTSC.mapVisual.arrowAppearanceOptions.${id}`),
-        selected: (arrowAppearanceOverride ? "override" : "inherit") === id
       })),
       objectMode: !!this.key,
       objectName: object?.name ?? "",
@@ -218,11 +153,6 @@ export class MapAppearanceApplication extends TscApp {
       flipY.checked = false;
     }
   }
-  static #resetArrowAppearance(event, target) {
-    if (!game.user.isGM || !this.key) return;
-    const form = target.closest("form") ?? this.element;
-    resetArrowAppearanceForm(form, this._appearanceSnapshot);
-  }
   static async #reset() {
     if (!game.user.isGM) return;
     try {
@@ -242,11 +172,13 @@ export class MapAppearanceApplication extends TscApp {
       const f = formData.object;
       const path = this.key ? f.art : f.background;
       if (path?.trim() && !safeImagePath(path)) throw new Error(T("SF2eTSC.mapAppearance.invalidPath"));
-      if ((!this.key || f.arrowAppearanceMode === "override") && f.arrowImage?.trim() && !safeImagePath(f.arrowImage))
-        throw new Error(T("SF2eTSC.mapAppearance.invalidPath"));
+      if (!this.key && f.arrowImage?.trim() && !safeImagePath(f.arrowImage)) throw new Error(T("SF2eTSC.mapAppearance.invalidPath"));
       let payload;
       if (this.key) {
-        const visual = objectVisualFromForm(f, this._objectSnapshot, this._appearanceSnapshot);
+        const next = normalizeObjectTransform({ ...f, flipX: !!f.flipX, flipY: !!f.flipY });
+        const transform = changedFields(this._objectSnapshot, next, TRANSFORM_FIELDS);
+        const art = safeImagePath(f.art);
+        const visual = { ...(Object.keys(transform).length ? { transform } : {}), ...(art !== this._objectSnapshot.art ? { art } : {}) };
         if (!Object.keys(visual).length) {
           await this.close();
           return;

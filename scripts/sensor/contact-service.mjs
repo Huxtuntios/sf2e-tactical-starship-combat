@@ -6,11 +6,11 @@
  * - опасность или звездолёт из компендия → приватная копия в мире (владение NONE для игроков), затем тот же путь, чтобы каждая
  *   установка имела собственный документ и состояние; копия удаляется, если размещение не удалось;
  * - пользовательский контакт без Actor → addPrivateCustom;
- * - начальное состояние задаётся выбором ведущего: undetected/hidden остаются в журнале; observed публикует
- *   маркер без Actor, identified публикует объект.
+ * - начальное состояние: undetected/hidden остаются только в закрытом журнале; observed публикует анонимный
+ *   маркер, identified публикует личность — оба требуют явного подтверждения (confirmed === true).
  *
- * Правила передачи сведений не меняются; этот модуль только оркестрирует существующие операции. Реальное
- * поведение с несколькими клиентами Foundry не проверено.
+ * Правила передачи сведений не меняются; этот модуль только оркестрирует существующие операции. Приватность
+ * в настоящем Foundry с несколькими клиентами НЕ проверена (см. docs/MANUAL-TEST-0.17.1-dev.13-ru.md).
  */
 import { MODULE_ID, DETECTION_LEVELS } from "../constants.mjs";
 import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
@@ -18,8 +18,6 @@ import { serialize } from "../utils/serial.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "./private-contacts.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
-import { createActorCopy } from "../combat/copies.mjs";
-import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
 import { MINE_FLAG } from "./mine-contact.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 
@@ -40,6 +38,7 @@ function contactChoice(actor, extra = {}) {
   return {
     uuid: actor.uuid,
     name: actor.name,
+    visible: actorVisibleToPlayers(actor),
     kind: starship ? "starship" : "hazard",
     ...(starship ? { role: readStarship(actor).role } : {}),
     ...extra
@@ -86,16 +85,14 @@ export async function importHazardCopy(sourceUuid, deps = {}) {
   const source = await (deps.resolve ?? fromUuidSafe)(sourceUuid);
   if (!source || source.documentName !== "Actor" || !isContactActor(source) || !source.pack)
     throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
-  const actor = await createActorCopy(
-    source,
-    {
-      folder: false,
-      removeSort: true,
-      ownership: { default: globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.NONE ?? NONE },
-      flags: { contactImport: { sourceUuid } }
-    },
-    deps
-  );
+  const data = source.toObject();
+  delete data._id;
+  delete data.folder;
+  delete data.sort;
+  data.ownership = { default: globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.NONE ?? NONE };
+  data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), contactImport: { sourceUuid } } };
+  const create = deps.createActor ?? ((d) => (globalThis.Actor?.implementation ?? globalThis.Actor).create(d, { keepId: false }));
+  const actor = await create(data);
   if (!actor?.uuid) throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
   return actor;
 }
@@ -104,6 +101,9 @@ function validateSpec(combat, spec) {
   if (!CONTACT_SOURCES.includes(spec?.source)) throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
   if (!DETECTION_LEVELS.includes(spec.detection)) throw new Error(T("SF2eTSC.contactEditor.invalidDetection"));
   if (!Number.isInteger(spec.zone) || spec.zone < 1 || spec.zone > getTsc(combat).zones) throw new Error(T("SF2eTSC.mapDrop.invalidZone"));
+  // Публикация информации — всегда явное решение ведущего.
+  if ((spec.detection === "observed" || spec.detection === "identified") && spec.confirmed !== true)
+    throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
 }
 
 async function applyDetection(combat, key, detection) {
@@ -112,23 +112,8 @@ async function applyDetection(combat, key, detection) {
   else await changePrivateContact(combat, key, "detect", detection);
 }
 
-async function publishActorContact(combat, actor, zone) {
-  return serialize(`sensor:${combat.id}`, async () => {
-    const previous = getTsc(combat);
-    const change = dropActorOnMap(previous, actor, zone, { publicActor: true });
-    await saveTsc(combat, change.state);
-    try {
-      await ensureSensorActorCombatant(combat, actor);
-    } catch (error) {
-      await saveTsc(combat, previous);
-      throw error;
-    }
-    return change.result;
-  });
-}
-
 /**
- * Adds a contact using the selected detection state.
+ * Добавляет контакт. spec: { source, uuid?, name?, zone, detection, confirmed }.
  * Возвращает { key?, actorUuid?, result }.
  */
 export async function addSensorContact(combat, spec, deps = {}) {
@@ -139,26 +124,34 @@ export async function addSensorContact(combat, spec, deps = {}) {
     await applyDetection(combat, key, spec.detection);
     return { key, actorUuid: null, result: "added" };
   }
-  const source = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
-  if (
-    !source ||
-    source.documentName !== "Actor" ||
-    source.uuid !== spec.uuid ||
-    !isContactActor(source) ||
-    (spec.source === "compendium" ? !source.pack : source.pack || source.isToken)
-  )
-    throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
-  const visible = actorVisibleToPlayers(source);
-  if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
-  if (visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
-  const actor = await createSensorActorInstance(source, combat, {
-    privateContact: !visible,
-    createActor: deps.createActor
-  });
+  let actor = null;
+  let imported = false;
+  if (spec.source === "compendium") {
+    actor = await importHazardCopy(spec.uuid, deps);
+    imported = true;
+  } else {
+    actor = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
+    if (!actor || actor.documentName !== "Actor" || actor.uuid !== spec.uuid || !isContactActor(actor) || actor.pack || actor.isToken)
+      throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
+  }
   try {
-    // Actor с доступом игроков нельзя разместить в состоянии, которое скроет его на карте.
-    if (visible) {
-      const result = await publishActorContact(combat, actor, spec.zone);
+    if (isStarship(actor) && readStarship(actor).role === "player" && !actorVisibleToPlayers(actor))
+      throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+    // Actor, уже доступный игрокам, нельзя скрыть: допустимо только открытое размещение с подтверждением.
+    if (actorVisibleToPlayers(actor)) {
+      if (spec.detection !== "identified" || spec.confirmed !== true) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+      const result = await serialize(`sensor:${combat.id}`, async () => {
+        let outcome;
+        await saveTsc(
+          combat,
+          (() => {
+            const change = dropActorOnMap(getTsc(combat), actor, spec.zone, { publicActor: true });
+            outcome = change.result;
+            return change.state;
+          })()
+        );
+        return outcome;
+      });
       return { key: actor.uuid, actorUuid: actor.uuid, result };
     }
     const result = await addPrivateContact(combat, actor, spec.zone);
@@ -166,10 +159,8 @@ export async function addSensorContact(combat, spec, deps = {}) {
     if (contact) await applyDetection(combat, contact.key, spec.detection);
     return { key: contact?.key ?? actor.uuid, actorUuid: actor.uuid, result };
   } catch (err) {
-    const referenced =
-      privateContacts(combat.id).some((o) => o.actorUuid === actor.uuid) ||
-      getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
-    if (!referenced) await deleteSensorActorInstance(combat, actor.uuid);
+    // Только что созданная копия, которая ни на что не ссылается, не остаётся сиротой.
+    if (imported && !privateContacts(combat.id).some((o) => o.actorUuid === actor.uuid)) await actor.delete?.().catch(() => {});
     throw err;
   }
 }

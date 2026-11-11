@@ -8,12 +8,8 @@ import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
 import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
-import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
-import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
 
 export function registerSensorHandlers() {
-  registerHandler("sensorAddInitiative", async ({ user, payload }) => addSensorObjectToInitiative(payload?.combatId, payload?.key, user));
-  registerHandler("sensorAddAllNpcInitiative", async ({ user, payload }) => addAllNpcShipsToInitiative(payload?.combatId, user));
   registerHandler("sensorUpdate", async ({ user, payload: raw }) =>
     serialize(`sensor:${String(raw?.combatId ?? "")}`, async () => {
       const combat = game.combats.get(raw.combatId);
@@ -33,35 +29,15 @@ export function registerSensorHandlers() {
         const actor = await fromUuidSafe(payload.actorUuid);
         if (!actor || actor.uuid !== payload.actorUuid || actor.documentName !== "Actor")
           throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
-        const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
-        if (getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid)) {
-          let result;
-          try {
-            await mutateTsc(combat, (state) => {
-              const change = dropActorOnMap(state, actor, payload.zone, { publicActor: payload.publicActor === true });
-              result = change.result;
-              return change.state;
-            });
-          } catch (error) {
-            if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
-            throw error;
-          }
-          return result;
-        }
-        const instance = await createSensorActorInstance(actor, combat);
-        const previous = getTsc(combat);
         let result;
         try {
           await mutateTsc(combat, (state) => {
-            const change = dropActorOnMap(state, instance, payload.zone, { publicActor: payload.publicActor === true });
+            const change = dropActorOnMap(state, actor, payload.zone, { publicActor: payload.publicActor === true });
             result = change.result;
             return change.state;
           });
-          await ensureSensorActorCombatant(combat, instance);
         } catch (error) {
-          if (getTsc(combat).objects.some((o) => o.actorUuid === instance.uuid || o.key === instance.uuid))
-            await mutateTsc(combat, () => previous);
-          await deleteSensorActorInstance(combat, instance.uuid);
+          const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
           if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
           throw error;
         }
@@ -91,9 +67,7 @@ export function registerSensorHandlers() {
       }
       const designation = moduleSetting("contactDesignation");
       const before = ["move", "shift"].includes(payload.op) ? findObject(getTsc(combat), payload.key)?.zone : null;
-      const removing = payload.op === "remove" ? findObject(getTsc(combat), payload.key) : null;
       await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
-      if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid);
       if (before != null) {
         try {
           const state = getTsc(combat),

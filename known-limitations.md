@@ -2,7 +2,6 @@
 
 ## 0.17.1-dev.13 — current limitations
 
-- Native SF2e check dialogs are reached through `Statistic.check.roll`, so system modifier enable/disable, manual typed modifiers, fortune/misfortune, roll visibility, and `showCheckDialogs` remain system-owned. For socketed rolls the initiating click's Shift/visibility options are serialized before the request; the authoritative roll still runs in the GM's Foundry client, so any dialog is displayed there. The module's ship damage formulas use SF2e `DamageRoll` for typed chat output, but SF2e 1.7.0 does not expose its internal `DamageModifierDialog` as a public arbitrary-formula API; custom ship damage therefore has no native damage-options dialog and is not changed by `showDamageDialogs`.
 - Sensor Map privacy, document visibility and absence of public Combatants are verified only by local mocks and UI fixtures, not through separate clients or a real Foundry server. Do not treat static analysis or `api.privacyProbe()` as proof of confidentiality.
 - Compendium index discovery and Actor creation are mocked; verify real Foundry/SF2e packs, permission inheritance, repeated placements and source immutability in a test world. Hidden player Starships are refused; public disclosure requires GM confirmation.
 - Station operations reuse `Crew.claim`/`Crew.release` and per-ship serialization. Concurrent attempts for the same station are revalidated, but there is no new global one-station-per-character invariant across different ships, nor distributed locking across GMs.

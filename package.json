@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Tactical starship combat for Foundry VTT v14 / Starfinder Second Edition (sf2e)",
   "scripts": {
-    "test": "node --test --test-concurrency=1 \"tests/unit/*.test.mjs\" \"tests/architecture/*.test.mjs\" \"tests/integration/*.test.mjs\"",
+    "test": "node --test \"tests/unit/*.test.mjs\" \"tests/architecture/*.test.mjs\" \"tests/integration/*.test.mjs\"",
     "test:full": "node tools/build-packs.mjs && npm test",
     "lint": "eslint scripts tools tests --max-warnings 0",
     "lint:fix": "eslint scripts --fix",

@@ -1,11 +1,5 @@
 # Testing
 
-## Sensor Map detection UX
-
-`tests/unit/sensor-contacts-01712.test.mjs` verifies initial contact placement in all four detection states, state changes, the public observed projection, identified reveal, legacy combat flags, and normal Foundry ownership checks in the mocks. The editor and map action tests ensure observed/reveal actions do not call confirmation dialogs. These are unit tests with mocked documents; they do not prove live Foundry permissions or multi-client behavior.
-
-On this branch, `npm run check` passed formatting, lint, content validation, pack build, and 790/790 Node tests. `npm run test:ui` passed 49/49 local Chromium fixtures. No live Foundry or multi-client test was run.
-
 ## 0.17.1-dev.13 verification
 
 Exact local results are recorded in `work-in-progress-0.17.1-dev.13.md`. CI #23 (`c64ffd4`) had `check` pass and `ui` fail at 46/47 assertions. The UI failure was the fixture's stale selector for the Install Mine button, not Chromium startup or the logged Node/action deprecation warnings. The dev.13 worktree's `npm run check`, `npm run package` and `npm run test:ui` are run locally; no updated hosted CI run can contain uncommitted files without committing/pushing, which were explicitly prohibited. The UI fixtures use local Chromium and mocks. Real Foundry, actual SF2e/PF2e runtime, compendium indexes, separate clients, network privacy and GM failover remain unverified; follow `docs/MANUAL-TEST-0.17.1-dev.13-ru.md`.

@@ -74,11 +74,8 @@ export class MockActor {
     flags = {},
     system = {},
     owners = [],
-    ownership = null,
     level = 1,
-    prototypeToken = null,
-    pack = null,
-    folder = null
+    prototypeToken = null
   }) {
     Object.assign(this, {
       id,
@@ -88,14 +85,10 @@ export class MockActor {
       flags: structuredClone(flags),
       system: structuredClone(system),
       owners,
-      ownership: { default: 0, ...(ownership ? structuredClone(ownership) : {}) },
       level,
       documentName: "Actor",
-      isToken: false,
-      pack,
-      folder
+      isToken: false
     });
-    for (const owner of owners) this.ownership[owner] = 3;
     this.prototypeToken = prototypeToken ?? { texture: { src: img } };
     this.synthetics = { multipleAttackPenalties: {} };
     this.items = new Collection();
@@ -119,25 +112,6 @@ export class MockActor {
   get uuid() {
     return `Actor.${this.id}`;
   }
-  toObject() {
-    return {
-      _id: this.id,
-      name: this.name,
-      type: this.type,
-      img: this.img,
-      flags: structuredClone(this.flags),
-      system: structuredClone(this.system),
-      ownership: structuredClone(this.ownership),
-      prototypeToken: structuredClone(this.prototypeToken),
-      ...(this.folder ? { folder: this.folder } : {}),
-      ...(this.items.size ? { items: [...this.items.values()].map(({ parent, ...item }) => structuredClone(item)) } : {})
-    };
-  }
-  async delete() {
-    globalThis.game.actors.delete(this.id);
-    this.deleted = true;
-    return this;
-  }
   get hasPlayerOwner() {
     return this.owners.length > 0;
   }
@@ -147,8 +121,7 @@ export class MockActor {
   testUserPermission(user, level) {
     if (user?.isGM) return true;
     if (level === "OBSERVER" && this.observers?.includes(user?.id)) return true;
-    const granted = this.ownership?.[user?.id] ?? this.ownership?.default ?? 0;
-    return this.owners.includes(user?.id) || granted >= (level === "OWNER" ? 3 : level === "LIMITED" ? 1 : 2);
+    return this.owners.includes(user?.id);
   }
   getRollOptions() {
     return [];
@@ -171,8 +144,6 @@ export class MockCombatant {
       tokenId: data.tokenId ?? null,
       sceneId: data.sceneId ?? null,
       initiative: data.initiative ?? null,
-      customName: data.name ?? null,
-      img: data.img ?? globalThis.game.actors.get(data.actorId)?.img ?? null,
       flags: structuredClone(data.flags ?? {}),
       hidden: !!data.hidden
     });
@@ -181,17 +152,7 @@ export class MockCombatant {
     return globalThis.game.actors.get(this.actorId) ?? null;
   }
   get name() {
-    return this.customName ?? this.actor?.name ?? "?";
-  }
-  async update(changes) {
-    for (const [key, value] of Object.entries(changes)) {
-      if (key === "name") this.customName = value;
-      else if (key === "img") this.img = value;
-      else if (key === "hidden") this.hidden = value;
-      else applyUpdate(this, { [key]: value });
-    }
-    globalThis.__writes.push({ doc: `Combatant.${this.id}`, changes });
-    return this;
+    return this.actor?.name ?? "?";
   }
 }
 
@@ -272,12 +233,6 @@ export class MockJournalEntry {
     this.name = data.name;
     this.flags = structuredClone(data.flags);
     this.ownership = structuredClone(data.ownership);
-    this.folder = data.folder ?? null;
-  }
-  testUserPermission(user, level) {
-    if (user?.isGM) return true;
-    const granted = this.ownership?.[user?.id] ?? this.ownership?.default ?? 0;
-    return granted >= ({ NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
   }
   static async create(data) {
     const doc = new MockJournalEntry(data);
@@ -463,28 +418,6 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
   };
   globalThis.ChatMessage = MockChatMessage;
   globalThis.JournalEntry = MockJournalEntry;
-  globalThis.Actor = {
-    async create(data) {
-      const actor = new MockActor({
-        id: rid(),
-        name: data.name,
-        type: data.type,
-        img: data.img,
-        flags: data.flags,
-        system: data.system,
-        ownership: data.ownership,
-        prototypeToken: data.prototypeToken,
-        folder: data.folder ?? null
-      });
-      for (const item of data.items ?? []) {
-        const it = { ...structuredClone(item), id: item._id ?? rid(), parent: actor };
-        actor.items.set(it.id, it);
-      }
-      game.actors.set(actor.id, actor);
-      return actor;
-    }
-  };
-  globalThis.Actor.implementation = globalThis.Actor;
   globalThis.Roll = MockRoll;
   globalThis.ui = {
     notifications: {

@@ -1,8 +1,8 @@
 # Known limitations
 
-## 0.17.1-dev.13 — current limitations
+## 0.17.1-dev.12 — current limitations
 
-- The selected detection state applies immediately. Undetected/hidden contact records remain in a GM-owned JournalEntry; observed adds an anonymous map marker, and identified publishes the map object. Actor and JournalEntry ownership use Foundry's document permissions, but this zone map is not a Scene and is not a guarantee of strict confidentiality. Real multi-client access has not been verified. No Contact/Combat flag migration is required.
+- Privacy of private contacts and of compendium copies is still **unverified** in a real Foundry world with several clients. Do not use the new editor for real secrets until the manual plan passes.
 - Only prepared (modified) mines are stored. The number of plain mines in a Pyrotechnics Drone is not given by the recorded rules and is not limited or counted. Known modifications and installed modifications are GM-confirmed opaque notes; they have no effects, expiry or validation against the printed Mine Exocortex list.
 - A deployed mine's Hazard Actor and contact are a projection of the mine record; if creation fails, press "Sync contact". Deleting the Actor or the contact by hand leaves the mine armed until the next sync. If the sensor map is shrunk below a mine's zone the contact is clamped by the map, not the record.
 - After Drone Block retrieves a pyrotechnics drone its armed mines stay armed but the helper cannot move, modify or detonate them until the drone is redeployed (10 minutes of world time). Whether this matches the printed text is an open question.

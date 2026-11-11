@@ -112,8 +112,6 @@ test("hit retains native message contents and bound deferred damage, applied onc
 
 test("SF2e-style native check callback preserves the real system message", async () => {
   const s = await scenario();
-  CONFIG.ChatMessage.modes.blind = {};
-  s.payload.options = { ...s.payload.options, skipDialog: true, messageMode: "blind" };
   let passed;
   class NativeStatistic {
     constructor() {
@@ -135,8 +133,6 @@ test("SF2e-style native check callback preserves the real system message", async
   dice(16);
   const result = await executeNativeAttack({ user: s.user, payload: s.payload });
   assert.equal(passed.createMessage, true);
-  assert.equal(passed.skipDialog, true);
-  assert.equal(passed.messageMode, "blind");
   assert.equal(game.messages.get(result.messageId).flavor, undefined); // mock keeps native message content
   assert.equal(rolls().length, 1);
   assert.ok(game.messages.get(result.messageId).flags[M].nativeAttackReceipt);
@@ -293,11 +289,7 @@ test("native failure or cancellation before callback does not auto-reroll", asyn
     }
     s.crew.skills = { acrobatics: new NativeStatistic() };
     dice(20);
-    if (kind === "throw") await assert.rejects(() => executeNativeAttack({ user: s.user, payload: s.payload }));
-    else {
-      const result = await executeNativeAttack({ user: s.user, payload: s.payload });
-      assert.equal(result.cancelled, true);
-    }
+    await assert.rejects(() => executeNativeAttack({ user: s.user, payload: s.payload }));
     assert.equal(game.messages.size, 0);
   }
 });

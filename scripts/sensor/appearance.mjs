@@ -45,7 +45,6 @@ export const DEFAULT_MAP_APPEARANCE = Object.freeze({
   backgroundFlipX: false,
   backgroundFlipY: false
 });
-export const ARROW_APPEARANCE_FIELDS = Object.freeze(["arrowMode", "arrowImage", "arrowSize", "arrowGap", "arrowPosition", "arrowOpacity"]);
 const clamp = (v, min, max, fallback) =>
   v === "" || v == null || !Number.isFinite(Number(v)) ? fallback : Math.max(min, Math.min(max, Number(v)));
 const hex = (v) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : "");
@@ -90,13 +89,6 @@ export function normalizeMapAppearance(value = {}) {
     backgroundFlipY: a.backgroundFlipY === true
   };
 }
-/** Resolve an object's complete arrow-format override against the current global settings. */
-export function resolveArrowAppearance(globalAppearance, objectOverride) {
-  const global = normalizeMapAppearance(globalAppearance);
-  const override = objectOverride && typeof objectOverride === "object" ? objectOverride : {};
-  const normalized = normalizeMapAppearance({ ...global, ...override });
-  return Object.fromEntries(ARROW_APPEARANCE_FIELDS.map((field) => [field, normalized[field]]));
-}
 /** Called only with the redacted object from viewFor: unknown contacts must never resolve a document. */
 export function objectArtwork(object, appearance, resolve = () => null) {
   if (!object?.known || normalizeMapAppearance(appearance).mode === "simple") return "";
@@ -121,16 +113,11 @@ export function normalizeObjectTransform(value = {}) {
     baseDirection: ["right", "left", "up", "down", "unknown"].includes(v.baseDirection) ? v.baseDirection : "right"
   };
 }
-/** null means the object follows the current combat-wide preference. */
-export function normalizeAutoMirrorOverride(value) {
-  return value === true || value === false ? value : null;
-}
 /** Отражение выводится из курса, а не накапливается от событий. Курс карты сегодня только left/right. */
-export function visualTransform(value, heading, autoMirror = false, autoMirrorOverride = null) {
+export function visualTransform(value, heading, autoMirror = false) {
   const t = normalizeObjectTransform(value);
   const horizontal = ["left", "right"].includes(t.baseDirection);
-  const enabled = normalizeAutoMirrorOverride(autoMirrorOverride) ?? autoMirror;
-  const auto = enabled && horizontal && ["left", "right"].includes(heading) && heading !== t.baseDirection;
+  const auto = autoMirror && horizontal && ["left", "right"].includes(heading) && heading !== t.baseDirection;
   return { ...t, auto, scaleX: t.flipX !== auto ? -1 : 1, scaleY: t.flipY ? -1 : 1 };
 }
 /** Сравнение полей отправляет только реально отредактированные абсолютные значения. */
