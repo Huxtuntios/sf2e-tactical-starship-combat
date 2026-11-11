@@ -38,6 +38,9 @@ zones[1].objects.push({
   arrow: "→",
   heading: "right",
   arrowPosition: "right",
+  arrowSize: 24,
+  arrowGap: 7,
+  arrowOpacity: 0.6,
   transform: { rotation: 45, scaleX: -1, scaleY: 1 },
   hp: "75/100",
   sp: "20/30",
@@ -57,6 +60,9 @@ zones[3].objects.push({
   arrowPosition: "top",
   arrowCustom: true,
   arrowImage: "file:///missing-arrow-test.png",
+  arrowSize: 36,
+  arrowGap: 11,
+  arrowOpacity: 0.25,
   arrowRotation: 180,
   transform: { rotation: 0, scaleX: 1, scaleY: 1 }
 });
@@ -133,8 +139,16 @@ const shipButton=app.querySelector('[data-object-key="ship"]'); const icon=shipB
 check('object-visual-transform',getComputedStyle(icon).transform!=='none');
 const beforeRect=shipButton.getBoundingClientRect(); icon.style.transform='rotate(135deg) scale(1, -1)'; const afterRect=shipButton.getBoundingClientRect();
 check('transform-does-not-move-hitbox',beforeRect.x===afterRect.x&&beforeRect.y===afterRect.y&&beforeRect.width===afterRect.width&&beforeRect.height===afterRect.height);
+const shipArrow=shipButton.querySelector('.tsc-obj-arrow'), shipVisual=shipButton.querySelector('.tsc-obj-visual');
+check('ship-arrow-size',getComputedStyle(shipArrow).fontSize==='24px');
+check('ship-arrow-gap',getComputedStyle(shipVisual).gap==='7px');
+check('ship-arrow-opacity',getComputedStyle(shipArrow).opacity==='0.6');
 const arrow=app.querySelector('[data-object-key="planet"] .tsc-course-image');check('broken-arrow-fallback',arrow.hidden&&!arrow.nextElementSibling.hidden);
 check('arrow-top',getComputedStyle(arrow.closest('.tsc-obj-visual')).flexDirection==='column');
+const planetArrow=arrow.closest('.tsc-obj-arrow'), planetVisual=arrow.closest('.tsc-obj-visual');
+check('planet-arrow-size',getComputedStyle(arrow).width==='36px');
+check('planet-arrow-gap',getComputedStyle(planetVisual).gap==='11px');
+check('planet-arrow-opacity',getComputedStyle(planetArrow).opacity==='0.25');
 check('text-arrow',shipButton.querySelector('.tsc-obj-arrow').textContent.trim()==='→');
 check('emoji-arrow-rotated',getComputedStyle(app.querySelector('[data-object-key="emoji"] .tsc-course-emoji')).transform.startsWith('matrix(-1'));
 check('none-arrow',!app.querySelector('[data-object-key="no-arrow"] .tsc-obj-arrow'));

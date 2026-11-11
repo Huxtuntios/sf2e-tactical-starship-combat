@@ -175,6 +175,118 @@ test("object arrow formats inherit live globals, override them, and reset withou
   assert.equal(reset.arrowPosition, "top");
   assert.equal(s.objects[0].heading, originalGameData.heading);
 });
+test("arrow reset updates only form fields and persisted override clears on Save", async () => {
+  const { installFoundryMock } = await import("../helpers/foundry-mock.mjs");
+  installFoundryMock();
+  const { resetArrowAppearanceForm, objectVisualFromForm } = await import("../../scripts/ui/map-appearance-app.mjs");
+  const globalAppearance = {
+    arrowMode: "emoji",
+    arrowImage: "global-arrow.webp",
+    arrowSize: 21,
+    arrowGap: 5,
+    arrowPosition: "bottom",
+    arrowOpacity: 0.7
+  };
+  const controls = {
+    arrowAppearanceMode: { value: "override" },
+    arrowMode: { value: "custom" },
+    arrowImage: { value: "draft-arrow.webp" },
+    arrowSize: { value: "38" },
+    arrowGap: { value: "12" },
+    arrowPosition: { value: "left" },
+    arrowOpacity: { value: "0.3" },
+    art: { value: "unsaved-art.webp" },
+    rotation: { value: "90" },
+    flipX: { checked: true },
+    flipY: { checked: true }
+  };
+  const preview = {
+    src: "",
+    hidden: true,
+    removeAttribute(name) {
+      if (name === "src") this.src = "";
+    }
+  };
+  const form = {
+    querySelector(selector) {
+      const field = selector.match(/\[name="([^"]+)"\]/)?.[1];
+      return field ? (controls[field] ?? null) : selector.includes("data-image-preview") ? preview : null;
+    }
+  };
+  let s = state();
+  s.appearance = globalAppearance;
+  s.objects[0].arrowAppearance = {
+    arrowMode: "custom",
+    arrowImage: "saved-arrow.webp",
+    arrowSize: 30,
+    arrowGap: 8,
+    arrowPosition: "left",
+    arrowOpacity: 0.5
+  };
+
+  resetArrowAppearanceForm(form, globalAppearance);
+  assert.equal(controls.arrowAppearanceMode.value, "inherit");
+  assert.deepEqual(
+    Object.fromEntries(
+      ["arrowMode", "arrowImage", "arrowSize", "arrowGap", "arrowPosition", "arrowOpacity"].map((key) => [key, controls[key].value])
+    ),
+    {
+      arrowMode: "emoji",
+      arrowImage: "global-arrow.webp",
+      arrowSize: 21,
+      arrowGap: 5,
+      arrowPosition: "bottom",
+      arrowOpacity: 0.7
+    }
+  );
+  assert.equal(preview.src, "global-arrow.webp");
+  assert.equal(preview.hidden, false);
+  assert.equal(controls.art.value, "unsaved-art.webp");
+  assert.equal(controls.rotation.value, "90");
+  assert.equal(controls.flipX.checked, true);
+  assert.equal(controls.flipY.checked, true);
+  assert.equal(s.objects[0].arrowAppearance.arrowImage, "saved-arrow.webp");
+
+  const visual = objectVisualFromForm(
+    {
+      art: controls.art.value,
+      rotation: controls.rotation.value,
+      flipX: controls.flipX.checked,
+      flipY: controls.flipY.checked,
+      baseDirection: "right",
+      autoMirrorOverride: "inherit",
+      arrowAppearanceMode: controls.arrowAppearanceMode.value,
+      arrowMode: controls.arrowMode.value,
+      arrowImage: controls.arrowImage.value,
+      arrowSize: controls.arrowSize.value,
+      arrowGap: controls.arrowGap.value,
+      arrowPosition: controls.arrowPosition.value,
+      arrowOpacity: controls.arrowOpacity.value
+    },
+    {
+      art: "ship.webp",
+      rotation: 0,
+      flipX: false,
+      flipY: false,
+      baseDirection: "right",
+      autoMirrorOverride: null,
+      arrowAppearanceOverride: s.objects[0].arrowAppearance
+    },
+    globalAppearance
+  );
+  assert.deepEqual(visual, {
+    transform: { rotation: 90, flipX: true, flipY: true },
+    art: "unsaved-art.webp",
+    arrowAppearance: null
+  });
+  s = applySensorOp(s, { op: "objectVisual", key: ship.key, visual });
+  assert.equal(s.objects[0].arrowAppearance, null);
+  assert.equal(s.objects[0].art, "unsaved-art.webp");
+  assert.equal(s.objects[0].mapTransform.rotation, 90);
+  assert.equal(s.objects[0].mapTransform.flipX, true);
+  assert.equal(s.objects[0].mapTransform.flipY, true);
+  assert.equal(s.objects[0].heading, "left");
+});
 test("visual edits preserve game state, other objects and unknown data", () => {
   const s = state();
   s.objects[0].mapTransform = { custom: "preserve", rotation: 25 };
@@ -259,6 +371,7 @@ test("templates contain distinct controls and escape custom image paths", () => 
   for (const name of ["arrowMode", "arrowImage", "arrowSize", "arrowGap", "arrowPosition", "arrowOpacity"])
     assert.match(obj, new RegExp(`name="${name}"`));
   assert.match(obj, /data-action="resetArrowAppearance"/);
+  assert.doesNotMatch(obj, /data-action="resetArrowAppearance" disabled/);
   for (const op of ["left", "right", "resetRotation", "resetFlipping", "resetAll"]) assert.match(obj, new RegExp(`data-op="${op}"`));
   const template = h.compile(fs.readFileSync(new URL("../../templates/sensor-map-zones.hbs", import.meta.url), "utf8"));
   const html = template({

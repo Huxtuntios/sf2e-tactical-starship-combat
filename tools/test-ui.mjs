@@ -55,7 +55,7 @@ try {
           const arrowFields = await page
             .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
             .count();
-          const resetDisabled = await page.locator('[data-action="resetArrowAppearance"]').isDisabled();
+          const resetEnabled = !(await page.locator('[data-action="resetArrowAppearance"]').isDisabled());
           const isOverride = name.includes("form-object-override");
           const values = await page
             .locator('input[name="arrowImage"], input[name="arrowSize"], input[name="arrowGap"], input[name="arrowOpacity"]')
@@ -69,7 +69,7 @@ try {
             arrowAppearanceOptions.includes("inherit") &&
             arrowAppearanceOptions.includes("override") &&
             arrowFields === 4 &&
-            resetDisabled === !isOverride &&
+            resetEnabled &&
             selectedMode === (isOverride ? "override" : "inherit") &&
             values.join("|") === (isOverride ? "object-arrow.webp|31|8|0.4" : "global-arrow.webp|22|5|0.75");
         }
