@@ -138,10 +138,7 @@ export class SensorMapApplication extends TscApp {
   dockIndex = 0;
   gmToolsOpen = false;
   wants(channel, doc) {
-    if (channel === "settings") {
-      this.invalidateActorCache();
-      this.invalidateBackground(); // explicit settings refresh also permits same-URL image reload
-    }
+    if (channel === "settings") this.invalidateActorCache();
     return this.channels.includes(channel);
   }
   /** partial refresh — only the parts a channel affects are re-rendered (null = all). */
