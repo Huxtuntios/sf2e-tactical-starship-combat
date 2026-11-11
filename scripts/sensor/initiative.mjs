@@ -1,14 +1,18 @@
 import { MODULE_ID } from "../constants.mjs";
 import { isStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { privateContacts } from "./private-contacts.mjs";
+import {
+  backfillPrivateSensorActorCombatant,
+  privateSensorActorCombatant,
+  SENSOR_CONTACT_COMBATANT_IMAGE,
+  SENSOR_CONTACT_COMBATANT_NAME
+} from "./actor-instance.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { isActiveGM, T, fromUuidSafe, escapeHtml } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
 import { serialize } from "../utils/serial.mjs";
 
 const sensorInstance = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
-const CONTACT_IMAGE = "icons/svg/mystery-man.svg";
-const CONTACT_NAME = "Contact";
 
 function liveCombat(combatId) {
   if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
@@ -50,7 +54,7 @@ function hiddenOnTracker(object) {
 }
 
 function trackerName(object, isPrivate) {
-  return isPrivate || hiddenOnTracker(object) ? CONTACT_NAME : object.name;
+  return isPrivate || hiddenOnTracker(object) ? SENSOR_CONTACT_COMBATANT_NAME : object.name;
 }
 
 async function createWhisper(report) {
@@ -106,8 +110,13 @@ async function addActorLocked(combatId, input) {
 
   const existing = combatantForActor(combat, actor);
   if (existing) {
-    if (hidden && (!existing.hidden || existing.name !== displayName || existing.img !== CONTACT_IMAGE))
-      await existing.update({ hidden: true, name: displayName, img: CONTACT_IMAGE });
+    if (isPrivate) {
+      if (privateSensorActorCombatant(combat, actor) !== existing) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, existing);
+      return { status: "existing", item: { name, hidden: true } };
+    }
+    if (hidden && (!existing.hidden || existing.name !== displayName || existing.img !== SENSOR_CONTACT_COMBATANT_IMAGE))
+      await existing.update({ hidden: true, name: displayName, img: SENSOR_CONTACT_COMBATANT_IMAGE });
     return { status: "existing", item: { name, hidden } };
   }
 
@@ -129,8 +138,13 @@ async function addActorLocked(combatId, input) {
 
   const duplicate = combatantForActor(combat, actor);
   if (duplicate) {
-    if (hidden && (!duplicate.hidden || duplicate.name !== displayName || duplicate.img !== CONTACT_IMAGE))
-      await duplicate.update({ hidden: true, name: displayName, img: CONTACT_IMAGE });
+    if (isPrivate) {
+      if (privateSensorActorCombatant(combat, actor) !== duplicate) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, duplicate);
+      return { status: "existing", item: { name, hidden: true } };
+    }
+    if (hidden && (!duplicate.hidden || duplicate.name !== displayName || duplicate.img !== SENSOR_CONTACT_COMBATANT_IMAGE))
+      await duplicate.update({ hidden: true, name: displayName, img: SENSOR_CONTACT_COMBATANT_IMAGE });
     return { status: "existing", item: { name, hidden } };
   }
 
@@ -140,9 +154,9 @@ async function addActorLocked(combatId, input) {
       sceneId: combat.scene?.id ?? null,
       tokenId: null,
       name: displayName,
-      img: hidden ? CONTACT_IMAGE : undefined,
+      img: hidden ? SENSOR_CONTACT_COMBATANT_IMAGE : undefined,
       hidden,
-      flags: { [MODULE_ID]: { sensorMapInitiative: { contactDesignation: hidden } } }
+      flags: { [MODULE_ID]: { sensorMapInitiative: { combatId: combat.id, contactDesignation: hidden } } }
     }
   ]);
   if (!created) throw new Error("couldNotCreateSensorCombatant");
@@ -157,6 +171,33 @@ function record(report, result) {
   report[result.status].push(result.item);
 }
 
+function safeInitiativeResult(result) {
+  const reason = result.item?.reason;
+  return reason ? { status: result.status, reason } : { status: result.status };
+}
+
+async function addPrivateContactResult(combatId, key, contact) {
+  if (contact.type !== "starship") return { status: "skipped", reason: "notNpcShip" };
+  if (!contact.actorUuid) return { status: "skipped", reason: "markerOnly" };
+  try {
+    const result = await addActorLocked(combatId, {
+      actorUuid: contact.actorUuid,
+      name: objectName(contact),
+      displayName: SENSOR_CONTACT_COMBATANT_NAME,
+      hidden: true,
+      isPrivate: true,
+      validateCurrent: (currentCombat) => {
+        const current = privateContacts(currentCombat.id).filter((entry) => entry.key === key);
+        return current.length === 1 && current[0].actorUuid === contact.actorUuid && current[0].type === "starship" ? current[0] : null;
+      }
+    });
+    return safeInitiativeResult(result);
+  } catch (error) {
+    log.error("private sensor initiative add failed", error);
+    return { status: "failed", reason: "failed" };
+  }
+}
+
 export async function addSensorObjectToInitiative(combatId, key, user = game.user) {
   if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
   return serialize(`sensor:${combatId}`, async () => {
@@ -164,8 +205,12 @@ export async function addSensorObjectToInitiative(combatId, key, user = game.use
     const matches = getTsc(combat).objects.filter((object) => object.key === key);
     if (matches.length === 1) {
       const object = matches[0];
+      if (object.tscPrivateProjection) {
+        const privateMatches = privateContacts(combat.id).filter((contact) => contact.key === key);
+        if (privateMatches.length === 1) return addPrivateContactResult(combat.id, key, privateMatches[0]);
+        return { status: "skipped", reason: "privateContact" };
+      }
       const name = objectName(object);
-      if (object.tscPrivateProjection) return { status: "skipped", reason: "privateContact" };
       if (object.type !== "starship") return { status: "skipped", reason: object.actorUuid ? "notNpcShip" : "markerOnly" };
       if (!object.actorUuid) return { status: "skipped", reason: "markerOnly" };
       const hidden = hiddenOnTracker(object);
@@ -181,7 +226,7 @@ export async function addSensorObjectToInitiative(combatId, key, user = game.use
             return current.length === 1 && current[0].type === "starship" && current[0].actorUuid === object.actorUuid ? current[0] : null;
           }
         });
-        return { status: result.status, reason: result.item.reason };
+        return safeInitiativeResult(result);
       } catch (error) {
         log.error("sensor initiative add failed", error);
         return { status: "failed", reason: "failed" };
@@ -190,26 +235,7 @@ export async function addSensorObjectToInitiative(combatId, key, user = game.use
 
     const privateMatches = privateContacts(combat.id).filter((contact) => contact.key === key);
     if (privateMatches.length !== 1) return { status: "skipped", reason: "missingObject" };
-    const contact = privateMatches[0];
-    if (contact.type !== "starship") return { status: "skipped", reason: "notNpcShip" };
-    if (!contact.actorUuid) return { status: "skipped", reason: "markerOnly" };
-    try {
-      const result = await addActorLocked(combatId, {
-        actorUuid: contact.actorUuid,
-        name: objectName(contact),
-        displayName: CONTACT_NAME,
-        hidden: true,
-        isPrivate: true,
-        validateCurrent: (currentCombat) => {
-          const current = privateContacts(currentCombat.id).filter((entry) => entry.key === key);
-          return current.length === 1 && current[0].actorUuid === contact.actorUuid && current[0].type === "starship" ? current[0] : null;
-        }
-      });
-      return { status: result.status, reason: result.item.reason };
-    } catch (error) {
-      log.error("private sensor initiative add failed", error);
-      return { status: "failed", reason: "failed" };
-    }
+    return addPrivateContactResult(combat.id, key, privateMatches[0]);
   });
 }
 
@@ -282,7 +308,7 @@ async function addPrivateContactLocked(combatId, contact) {
   return addActorLocked(combatId, {
     actorUuid: contact.actorUuid,
     name: objectName(contact),
-    displayName: CONTACT_NAME,
+    displayName: SENSOR_CONTACT_COMBATANT_NAME,
     hidden: true,
     isPrivate: true,
     validateCurrent: (currentCombat) => {

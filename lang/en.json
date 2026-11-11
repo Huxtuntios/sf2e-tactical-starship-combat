@@ -826,6 +826,7 @@
         "playerShip": "player ship is never added automatically",
         "noIndependentActor": "no independent Actor instance for this combat",
         "actorMissing": "Actor could not be resolved",
+        "actorExposed": "Actor already has a Combatant that is not a safe hidden Sensor Map entry",
         "missingObject": "map object no longer exists",
         "failed": "Combatant creation failed"
       },

@@ -6,6 +6,8 @@ import { fromUuidSafe } from "../utils/foundry.mjs";
 
 const NONE = 0;
 const instanceFlag = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
+export const SENSOR_CONTACT_COMBATANT_NAME = "Contact";
+export const SENSOR_CONTACT_COMBATANT_IMAGE = "icons/svg/mystery-man.svg";
 
 /** Create a persistent Actor document for one placement, retaining its template UUID. */
 export async function createSensorActorInstance(source, combat, { privateContact = false, createActor } = {}) {
@@ -33,8 +35,12 @@ export async function ensureSensorActorCombatant(combat, actor) {
   const needsTurn =
     (isStarship(actor) && readStarship(actor).role === "npc") || (actor.type === "hazard" && hazardNeedsCombatant(actor.system?.details));
   if (!needsTurn) return null;
-  const existing = combat.combatants?.find(
-    (combatant) => combatant.actorId === actor.id && combatant.flags?.[MODULE_ID]?.sensorContactInstance?.combatId === combat.id
+  const combatants = combat?.combatants?.contents ?? [...(combat?.combatants ?? [])];
+  const existing = combatants.find(
+    (combatant) =>
+      combatant.actorId === actor.id &&
+      (combatant.flags?.[MODULE_ID]?.sensorContactInstance?.combatId === combat.id ||
+        combatant.flags?.[MODULE_ID]?.sensorMapInitiative?.combatId === combat.id)
   );
   if (existing) return existing;
   const [combatant] = await combat.createEmbeddedDocuments("Combatant", [
@@ -50,11 +56,79 @@ export async function ensureSensorActorCombatant(combat, actor) {
   return combatant;
 }
 
+/** Find the exact anonymous initiative entry that is safe to disclose with a private contact. */
+export function privateSensorActorCombatant(combat, actor) {
+  const instance = instanceFlag(actor);
+  if (!instance?.privateContact || instance.combatId !== combat?.id) return null;
+  const combatants = combat?.combatants?.contents ?? [...(combat?.combatants ?? [])];
+  const matches = combatants.filter((combatant) => {
+    const ref = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
+    return (
+      combatant.actorId === actor.id &&
+      combatant.combat?.id === combat.id &&
+      ref?.contactDesignation === true &&
+      (ref.combatId === combat.id || !Object.hasOwn(ref, "combatId"))
+    );
+  });
+  if (matches.length !== 1) return null;
+  const [combatant] = matches;
+  return combatant.hidden === true && combatant.name === SENSOR_CONTACT_COMBATANT_NAME && combatant.img === SENSOR_CONTACT_COMBATANT_IMAGE
+    ? combatant
+    : null;
+}
+
+export async function backfillPrivateSensorActorCombatant(combat, actor, combatant) {
+  if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
+  await combatant.update({
+    hidden: true,
+    name: SENSOR_CONTACT_COMBATANT_NAME,
+    img: SENSOR_CONTACT_COMBATANT_IMAGE,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id
+  });
+}
+
+export async function revealSensorActorCombatant(combat, actor, combatant) {
+  if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
+  await combatant.update({
+    hidden: false,
+    name: actor.name,
+    img: actor.img,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id,
+    [`flags.${MODULE_ID}.sensorMapInitiative.contactDesignation`]: false
+  });
+}
+
+export async function restorePrivateSensorActorCombatant(combat, actor, combatant) {
+  const ref = combatant?.flags?.[MODULE_ID]?.sensorMapInitiative;
+  const instance = instanceFlag(actor);
+  const legacyEntry =
+    !Object.hasOwn(ref ?? {}, "combatId") &&
+    instance?.combatId === combat?.id &&
+    instance.privateContact === true &&
+    combatant?.combat?.id === combat?.id &&
+    ref?.contactDesignation === true &&
+    combatant.hidden === true &&
+    combatant.name === SENSOR_CONTACT_COMBATANT_NAME &&
+    combatant.img === SENSOR_CONTACT_COMBATANT_IMAGE;
+  if (combatant?.actorId !== actor?.id || (ref?.combatId !== combat?.id && !legacyEntry)) throw new Error("invalidPrivateSensorCombatant");
+  await combatant.update({
+    hidden: true,
+    name: SENSOR_CONTACT_COMBATANT_NAME,
+    img: SENSOR_CONTACT_COMBATANT_IMAGE,
+    [`flags.${MODULE_ID}.sensorMapInitiative.combatId`]: combat.id,
+    [`flags.${MODULE_ID}.sensorMapInitiative.contactDesignation`]: true
+  });
+}
+
 /** Remove only the initiative entry owned by this Sensor Map instance. */
 export async function deleteSensorActorCombatant(combat, actorUuid) {
   const combatants = [...(combat?.combatants ?? [])].filter((combatant) => {
-    const ref = combatant.flags?.[MODULE_ID]?.sensorContactInstance;
-    return ref?.combatId === combat?.id && ref.actorUuid === actorUuid;
+    const instanceRef = combatant.flags?.[MODULE_ID]?.sensorContactInstance;
+    const initiativeRef = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
+    return (
+      (instanceRef?.combatId === combat?.id && instanceRef.actorUuid === actorUuid) ||
+      (initiativeRef?.combatId === combat?.id && combatant.actor?.uuid === actorUuid)
+    );
   });
   if (combatants.length)
     await combat.deleteEmbeddedDocuments(
