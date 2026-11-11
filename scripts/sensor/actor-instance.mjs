@@ -2,7 +2,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { createActorCopy, copyName } from "../combat/copies.mjs";
 import { hazardNeedsCombatant } from "../engine/hazard-rules.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
-import { fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
+import { fromUuidSafe } from "../utils/foundry.mjs";
 
 const NONE = 0;
 const instanceFlag = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
@@ -29,38 +29,29 @@ export async function createSensorActorInstance(source, combat, { privateContact
 }
 
 /** Add an initiative entry only when this Actor type normally takes its own turn. */
-export async function ensureSensorActorCombatant(combat, actor, { combatantId } = {}) {
+export async function ensureSensorActorCombatant(combat, actor) {
   const instance = instanceFlag(actor);
   if (!instance || instance.privateContact || instance.combatId !== combat?.id) return null;
   const needsTurn =
     (isStarship(actor) && readStarship(actor).role === "npc") || (actor.type === "hazard" && hazardNeedsCombatant(actor.system?.details));
   if (!needsTurn) return null;
   const combatants = combat?.combatants?.contents ?? [...(combat?.combatants ?? [])];
-  const matches = combatants.filter((entry) => entry.actorId === actor.id || entry.actor?.uuid === actor.uuid);
-  if (matches.length > 1) throw new Error("duplicateSensorActorCombatants");
-  const [existing] = matches;
-  if (existing) {
-    if (combatantId && existing.id !== combatantId) throw new Error("conflictingSensorActorCombatant");
-    return existing; // Never duplicate or overwrite a manual Actor entry.
-  }
-  if (combatantId && combatants.some((entry) => entry.id === combatantId)) throw new Error("conflictingSensorCombatantId");
-  if (!isActiveGM()) throw new Error("Sensor Combatant creation requires the active GM");
-  const [combatant] = await combat.createEmbeddedDocuments(
-    "Combatant",
-    [
-      {
-        ...(combatantId ? { _id: combatantId } : {}),
-        actorId: actor.id,
-        sceneId: combat.scene?.id ?? null,
-        tokenId: null,
-        name: actor.name,
-        img: actor.img,
-        hidden: false,
-        flags: { [MODULE_ID]: { sensorContactInstance: { combatId: combat.id, actorUuid: actor.uuid } } }
-      }
-    ],
-    combatantId ? { keepId: true } : {}
+  const existing = combatants.find(
+    (combatant) =>
+      combatant.actorId === actor.id &&
+      (combatant.flags?.[MODULE_ID]?.sensorContactInstance?.combatId === combat.id ||
+        combatant.flags?.[MODULE_ID]?.sensorMapInitiative?.combatId === combat.id)
   );
+  if (existing) return existing;
+  const [combatant] = await combat.createEmbeddedDocuments("Combatant", [
+    {
+      actorId: actor.id,
+      sceneId: combat.scene?.id ?? null,
+      tokenId: null,
+      hidden: false,
+      flags: { [MODULE_ID]: { sensorContactInstance: { combatId: combat.id, actorUuid: actor.uuid } } }
+    }
+  ]);
   if (!combatant) throw new Error("couldNotCreateSensorCombatant");
   return combatant;
 }
@@ -88,7 +79,6 @@ export function privateSensorActorCombatant(combat, actor) {
 
 export async function backfillPrivateSensorActorCombatant(combat, actor, combatant) {
   if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
-  if (!isActiveGM()) throw new Error("Private Combatant update requires the active GM");
   await combatant.update({
     hidden: true,
     name: SENSOR_CONTACT_COMBATANT_NAME,
@@ -99,7 +89,6 @@ export async function backfillPrivateSensorActorCombatant(combat, actor, combata
 
 export async function revealSensorActorCombatant(combat, actor, combatant) {
   if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
-  if (!isActiveGM()) throw new Error("Private Combatant update requires the active GM");
   await combatant.update({
     hidden: false,
     name: actor.name,

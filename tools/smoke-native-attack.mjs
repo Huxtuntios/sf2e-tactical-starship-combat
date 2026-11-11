@@ -13,8 +13,7 @@ const html = `<!doctype html><meta charset="utf-8">
 const M='sf2e-tactical-starship-combat', hooks={}, calls=[];
 globalThis.Hooks={on:(n,f)=>hooks[n]=f};
 globalThis.foundry={utils:{randomID:()=>String(Math.random())}};
-const gm={id:'gm',isGM:true,active:true};
-globalThis.game={user:{id:'p1',isGM:false},users:{activeGM:gm,get:id=>id==='gm'?gm:null},i18n:{localize:k=>k,format:k=>k},socket:{connected:true,emit:(...args)=>calls.push(args)}};
+globalThis.game={user:{id:'p1',isGM:false},users:{activeGM:{id:'gm'}},i18n:{localize:k=>k},socket:{emit:(...args)=>calls.push(args)}};
 globalThis.ui={notifications:{error:()=>{}}};
 const {registerAttackCards}=await import('${rootUrl}/scripts/chat/attack-card/client.mjs');registerAttackCards();
 const checks=[], check=(name,pass)=>checks.push({name,pass:!!pass});
@@ -26,12 +25,6 @@ check('native-result-preserved',element.querySelector('.system-roll').textConten
 check('rerender-single-control',element.querySelectorAll('.tsc-native-attack-controls').length===1 && element.querySelectorAll('button').length===1);
 element.querySelector('button').click();element.querySelector('button').click();
 check('double-click-one-request',calls.length===1 && calls[0][1].type==='rollAttackCardDamage');
-const {dispatchSocketMessage}=await import('${rootUrl}/scripts/socket.mjs');
-await dispatchSocketMessage({kind:'response',requestId:calls[0][1].requestId,to:'p1',ok:true,result:{}},'gm',{
-  users:game.users,selfId:'p1',isActiveGM:false,clientEvents:new Map(),emit:()=>{}
-});
-await new Promise(resolve=>setTimeout(resolve,0));
-check('response-releases-busy-control',!element.querySelector('button').disabled);
 game.user={id:'gm',isGM:true};card.damageRoll={total:5};hooks.renderChatMessageHTML(msg,element);
 check('gm-can-apply',element.querySelectorAll('button').length===2 && !!element.querySelector('[data-tsc-attack="apply"]'));
 game.user={id:'other',isGM:false};hooks.renderChatMessageHTML(msg,element);

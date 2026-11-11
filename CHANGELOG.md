@@ -1,15 +1,5 @@
 # Changelog
 
-## Reliability follow-up to 0.17.1-dev.13 — unpublished
-
-- Retain the Sensor Map background DOM through full/partial part replacement; use one source/revision loader and an aspect-preserving PNG display copy capped at 4096 pixels for giant images. Preserve ordinary image quality and original paths/files; release blobs/images/canvases on change/close. Cache only visible known Actor resolutions/data/statistics per window, with document/permission/catalog invalidation and stale-result rejection; skip unrequested parts. Chromium exercises an actual 8100×11700 PNG and 360 objects.
-- Add an explicit GM pending-identification recovery control and public mutation/initiative guards while a reveal is pending. Recovery reports conflicts locally and releases busy controls on success/failure; render/hooks never initiate recovery writes.
-- Bound socket waits after the first eligible accepted acknowledgement to one 120-second result deadline; keep the initial 15-second wait. Bound local GM handlers, reject disconnected/changed-GM requests, remove pending timers/listeners and ignore late/duplicate replies. Preserve authenticated sender checks. Timeout does not cancel the handler or guarantee exactly-once processing.
-- Toolbelt manual ×2/×3 no longer implies a critical hit. Use the original selected roll degree or unambiguous native single-roll attack damage outcome; contradictory/malformed evidence stays noncritical. Do not treat save/check critical success as a critical hit. Preserve manual scaling, typed defenses, shields, receipts and existing target-bound critical-save-failure consequences.
-- Persist private Undo intent and one narrow Actor receipt with restoration, so a retry can finish a failed history update without restoring again. Compare snapshots structurally without object-key-order sensitivity, retaining Actor/Combat guards, GM-only history and the 80-record bound. Do not enable HP/SP, damage or critical-state Undo.
-- Replace whole-Combat reveal rollback with journal-only staged intent and guarded finish-forward recovery. Preserve original Actor/Combatant identity and initiative, inspect actual documents after partial failure, refuse conflicts/duplicates and retain pending evidence. Completed reveal receipts are bounded to 64; no distributed transaction or confidentiality guarantee is claimed.
-- Add failure-injection and regression coverage. Manifest version, compatibility declarations, dependencies and action/reaction accounting are unchanged. Live Foundry, Toolbelt and multiplayer verification remain outstanding; follow the ordered checklist in `docs/testing.md`.
-
 ## 0.17.1-dev.13 — experimental, unpublished
 
 - Simplify Sensor Map contact detection: selecting a state applies it immediately, without an extra checkbox or confirmation dialog. Keep the existing private journal, anonymous map projection, Actor ownership, and combat data formats.

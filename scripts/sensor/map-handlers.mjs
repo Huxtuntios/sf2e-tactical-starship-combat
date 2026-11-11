@@ -4,16 +4,12 @@ import { getTsc, mutateTsc } from "../combat/tsc-state.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { registerHandler } from "../socket.mjs";
-import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
+import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
 import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
-<<<<<<< Updated upstream
-=======
-import { pendingPrivateReveals } from "./private-contacts.mjs";
->>>>>>> Stashed changes
 
 export function registerSensorHandlers() {
   registerHandler("sensorAddInitiative", async ({ user, payload }) => addSensorObjectToInitiative(payload?.combatId, payload?.key, user));
@@ -25,31 +21,6 @@ export function registerSensorHandlers() {
       // players: only "move"/"shift" of their own ship — canMoveKey(user, getTsc(combat), payload.key)
       const payload = sanitizeSensorPayload(user, getTsc(combat), raw);
       if (!payload) throw new Error(T("SF2eTSC.errors.gmOnly"));
-      if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
-      // Non-Actor markers cannot collide with private- contact keys or document UUIDs.
-      const independentMarker =
-        payload.op === "add" &&
-        !payload.key &&
-        !payload.object?.actorUuid &&
-        typeof payload.object?.key === "string" &&
-        !payload.object.key.startsWith("private-") &&
-        !payload.object.key.includes(".");
-      let pending = [];
-      if (!independentMarker) {
-        try {
-          pending = pendingPrivateReveals(combat.id);
-        } catch {
-          throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
-        }
-      }
-      const targets = [payload.key, findObject(getTsc(combat), payload.key)?.actorUuid];
-      if (payload.op === "dropActor") targets.push(payload.actorUuid);
-      if (payload.op === "add") targets.push(payload.object?.key, payload.object?.actorUuid);
-      if (
-        (payload.op === "resize" && pending.length) ||
-        pending.some((entry) => targets.some((target) => target && (target === entry.key || target === entry.actorUuid)))
-      )
-        throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
       if (payload.op === "zoneInfo" && Object.hasOwn(payload.info ?? {}, "gmNotes"))
         throw new Error(T("SF2eTSC.privateMap.legacyNotesWarning"));
       if (payload.key && findObject(getTsc(combat), payload.key)?.tscPrivateProjection)

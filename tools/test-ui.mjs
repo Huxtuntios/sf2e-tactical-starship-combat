@@ -17,7 +17,6 @@ const fixtures = [
   ["smoke-map-appearance.mjs", "map"],
   ["smoke-environment-object.mjs", "environment-object"],
   ["smoke-sensor-drop.mjs", "sensor-drop"],
-  ["smoke-sensor-performance.mjs", "sensor-performance"],
   ["smoke-contact-editor.mjs", "contact-editor"],
   ["smoke-crew-stations.mjs", "crew-stations"],
   ["smoke-builder-history.mjs", "builder-history"],

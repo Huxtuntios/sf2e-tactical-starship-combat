@@ -1,37 +1,10 @@
 # Testing
 
-<<<<<<< Updated upstream
-=======
-## Reliability follow-up — local results, 2026-11-11
-
-Baseline `9e833adcb301769b40ba2cb696df1ad994b4c4bc`: `npm ci` succeeded; `npm run check` passed 815/815 Node tests and `npm run test:ui` passed 54/54 Chromium fixtures. The follow-up passed format, ESLint, content validation, all 22 pack builds and **1041/1041 Node tests** with no failures, cancellations or skips; **55/55 Chromium fixtures** passed without page errors. The production Sensor Map fixture contributes 49 assertions using an actual 8100×11700 PNG, 360 objects, retained full/partial renders, a native 512×512 image, cache invalidation/cleanup and explicit recovery success/failure/busy/player checks; it also passed through a local HTTP preview.
-
-A full run caught the public-marker/invalid-private-journal regression; the implementation was corrected without changing the old assertion, and reserved-identity guards gained coverage. The native-attack fixture's GM mock was updated to the authenticated authority contract, preserving its original assertions and adding a real response/button-release check. No tests were disabled or thresholds relaxed. These are Node mocks and local production-code browser fixtures, not a live Foundry server or installed SF2e/PF2e/Toolbelt world.
-
-## Reliability follow-up — live checklist (not executed)
-
-Use a backed-up disposable world, Foundry **14.361** and separately the installed v14 build, **SF2e 1.6.1**, and a separate **PF2e 8.6.1 + SF2e Anachronism 2.4.0+** world. Record the exact installed builds and dependency versions; these are requested test configurations, not verified compatibility. Test with Toolbelt off and with a Toolbelt/libWrapper pair whose manifest supports that system. Use two GM accounts and a separate player client. Local Node mocks and Chromium fixtures do not load these systems or the Foundry server.
-
-1. Open Sensor Map with an ordinary 512-pixel background, then an **8100 × 11700** raster and at least 300 objects. Repeatedly select, move, change zones, edit Actors/Items and switch station docks. Inspect the background DOM identity and network panel: unrelated renders must not reload it. Check rotation, flips, transparency, blur, themes and portrait quality. Change/remove the background during loading, close/reopen the map, and test inaccessible and remote/CORS-restricted images. The original file and stored path must remain unchanged.
-2. Change/delete/recreate mapped Actors, embedded Items, effects, token/synthetic Actors and compendium content. Revoke user ownership and switch the active combat. Confirm HP/SP, status, artwork, targeting and statistics refresh without exposing unknown/private identities or retaining deleted documents.
-3. From the player client start a GM-owned check dialog; leave it open past the initial request deadline but finish before the result deadline. Then test a never-completed handler, disconnected player socket, GM disconnect and active-GM replacement. The waiting UI must settle; late or duplicate results must not complete a newer request. Inspect the documents and chat before retrying: a timeout does not cancel a server operation or guarantee exactly-once execution.
-4. In Toolbelt apply ordinary noncritical typed damage with manual ×2 and ×3, including direct-to-hull and shields. Compare IWR, Hardness and HP/SP with the existing engine; manual scaling alone must not increase Compromised. Test an actual native critical result with ×1 and ×0.5, missing/conflicting metadata, zero damage and repeat-application receipts. A critical success on a save/check is not a critical hit. Separately verify the starship's own critical save failure (+2 Compromised) through the existing target-bound save paths or explicit GM damage; Toolbelt's manual ×2 does not prove that target's save result. Critical ship-state and initiative transitions still require live verification.
-5. For an eligible heading/effect/off-kilter Undo, simulate a failure before the Actor write and after Actor restoration but before history finalization. Retry the same record, including after reload; restore only once and finalize its audit record. Change Actor or Combat state before retry and confirm refusal. Confirm identical objects with reordered keys pass guards, while array ordering and actual value changes do not. HP, SP, damage, critical states and unsafe drone changes must remain non-undoable. Check GM-only journal and legacy whisper history, and the 80-record bound.
-6. Reveal NPC, simple/complex hazard and custom private contacts. Inject failures at each JournalEntry, Combat, Actor and Combatant stage, including an update that saved but whose response was lost. Use explicit GM recovery, then repeat it: retain Actor/Combatant IDs, initiative and unrelated map edits; never duplicate placements. Test an existing anonymous initiative entry, deleted Actor, ambiguous duplicate objects/Combatants, invalid journal permissions and GM loss midway. Conflicts must leave durable progress and an actionable GM error, not claim a multi-document transaction. Verify private journal filtering and already-revealed information on the separate player client.
-7. Regression: independent Actor copies/source immutability, player/NPC initiative, ships/crew/stations, drones, mines and contact sync, native attacks, Toolbelt normal-actor/healing behavior, English/Russian text, optional integrations absent/present. No action or reaction accounting is added.
-
-Stop on unexpected resource changes, private-data exposure or conflicting documents; preserve the evidence and reconcile from a backup rather than blindly repeating an operation.
-
->>>>>>> Stashed changes
 ## Sensor Map detection UX
 
 `tests/unit/sensor-contacts-01712.test.mjs` verifies initial contact placement in all four detection states, state changes, the public observed projection, identified reveal, legacy combat flags, and normal Foundry ownership checks in the mocks. The editor and map action tests ensure observed/reveal actions do not call confirmation dialogs. These are unit tests with mocked documents; they do not prove live Foundry permissions or multi-client behavior.
 
-<<<<<<< Updated upstream
 On this branch, `npm run check` passed formatting, lint, content validation, pack build, and 790/790 Node tests. `npm run test:ui` passed 49/49 local Chromium fixtures. No live Foundry or multi-client test was run.
-=======
-Historical detection-UX results: `npm run check` passed formatting, lint, content validation, pack build, and 790/790 Node tests. `npm run test:ui` passed 49/49 local Chromium fixtures. No live Foundry or multi-client test was run.
->>>>>>> Stashed changes
 
 ## 0.17.1-dev.13 verification
 

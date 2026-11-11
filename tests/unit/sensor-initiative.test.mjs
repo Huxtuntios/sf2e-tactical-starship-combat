@@ -243,7 +243,7 @@ test("legacy private initiative entries without combatId can be revealed in thei
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
 });
 
-test("a failed legacy initiative update retains map publication and durable intent for recovery", async () => {
+test("a failed legacy initiative update rolls back public reveal and remains retryable", async () => {
   const combat = setup();
   const source = makeShip({ id: "rollback-legacy-source", name: "Legacy ambusher", role: "npc" });
   const placement = await addSensorContact(combat, {
@@ -272,12 +272,10 @@ test("a failed legacy initiative update retains map publication and durable inte
   assert.equal(original.hidden, true);
   assert.equal(original.name, "Contact");
   assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, true);
-  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.combatId, undefined);
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
   assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, true);
   assert.equal(privateContacts(combat.id).length, 1);
-  assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
-  assert.equal(privateContacts(combat.id)[0].reveal.stage, "map");
-  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 1);
+  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
 
   await changePrivateContact(combat, placement.key, "reveal");
   assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
@@ -370,7 +368,7 @@ test("reveal rejects a generic hidden Combatant associated with another Combat",
   assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
 });
 
-test("failed finalization keeps the same revealed initiative entry pending and can be retried", async () => {
+test("a failed reveal restores the existing hidden initiative entry and can be retried", async () => {
   const combat = setup();
   const source = makeShip({ id: "rollback-private-source", name: "Hidden scout", role: "npc" });
   const placement = await addSensorContact(combat, {
@@ -386,7 +384,7 @@ test("failed finalization keeps the same revealed initiative entry pending and c
   const update = doc.update.bind(doc);
   let shouldFail = true;
   doc.update = async (...args) => {
-    if (shouldFail && Object.hasOwn(args[0], `flags.${MODULE_ID}.privateSensor.completedReveals`)) {
+    if (shouldFail) {
       shouldFail = false;
       throw new Error("journal failed");
     }
@@ -396,13 +394,11 @@ test("failed finalization keeps the same revealed initiative entry pending and c
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /journal failed/);
 
   assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
-  assert.equal(original.hidden, false);
-  assert.equal(original.name, actor.name);
-  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
-  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 1);
-  assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
-  assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
+  assert.equal(original.hidden, true);
+  assert.equal(original.name, "Contact");
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, true);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, true);
+  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
 
   await changePrivateContact(combat, placement.key, "reveal");
   assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);

@@ -39,21 +39,6 @@ export function damagePartsFromMessage(message, rollIndex, multiplier, addend = 
   });
 }
 
-// alter() marks manually doubled/tripled terms as crit; only the original degree or confirmed outcome is evidence.
-function criticalHitFromMessage(message, rollIndex) {
-  const degree = message.rolls?.[rollIndex]?.options?.degreeOfSuccess;
-  const context = message.flags?.[nativeSystemId()]?.context;
-  // Message-wide context labels only one roll; save/check critical success is not a critical hit.
-  const associated = rollIndex === 0 && message.rolls?.length === 1 && context != null;
-  if (associated && (context.type !== "damage-roll" || context.sourceType !== "attack")) return false;
-  const outcome = associated ? context.outcome : null;
-  const outcomes = ["criticalFailure", "failure", "success", "criticalSuccess"];
-  if (degree != null && (!Number.isInteger(degree) || degree < 0 || degree > 3)) return false;
-  if (outcome != null && !outcomes.includes(outcome)) return false;
-  if (degree != null && outcome != null && outcomes[degree] !== outcome) return false;
-  return degree === 3 || outcome === "criticalSuccess";
-}
-
 function mayRead(user, message) {
   if (user.isGM) return true;
   if (message.blind) return false;
@@ -80,7 +65,6 @@ export async function applyToolbeltDamage({ user, payload }) {
       const records = actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? [];
       if (records.some((record) => record.key === key) || message.flags?.[MODULE_ID]?.damageReceipts?.[receiptKey])
         rejectDamage("alreadyApplied");
-      const criticalHit = criticalHitFromMessage(message, payload.rollIndex);
       const parts = damagePartsFromMessage(message, payload.rollIndex, payload.multiplier, payload.addend ?? 0);
       const item = message.item;
       const options = message.flags?.[nativeSystemId()]?.context?.options ?? [];
@@ -93,6 +77,8 @@ export async function applyToolbeltDamage({ user, payload }) {
           ...(payload.mode === "hull" ? ["bypassing"] : [])
         ])
       ];
+      const roll = message.rolls[payload.rollIndex];
+      const criticalHit = payload.multiplier >= 2 || roll.options?.degreeOfSuccess === 3;
       // История урона хранится у корабля. Не перезаписываем общий снимок боя при независимых кликах целей.
       const draft = new Draft(activeStarshipCombat(), { trackCombat: false });
       draft.allowUndo = true;
