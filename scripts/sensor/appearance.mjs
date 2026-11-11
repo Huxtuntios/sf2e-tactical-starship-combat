@@ -113,11 +113,16 @@ export function normalizeObjectTransform(value = {}) {
     baseDirection: ["right", "left", "up", "down", "unknown"].includes(v.baseDirection) ? v.baseDirection : "right"
   };
 }
+/** null means the object follows the current combat-wide preference. */
+export function normalizeAutoMirrorOverride(value) {
+  return value === true || value === false ? value : null;
+}
 /** Отражение выводится из курса, а не накапливается от событий. Курс карты сегодня только left/right. */
-export function visualTransform(value, heading, autoMirror = false) {
+export function visualTransform(value, heading, autoMirror = false, autoMirrorOverride = null) {
   const t = normalizeObjectTransform(value);
   const horizontal = ["left", "right"].includes(t.baseDirection);
-  const auto = autoMirror && horizontal && ["left", "right"].includes(heading) && heading !== t.baseDirection;
+  const enabled = normalizeAutoMirrorOverride(autoMirrorOverride) ?? autoMirror;
+  const auto = enabled && horizontal && ["left", "right"].includes(heading) && heading !== t.baseDirection;
   return { ...t, auto, scaleX: t.flipX !== auto ? -1 : 1, scaleY: t.flipY ? -1 : 1 };
 }
 /** Сравнение полей отправляет только реально отредактированные абсолютные значения. */

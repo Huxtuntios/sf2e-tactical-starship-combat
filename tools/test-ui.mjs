@@ -43,7 +43,15 @@ try {
       await page.goto(pathToFileURL(path.join(out, folder, name)).href);
       // The appearance forms are static previews; every other fixture exposes explicit assertions.
       if (name.startsWith("form-")) {
-        results.push({ file: `${folder}/${name}`, passed: (await page.locator("form").count()) === 1, errors });
+        const formCount = await page.locator("form").count();
+        let passed = formCount === 1;
+        if (folder === "map" && name.startsWith("form-object")) {
+          const mirrorOptions = await page
+            .locator('select[name="autoMirrorOverride"] option')
+            .evaluateAll((options) => options.map((option) => option.value));
+          passed = passed && mirrorOptions.includes("inherit") && mirrorOptions.includes("on") && mirrorOptions.includes("off");
+        }
+        results.push({ file: `${folder}/${name}`, passed, errors });
       } else {
         await page.waitForFunction(
           () => {

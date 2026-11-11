@@ -200,7 +200,7 @@ export class SensorMapApplication extends TscApp {
       }
     }
     const appearance = normalizeMapAppearance(tsc.appearance);
-    const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror);
+    const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
     const cls = Targeting.current && !o.privateContact ? Targeting.classify(tsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
     return {
