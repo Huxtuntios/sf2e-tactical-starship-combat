@@ -1,4 +1,6 @@
 import { privateContacts, changePrivateContact, addPrivateCustom } from "../sensor/private-contacts.mjs";
+import { LEGACY_ENVIRONMENT_TYPES } from "../sensor/environment-object-names.mjs";
+import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } from "./legacy-environment-object-dialog.mjs";
 /**
  * Sensor Map (view). 0.8.1: rules live in ../sensor/map-model.mjs, GM handlers in ../sensor/map-handlers.mjs;
  * the window renders in three parts (bar | zones | detail) and refreshes only the affected ones.
@@ -553,34 +555,56 @@ export class SensorMapApplication extends TscApp {
   }
   static async #addObject() {
     const c = activeStarshipCombat();
-    const types = ["asteroid", "station", "debris", "beacon", "planet", "custom"]
-      .map((t) => `<option value="${t}">${T(`SF2eTSC.objectTypes.${t}`)}</option>`)
-      .join("");
-    const data = await foundry.applications.api.DialogV2.prompt({
+    const typeOptions = LEGACY_ENVIRONMENT_TYPES.map((id) => ({ id, label: T(`SF2eTSC.objectTypes.${id}`) }));
+    const content = legacyEnvironmentObjectDialogContent({
+      nameLabel: T("SF2eTSC.ui.name"),
+      typeLabel: T("SF2eTSC.ui.type"),
+      zoneLabel: T("SF2eTSC.ui.zone"),
+      errorLabel: T("SF2eTSC.ui.customObjectNameRequired"),
+      typeOptions
+    });
+    new foundry.applications.api.DialogV2({
       classes: ["sf2e-tsc"],
       window: { title: T("SF2eTSC.ui.addObject") },
-      content: `<div class="form-group"><label>${T("SF2eTSC.ui.name")}</label><input name="name" type="text"></div><div class="form-group"><label>${T("SF2eTSC.ui.type")}</label><select name="type">${types}</select></div><div class="form-group"><label>${T("SF2eTSC.ui.zone")}</label><input name="zone" type="number" min="1" value="1"></div>`,
-      ok: { callback: (e, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
-      rejectClose: false
-    }).catch(() => null);
-    if (data?.name && data.type === "custom") {
-      await addPrivateCustom(c, data.name, Number(data.zone) || 1);
-      this.render();
-      return;
-    }
-    if (data?.name)
-      await request("sensorUpdate", {
-        op: "add",
-        combatId: c.id,
-        object: {
-          key: foundry.utils.randomID(10),
-          name: data.name,
-          type: data.type,
-          zone: Number(data.zone) || 1,
-          heading: null,
-          detection: { party: "observed" }
+      content,
+      form: { closeOnSubmit: false },
+      buttons: [
+        {
+          action: "add",
+          label: T("SF2eTSC.contactEditor.add"),
+          default: true,
+          callback: (event, button, dialog) =>
+            submitLegacyEnvironmentObject(new foundry.applications.ux.FormDataExtended(button.form).object, {
+              dialog,
+              app: this,
+              combat: c,
+              existingObjects: () => {
+                const objects = getTsc(c).objects;
+                let contacts = [];
+                try {
+                  contacts = privateContacts(c.id);
+                } catch (error) {
+                  notifyError("SF2eTSC.errors.generic", { message: error.message });
+                }
+                return [...objects, ...contacts];
+              },
+              addCustom: (combat, name, zone) => addPrivateCustom(combat, name, zone),
+              addPublic: (combat, object) =>
+                request("sensorUpdate", {
+                  op: "add",
+                  combatId: combat.id,
+                  object: {
+                    key: foundry.utils.randomID(10),
+                    ...object,
+                    heading: null,
+                    detection: { party: "observed" }
+                  }
+                })
+            })
         }
-      });
+      ],
+      rejectClose: false
+    }).render({ force: true });
   }
   static async #privateMove(e, t) {
     const c = activeStarshipCombat(),
