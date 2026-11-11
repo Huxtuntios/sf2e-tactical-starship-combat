@@ -104,7 +104,7 @@ test("the actual drop listener creates independent private Actors without publis
   assert.deepEqual(globalThis.__socket, []);
 });
 
-test("failed reveal journal write rolls back public state so the private instance can retry", async () => {
+test("failed reveal finalization retains durable intent and consistent public instance for retry", async () => {
   const { enemy, combat } = setup();
   const placement = await addSensorContact(combat, {
     source: "world",
@@ -118,24 +118,25 @@ test("failed reveal journal write rolls back public state so the private instanc
   const update = doc.update.bind(doc);
   let fail = true;
   doc.update = async (...args) => {
-    if (fail) {
+    if (fail && Object.hasOwn(args[0], `flags.${MODULE_ID}.privateSensor.completedReveals`)) {
       fail = false;
       throw new Error("journal failed");
     }
     return update(...args);
   };
   await assert.rejects(changePrivateContact(combat, obj.key, "reveal"));
-  assert.equal(getTsc(combat).objects.length, 0);
+  assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 1);
-  assert.equal(
-    combat.combatants.some((c) => c.actorId === instance.id),
-    false
-  );
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, true);
+  assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
+  assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
+  assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
+  const combatantId = combat.combatants.find((c) => c.actorId === instance.id).id;
+  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, false);
   await changePrivateContact(combat, obj.key, "reveal");
   assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 0);
   assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
+  assert.equal(combat.combatants.find((c) => c.actorId === instance.id).id, combatantId);
   assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, false);
 });
 

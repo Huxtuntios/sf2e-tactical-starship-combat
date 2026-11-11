@@ -1,4 +1,4 @@
-import { privateContacts, changePrivateContact, addPrivateCustom } from "../sensor/private-contacts.mjs";
+import { privateContacts, changePrivateContact, addPrivateCustom, recoverPrivateReveals } from "../sensor/private-contacts.mjs";
 import { LEGACY_ENVIRONMENT_TYPES } from "../sensor/environment-object-names.mjs";
 import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } from "./legacy-environment-object-dialog.mjs";
 /**
@@ -10,10 +10,13 @@ import { TscApp, tpl } from "./base-app.mjs";
 import { Targeting } from "./targeting.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { viewFor, findObject } from "../engine/sensor-ops.mjs";
-import { readStarship, statusOf, isStarship } from "../starship/starship-state.mjs";
-import { computeShipStats } from "../starship/stats.mjs";
+import { readStarship, statusOf } from "../starship/starship-state.mjs";
+import { MapActorCache } from "../sensor/map-actor-cache.mjs";
+import { Content } from "../content/loader.mjs";
+import { openApps, refreshApps } from "./base-app.mjs";
+import { releaseMapBackground } from "./map-background.mjs";
 import { request } from "../socket.mjs";
-import { T, moduleSetting, fromUuidSafe } from "../utils/foundry.mjs";
+import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { wireSensorMapDragDrop } from "./sensor-drop-ui.mjs";
 import { SensorContactEditor } from "./sensor-contact-editor.mjs";
@@ -28,12 +31,26 @@ import { buildHudContext, runHudAction } from "./hud-model.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
-import { normalizeMapAppearance, objectArtwork, resolveArrowAppearance, visualTransform } from "../sensor/appearance.mjs";
+import { normalizeMapAppearance, safeImagePath, resolveArrowAppearance, visualTransform } from "../sensor/appearance.mjs";
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 
 export { PLAYER_SENSOR_OPS, userControlsShip, canMoveKey, observerKeys, applySensorOp } from "../sensor/map-model.mjs";
 export { registerSensorHandlers } from "../sensor/map-handlers.mjs";
+
+const SENSOR_CACHE_INVALIDATE = "sf2e-tactical-starship-combat.invalidateSensorMapActors";
+
+/** Include instances still preparing their first render; refresh stays debounced and part-merged. */
+export function invalidateSensorMapActors(actor = null) {
+  Hooks.callAll(SENSOR_CACHE_INVALIDATE, actor);
+  refreshApps("sensor-cache", actor);
+}
+
+/** Explicit same-URL image-content refresh; source paths remain untouched. */
+export function invalidateSensorMapBackground() {
+  for (const app of openApps(SensorMapApplication)) app.invalidateBackground();
+  refreshApps("combat");
+}
 
 /** "12/20" -> 60 (percent for the mini bars; null when the value is hidden from this user). */
 const hpPct = (text) => {
@@ -88,7 +105,8 @@ export class SensorMapApplication extends TscApp {
       dockPick: SensorMapApplication.#dockPick,
       openCrew: () => openCrewManager(),
       addInitiative: guardPrivate(SensorMapApplication.#addInitiative),
-      addAllNpcInitiative: guardPrivate(SensorMapApplication.#addAllNpcInitiative)
+      addAllNpcInitiative: guardPrivate(SensorMapApplication.#addAllNpcInitiative),
+      recoverReveals: guardPrivate(SensorMapApplication.#recoverReveals)
     }
   };
   static PARTS = {
@@ -97,27 +115,61 @@ export class SensorMapApplication extends TscApp {
     detail: { template: tpl("sensor-map-detail") },
     dock: { template: tpl("sensor-map-dock") }
   };
-  channels = ["combat", "actor", "targeting", "settings", "crew"];
+  channels = ["combat", "actor", "targeting", "settings", "crew", "sensor-cache"];
+  actorCache = new MapActorCache();
+  backgroundRevision = 0;
+  invalidateActorCache(actor = null) {
+    this.actorCache.invalidate(actor);
+    this._mapPermissions = null;
+  }
+  invalidateBackground() {
+    this.backgroundRevision = Math.max(Date.now(), this.backgroundRevision + 1);
+  }
+  _cleanup() {
+    if (this._actorCacheHook != null) Hooks.off(SENSOR_CACHE_INVALIDATE, this._actorCacheHook);
+    this._actorCacheHook = null;
+    this.actorCache.dispose();
+    this._mapPermissions = this._catalog = null;
+    releaseMapBackground(this._backgroundLayer);
+    this._backgroundLayer = null;
+    super._cleanup?.();
+  }
   selected = null;
   dockIndex = 0;
   gmToolsOpen = false;
   wants(channel, doc) {
+    if (channel === "settings") {
+      this.invalidateActorCache();
+      this.invalidateBackground(); // explicit settings refresh also permits same-URL image reload
+    }
     return this.channels.includes(channel);
   }
   /** partial refresh — only the parts a channel affects are re-rendered (null = all). */
   partsFor(channel) {
-    return sensorPartsFor(channel);
+    return sensorPartsFor(channel === "sensor-cache" ? "actor" : channel);
   }
 
-  async _prepareContext() {
+  async _prepareContext(options = {}) {
+    this._actorCacheHook ??= Hooks.on(SENSOR_CACHE_INVALIDATE, (actor) => this.invalidateActorCache(actor));
     const combat = activeStarshipCombat();
     const isGM = game.user.isGM;
-    if (!combat) return { noCombat: true, isGM };
+    if (!combat) {
+      this.actorCache.setVisible([], game.user);
+      return { noCombat: true, isGM, backgroundRevision: this.backgroundRevision };
+    }
+    // Catalog replacement is also detected when callers reload it without a settings refresh.
+    const catalog = [Content.stations, Content.upgrades, Content.stations.size, Content.upgrades.size];
+    if (this._catalog?.some((value, i) => value !== catalog[i])) this.invalidateActorCache();
+    this._catalog = catalog;
+    const includes = (part) => !options.parts || options.parts.includes(part);
     const publicState = getTsc(combat);
     let privateObjects = [];
+    let pendingRevealCount = 0;
     if (isGM) {
       try {
-        privateObjects = privateContacts(combat.id).filter(
+        const contacts = privateContacts(combat.id);
+        pendingRevealCount = contacts.filter((contact) => contact.pendingReveal).length;
+        privateObjects = contacts.filter(
           (o) =>
             !publicState.objects.some((p) =>
               o.actorUuid ? p.actorUuid === o.actorUuid || p.key === o.actorUuid : p.key === o.key && !p.tscPrivateProjection
@@ -131,23 +183,37 @@ export class SensorMapApplication extends TscApp {
     const tsc = isGM
       ? { ...publicState, objects: [...publicState.objects.filter((o) => !privateObjects.some((p) => p.key === o.key)), ...privateObjects] }
       : publicState;
-    const own = observerKeys(tsc, game.user);
+    const permissionKey = JSON.stringify([
+      game.user.id,
+      isGM,
+      game.user.role,
+      tsc.objects.map((o) => [o.key, o.actorUuid, o.type, !!o.mineRef])
+    ]);
+    if (this._mapPermissions?.key !== permissionKey) {
+      this._mapPermissions = {
+        key: permissionKey,
+        own: isGM ? [] : observerKeys(tsc, game.user),
+        movable: tsc.objects.filter((o) => (isGM ? !o.mineRef : canMoveKey(game.user, tsc, o.key))).map((o) => o.key)
+      };
+    }
+    const permissions = this._mapPermissions;
+    const own = permissions.own;
     const view = viewFor(tsc, { isGM, observerKeys: own, ownKeys: own, showUnknown: moduleSetting("showUnknownContacts") });
-    // Разрешаем только уже видимые документы; асинхронный путь также поддерживает компендии.
+    this.actorCache.setVisible(view, game.user);
     const resolved = new Map();
-    await Promise.all(
-      view
-        .filter((o) => o.known && ["starship", "hazard"].includes(o.type))
-        .map(async (o) => {
-          const uuid = o.actorUuid ?? o.key;
-          const actor = await fromUuidSafe(uuid);
-          if (actor) resolved.set(uuid, actor);
-        })
-    );
+    if (includes("zones") || includes("detail")) {
+      const unresolved = [...this.actorCache.active].some((uuid) => !this.actorCache.entries.get(uuid)?.actor);
+      const entries = await Promise.all([...this.actorCache.active].map((uuid) => this.actorCache.get(uuid)));
+      for (const entry of entries) if (this.actorCache.current(entry)) resolved.set(entry.uuid, entry);
+      // Async compendium loading may make previously missing sync permission lookups available next render.
+      if (unresolved) this._mapPermissions = null;
+    }
+    const appearance = normalizeMapAppearance(tsc.appearance);
+    const arrows = new Map([["", resolveArrowAppearance(appearance)]]);
     const zones = [];
-    for (let z = 1; z <= tsc.zones; z++) {
+    for (let z = 1; includes("zones") && z <= tsc.zones; z++) {
       const info = tsc.zoneInfo?.[z] ?? {};
-      const objs = view.filter((o) => o.zone === z).map((o) => this.#decorate(o, tsc, combat, resolved));
+      const objs = view.filter((o) => o.zone === z).map((o) => this.#decorate(o, tsc, combat, resolved, appearance, arrows));
       zones.push({
         zone: z,
         label: String(z).padStart(2, "0"),
@@ -169,7 +235,7 @@ export class SensorMapApplication extends TscApp {
       zoneCount: tsc.zones,
       zones,
       targeting: t ? { label: t.label, range: t.range, hint: T("SF2eTSC.ui.pickTarget") } : null,
-      detail: sel ? await this.#detail(sel, tsc, isGM) : null,
+      detail: includes("detail") && sel ? this.#detail(sel, tsc, isGM, resolved, permissions.movable) : null,
       preview: this.#preview(tsc),
       zoneOptions: [12, 15].concat(ZONE_LIMITS.default === 12 ? [] : []),
       detectionLevels: DETECTION_LEVELS.map((l) => ({ id: l, label: T(`SF2eTSC.detection.${l}`) })),
@@ -178,29 +244,34 @@ export class SensorMapApplication extends TscApp {
         .reverse()
         .map((l) => l.text),
       privateKeys: privateObjects.map((o) => o.key),
-      movableKeys: tsc.objects.filter((o) => canMoveKey(game.user, tsc, o.key)).map((o) => o.key),
-      appearance: normalizeMapAppearance(tsc.appearance),
+      pendingRevealCount,
+      movableKeys: permissions.movable,
+      appearance,
+      backgroundRevision: this.backgroundRevision,
       combatId: combat.id,
-      dock: buildHudContext(this.dockIndex),
+      // The shared HUD remains unchanged. No consumer uses dock context when that part is not rendered.
+      dock: includes("dock") ? buildHudContext(this.dockIndex) : undefined,
       gmToolsOpen: this.gmToolsOpen
     };
   }
 
-  #decorate(o, tsc, combat, resolved = new Map()) {
-    const actor = o.type === "starship" && o.known ? (resolved.get(o.actorUuid ?? o.key) ?? null) : null;
+  #decorate(o, tsc, combat, resolved, appearance, arrows) {
+    const entry = o.known ? resolved.get(o.actorUuid ?? o.key) : null;
+    const actor = o.type === "starship" ? entry?.actor : null;
     let status = "operational",
       hp = null,
       sp = null;
-    if (actor && isStarship(actor)) {
-      const d = readStarship(actor);
+    const d = actor ? this.actorCache.data(entry) : null;
+    if (d) {
       status = statusOf(d);
       if (game.user.isGM || o.known) {
         hp = `${d.hp.value}/${d.hp.max}`;
         sp = `${d.sp.value}/${d.sp.max}`;
       }
     }
-    const appearance = normalizeMapAppearance(tsc.appearance);
-    const arrowAppearance = resolveArrowAppearance(appearance, o.arrowAppearance);
+    const arrowKey = o.arrowAppearance ? JSON.stringify(o.arrowAppearance) : "";
+    if (!arrows.has(arrowKey)) arrows.set(arrowKey, resolveArrowAppearance(appearance, o.arrowAppearance));
+    const arrowAppearance = arrows.get(arrowKey);
     const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
     const cls = Targeting.current && !o.privateContact ? Targeting.classify(tsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
@@ -208,7 +279,7 @@ export class SensorMapApplication extends TscApp {
       key: o.key,
       label: displayDesignation(o.label),
       icon: o.icon ?? ICONS[o.type] ?? "◆",
-      art: objectArtwork(o, tsc.appearance, (uuid) => resolved.get(uuid) ?? null),
+      art: o.known && appearance.mode !== "simple" ? safeImagePath(o.art) || this.actorCache.artwork(entry) : "",
       type: o.type,
       heading: o.heading,
       arrow: ["left", "right"].includes(o.heading) && arrowAppearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
@@ -237,16 +308,18 @@ export class SensorMapApplication extends TscApp {
     };
   }
 
-  async #detail(sel, tsc, isGM) {
+  #detail(sel, tsc, isGM, resolved, movable) {
     const obj = findObject(tsc, sel.key);
+    const entry = sel.known ? resolved.get(sel.actorUuid ?? sel.key) : null;
+    const actor = sel.type === "starship" ? (entry?.actor ?? null) : null;
+    const d = actor ? this.actorCache.data(entry) : null;
     if (obj?.privateContact) {
-      const actor = isGM && obj.type === "starship" && obj.actorUuid ? await fromUuidSafe(obj.actorUuid) : null;
       return {
         key: obj.key,
         label: obj.name,
         privateContact: true,
         zone: obj.zone,
-        canAddToInitiative: !!(actor && isStarship(actor) && readStarship(actor).role === "npc"),
+        canAddToInitiative: !!(isGM && d?.role === "npc"),
         zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
         canRename: obj.type === "custom",
@@ -258,12 +331,10 @@ export class SensorMapApplication extends TscApp {
         }))
       };
     }
-    const actor = sel.type === "starship" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
-    // Игровая информация об опасности — на существующем листе Hazard Actor; видимость определяют его права.
-    const hazardActor = sel.type === "hazard" && sel.known ? await fromUuidSafe(obj.actorUuid ?? obj.key) : null;
+    // Hazard information remains on its existing permission-controlled Actor sheet.
+    const hazardActor = sel.type === "hazard" ? entry?.actor : null;
     const mine = obj.mineRef && isGM ? obj.mineRef : null;
-    const d = actor && isStarship(actor) ? readStarship(actor) : null;
-    const stats = d ? computeShipStats(actor) : null;
+    const stats = d ? this.actorCache.stats(entry) : null;
     const rows = [{ k: T("SF2eTSC.ui.zone"), v: sel.zone }];
     if (sel.known) rows.push({ k: T("SF2eTSC.ui.type"), v: T(`SF2eTSC.objectTypes.${sel.type}`) });
     if (sel.heading) rows.push({ k: T("SF2eTSC.ui.heading"), v: T(`SF2eTSC.heading.${sel.heading}`) });
@@ -295,15 +366,8 @@ export class SensorMapApplication extends TscApp {
       gm,
       typeOptions: objectTypeView(sel, isGM),
       vitals,
-      canMove: canMoveKey(game.user, tsc, sel.key),
-      canAddToInitiative:
-        isGM &&
-        sel.type === "starship" &&
-        actor &&
-        isStarship(actor) &&
-        readStarship(actor).role === "npc" &&
-        !obj.privateContact &&
-        !obj.tscPrivateProjection,
+      canMove: movable.includes(sel.key),
+      canAddToInitiative: isGM && sel.type === "starship" && d?.role === "npc" && !obj.privateContact && !obj.tscPrivateProjection,
       key: sel.key,
       label: displayDesignation(sel.label),
       type: sel.type,
@@ -395,6 +459,16 @@ export class SensorMapApplication extends TscApp {
     };
   }
 
+  /** Foundry v14 protected hook: preserve the display layer before the zones part is replaced. */
+  _preSyncPartState(partId, newElement, priorElement, state) {
+    super._preSyncPartState?.(partId, newElement, priorElement, state);
+    if (partId !== "zones") return;
+    const oldLayer = priorElement?.querySelector(".tsc-map-background");
+    const placeholder = newElement?.querySelector(".tsc-map-background");
+    if (oldLayer && placeholder) placeholder.replaceWith(oldLayer);
+    else if (oldLayer) releaseMapBackground(oldLayer);
+  }
+
   async _preRender(context, options) {
     await super._preRender?.(context, options);
     const z = this.element?.querySelector?.(".tsc-zones");
@@ -414,6 +488,9 @@ export class SensorMapApplication extends TscApp {
 
   _onRender(context, options) {
     super._onRender?.(context, options);
+    const layer = this.element.querySelector(".tsc-map-background");
+    if (this._backgroundLayer && this._backgroundLayer !== layer) releaseMapBackground(this._backgroundLayer);
+    this._backgroundLayer = layer;
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
     this.#wireGmEdit();
@@ -511,7 +588,9 @@ export class SensorMapApplication extends TscApp {
       else if (result.status === "skipped")
         ui.notifications?.warn?.(
           T("SF2eTSC.initiative.skippedOne", {
-            reason: T(`SF2eTSC.initiative.reasons.${result.reason}`)
+            reason: T(
+              result.reason === "recoveryRequired" ? "SF2eTSC.privateMap.recoveryRequired" : `SF2eTSC.initiative.reasons.${result.reason}`
+            )
           })
         );
       else ui.notifications?.error?.(T("SF2eTSC.initiative.failedOne"));
@@ -529,6 +608,22 @@ export class SensorMapApplication extends TscApp {
       if (!report.reportCreated) ui.notifications?.warn?.(T("SF2eTSC.initiative.reportFailed"));
     } finally {
       this._addingAllNpcInitiative = false;
+    }
+  }
+  static async #recoverReveals(_event, button) {
+    const combat = activeStarshipCombat();
+    if (!isActiveGM() || !combat || this._recoveringReveals) return;
+    this._recoveringReveals = true;
+    button.disabled = true;
+    try {
+      const report = await recoverPrivateReveals(combat);
+      if (!game.user.isGM) return;
+      if (report.completed.length) ui.notifications?.info?.(T("SF2eTSC.privateMap.recoveryComplete", { count: report.completed.length }));
+      if (report.failed.length) ui.notifications?.warn?.(T("SF2eTSC.privateMap.recoveryFailed", { count: report.failed.length }));
+    } finally {
+      button.disabled = false;
+      this._recoveringReveals = false;
+      this.render();
     }
   }
   static #addContact() {
@@ -622,9 +717,12 @@ export class SensorMapApplication extends TscApp {
     this.render();
   }
   static async #privateReveal(e, t) {
-    await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
-    this.selected = null;
-    this.render();
+    try {
+      await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
+    } finally {
+      this.selected = null;
+      this.render();
+    }
   }
   static async #privateDetect(e, t) {
     await changePrivateContact(activeStarshipCombat(), t.dataset.key, "detect", t.dataset.level);

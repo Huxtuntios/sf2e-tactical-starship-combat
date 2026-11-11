@@ -9,6 +9,14 @@
       {{#if isGM}}
         <span class="tsc-spacer"></span>
         <span class="tsc-map-tools" role="group" aria-label="{{localize 'SF2eTSC.ui.gmTools'}}">
+          {{#if pendingRevealCount}}
+            <button
+              type="button"
+              data-action="recoverReveals"
+              title="{{localize 'SF2eTSC.privateMap.recover'}}"
+              aria-label="{{localize 'SF2eTSC.privateMap.recover'}}"
+            ><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{pendingRevealCount}}</button>
+          {{/if}}
           <button
             type="button"
             data-action="addAllNpcInitiative"

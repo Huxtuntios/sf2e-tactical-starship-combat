@@ -26,7 +26,7 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **0.17.1-dev.9 is experimental and unpublished.** Back up a test world and install the supplied ZIP manually; its download URL points to an unpublished future release. Toolbelt integration has only source review and mock/browser testing, not live verification. Better Chat merged, injected and split damage cards are refused for ships; see `docs/work-in-progress-0.17.1-dev.9.md`. **Sensor Map contacts are not private from players.** No action/reaction economy is tracked.
 
-> **Sensor Map:** very large background images can cause freezes. A user reported problems with an 8100 × 11700-pixel image; consider reducing its dimensions. The cause and performance limits have not been established.
+> **Unpublished reliability follow-up:** Sensor Map retains its background layer through part replacement and caches visible Actor data per window. Large images use a PNG display copy capped at 4096 pixels; ordinary images and original files/paths are unchanged. A local Chromium fixture exercised an actual 8100 × 11700 PNG and 360 objects. Initial decoding still needs memory; CORS/canvas failures can use the full native image. Live Foundry performance remains unverified. Pending identification has an explicit GM recovery button; inspect conflicts before retrying.
 
 ## Requirements
 
@@ -62,6 +62,8 @@ With **PF2e Toolbelt active**, typed damage messages gain two controls for modul
 - **Direct to hull**: bypass shields, but retain applicable immunities, resistances, weaknesses and Hardness.
 
 Native positive damage buttons (full, half, double and triple damage) in ship target rows also use the ship engine, through shields by default. Choose a multiplier explicitly; hold **Shift** when applying damage to enter a numeric adjustment. Types are read from the stored roll, not from client-supplied damage totals. Multi-type damage applies type defenses before applying Hardness and the shield/hull transition once. Repeated application of the same message roll to the same ship is guarded against, including switching between the two modes. Application requires an active GM and permission to adjust that ship’s vitals.
+
+Manual ×2/×3 scales damage but does **not** establish a critical hit. Critical-hit evidence uses the original stored roll's degree or an unambiguous native attack-damage outcome; a save/check critical success is not a critical hit. Missing or contradictory metadata stays noncritical. The ship's own critical save failure also warrants enhanced Compromised: existing target-bound save handling is unchanged; ambiguous Toolbelt applications require explicit GM damage rather than inference from ×2. Damage types, defenses and repeat-application receipts remain unchanged.
 
 Ordinary actors and native healing buttons retain their existing behavior. Toolbelt’s personal **Shield Block** is not a starship shield action: use the two ship controls instead. A generic row with a mixed ship/non-ship selection is blocked; use individual Toolbelt target rows or select ships separately. Unevaluated persistent damage, healing-only rolls and split splash messages are not supported by this bridge; apply those using the appropriate manual workflow. No persistent-damage condition is created automatically.
 
@@ -145,7 +147,7 @@ Consult the API documentation before invoking state-changing methods.
 - A live Foundry v14 / SF2e multiplayer test is still required. Offline mocks are not proof of complete system compatibility.
 - Native system damage buttons bypass module Shield Points. Typed damage rolls do not apply damage automatically.
 - Non-strike NPC abilities and many upgrade effects require GM adjudication.
-- Undo is conservative, not an atomic multi-document rollback. Direct system/other-module edits are not recorded and can prevent undo.
+- Undo is conservative, not an atomic multi-document rollback. A saved intent and Actor receipt allow guarded recovery after history-finalization failure; changed Actor/Combat state still blocks retry. Pending recovery evidence cannot be overwritten or evicted at the 80-record limit. HP/SP, damage and critical states are not undoable. Direct system/other-module edits can prevent undo.
 - Arbitrary effect conditions, removed turn anchors and unusual initiative skips may require GM correction.
 - An active GM client is required for state-changing requests.
 

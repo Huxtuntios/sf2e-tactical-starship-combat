@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../constants.mjs";
 import { isStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
-import { privateContacts } from "./private-contacts.mjs";
+import { privateContacts, pendingPrivateReveals } from "./private-contacts.mjs";
 import {
   backfillPrivateSensorActorCombatant,
   privateSensorActorCombatant,
@@ -19,6 +19,17 @@ function liveCombat(combatId) {
   const combat = typeof combatId === "string" ? game.combats?.get(combatId) : null;
   if (!combat || !combat.active || !isStarshipCombat(combat)) throw new Error(T("SF2eTSC.errors.noCombat"));
   return combat;
+}
+
+function hasPendingReveal(combat, key, actorUuid) {
+  if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  try {
+    return pendingPrivateReveals(combat.id).some((entry) =>
+      [key, actorUuid].some((target) => target && (target === entry.key || target === entry.actorUuid))
+    );
+  } catch {
+    throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
+  }
 }
 
 function combatants(combat) {
@@ -64,8 +75,9 @@ async function createWhisper(report) {
     .map((key) => {
       const items = report[key]
         .map((item) => {
-          const reason =
-            item.reason && key !== "added" && key !== "existing" ? ` — ${escapeHtml(T(`SF2eTSC.initiative.reasons.${item.reason}`))}` : "";
+          const reasonKey =
+            item.reason === "recoveryRequired" ? "SF2eTSC.privateMap.recoveryRequired" : `SF2eTSC.initiative.reasons.${item.reason}`;
+          const reason = item.reason && key !== "added" && key !== "existing" ? ` — ${escapeHtml(T(reasonKey))}` : "";
           const visibility = item.hidden ? ` — ${escapeHtml(T("SF2eTSC.initiative.hiddenTrackerEntry"))}` : "";
           const message = item.message ? ` — ${escapeHtml(item.message)}` : "";
           return `<li>${escapeHtml(item.name)}${reason}${visibility}${message}</li>`;
@@ -102,6 +114,7 @@ async function addActorLocked(combatId, input) {
 
   let currentRecord = await validateCurrent(combat);
   if (!currentRecord) return skipped(name, "missingObject");
+  if (hasPendingReveal(combat, currentRecord.key, actorUuid)) return skipped(name, "recoveryRequired");
   if (!isPrivate) {
     name = objectName(currentRecord);
     hidden = hiddenOnTracker(currentRecord);
@@ -127,6 +140,7 @@ async function addActorLocked(combatId, input) {
   combat = liveCombat(combatId);
   currentRecord = await validateCurrent(combat);
   if (!currentRecord) return skipped(name, "missingObject");
+  if (hasPendingReveal(combat, currentRecord.key, actorUuid)) return skipped(name, "recoveryRequired");
   if (!isPrivate) {
     name = objectName(currentRecord);
     hidden = hiddenOnTracker(currentRecord);
@@ -177,6 +191,7 @@ function safeInitiativeResult(result) {
 }
 
 async function addPrivateContactResult(combatId, key, contact) {
+  if (hasPendingReveal(liveCombat(combatId), key, contact.actorUuid)) return { status: "skipped", reason: "recoveryRequired" };
   if (contact.type !== "starship") return { status: "skipped", reason: "notNpcShip" };
   if (!contact.actorUuid) return { status: "skipped", reason: "markerOnly" };
   try {
@@ -203,6 +218,7 @@ export async function addSensorObjectToInitiative(combatId, key, user = game.use
   return serialize(`sensor:${combatId}`, async () => {
     const combat = liveCombat(combatId);
     const matches = getTsc(combat).objects.filter((object) => object.key === key);
+    if (hasPendingReveal(combat, key, matches[0]?.actorUuid)) return { status: "skipped", reason: "recoveryRequired" };
     if (matches.length === 1) {
       const object = matches[0];
       if (object.tscPrivateProjection) {
@@ -243,7 +259,12 @@ export async function addAllNpcShipsToInitiative(combatId, user = game.user) {
   if (!user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
   return serialize(`sensor:${combatId}`, async () => {
     const combat = liveCombat(combatId);
-    const privateEntries = privateContacts(combat.id);
+    let privateEntries;
+    try {
+      privateEntries = privateContacts(combat.id);
+    } catch {
+      throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
+    }
     const report = emptyReport();
     const keys = getTsc(combat)
       .objects.filter((object) => !object.tscPrivateProjection)
@@ -281,7 +302,9 @@ export async function addAllNpcShipsToInitiative(combatId, user = game.user) {
 }
 
 async function addSensorObjectToInitiativeLocked(combatId, key) {
-  const matches = getTsc(liveCombat(combatId)).objects.filter((object) => object.key === key);
+  const combat = liveCombat(combatId);
+  const matches = getTsc(combat).objects.filter((object) => object.key === key);
+  if (hasPendingReveal(combat, key, matches[0]?.actorUuid)) return skipped(objectName(matches[0]), "recoveryRequired");
   if (matches.length !== 1) return skipped(String(key ?? ""), "missingObject");
   const object = matches[0];
   const name = objectName(object);
@@ -303,6 +326,7 @@ async function addSensorObjectToInitiativeLocked(combatId, key) {
 }
 
 async function addPrivateContactLocked(combatId, contact) {
+  if (hasPendingReveal(liveCombat(combatId), contact.key, contact.actorUuid)) return skipped(objectName(contact), "recoveryRequired");
   if (contact.type !== "starship") return skipped(objectName(contact), "notNpcShip");
   if (!contact.actorUuid) return skipped(objectName(contact), "markerOnly");
   return addActorLocked(combatId, {

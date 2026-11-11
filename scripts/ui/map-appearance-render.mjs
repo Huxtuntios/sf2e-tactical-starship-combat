@@ -1,5 +1,6 @@
 import { normalizeMapAppearance } from "../sensor/appearance.mjs";
 import { paintSheetTheme } from "./sheet/sheet-theme.mjs";
+import { paintMapBackground } from "./map-background.mjs";
 
 /** Paint styles and wire image fallback after full OR partial map renders. */
 export function paintMapAppearance(element, context) {
@@ -17,9 +18,8 @@ export function paintMapAppearance(element, context) {
   viewport?.classList.toggle("has-background", !!a.background);
   const background = element.querySelector(".tsc-map-background");
   if (background) {
-    // Не меняем стили сохранённого слоя при обновлении других частей карты.
+    paintMapBackground(background, a.background, context.backgroundRevision ?? 0);
     const values = {
-      backgroundImage: a.background ? `url(${JSON.stringify(a.background)})` : "none",
       opacity: String(a.opacity),
       filter: `grayscale(${a.fade}) blur(${a.blur}px)`,
       transform: `rotate(${a.backgroundRotation}deg) scale(${a.backgroundFlipX ? -1 : 1}, ${a.backgroundFlipY ? -1 : 1})`
