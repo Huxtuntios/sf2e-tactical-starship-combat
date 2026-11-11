@@ -66,6 +66,6 @@ test("0.6.4 setting is a plain number, presets registered, no auto move, combat 
   const mv = fx.slice(fx.indexOf("async moveAlongHeading"), fx.indexOf("async reverseHeading"));
   assert.ok(!mv.includes("moveObjectAlongHeading("));
   const sc = R("scripts/combat/starship-combat.mjs");
-  assert.ok(sc.includes("closeTacticalApps") && sc.includes("config.objects"));
+  assert.ok(sc.includes("closeTacticalApps") && sc.includes("normalizePreset") && sc.includes("cfg.objects"));
   assert.ok(R("templates/station-hud.hbs").includes("tsc-action-desc"));
 });

@@ -90,6 +90,165 @@ test("no combat → no items; only the active GM writes; other items are untouch
   assert.equal(await s.si.syncStationItems(), null, "players never write");
 });
 
+test("private copies do not publish station links or identities onto their source crew", async () => {
+  const s = await scenario();
+  const { createSensorActorInstance } = await import("../../scripts/sensor/actor-instance.mjs");
+  const copy = await createSensorActorInstance(s.ship, s.combat, { privateContact: true });
+  await s.si.syncStationItems();
+  const items = stationItems(s.ava);
+  assert.ok(items.length > 0);
+  assert.ok(items.every((it) => it.flags[M].stationAction.shipUuid === s.ship.uuid));
+  assert.ok(items.every((it) => !it.system.description.value.includes(copy.uuid)));
+});
+
+test("private NPC templates and their copies do not publish source identity onto player-owned crew", async () => {
+  const s = await scenario();
+  const secret = makeShip({
+    id: "secret-template",
+    name: "Secret NPC template",
+    role: "npc",
+    stations: [{ id: "pilot-secret", type: "pilot", name: "Pilot", grade: "commercial", helmedBy: s.ava.uuid }],
+    crew: [{ actorUuid: s.ava.uuid, name: s.ava.name, role: "crew", stationId: "pilot-secret" }]
+  });
+  const { createSensorActorInstance } = await import("../../scripts/sensor/actor-instance.mjs");
+  const copy = await createSensorActorInstance(secret, s.combat, { privateContact: true });
+  await s.si.syncStationItems();
+  const items = stationItems(s.ava);
+  assert.ok(items.length > 0);
+  assert.ok(items.every((it) => it.flags[M].stationAction.shipUuid === s.ship.uuid));
+  for (const it of items) {
+    assert.ok(!it.system.description.value.includes(secret.uuid));
+    assert.ok(!it.system.description.value.includes(secret.name));
+    assert.ok(!it.system.description.value.includes(copy.uuid));
+  }
+});
+
+test("staged encounter defers station-item writes until setup finishes", async () => {
+  const s = await scenario();
+  await s.si.syncStationItems();
+  const ids = stationItems(s.ava).map((it) => it.id);
+  await s.combat.update({ [`flags.${M}.combatSetup`]: true });
+  const start = globalThis.__writes.length;
+  assert.equal(await s.si.syncStationItems(), null);
+  assert.deepEqual(
+    stationItems(s.ava).map((it) => it.id),
+    ids
+  );
+  assert.equal(globalThis.__writes.length, start);
+  await s.combat.update({ [`flags.${M}.-=combatSetup`]: null });
+  await s.si.syncStationItems();
+  assert.deepEqual(
+    stationItems(s.ava).map((it) => it.id),
+    ids
+  );
+});
+
+test("selected encounter defers station items before tactical state is initialized", async () => {
+  const s = await scenario();
+  await s.si.syncStationItems();
+  const ids = stationItems(s.ava).map((it) => it.id);
+  const staged = await Combat.create({ active: false, flags: { [M]: { combatSetup: true } } });
+  await staged.activate();
+  const start = globalThis.__writes.length;
+  assert.equal(await s.si.syncStationItems(), null);
+  assert.deepEqual(
+    stationItems(s.ava).map((it) => it.id),
+    ids
+  );
+  assert.equal(globalThis.__writes.length, start);
+  await staged.update({ [`flags.${M}.-=combatSetup`]: null });
+  await s.si.syncStationItems();
+  assert.equal(stationItems(s.ava).length, 0);
+});
+
+test("inactive failed setup does not block current station changes or end cleanup", async () => {
+  const s = await scenario();
+  await s.si.syncStationItems();
+  const oldIds = stationItems(s.ava).map((it) => it.id);
+  const staged = await Combat.create({ active: false, flags: { [M]: { combatSetup: true } } });
+  const stations = structuredClone(s.ship.flags[M].starship.stations);
+  stations[0].helmedBy = null;
+  stations[1].helmedBy = s.ava.uuid;
+  await s.ship.update({ [`flags.${M}.starship.stations`]: stations });
+  const result = await s.si.syncStationItems();
+  assert.ok(result?.created > 0 && result.removed === oldIds.length);
+  assert.ok(stationItems(s.ava).every((it) => it.flags[M].stationAction.stationId === "gunnery-1"));
+  assert.ok(stationItems(s.ava).every((it) => !oldIds.includes(it.id)));
+  assert.equal(game.combat, s.combat);
+  assert.equal(staged.active, false);
+  assert.equal(staged.flags[M].combatSetup, true);
+  await s.combat.delete();
+  await s.si.syncStationItems();
+  assert.equal(stationItems(s.ava).length, 0);
+  assert.equal(game.combats.get(staged.id), staged);
+});
+
+test("inactive staged player copies do not publish actions into the current encounter", async () => {
+  const s = await scenario();
+  const staged = await Combat.create({ active: false, flags: { [M]: { combatSetup: true } } });
+  const { createSensorActorInstance } = await import("../../scripts/sensor/actor-instance.mjs");
+  const copy = await createSensorActorInstance(s.ship, staged);
+  const result = await s.si.syncStationItems();
+  assert.ok(result?.created > 0);
+  const items = stationItems(s.ava);
+  assert.ok(items.length > 0);
+  assert.ok(items.every((it) => it.flags[M].stationAction.shipUuid === s.ship.uuid));
+  assert.ok(items.every((it) => !it.system.description.value.includes(copy.uuid)));
+});
+
+test("mapped retained instances are eligible; unused copies stay excluded and ordinary world players remain eligible off-map", async () => {
+  const s = await scenario();
+  const { createSensorActorInstance } = await import("../../scripts/sensor/actor-instance.mjs");
+  const { addObject } = await import("../../scripts/engine/sensor-ops.mjs");
+  const { getTsc, saveTsc } = await import("../../scripts/combat/tsc-state.mjs");
+  const old = await Combat.create({ active: false });
+  const reused = await createSensorActorInstance(s.ship, old);
+  const leftover = await createSensorActorInstance(s.ship, old);
+  const privateCopy = await createSensorActorInstance(s.ship, old, { privateContact: true });
+  const current = await createSensorActorInstance(s.ship, s.combat);
+  const unmapped = await createSensorActorInstance(s.ship, s.combat);
+  const world = makeShip({
+    id: "off-map-player",
+    role: "player",
+    stations: [{ id: "world-pilot", type: "pilot", name: "Pilot", grade: "commercial", helmedBy: s.ava.uuid }],
+    crew: [{ actorUuid: s.ava.uuid, name: s.ava.name, role: "crew", stationId: "world-pilot" }]
+  });
+  let state = getTsc(s.combat);
+  for (const ship of [reused, current, privateCopy])
+    state = addObject(state, { key: ship.uuid, actorUuid: ship.uuid, type: "starship", zone: 3 });
+  await saveTsc(s.combat, state);
+  const snapshots = [s.ship, reused, leftover, privateCopy, current, unmapped, world].map((ship) => ship.toObject());
+  await s.si.syncStationItems();
+  const items = stationItems(s.ava);
+  const shipUuids = new Set(items.map((it) => it.flags[M].stationAction.shipUuid));
+  assert.deepEqual(shipUuids, new Set([s.ship.uuid, reused.uuid, current.uuid, world.uuid]));
+  for (const excluded of [leftover, privateCopy, unmapped]) {
+    assert.ok(items.every((it) => !it.system.description.value.includes(excluded.uuid)));
+  }
+  const ids = items.map((it) => it.id);
+  await s.si.syncStationItems();
+  assert.deepEqual(
+    stationItems(s.ava).map((it) => it.id),
+    ids
+  );
+  [s.ship, reused, leftover, privateCopy, current, unmapped, world].forEach((ship, i) => assert.deepEqual(ship.toObject(), snapshots[i]));
+});
+
+test("public mapped NPC station actions remain eligible", async () => {
+  const s = await scenario();
+  const { addObject } = await import("../../scripts/engine/sensor-ops.mjs");
+  const { getTsc, saveTsc } = await import("../../scripts/combat/tsc-state.mjs");
+  const npc = makeShip({
+    id: "public-npc",
+    role: "npc",
+    stations: [{ id: "public-pilot", type: "pilot", name: "Pilot", grade: "commercial", helmedBy: s.ava.uuid }],
+    crew: [{ actorUuid: s.ava.uuid, name: s.ava.name, role: "crew", stationId: "public-pilot" }]
+  });
+  await saveTsc(s.combat, addObject(getTsc(s.combat), { key: npc.uuid, actorUuid: npc.uuid, type: "starship", zone: 3 }));
+  await s.si.syncStationItems();
+  assert.deepEqual(new Set(stationItems(s.ava).map((it) => it.flags[M].stationAction.shipUuid)), new Set([s.ship.uuid, npc.uuid]));
+});
+
 test("plan: duplicates and stale items removed, missing created", async () => {
   const { si } = await scenario({ combat: false });
   const f = (id, a, tags = ["starship"]) => ({

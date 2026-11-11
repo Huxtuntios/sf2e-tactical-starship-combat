@@ -11,7 +11,7 @@
 import { MODULE_ID, HOOK_EVENTS, STARSHIP_TAG } from "../constants.mjs";
 import { Content, actionsForStation } from "../content/loader.mjs";
 import { allStarships, readStarship, isStarship } from "../starship/starship-state.mjs";
-import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { gradeIndex } from "../engine/advancement.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { isActiveGM, T, escapeHtml, fromUuidSafe } from "../utils/foundry.mjs";
@@ -127,7 +127,21 @@ export function syncStationItems() {
   if (!isActiveGM()) return Promise.resolve(null);
   return serialize("station-items", async () => {
     const combat = activeStarshipCombat();
-    const desired = combat ? desiredStationItems(allStarships()) : new Map();
+    if ((combat ?? game.combat)?.flags?.[MODULE_ID]?.combatSetup) return null;
+    const publicShips = new Set(
+      combat
+        ? getTsc(combat)
+            .objects.filter((o) => o.type === "starship")
+            .map((o) => o.actorUuid ?? o.key)
+        : []
+    );
+    const ships = allStarships().filter((s) => {
+      const instance = s.flags?.[MODULE_ID]?.sensorContactInstance;
+      if (instance?.privateContact === true) return false;
+      if (instance) return publicShips.has(s.uuid);
+      return readStarship(s).role === "player" || publicShips.has(s.uuid);
+    });
+    const desired = combat ? desiredStationItems(ships) : new Map();
     const uuids = new Set(desired.keys());
     for (const a of game.actors) if (a.items?.some?.(isStationItem)) uuids.add(a.uuid);
     const stats = { created: 0, removed: 0 };

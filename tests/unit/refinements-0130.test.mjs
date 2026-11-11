@@ -66,7 +66,12 @@ test("0.13 start combat seeds object artwork and independent ship detections wit
   const objects = combat.flags[M].tsc.objects;
   assert.equal(objects.find((o) => o.key === a.uuid).detection.party, "hidden");
   assert.ok(!objects.find((o) => o.key === a.uuid).alwaysVisible);
-  assert.equal(objects.find((o) => o.key === b.uuid).detection.party, "identified");
+  const enemy = objects.find((o) => o.type === "starship" && o.key !== a.uuid);
+  assert.ok(enemy);
+  assert.notEqual(enemy.actorUuid, b.uuid);
+  assert.equal(fromUuidSync(enemy.actorUuid).flags[M].sensorContactInstance.sourceUuid, b.uuid);
+  assert.equal(fromUuidSync(enemy.actorUuid).flags[M].tacticalCopyOf, b.uuid);
+  assert.equal(enemy.detection.party, "identified");
   assert.equal(objects.find((o) => o.name === "Moon").art, "moon.webp");
   assert.equal(viewFor(combat.flags[M].tsc, { ownKeys: [a.uuid] }).find((o) => o.key === a.uuid).known, true);
 });

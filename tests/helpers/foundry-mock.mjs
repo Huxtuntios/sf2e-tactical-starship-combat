@@ -26,11 +26,13 @@ function setProperty(o, k, v) {
     cur[p] ??= {};
     cur = cur[p];
   }
-  cur[parts.at(-1)] = v;
+  const key = parts.at(-1);
+  if (key.startsWith("-=")) delete cur[key.slice(2)];
+  else cur[key] = v;
 }
 function applyUpdate(target, changes) {
   for (const [k, v] of Object.entries(changes)) {
-    if (k.includes(".")) setProperty(target, k, structuredClone(v));
+    if (k.includes(".") || k.startsWith("-=")) setProperty(target, k, structuredClone(v));
     else if (v && typeof v === "object" && !Array.isArray(v) && target[k] && typeof target[k] === "object") applyUpdate(target[k], v);
     else target[k] = structuredClone(v);
   }
@@ -130,12 +132,16 @@ export class MockActor {
       ownership: structuredClone(this.ownership),
       prototypeToken: structuredClone(this.prototypeToken),
       ...(this.folder ? { folder: this.folder } : {}),
-      ...(this.items.size ? { items: [...this.items.values()].map(({ parent, ...item }) => structuredClone(item)) } : {})
+      ...(this.items.size
+        ? { items: [...this.items.values()].map(({ parent, id, _id, ...item }) => ({ ...structuredClone(item), _id: id ?? _id })) }
+        : {})
     };
   }
   async delete() {
     globalThis.game.actors.delete(this.id);
     this.deleted = true;
+    globalThis.__writes.push({ doc: this.uuid, delete: true });
+    globalThis.Hooks.callAll("deleteActor", this);
     return this;
   }
   get hasPlayerOwner() {
@@ -196,9 +202,30 @@ export class MockCombatant {
 }
 
 export class MockCombat {
-  constructor({ id = rid(), round = 1, turn = 0, started = true, flags = {} } = {}) {
-    Object.assign(this, { id, round, turn, started, flags: structuredClone(flags), active: true, scene: null });
+  constructor({ id = rid(), round = 1, turn = 0, started = true, flags = {}, active = true, scene = null } = {}) {
+    Object.assign(this, { id, round, turn, started, flags: structuredClone(flags), active, scene });
     this.combatants = new Collection();
+  }
+  static async create(data, { keepId = false } = {}) {
+    const combat = new MockCombat({ round: 0, turn: null, started: false, ...data, ...(keepId && data._id ? { id: data._id } : {}) });
+    game.combats.set(combat.id, combat);
+    globalThis.__writes.push({ doc: `Combat.${combat.id}`, create: structuredClone(data) });
+    Hooks.callAll("createCombat", combat);
+    return combat;
+  }
+  async activate() {
+    for (const combat of game.combats) if (combat !== this && combat.active) await combat.update({ active: false });
+    await this.update({ active: true });
+    game.combat = this;
+    return this;
+  }
+  async delete() {
+    game.combats.delete(this.id);
+    if (game.combat === this) game.combat = game.combats.find((combat) => combat.active) ?? null;
+    this.deleted = true;
+    globalThis.__writes.push({ doc: `Combat.${this.id}`, delete: true });
+    Hooks.callAll("deleteCombat", this);
+    return this;
   }
   get turns() {
     return [...this.combatants.values()].sort((a, b) => (b.initiative ?? -Infinity) - (a.initiative ?? -Infinity));
@@ -213,16 +240,23 @@ export class MockCombat {
     return this;
   }
   async createEmbeddedDocuments(type, docs) {
+    if (type !== "Combatant") throw new Error(`mock: ${type}`);
     const out = docs.map((d) => {
       const c = new MockCombatant(this, d);
       this.combatants.set(c.id, c);
       return c;
     });
+    globalThis.__writes.push({ doc: `Combat.${this.id}`, createCombatants: out.map((c) => c.id), data: structuredClone(docs) });
     for (const c of out) globalThis.Hooks.callAll("createCombatant", c);
     return out;
   }
   async deleteEmbeddedDocuments(type, ids) {
-    for (const id of ids) this.combatants.delete(id);
+    if (type !== "Combatant") throw new Error(`mock: ${type}`);
+    const deleted = ids.map((id) => this.combatants.get(id)).filter(Boolean);
+    for (const c of deleted) this.combatants.delete(c.id);
+    globalThis.__writes.push({ doc: `Combat.${this.id}`, deleteCombatants: deleted.map((c) => c.id) });
+    for (const c of deleted) globalThis.Hooks.callAll("deleteCombatant", c);
+    return deleted;
   }
   /** test helper: make `actor` the active combatant */
   setTurnTo(actor) {
@@ -282,12 +316,21 @@ export class MockJournalEntry {
   static async create(data) {
     const doc = new MockJournalEntry(data);
     game.journal.set(doc.id, doc);
+    globalThis.__writes.push({ doc: `JournalEntry.${doc.id}`, create: structuredClone(data) });
     Hooks.callAll("createJournalEntry", doc);
     return doc;
   }
   async update(changes) {
     applyUpdate(this, changes);
+    globalThis.__writes.push({ doc: `JournalEntry.${this.id}`, changes: structuredClone(changes) });
     Hooks.callAll("updateJournalEntry", this, changes);
+    return this;
+  }
+  async delete() {
+    game.journal.delete(this.id);
+    this.deleted = true;
+    globalThis.__writes.push({ doc: `JournalEntry.${this.id}`, delete: true });
+    Hooks.callAll("deleteJournalEntry", this);
     return this;
   }
 }
@@ -463,6 +506,7 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
   };
   globalThis.ChatMessage = MockChatMessage;
   globalThis.JournalEntry = MockJournalEntry;
+  globalThis.Combat = MockCombat;
   globalThis.Actor = {
     async create(data) {
       const actor = new MockActor({
@@ -481,6 +525,8 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
         actor.items.set(it.id, it);
       }
       game.actors.set(actor.id, actor);
+      globalThis.__writes.push({ doc: actor.uuid, create: structuredClone(data) });
+      Hooks.callAll("createActor", actor);
       return actor;
     }
   };
