@@ -1464,6 +1464,13 @@
       "position": "Position",
       "autoMirror": "Auto mirror image on course change",
       "autoHint": "Auto mirror uses the ship’s left/right course and its base image direction. Up/down source images are not auto-mirrored.",
+      "autoMirrorOverride": "Object auto-mirroring",
+      "autoMirrorOverrideHint": "Inherit uses the combat-wide setting; choose On or Off to override it for this object.",
+      "autoMirrorOptions": {
+        "inherit": "Inherit global setting",
+        "on": "On",
+        "off": "Off"
+      },
       "orientation": "Image orientation",
       "rotation": "Rotation (degrees)",
       "flipX": "Flip horizontal",

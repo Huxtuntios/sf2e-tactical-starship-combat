@@ -57,7 +57,10 @@ test("release ZIP excludes transient pack database artifacts", () => {
   try {
     const manifest = {
       ...source,
-      packs: [],
+      packs: [
+        { name: "starship-actions", path: "packs/starship-actions", type: "Item", system: "sf2e" },
+        { name: "starship-actions-pf2e", path: "packs/starship-actions-pf2e", type: "Item", system: "pf2e" }
+      ],
       compatibility: { minimum: "13", verified: "13" },
       relationships: {
         systems: [
@@ -70,7 +73,13 @@ test("release ZIP excludes transient pack database artifacts", () => {
       fs.writeFileSync(path.join(root, name), "");
     for (const name of ["assets", "data", "lang", "packs", "scripts", "styles", "templates", "docs"])
       fs.mkdirSync(path.join(root, name), { recursive: true });
-    fs.mkdirSync(path.join(root, "packs", "starship-actions"), { recursive: true });
+    for (const pack of manifest.packs) {
+      const packPath = path.join(root, pack.path);
+      fs.mkdirSync(packPath, { recursive: true });
+      fs.writeFileSync(path.join(packPath, "CURRENT"), "MANIFEST-000006\n");
+      fs.writeFileSync(path.join(packPath, "MANIFEST-000006"), "current");
+      fs.writeFileSync(path.join(packPath, "MANIFEST-000002"), "stale");
+    }
     for (const name of ["000006.dbtmp", "000006.db-wal", "000006.db-shm"])
       fs.writeFileSync(path.join(root, "packs", "starship-actions", name), "transient");
     fs.writeFileSync(path.join(root, "module.json"), JSON.stringify(manifest));
@@ -84,6 +93,10 @@ test("release ZIP excludes transient pack database artifacts", () => {
     buildRelease({ root, out });
     const names = Object.keys(unzipSync(fs.readFileSync(path.join(out, "module.zip"))));
     assert.ok(!names.some((name) => /\.(?:dbtmp|db-wal|db-shm)$/.test(name)));
+    for (const pack of manifest.packs) {
+      assert.ok(names.includes(`${pack.path}/MANIFEST-000006`));
+      assert.ok(!names.includes(`${pack.path}/MANIFEST-000002`));
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

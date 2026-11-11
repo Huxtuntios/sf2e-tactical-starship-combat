@@ -71,6 +71,36 @@ test("settings normalize invalid input and legacy maps retain defaults", () => {
   assert.equal(normalizeMapAppearance(normalizeSensorState(state()).appearance).autoMirror, false);
   assert.deepEqual(changedFields({ a: 1, b: 2 }, { a: 1, b: 3 }, ["a", "b"]), { b: 3 });
 });
+test("object auto-mirroring overrides the global setting and recomputes from each heading", () => {
+  const transform = { rotation: 20, flipX: false, flipY: true, baseDirection: "right" };
+  const auto = (heading, global, override) => visualTransform(transform, heading, global, override);
+
+  assert.equal(auto("left", true, null).auto, true);
+  assert.equal(auto("left", false, null).auto, false);
+  assert.equal(auto("left", false, true).auto, true);
+  assert.equal(auto("left", true, false).auto, false);
+  assert.equal(auto("right", true, null).scaleX, 1);
+  assert.equal(auto("left", true, null).scaleX, -1);
+  assert.equal(auto("right", true, null).scaleX, 1);
+  assert.equal(auto("left", true, true).scaleX, -1);
+  assert.equal(auto("left", true, false).scaleX, 1);
+  assert.equal(auto("left", true, true).scaleY, -1);
+  assert.deepEqual(transform, { rotation: 20, flipX: false, flipY: true, baseDirection: "right" });
+
+  let s = state();
+  s.appearance = { autoMirror: true };
+  s = applySensorOp(s, { op: "objectVisual", key: ship.key, visual: { autoMirrorOverride: false } });
+  assert.equal(s.objects[0].autoMirrorOverride, false);
+  assert.equal(viewFor(s)[0].autoMirrorOverride, false);
+  const persisted = normalizeSensorState(JSON.parse(JSON.stringify(s)));
+  assert.equal(persisted.objects[0].autoMirrorOverride, false);
+  s = applySensorOp(s, { op: "objectVisual", key: ship.key, visual: { autoMirrorOverride: null } });
+  assert.equal(s.objects[0].autoMirrorOverride, null);
+  assert.equal(visualTransform(transform, "left", s.appearance.autoMirror, s.objects[0].autoMirrorOverride).auto, true);
+  assert.equal(applySensorOp(s, { op: "objectVisual", key: ship.key, visual: { autoMirrorOverride: "false" } }), s);
+  const legacy = state();
+  assert.equal(viewFor(legacy)[0].autoMirrorOverride, null);
+});
 test("visual edits preserve game state, other objects and unknown data", () => {
   const s = state();
   s.objects[0].mapTransform = { custom: "preserve", rotation: 25 };
@@ -129,7 +159,14 @@ test("templates contain distinct controls and escape custom image paths", () => 
     "backgroundFlipY"
   ])
     assert.match(all, new RegExp(`name="${name}"`));
-  const obj = form({ objectMode: true, transform: {}, directions: [] });
+  const obj = form({
+    objectMode: true,
+    transform: {},
+    directions: [],
+    autoMirrorOptions: [{ id: "inherit", selected: true }, { id: "on" }, { id: "off" }]
+  });
+  assert.match(obj, /name="autoMirrorOverride"/);
+  for (const id of ["inherit", "on", "off"]) assert.match(obj, new RegExp(`value="${id}"`));
   for (const op of ["left", "right", "resetRotation", "resetFlipping", "resetAll"]) assert.match(obj, new RegExp(`data-op="${op}"`));
   const template = h.compile(fs.readFileSync(new URL("../../templates/sensor-map-zones.hbs", import.meta.url), "utf8"));
   const html = template({

@@ -159,9 +159,25 @@ document.querySelector('#result').textContent=JSON.stringify({checks,passed:chec
     mutedColor: "#8aa0c0",
     accentColor: "#38bdf8"
   });
+  const objectForm = render("map-appearance", {
+    objectMode: true,
+    objectName: "Корабль игроков",
+    art: ship,
+    transform: { rotation: 0, flipX: false, flipY: false, baseDirection: "right" },
+    directions: [{ id: "right", label: "Вправо", selected: true }],
+    autoMirrorOptions: [
+      { id: "inherit", label: "Наследовать общую настройку", selected: true },
+      { id: "on", label: "Включить" },
+      { id: "off", label: "Выключить" }
+    ]
+  });
   fs.writeFileSync(
     `${out}/form-${theme}.html`,
     `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#777;font:14px Arial}.application{width:500px;margin:20px auto}fieldset{border:1px solid #405574}</style><form class="application sf2e-tsc tsc-map-appearance"><div class="window-content">${form}</div></form>`
+  );
+  fs.writeFileSync(
+    `${out}/form-object-${theme}.html`,
+    `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#777;font:14px Arial}.application{width:500px;margin:20px auto}fieldset{border:1px solid #405574}</style><form class="application sf2e-tsc tsc-map-appearance"><div class="window-content">${objectForm}</div></form>`
   );
 }
 console.log(`Wrote DOM smoke fixtures to ${out}`);

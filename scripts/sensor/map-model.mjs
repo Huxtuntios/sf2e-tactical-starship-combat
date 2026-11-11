@@ -105,6 +105,8 @@ export function applySensorOp(s, payload, opts = {}) {
       const out = {};
       if (Object.keys(valid).length) out.mapTransform = transform;
       if (typeof patch.art === "string") out.art = safeImagePath(patch.art);
+      if (patch.autoMirrorOverride === null || typeof patch.autoMirrorOverride === "boolean")
+        out.autoMirrorOverride = patch.autoMirrorOverride;
       return Object.keys(out).length ? updateObject(s, payload.key, out) : s;
     }
     case "art":

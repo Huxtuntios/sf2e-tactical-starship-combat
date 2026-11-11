@@ -9,6 +9,8 @@
     <label>{{localize 'SF2eTSC.mapVisual.flipY'}} <input type="checkbox" name="flipY" {{#if transform.flipY}}checked{{/if}}></label>
     <label>{{localize 'SF2eTSC.mapVisual.baseDirection'}} <select name="baseDirection">{{#each directions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
     <p>{{localize 'SF2eTSC.mapVisual.baseHint'}}</p>
+    <label>{{localize 'SF2eTSC.mapVisual.autoMirrorOverride'}} <select name="autoMirrorOverride">{{#each autoMirrorOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+    <p>{{localize 'SF2eTSC.mapVisual.autoMirrorOverrideHint'}}</p>
     <div class="tsc-transform-buttons">
       <button type="button" data-action="transformControl" data-op="left">{{localize 'SF2eTSC.mapVisual.rotateLeft'}}</button>
       <button type="button" data-action="transformControl" data-op="right">{{localize 'SF2eTSC.mapVisual.rotateRight'}}</button>

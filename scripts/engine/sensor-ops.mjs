@@ -139,6 +139,11 @@ export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], 
       art: known ? o.art : undefined,
       actorUuid: known ? o.actorUuid : undefined,
       mapTransform: known ? o.mapTransform : undefined,
+      autoMirrorOverride: known
+        ? o.autoMirrorOverride === true || o.autoMirrorOverride === false
+          ? o.autoMirrorOverride
+          : null
+        : undefined,
       span: o.span
     });
   }

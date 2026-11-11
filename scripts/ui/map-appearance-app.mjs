@@ -5,6 +5,7 @@ import {
   normalizeMapAppearance,
   DEFAULT_MAP_APPEARANCE,
   normalizeObjectTransform,
+  normalizeAutoMirrorOverride,
   normalizeAngle,
   changedFields,
   MAP_PALETTES,
@@ -65,8 +66,9 @@ export class MapAppearanceApplication extends TscApp {
       palette = MAP_PALETTES[activeModuleTheme()];
     const object = this.key ? state.objects.find((o) => o.key === this.key) : null;
     const transform = normalizeObjectTransform(object?.mapTransform);
+    const autoMirrorOverride = normalizeAutoMirrorOverride(object?.autoMirrorOverride);
     this._appearanceSnapshot = a;
-    this._objectSnapshot = { art: safeImagePath(object?.art), ...transform };
+    this._objectSnapshot = { art: safeImagePath(object?.art), autoMirrorOverride, ...transform };
     return {
       transform,
       arrowModes: ["none", "text", "emoji", "custom"].map((id) => ({
@@ -84,6 +86,12 @@ export class MapAppearanceApplication extends TscApp {
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
         selected: id === transform.baseDirection
       })),
+      autoMirrorOptions: ["inherit", "on", "off"].map((id) => ({
+        id,
+        label: T(`SF2eTSC.mapVisual.autoMirrorOptions.${id}`),
+        selected: (autoMirrorOverride === null ? "inherit" : autoMirrorOverride ? "on" : "off") === id
+      })),
+      autoMirrorOverride,
       objectMode: !!this.key,
       objectName: object?.name ?? "",
       art: safeImagePath(object?.art),
@@ -178,7 +186,20 @@ export class MapAppearanceApplication extends TscApp {
         const next = normalizeObjectTransform({ ...f, flipX: !!f.flipX, flipY: !!f.flipY });
         const transform = changedFields(this._objectSnapshot, next, TRANSFORM_FIELDS);
         const art = safeImagePath(f.art);
-        const visual = { ...(Object.keys(transform).length ? { transform } : {}), ...(art !== this._objectSnapshot.art ? { art } : {}) };
+        const selectedMirror = f.autoMirrorOverride;
+        const autoMirrorOverride =
+          selectedMirror === "on"
+            ? true
+            : selectedMirror === "off"
+              ? false
+              : selectedMirror === "inherit"
+                ? null
+                : this._objectSnapshot.autoMirrorOverride;
+        const visual = {
+          ...(Object.keys(transform).length ? { transform } : {}),
+          ...(art !== this._objectSnapshot.art ? { art } : {}),
+          ...(autoMirrorOverride !== this._objectSnapshot.autoMirrorOverride ? { autoMirrorOverride } : {})
+        };
         if (!Object.keys(visual).length) {
           await this.close();
           return;
