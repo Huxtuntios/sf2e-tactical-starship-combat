@@ -41,17 +41,36 @@ async function copiesFolder() {
   const name = game.i18n.localize("SF2eTSC.wizard.copiesFolder");
   return game.folders.find((f) => f.type === "Actor" && f.name === name) ?? (await Folder.create({ name, type: "Actor" }));
 }
+export async function createActorCopy(
+  src,
+  { name = src?.name, folder = false, ownership, flags = {}, removeSort = false } = {},
+  deps = {}
+) {
+  if (!src?.toObject || typeof src.uuid !== "string") throw new Error("invalidActor");
+  const data = src.toObject();
+  delete data._id;
+  if (removeSort) delete data.sort;
+  data.name = name;
+  if (folder) data.folder = (await copiesFolder())?.id ?? null;
+  else delete data.folder;
+  if (ownership) data.ownership = structuredClone(ownership);
+  data.flags = {
+    ...(data.flags ?? {}),
+    [MODULE_ID]: {
+      ...(data.flags?.[MODULE_ID] ?? {}),
+      tacticalCopyOf: src.uuid,
+      ...structuredClone(flags)
+    }
+  };
+  if (data.prototypeToken) data.prototypeToken.name = name;
+  const create = deps.createActor ?? ((d) => (globalThis.Actor?.implementation ?? globalThis.Actor).create(d, { keepId: false }));
+  return create(data);
+}
 /**
  * Resolve an expanded entry to an actor: copyIndex 1 is the source actor, every further copy is a separate world
  * actor (own HP / SP / status / hazard state), so the combat engine handles each copy independently.
  */
 export async function actorForCopy(src, entry) {
   if (!src || (entry.copyIndex ?? 1) <= 1) return src;
-  const data = src.toObject();
-  delete data._id;
-  data.name = copyName(src.name, entry.copyIndex);
-  data.folder = (await copiesFolder())?.id ?? null;
-  data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), tacticalCopyOf: src.uuid } };
-  if (data.prototypeToken) data.prototypeToken.name = data.name;
-  return Actor.create(data);
+  return createActorCopy(src, { name: copyName(src.name, entry.copyIndex), folder: true });
 }

@@ -1,8 +1,8 @@
 import { sensorDragData } from "../sensor/actor-drop.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
-import { addPrivateContact, changePrivateContact } from "../sensor/private-contacts.mjs";
-import { readStarship } from "../starship/starship-state.mjs";
-import { isStarship } from "../starship/starship-state.mjs";
+import { changePrivateContact } from "../sensor/private-contacts.mjs";
+import { addSensorContact } from "../sensor/contact-service.mjs";
+import { readStarship, isStarship } from "../starship/starship-state.mjs";
 import { request } from "../socket.mjs";
 import { T, fromUuidSafe } from "../utils/foundry.mjs";
 import { notifyWarn, notifyInfo } from "../utils/logging.mjs";
@@ -56,8 +56,13 @@ export function wireSensorMapDragDrop(element, context, deps = {}) {
         const combat = game.combats.get(context.combatId);
         const alreadyPresent = getTsc(combat).objects.some((o) => o.actorUuid === data.uuid || o.key === data.uuid);
         if (!alreadyPresent && (actor.type === "hazard" || (isStarship(actor) && readStarship(actor).role === "npc"))) {
-          const result = await addPrivateContact(combat, actor, zoneNumber);
-          if (result === "unchanged") info("SF2eTSC.mapDrop.unchanged");
+          const result = await addSensorContact(combat, {
+            source: "world",
+            uuid: actor.uuid,
+            zone: zoneNumber,
+            detection: "undetected"
+          });
+          if (result.result === "unchanged") info("SF2eTSC.mapDrop.unchanged");
           return;
         }
         let publicActor = false;
