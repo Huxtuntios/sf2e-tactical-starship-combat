@@ -18,6 +18,17 @@ const num = (n, d = undefined) => {
   const v = Math.round(Number(n));
   return Number.isFinite(v) && v > 0 ? v : d;
 };
+const placement = (s) => ({
+  ...(s.heading === "left" || s.heading === "right" ? { heading: s.heading } : {}),
+  ...(s.reuse === true ? { reuse: true } : {}),
+  ...(Array.isArray(s.stationAssignments)
+    ? {
+        stationAssignments: s.stationAssignments
+          .filter((a) => typeof a?.stationId === "string" && a.stationId)
+          .map((a) => ({ stationId: a.stationId, actorUuid: typeof a.actorUuid === "string" && a.actorUuid ? a.actorUuid : null }))
+      }
+    : {})
+});
 
 /** Normalise a start configuration (wizard output / stored preset). */
 export function normalizePreset(p = {}) {
@@ -30,7 +41,7 @@ export function normalizePreset(p = {}) {
       typeof s === "string"
         ? { uuid: s }
         : s?.uuid
-          ? { uuid: s.uuid, zone: num(s.zone), detection: normalizeDetection(s.detection, "identified") }
+          ? { uuid: s.uuid, zone: num(s.zone), detection: normalizeDetection(s.detection, "identified"), ...placement(s) }
           : null
     ),
     enemies: list(p.enemies, (s) =>
@@ -40,17 +51,39 @@ export function normalizePreset(p = {}) {
             zone: num(s.zone),
             detection: normalizeDetection(s.detection),
             count: clampCount(s.count),
-            zones: parseZoneList(s.zones)
+            zones: parseZoneList(s.zones),
+            ...placement(s)
           }
         : null
     ),
     hazards: list(p.hazards, (s) =>
-      s?.uuid ? { uuid: s.uuid, zone: num(s.zone), count: clampCount(s.count), zones: parseZoneList(s.zones) } : null
+      s?.uuid
+        ? {
+            uuid: s.uuid,
+            zone: num(s.zone),
+            count: clampCount(s.count),
+            zones: parseZoneList(s.zones),
+            ...(s.detection ? { detection: normalizeDetection(s.detection) } : {}),
+            ...placement(s)
+          }
+        : null
     ),
     objects: list(p.objects, (o) =>
-      o?.name ? { name: String(o.name), type: objectType(o.type), zone: num(o.zone, 1), art: safeImagePath(o.art) } : null
+      o?.name
+        ? {
+            name: String(o.name),
+            type: objectType(o.type),
+            zone: num(o.zone, 1),
+            art: safeImagePath(o.art),
+            ...(o.detection ? { detection: normalizeDetection(o.detection) } : {})
+          }
+        : null
     ),
-    enemyDetection: p.enemyDetection ?? "observed"
+    ...(Array.isArray(p.crew) ? { crew: [...new Set(p.crew.filter((uuid) => typeof uuid === "string" && uuid))] } : {}),
+    ...(Array.isArray(p.excludeCrew)
+      ? { excludeCrew: [...new Set(p.excludeCrew.filter((uuid) => typeof uuid === "string" && uuid))] }
+      : {}),
+    enemyDetection: normalizeDetection(p.enemyDetection)
   };
 }
 

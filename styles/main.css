@@ -1013,6 +1013,138 @@ a.tsc-check:hover {
 .tsc-wizard footer input[type="text"] {
   flex: 1;
 }
+.tsc-start-wizard-window .window-content {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.tsc-wizard [hidden] {
+  display: none !important;
+}
+.tsc-start-wizard-window .tsc-wizard {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+.tsc-wizard .tsc-wizard-filters label,
+.tsc-wizard .tsc-wizard-roster-row .tsc-row-inputs > label,
+.tsc-wizard .tsc-obj-row > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tsc-wizard .tsc-wizard-search {
+  flex: 1 1 100%;
+}
+.tsc-wizard .tsc-wizard-search input {
+  flex: 1;
+  min-width: 0;
+}
+.tsc-wizard .tsc-wizard-candidates {
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  margin: 6px 0;
+  padding: 4px;
+}
+.tsc-wizard .tsc-wizard-candidate {
+  align-items: flex-start;
+  padding: 4px;
+}
+.tsc-wizard .tsc-wizard-candidate span,
+.tsc-wizard .tsc-wizard-roster-row header > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tsc-wizard .tsc-wizard-candidate small {
+  display: block;
+}
+.tsc-wizard .tsc-wizard-roster {
+  max-height: 340px;
+  overflow: auto;
+}
+.tsc-wizard .tsc-wizard-roster-row {
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+.tsc-wizard .tsc-wizard-roster-row header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tsc-wizard .tsc-wizard-roster-row header button {
+  flex: 0 0 auto;
+}
+.tsc-wizard .tsc-wizard-roster-row p,
+.tsc-wizard > p {
+  margin: 4px 0;
+}
+.tsc-wizard .tsc-wizard-crew-list {
+  max-height: 160px;
+  overflow: auto;
+}
+.tsc-wizard .tsc-wizard-station {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  margin: 6px 0;
+}
+.tsc-wizard .tsc-wizard-station label {
+  display: flex;
+  align-items: center;
+  flex: 1 1 240px;
+  gap: 6px;
+}
+.tsc-wizard .tsc-wizard-station select {
+  flex: 1;
+  min-width: 0;
+}
+.tsc-wizard .tsc-obj-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--tsc-line);
+  margin-bottom: 6px;
+}
+.tsc-wizard .tsc-obj-row input[type="text"] {
+  min-width: 0;
+}
+.tsc-wizard .tsc-wizard-art {
+  flex: 1 1 240px;
+}
+.tsc-wizard .tsc-wizard-art input {
+  flex: 1;
+}
+.tsc-wizard .tsc-wizard-review {
+  background: var(--tsc-panel);
+  border-color: var(--tsc-accent);
+}
+.tsc-wizard .tsc-wizard-review li {
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.tsc-wizard footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--tsc-bg);
+  padding: 8px 0 2px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--tsc-line);
+}
+.tsc-wizard footer button {
+  flex: 0 1 auto;
+  white-space: normal;
+}
+.tsc-wizard footer input[type="text"] {
+  min-width: 140px;
+}
 
 /* 0.7.0: MAP buttons */
 .tsc-map-btns {

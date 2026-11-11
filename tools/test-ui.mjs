@@ -19,6 +19,7 @@ const fixtures = [
   ["smoke-sensor-drop.mjs", "sensor-drop"],
   ["smoke-sensor-performance.mjs", "sensor-performance"],
   ["smoke-contact-editor.mjs", "contact-editor"],
+  ["smoke-start-wizard.mjs", "start-wizard"],
   ["smoke-crew-stations.mjs", "crew-stations"],
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],

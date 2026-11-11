@@ -74,6 +74,12 @@ export function registerSensorHandlers() {
           }
           return result;
         }
+        try {
+          dropActorOnMap(getTsc(combat), actor, payload.zone, { publicActor: payload.publicActor === true });
+        } catch (error) {
+          if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
+          throw error;
+        }
         const instance = await createSensorActorInstance(actor, combat);
         const previous = getTsc(combat);
         let result;

@@ -4,6 +4,8 @@ import { serialize } from "../utils/serial.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
+import { safeImagePath } from "./appearance.mjs";
+import { objectType } from "./object-types.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { hazardNeedsCombatant } from "../engine/hazard-rules.mjs";
 import {
@@ -199,7 +201,9 @@ function validIntent(intent, combatId, contact) {
     REVEAL_STAGES.includes(intent.stage) &&
     intent.object?.key === (contact.actorUuid ?? contact.key) &&
     intent.object?.detection?.party === "identified" &&
-    (intent.actorUuid ? intent.object.actorUuid === intent.actorUuid : intent.object.type === "custom" && intent.instance === null) &&
+    (intent.actorUuid
+      ? intent.object.actorUuid === intent.actorUuid
+      : intent.object.type === objectType(intent.object.type) && intent.instance === null) &&
     ["none", "anonymous", "create"].includes(intent.combatant?.mode) &&
     (intent.combatant.mode === "none" ? !intent.turnRequired : intent.turnRequired) &&
     (intent.combatant.mode === "none" ? intent.combatant.id === null : typeof intent.combatant.id === "string")
@@ -357,7 +361,8 @@ async function beginReveal(combat, contact, actor) {
         { ...state, objects: [] },
         {
           key: contact.key,
-          type: "custom",
+          type: objectType(contact.objectType),
+          ...(contact.art ? { art: safeImagePath(contact.art) } : {}),
           name: contact.name,
           zone: contact.zone,
           heading: null,
@@ -536,7 +541,7 @@ export async function recoverPrivateReveals(combat) {
   });
 }
 
-export async function addPrivateCustom(combat, name, zone) {
+export async function addPrivateCustom(combat, name, zone, appearance = {}) {
   requireGM();
   return serialize(`sensor:${combat.id}`, async () => {
     requireGM();
@@ -552,6 +557,8 @@ export async function addPrivateCustom(combat, name, zone) {
       actorUuid: null,
       name: name.trim(),
       type: "custom",
+      ...(appearance.type ? { objectType: objectType(appearance.type) } : {}),
+      ...(safeImagePath(appearance.art) ? { art: safeImagePath(appearance.art) } : {}),
       zone,
       heading: null,
       detection: { party: "undetected" },
