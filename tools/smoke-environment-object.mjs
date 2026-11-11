@@ -39,10 +39,14 @@ function createDialog(lang,initialType){
 globalThis.foundry={utils:{escapeHTML:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}};
 const ruCustom=createDialog('ru','custom');ruCustom.form.elements.name.value='   ';ruCustom.button.click();await new Promise(r=>setTimeout(r,0));
 checks.push({name:'blank-custom-shows-translated-inline-error-and-keeps-form-open',pass:!ruCustom.error.hidden&&ruCustom.error.textContent===localize('ru','SF2eTSC.ui.customObjectNameRequired')&&!ruCustom.state.closed&&ruCustom.form.elements.name.value==='   '});
-const ruStandard=createDialog('ru','asteroid');ruStandard.form.elements.name.value='';ruStandard.form.elements.zone.value='4';ruStandard.button.click();await new Promise(r=>setTimeout(r,0));
-checks.push({name:'blank-standard-creates-localized-display-name-and-closes',pass:created.some(x=>x.kind==='public'&&x.name==='Астероид 1'&&x.type==='asteroid'&&x.zone===4)&&ruStandard.state.closed});
-const enStandard=createDialog('en','beacon');enStandard.button.click();await new Promise(r=>setTimeout(r,0));
-checks.push({name:'english-standard-fallback-label-is-translated',pass:created.some(x=>x.kind==='public'&&x.name==='Drift beacon 1'&&x.type==='beacon')&&enStandard.state.closed});
+const ruStandard=[];
+for(const type of typeIds.slice(0,-1)){const dialog=createDialog('ru',type);dialog.form.elements.name.value='';dialog.button.click();await new Promise(r=>setTimeout(r,0));ruStandard.push({dialog,type})}
+checks.push({name:'blank-standard-creates-every-localized-russian-type-and-closes',pass:ruStandard.every(({dialog,type})=>dialog.state.closed&&created.some(x=>x.kind==='public'&&x.type===type&&x.name===localize('ru','SF2eTSC.ui.environmentObjectFallback',{type:localize('ru','SF2eTSC.objectTypes.'+type),number:1})))});
+const enStandard=[];
+for(const type of typeIds.slice(0,-1)){const dialog=createDialog('en',type);dialog.form.elements.name.value='';dialog.button.click();await new Promise(r=>setTimeout(r,0));enStandard.push({dialog,type})}
+checks.push({name:'blank-standard-creates-every-localized-english-type-and-closes',pass:enStandard.every(({dialog,type})=>dialog.state.closed&&created.some(x=>x.kind==='public'&&x.type===type&&x.name===localize('en','SF2eTSC.ui.environmentObjectFallback',{type:localize('en','SF2eTSC.objectTypes.'+type),number:1})))});
+const namedCustom=createDialog('en','custom');namedCustom.form.elements.name.value='Emergency buoy';namedCustom.button.click();await new Promise(r=>setTimeout(r,0));
+checks.push({name:'named-custom-creates-and-closes',pass:namedCustom.state.closed&&created.some(x=>x.kind==='custom'&&x.name==='Emergency buoy')});
 const result={checks,passed:checks.every(c=>c.pass)};
 document.querySelector('#result').textContent=JSON.stringify(result);
 </script>`;
