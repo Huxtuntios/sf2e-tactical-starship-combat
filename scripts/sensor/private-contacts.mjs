@@ -9,7 +9,10 @@ import {
   deleteSensorActorCombatant,
   deleteSensorActorInstance,
   ensureSensorActorCombatant,
-  isSensorActorInstance
+  isSensorActorInstance,
+  privateSensorActorCombatant,
+  revealSensorActorCombatant,
+  restorePrivateSensorActorCombatant
 } from "./actor-instance.mjs";
 
 // Отдельный документ без родительской папки и наследуемых прав; секреты не входят в Combat и module socket.
@@ -82,9 +85,11 @@ function assertHiddenActor(actor, combat) {
   // Прямой доступ к Actor или Combatant не устраняется скрытием карты.
   if (typeof actor.testUserPermission !== "function" || !Array.isArray(game.users?.contents))
     throw new Error(T("SF2eTSC.privateMap.invalidActor"));
+  const actorCombatants = [...(combat.combatants ?? [])].filter((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id);
+  const privateInitiative = privateSensorActorCombatant(combat, actor);
   if (
     game.users.contents.some((u) => !u.isGM && actor.testUserPermission(u, "LIMITED")) ||
-    [...(combat.combatants ?? [])].some((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id)
+    (actorCombatants.length > 0 && (actorCombatants.length !== 1 || actorCombatants[0] !== privateInitiative))
   )
     throw new Error(T("SF2eTSC.privateMap.actorExposed"));
 }
@@ -150,8 +155,9 @@ async function saveProjection(combat, contact, remove = false) {
   await saveTsc(combat, { ...state, objects });
 }
 
-async function rollbackReveal(combat, actor, state) {
-  await deleteSensorActorCombatant(combat, actor.uuid);
+async function rollbackReveal(combat, actor, state, privateInitiative) {
+  if (privateInitiative) await restorePrivateSensorActorCombatant(combat, actor, privateInitiative);
+  else await deleteSensorActorCombatant(combat, actor.uuid);
   await saveTsc(combat, state);
   await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: true });
 }
@@ -247,12 +253,14 @@ export async function changePrivateContact(combat, key, op, zone) {
         }
         await saveTsc(combat, next);
         if (actor && isSensorActorInstance(actor, combat.id)) {
-          pendingReveal = { actor, state };
+          const privateInitiative = privateSensorActorCombatant(combat, actor);
+          pendingReveal = { actor, state, privateInitiative };
           try {
+            if (privateInitiative) await revealSensorActorCombatant(combat, actor, privateInitiative);
             await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: false });
             await ensureSensorActorCombatant(combat, actor);
           } catch (error) {
-            await rollbackReveal(combat, actor, state);
+            await rollbackReveal(combat, actor, state, privateInitiative);
             throw error;
           }
         }
@@ -264,7 +272,8 @@ export async function changePrivateContact(combat, key, op, zone) {
       if (storeFor(combat.id)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
       await doc.update({ [`flags.${MODULE_ID}.privateSensor.contacts`]: contacts });
     } catch (error) {
-      if (op === "reveal" && pendingReveal) await rollbackReveal(combat, pendingReveal.actor, pendingReveal.state);
+      if (op === "reveal" && pendingReveal)
+        await rollbackReveal(combat, pendingReveal.actor, pendingReveal.state, pendingReveal.privateInitiative);
       throw error;
     }
     if (op === "remove" && contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);

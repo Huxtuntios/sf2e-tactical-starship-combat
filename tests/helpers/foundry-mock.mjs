@@ -184,9 +184,12 @@ export class MockCombatant {
     return this.customName ?? this.actor?.name ?? "?";
   }
   async update(changes) {
-    if (Object.hasOwn(changes, "name")) this.customName = changes.name;
-    if (Object.hasOwn(changes, "img")) this.img = changes.img;
-    if (Object.hasOwn(changes, "hidden")) this.hidden = changes.hidden;
+    for (const [key, value] of Object.entries(changes)) {
+      if (key === "name") this.customName = value;
+      else if (key === "img") this.img = value;
+      else if (key === "hidden") this.hidden = value;
+      else applyUpdate(this, { [key]: value });
+    }
     globalThis.__writes.push({ doc: `Combatant.${this.id}`, changes });
     return this;
   }
