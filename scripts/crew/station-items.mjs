@@ -126,8 +126,8 @@ export function stationItemData(d) {
 export function syncStationItems() {
   if (!isActiveGM()) return Promise.resolve(null);
   return serialize("station-items", async () => {
-    if (game.combats.some((c) => c.flags?.[MODULE_ID]?.combatSetup)) return null;
     const combat = activeStarshipCombat();
+    if ((combat ?? game.combat)?.flags?.[MODULE_ID]?.combatSetup) return null;
     const publicShips = new Set(
       combat
         ? getTsc(combat)
@@ -135,11 +135,12 @@ export function syncStationItems() {
             .map((o) => o.actorUuid ?? o.key)
         : []
     );
-    const ships = allStarships().filter(
-      (s) =>
-        s.flags?.[MODULE_ID]?.sensorContactInstance?.privateContact !== true &&
-        (readStarship(s).role === "player" || publicShips.has(s.uuid))
-    );
+    const ships = allStarships().filter((s) => {
+      const instance = s.flags?.[MODULE_ID]?.sensorContactInstance;
+      if (instance?.privateContact === true) return false;
+      if (instance) return instance.combatId === combat?.id && publicShips.has(s.uuid);
+      return readStarship(s).role === "player" || publicShips.has(s.uuid);
+    });
     const desired = combat ? desiredStationItems(ships) : new Map();
     const uuids = new Set(desired.keys());
     for (const a of game.actors) if (a.items?.some?.(isStationItem)) uuids.add(a.uuid);

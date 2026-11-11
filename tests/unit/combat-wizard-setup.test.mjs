@@ -11,7 +11,8 @@ import {
   MockCombat
 } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID as M, HOOK_EVENTS } from "../../scripts/constants.mjs";
-import { startStarshipCombat, registerCombatHooks } from "../../scripts/combat/starship-combat.mjs";
+import { startStarshipCombat, registerCombatHooks, setStarshipCombatEnabled } from "../../scripts/combat/starship-combat.mjs";
+import { syncStationItems, isStationItem } from "../../scripts/crew/station-items.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { privateContacts, changePrivateContact, addPrivateCustom } from "../../scripts/sensor/private-contacts.mjs";
@@ -113,6 +114,43 @@ function assertCleanFailure(existing, sources, snapshots) {
     assert.deepEqual(writesTo(source), []);
   });
   assert.deepEqual(globalThis.__socket, []);
+}
+
+for (const origin of ["world NPC", "compendium player"]) {
+  test(`${origin} used as player ship does not recreate old station actions in the next encounter`, async (t) => {
+    await setup();
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    globalThis.foundry.applications.instances = new Map();
+    const crew = makeCharacter({ id: "copy-pilot", name: "Copy pilot" });
+    let source = makeShip({
+      id: "player-copy-source",
+      role: origin === "world NPC" ? "npc" : "player",
+      stations: [{ id: "pilot", type: "pilot", name: "Pilot", grade: "commercial", helmedBy: crew.uuid }],
+      crew: [{ actorUuid: crew.uuid, name: crew.name, role: "crew", stationId: "pilot" }]
+    });
+    if (origin === "compendium player") source = inPack(source);
+    const before = source.toObject();
+    const first = await startStarshipCombat({ playerShips: [{ uuid: source.uuid, zone: 2 }] });
+    const [copy] = copiesOf(source);
+    assert.ok(copy && copy.uuid !== source.uuid);
+    await syncStationItems();
+    const items = crew.items.filter(isStationItem);
+    assert.ok(items.length > 0);
+    assert.ok(items.every((item) => item.flags[M].stationAction.shipUuid === copy.uuid));
+    await setStarshipCombatEnabled(first, false);
+    t.mock.timers.tick(50);
+    await syncStationItems();
+    assert.equal(crew.items.filter(isStationItem).length, 0);
+    assert.equal(game.actors.get(copy.id), copy);
+    assert.equal(shipData(copy).stations[0].helmedBy, crew.uuid);
+    const retained = copy.toObject();
+    const second = await startStarshipCombat({ objects: [{ name: "Next encounter", zone: 3 }] });
+    assert.notEqual(second.id, first.id);
+    await syncStationItems();
+    assert.equal(crew.items.filter(isStationItem).length, 0);
+    assert.deepEqual(copy.toObject(), retained);
+    assert.deepEqual(source.toObject(), before);
+  });
 }
 
 for (const kind of ["npc", "hazard"]) {

@@ -1126,6 +1126,11 @@ a.tsc-check:hover {
   background: var(--tsc-panel);
   border-color: var(--tsc-accent);
 }
+.tsc-wizard .tsc-wizard-review dl {
+  width: fit-content;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
 .tsc-wizard .tsc-wizard-review li {
   margin-bottom: 4px;
   overflow-wrap: anywhere;
