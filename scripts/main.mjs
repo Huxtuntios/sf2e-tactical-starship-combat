@@ -14,7 +14,7 @@ import { registerCrewHandlers } from "./crew/crew-service.mjs";
 import { registerActionHandlers } from "./actions/action-engine.mjs";
 import { registerReactionHandlers } from "./actions/reactions.mjs";
 import { registerShipHandlers } from "./starship/ship-service.mjs";
-import { registerSensorHandlers } from "./ui/sensor-map-app.mjs";
+import { registerSensorHandlers, invalidateSensorMapActors, invalidateSensorMapBackground } from "./ui/sensor-map-app.mjs";
 import { registerCombatHooks } from "./combat/starship-combat.mjs";
 import { registerCrewSyncHooks } from "./combat/crew-sync.mjs";
 import { registerAttackCards } from "./chat/attack-card.mjs";
@@ -198,6 +198,7 @@ function registerRefreshHooks() {
     if (actor instanceof Actor && !isStarship(actor) && isCrewMember(actor)) refreshApps("crew", actor);
   };
   Hooks.on("updateActor", (actor, changes, options) => {
+    invalidateSensorMapActors(actor);
     if (isStarship(actor)) {
       if (changes?.flags?.[MODULE_ID]) invalidateCrewIndex();
     } else crewChanged(actor);
@@ -211,14 +212,38 @@ function registerRefreshHooks() {
   });
   for (const h of ["createActor", "deleteActor"])
     Hooks.on(h, (actor) => {
+      invalidateSensorMapActors(actor);
       invalidateCrewIndex();
       if (h === "deleteActor") crewChanged(actor);
     });
-  for (const h of ["createItem", "updateItem", "deleteItem"]) Hooks.on(h, (item) => crewChanged(item?.parent));
+  for (const h of ["createItem", "updateItem", "deleteItem"])
+    Hooks.on(h, (item) => {
+      if (item?.parent instanceof Actor) invalidateSensorMapActors(item.parent);
+      crewChanged(item?.parent);
+    });
   for (const h of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"])
-    Hooks.on(h, (fx) => crewChanged(fx?.parent instanceof Actor ? fx.parent : fx?.parent?.parent));
+    Hooks.on(h, (fx) => {
+      const actor = fx?.parent instanceof Actor ? fx.parent : fx?.parent?.parent;
+      if (actor instanceof Actor) invalidateSensorMapActors(actor);
+      crewChanged(actor);
+    });
   Hooks.on("updateToken", (tokenDoc, changes) => {
+    invalidateSensorMapActors(); // synthetic Actor UUID/identity and linked-actor changes
     if (changes.texture || "name" in changes) crewChanged(tokenDoc.actor);
+  });
+  for (const h of [
+    "createToken",
+    "deleteToken",
+    "createActorDelta",
+    "updateActorDelta",
+    "deleteActorDelta",
+    "updateUser",
+    "updateCompendium",
+    "deleteCompendium"
+  ])
+    Hooks.on(h, () => invalidateSensorMapActors());
+  Hooks.on("updateCombat", (_combat, _changes, options) => {
+    if (options?.tscForceMapBackground) invalidateSensorMapBackground();
   });
   for (const h of ["updateCombat", "createCombat", "deleteCombat", "updateCombatant", "createCombatant", "deleteCombatant"])
     Hooks.on(h, () => {
@@ -227,6 +252,7 @@ function registerRefreshHooks() {
   registerPackDrop();
   Hooks.on("renderCombatTracker", (app, html) => decorateTracker(app, html));
   Hooks.on("updateSetting", (s) => {
+    invalidateSensorMapActors(); // system/core settings can also change prepared crew statistics
     if (s.key?.startsWith(MODULE_ID)) refreshApps("settings");
   });
   Hooks.on(HOOK_EVENTS.damaged, (actor, result) => log.debug("damaged", actor.name, result));

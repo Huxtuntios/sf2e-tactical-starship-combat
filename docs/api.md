@@ -29,6 +29,11 @@ Hooks (`Hooks.on(name, fn)`): `sf2eTsc.starshipCombatStarted`, `…CombatEnded`,
 `…starshipDamaged(ship,result)`, `…starshipDestroyed`, `…starshipCompromised`, `…stationMalfunctioned`, `…hazardTriggered`, `…hazardDisabled`, `…targetIdentified`, `…crewChanged`, `…stationClaimed`.
 `result` of `starshipDamaged`: `{originalDamage, mitigatedDamage, shieldDamage, hullDamage, bypassedShields, hardnessReduction, resistanceReduction, weaknessIncrease, immune, compromisedIncrease, becameCompromised, stationsMalfunctioned, destroyed, newState}`.
 
+## Unpublished reliability recovery
+
+- `api.pendingPrivateReveals(combat = activeStarshipCombat())` — read-only GM diagnostics: `{ key, actorUuid, stage }[]`; other users receive an empty list. Does not write or recover documents.
+- `await api.recoverPrivateReveals(combat = activeStarshipCombat())` — explicit active-GM finish-forward recovery. Returns `{ pending, completed, failed }`; completed entries are keys, failures contain `{ key, stage, error }`. Reports are GM-local, not socket broadcasts. Inspect conflicts and private journal/Actor/Combatant/map documents before retrying; information already disclosed cannot be undone. Do not invoke recovery from render hooks.
+
 ## 0.17.1-dev.12 additions
 
 - `api.addSensorContact(spec, combat = activeStarshipCombat())` — GM only. `spec = { source: "world" | "compendium" | "custom", uuid?, name?, zone, detection, confirmed }`. `observed` and `identified` require `confirmed: true`. A compendium hazard is copied into the world with no player access; the copy is removed if placement fails.

@@ -14,6 +14,11 @@ import { isActiveGM, activeGM } from "./utils/foundry.mjs";
 const handlers = new Map();
 const pending = new Map();
 const TIMEOUT_MS = 15000;
+<<<<<<< Updated upstream
+=======
+const RESULT_TIMEOUT_MS = 120000;
+let socketRegistration = null;
+>>>>>>> Stashed changes
 const ACKNOWLEDGED_REQUESTS = new Set(["executeAction", "executeNativeAttack", "resolveAttackCard"]);
 
 // Только транспортные повторы отдельных команд дронов. Это не постоянный журнал и не гарантия при смене GM.
@@ -63,6 +68,7 @@ export function senderOf(senderId, users = globalThis.game?.users) {
   return users?.get?.(senderId) ?? null;
 }
 
+<<<<<<< Updated upstream
 function armPendingTimeout(requestId, entry) {
   clearTimeout(entry.timer);
   entry.timer = setTimeout(() => {
@@ -70,6 +76,35 @@ function armPendingTimeout(requestId, entry) {
     pending.delete(requestId);
     entry.reject(new Error(game.i18n.localize("SF2eTSC.errors.timeout")));
   }, TIMEOUT_MS);
+=======
+const socketError = (key) => new Error(game.i18n.localize(`SF2eTSC.errors.${key}`));
+
+function settlePending(requestId, entry, ok, value) {
+  if (pending.get(requestId) !== entry) return;
+  pending.delete(requestId);
+  clearTimeout(entry.timer);
+  ok ? entry.resolve(value) : entry.reject(value);
+}
+
+function rejectInvalidAuthority(requestId, entry, users = game.users) {
+  let error;
+  if (entry.socket?.connected === false) error = socketError("socketDisconnected");
+  else {
+    const gm = users?.get?.(entry.gmId);
+    if (!gm?.isGM || !gm.active || users?.activeGM?.id !== entry.gmId) error = socketError("socketGMChanged");
+  }
+  if (!error) return false;
+  settlePending(requestId, entry, false, error);
+  return true;
+}
+
+function armPendingTimeout(requestId, entry, delay = TIMEOUT_MS) {
+  clearTimeout(entry.timer);
+  entry.timer = setTimeout(() => {
+    if (pending.get(requestId) !== entry || rejectInvalidAuthority(requestId, entry)) return;
+    settlePending(requestId, entry, false, socketError("timeout"));
+  }, delay);
+>>>>>>> Stashed changes
 }
 
 /**
@@ -114,11 +149,15 @@ export async function dispatchSocketMessage(msg, senderId, env) {
       return;
     }
     const p = pending.get(msg.requestId);
-    if (p) {
-      pending.delete(msg.requestId);
-      clearTimeout(p.timer);
-      msg.ok ? p.resolve(msg.result) : p.reject(new Error(msg.error));
+    if (!p || p.local || sender.id !== p.gmId || rejectInvalidAuthority(msg.requestId, p, env.users)) return;
+    settlePending(msg.requestId, p, !!msg.ok, msg.ok ? msg.result : new Error(msg.error));
+  } else if (msg.kind === "accepted") {
+    if (msg.to !== env.selfId) return;
+    if (!sender?.isGM) {
+      log.warn("request acknowledgement ignored: not sent by a GM");
+      return;
     }
+<<<<<<< Updated upstream
   } else if (msg.kind === "accepted") {
     if (msg.to !== env.selfId) return;
     if (!sender?.isGM) {
@@ -130,6 +169,14 @@ export async function dispatchSocketMessage(msg, senderId, env) {
       clearTimeout(p.timer);
       p.timer = null;
     }
+=======
+    const p = pending.get(msg.requestId);
+    if (!p || p.local || sender.id !== p.gmId || rejectInvalidAuthority(msg.requestId, p, env.users)) return;
+    if (!p.acknowledgeable || p.acknowledged) return;
+    p.acknowledged = true;
+    // Only the first acknowledgement starts the result deadline; repeats never extend it.
+    armPendingTimeout(msg.requestId, p, RESULT_TIMEOUT_MS);
+>>>>>>> Stashed changes
   } else if (msg.kind === "event") {
     if (!sender?.isGM) {
       log.warn(`event ${msg.type} ignored: not sent by a GM`);
@@ -141,42 +188,119 @@ export async function dispatchSocketMessage(msg, senderId, env) {
 }
 
 export function initSocket() {
-  game.socket.on(SOCKET_EVENT, async (msg, senderId) => {
+  const socket = game.socket;
+  const hooks = Hooks;
+  if (socketRegistration?.socket === socket && socketRegistration.hooks === hooks) return socketRegistration.cleanup;
+  socketRegistration?.cleanup();
+  const onMessage = async (msg, senderId) => {
     try {
       await dispatchSocketMessage(msg, senderId, {
         users: game.users,
         selfId: game.user.id,
         isActiveGM: isActiveGM(),
         clientEvents,
-        emit: (m) => game.socket.emit(SOCKET_EVENT, m)
+        emit: (m) => socket.emit(SOCKET_EVENT, m)
       });
     } catch (err) {
       log.error("socket handler error", err);
     }
-  });
+  };
+  const onDisconnect = () => {
+    for (const [id, entry] of pending) settlePending(id, entry, false, socketError("socketDisconnected"));
+  };
+  const onUserChange = () => {
+    for (const [id, entry] of pending) rejectInvalidAuthority(id, entry);
+  };
+  const onUserConnected = (user, connected) => {
+    // Do not depend on whether Foundry has refreshed activeGM before this notification.
+    if (!connected)
+      for (const [id, entry] of pending) if (entry.gmId === user.id) settlePending(id, entry, false, socketError("socketGMChanged"));
+    onUserChange();
+  };
+  // v14 userConnected and typed Document hooks; disconnect is the Socket.IO transport event.
+  const userHooks = [
+    ["userConnected", onUserConnected],
+    ["updateUser", onUserChange],
+    ["deleteUser", onUserChange]
+  ];
+  socket.on(SOCKET_EVENT, onMessage);
+  socket.on("disconnect", onDisconnect);
+  for (const [name, fn] of userHooks) hooks.on(name, fn);
+  const registration = {
+    socket,
+    hooks,
+    cleanup() {
+      if (socketRegistration !== registration) return;
+      socket.off(SOCKET_EVENT, onMessage);
+      socket.off("disconnect", onDisconnect);
+      for (const [name, fn] of userHooks) hooks.off(name, fn);
+      socketRegistration = null;
+      onDisconnect();
+    }
+  };
+  socketRegistration = registration;
+  return registration.cleanup;
 }
 
-/** Send an intent to the GM (executes locally when this client is the active GM). */
+/** Send an intent to the GM. Deadlines bound the wait, not the handler's execution or document writes. */
 export async function request(type, payload = {}) {
-  if (isActiveGM()) {
-    const fn = handlers.get(type);
-    if (!fn) throw new Error(`Unknown request type ${type}`);
-    return fn({ userId: game.user.id, user: game.user, payload, remote: false });
-  }
-  if (!activeGM()) throw new Error(game.i18n.localize("SF2eTSC.errors.noGM"));
+  const gm = activeGM();
+  if (!gm) throw socketError("noGM");
+  const socket = game.socket;
+  if (!socket || socket.connected === false) throw socketError("socketDisconnected");
+  const local = !!game.user.isGM && gm.id === game.user.id;
+  const fn = local ? handlers.get(type) : null;
+  if (local && !fn) throw new Error(`Unknown request type ${type}`);
   const requestId = foundry.utils.randomID(12);
   return new Promise((resolve, reject) => {
+<<<<<<< Updated upstream
     const entry = { resolve, reject, timer: null };
     pending.set(requestId, entry);
     armPendingTimeout(requestId, entry);
     // userId is informational only; the GM uses the server-provided sender id.
     game.socket.emit(SOCKET_EVENT, { kind: "request", requestId, type, payload, userId: game.user.id });
+=======
+    const entry = {
+      resolve,
+      reject,
+      timer: null,
+      gmId: gm.id,
+      socket,
+      local,
+      acknowledgeable: ACKNOWLEDGED_REQUESTS.has(type),
+      acknowledged: false
+    };
+    pending.set(requestId, entry);
+    armPendingTimeout(requestId, entry, local && entry.acknowledgeable ? RESULT_TIMEOUT_MS : TIMEOUT_MS);
+    if (rejectInvalidAuthority(requestId, entry)) return;
+    try {
+      if (local) {
+        // Consume even late rejections, but a timeout does not cancel this work.
+        Promise.resolve(fn({ userId: game.user.id, user: game.user, payload, remote: false })).then(
+          (result) => {
+            if (pending.get(requestId) === entry && !rejectInvalidAuthority(requestId, entry))
+              settlePending(requestId, entry, true, result);
+          },
+          (error) => settlePending(requestId, entry, false, error)
+        );
+      } else {
+        // userId is informational only; the GM uses the server-provided sender id.
+        socket.emit(SOCKET_EVENT, { kind: "request", requestId, type, payload, userId: game.user.id });
+      }
+    } catch (err) {
+      settlePending(requestId, entry, false, err);
+    }
+>>>>>>> Stashed changes
   });
 }
 
 /** Test hook: register a pending request id (used by regression tests only). */
 export function _trackPending(requestId, resolve, reject, timer = null) {
+<<<<<<< Updated upstream
   pending.set(requestId, { resolve, reject, timer });
+=======
+  pending.set(requestId, { resolve, reject, timer, gmId: activeGM()?.id, acknowledgeable: true, acknowledged: false });
+>>>>>>> Stashed changes
 }
 
 /** One-way events pushed from the GM to clients (e.g. reaction prompts). */

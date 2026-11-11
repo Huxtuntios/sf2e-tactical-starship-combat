@@ -59,14 +59,16 @@ test("cancelled Seek Starships skips builtin resolution and effects", async () =
   assert.equal(getTsc(game.combat).objects[1].detection.party, "hidden");
 });
 
-test("socket acknowledgement prevents a long GM dialog from hitting the request timeout", async () => {
+test("socket acknowledgement gives a long GM dialog a bounded result deadline", async (t) => {
   installFoundryMock();
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   let timedOut = false;
   let requestResult;
-  const initialTimer = setTimeout(() => (timedOut = true), 15);
+  let finishDialog;
+  const initialTimer = setTimeout(() => (timedOut = true), 15000);
   const resultPromise = new Promise((resolve, reject) => _trackPending("long-dialog", resolve, reject, initialTimer));
   registerHandler("executeAction", async () => {
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await new Promise((resolve) => (finishDialog = resolve));
     return { roll: "done" };
   });
   const messages = [];
@@ -96,8 +98,10 @@ test("socket acknowledgement prevents a long GM dialog from hitting the request 
     clientEvents: new Map(),
     emit() {}
   });
-  await request;
+  t.mock.timers.tick(15000);
   assert.equal(timedOut, false);
+  finishDialog();
+  await request;
   const response = messages.at(-1);
   assert.equal(response.kind, "response");
   await dispatchSocketMessage(response, "gm", { users: game.users, selfId: "p1", isActiveGM: false, clientEvents: new Map(), emit() {} });

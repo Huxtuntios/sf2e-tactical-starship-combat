@@ -17,6 +17,7 @@ import { repairAllCrewAssignments } from "./crew/crew-service.mjs";
 import { addSensorContact } from "./sensor/contact-service.mjs";
 import { syncMineContact } from "./sensor/mine-contact.mjs";
 import { privacyProbe } from "./sensor/privacy-probe.mjs";
+import { pendingPrivateReveals, recoverPrivateReveals } from "./sensor/private-contacts.mjs";
 
 /** game.modules.get("sf2e-tactical-starship-combat").api */
 export function buildApi() {
@@ -51,6 +52,8 @@ export function buildApi() {
     placeHazard: (actor, opts) => placeHazard(actor, opts),
     /** GM: add a Sensor Map contact. spec = { source: "world"|"compendium"|"custom", uuid?, name?, zone, detection, confirmed } */
     addSensorContact: (spec, combat = activeStarshipCombat()) => addSensorContact(combat, spec),
+    pendingPrivateReveals: (combat = activeStarshipCombat()) => (combat ? pendingPrivateReveals(combat.id) : []),
+    recoverPrivateReveals: (combat = activeStarshipCombat()) => recoverPrivateReveals(combat),
     /** GM: idempotently (re)create the Hazard Actor and Sensor Map contact of a deployed starship mine. */
     syncMineContact: (ref) => syncMineContact(ref),
     /** Any user: report what THIS client can see of the private Sensor Map data. Not a security proof. */
