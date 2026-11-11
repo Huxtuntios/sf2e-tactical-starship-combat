@@ -14,6 +14,7 @@ import { isActiveGM, activeGM } from "./utils/foundry.mjs";
 const handlers = new Map();
 const pending = new Map();
 const TIMEOUT_MS = 15000;
+const ACKNOWLEDGED_REQUESTS = new Set(["executeAction", "executeNativeAttack", "resolveAttackCard"]);
 
 // Только транспортные повторы отдельных команд дронов. Это не постоянный журнал и не гарантия при смене GM.
 const DRONE_ACTIONS = new Set(["deploy-drone", "retrieve-drone", "deploy-starship-mine", "repair-hull-drone"]);
@@ -62,6 +63,15 @@ export function senderOf(senderId, users = globalThis.game?.users) {
   return users?.get?.(senderId) ?? null;
 }
 
+function armPendingTimeout(requestId, entry) {
+  clearTimeout(entry.timer);
+  entry.timer = setTimeout(() => {
+    if (pending.get(requestId) !== entry) return;
+    pending.delete(requestId);
+    entry.reject(new Error(game.i18n.localize("SF2eTSC.errors.timeout")));
+  }, TIMEOUT_MS);
+}
+
 /**
  * Pure-ish dispatcher used by the socket listener (exported for regression tests).
  * @param {object} msg       message body as sent by the emitting client
@@ -85,6 +95,8 @@ export async function dispatchSocketMessage(msg, senderId, env) {
     let res;
     if (!fn) res = { ok: false, error: `Unknown request type ${msg.type}` };
     else {
+      // These roll handlers may pause for a GM-owned system dialog, so acknowledge before awaiting the result.
+      if (ACKNOWLEDGED_REQUESTS.has(msg.type)) env.emit({ kind: "accepted", requestId: msg.requestId, to: sender.id });
       res = await droneReplay(msg, sender, async () => {
         try {
           return { ok: true, result: await fn({ userId: sender.id, user: sender, payload: msg.payload ?? {}, remote: true }) };
@@ -106,6 +118,17 @@ export async function dispatchSocketMessage(msg, senderId, env) {
       pending.delete(msg.requestId);
       clearTimeout(p.timer);
       msg.ok ? p.resolve(msg.result) : p.reject(new Error(msg.error));
+    }
+  } else if (msg.kind === "accepted") {
+    if (msg.to !== env.selfId) return;
+    if (!sender?.isGM) {
+      log.warn("request acknowledgement ignored: not sent by a GM");
+      return;
+    }
+    const p = pending.get(msg.requestId);
+    if (p) {
+      clearTimeout(p.timer);
+      p.timer = null;
     }
   } else if (msg.kind === "event") {
     if (!sender?.isGM) {
@@ -143,19 +166,17 @@ export async function request(type, payload = {}) {
   if (!activeGM()) throw new Error(game.i18n.localize("SF2eTSC.errors.noGM"));
   const requestId = foundry.utils.randomID(12);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(requestId);
-      reject(new Error(game.i18n.localize("SF2eTSC.errors.timeout")));
-    }, TIMEOUT_MS);
-    pending.set(requestId, { resolve, reject, timer });
+    const entry = { resolve, reject, timer: null };
+    pending.set(requestId, entry);
+    armPendingTimeout(requestId, entry);
     // userId is informational only; the GM uses the server-provided sender id.
     game.socket.emit(SOCKET_EVENT, { kind: "request", requestId, type, payload, userId: game.user.id });
   });
 }
 
 /** Test hook: register a pending request id (used by regression tests only). */
-export function _trackPending(requestId, resolve, reject) {
-  pending.set(requestId, { resolve, reject, timer: null });
+export function _trackPending(requestId, resolve, reject, timer = null) {
+  pending.set(requestId, { resolve, reject, timer });
 }
 
 /** One-way events pushed from the GM to clients (e.g. reaction prompts). */

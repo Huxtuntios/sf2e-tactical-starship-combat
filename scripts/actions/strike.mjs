@@ -180,8 +180,11 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
       "starship-strike",
       ...(weapon.traits ?? []).map((t) => `item:trait:${String(t).toLowerCase().replace(/\s+/g, "-")}`)
     ],
+    skipDialog: ctx.options.skipDialog,
+    messageMode: ctx.options.messageMode,
     modifierOnly: base + stackModifiers(mods).total
   });
+  if (!res) return null;
   ctx.attackResult = {
     total: res.total,
     natural: res.natural ?? null,
@@ -304,6 +307,10 @@ export async function resolveStrike(ctx) {
   const range = weapon.range;
   if (!ctx.options.gmOverride && !classifyRange(me.zone, to.zone, range).inRange) ctx.rule("outOfRange");
   const res = await attackRoll(ctx, weapon, target);
+  if (!res) {
+    ctx.cancelled = true;
+    return;
+  }
   ctx.lines.push(...res.lines);
   ctx.degreeLabel = DEGREE_LABEL(res.degree);
   ctx.degree = res.degree;
@@ -454,8 +461,14 @@ export async function resolveAreaFire(ctx, kind) {
       label: `${entry.actor.name}: ${T("SF2eTSC.ui.reflex")}`,
       actor: entry.actor,
       extraModifiers: lockOn ? [{ slug: "tsc-lock-on", label: modLabel("lockOn"), type: "circumstance", value: lockOn }] : [],
+      skipDialog: ctx.options.skipDialog,
+      messageMode: ctx.options.messageMode,
       modifierOnly: computeShipStats(entry.actor).reflex + lockOn
     });
+    if (!res) {
+      ctx.cancelled = true;
+      return;
+    }
     const mult = basicSaveMultiplier(res.degree);
     const amount = Math.floor(total * mult);
     if (amount > 0) {
@@ -481,6 +494,10 @@ export async function resolveSpellAttack(ctx) {
   const rank = ctx.options.rank ?? 1;
   const weapon = { name: ct(ctx.action.name), traits: ["spell"], damageType: spec.damageType };
   const res = await attackRoll(ctx, weapon, target, { spell: true });
+  if (!res) {
+    ctx.cancelled = true;
+    return;
+  }
   ctx.lines.push(...res.lines);
   ctx.degreeLabel = DEGREE_LABEL(res.degree);
   ctx.degree = res.degree;

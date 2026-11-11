@@ -78,6 +78,7 @@ async function applyAutomatedEffect(hazardActor, text, draft) {
         actor: entry.actor,
         modifierOnly: computeShipStats(entry.actor)[parsed.save]
       });
+      if (!res) return { applied: false, cancelled: true, parsed, targets: targets.length };
       amount = Math.floor(roll.total * basicSaveMultiplier(res.degree));
       crit = res.degree === DEGREE.CRITICAL_FAILURE;
     }
@@ -103,6 +104,7 @@ export const HazardEngine = {
     const effectText = flags.effectText ?? flags.actions?.[0]?.text ?? hazard.system?.details?.routine ?? "";
     const o = findObject(draft.tsc, hazardUuid);
     const res = automate ? await applyAutomatedEffect(hazard, effectText, draft) : { applied: false };
+    if (res.cancelled) return res;
     draft.event(HOOK_EVENTS.hazardTriggered, hazard, reason);
     draft.log(`${hazard.name}: ${T("SF2eTSC.chat.hazardTriggered")}`, "hazard", { hazardUuid });
     draft.afterCommit(() => postHazardCard({ hazard, zone: o?.zone, effectText, title: reason ?? T("SF2eTSC.chat.hazardTriggered") }));
@@ -121,6 +123,7 @@ export const HazardEngine = {
     if (hs.disabled) return { skipped: true };
     const n = parseRoutineActions(routine.cost);
     const res = await applyAutomatedEffect(hazard, routine.text, draft);
+    if (res.cancelled) return res;
     draft.log(`${hazard.name}: Routine (${n})`, "hazard", { hazardUuid });
     draft.event(HOOK_EVENTS.hazardTriggered, hazard, "routine");
     draft.afterCommit(() =>

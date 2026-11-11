@@ -18,6 +18,7 @@ import { randomId } from "../utils/ids.mjs";
 import { stationEffects } from "../starship/effects.mjs";
 import { beginNativeWeaponAttack } from "./native-attack.mjs";
 import { eligibleDroneMovements } from "../engine/drone-state.mjs";
+import { rollEventOptions } from "../starship/stats.mjs";
 const skillLabel = (s) => {
   const k = `SF2eTSC.skills.${String(s).toLowerCase()}`;
   return game.i18n.has(k) ? T(k) : s;
@@ -273,7 +274,8 @@ async function promptOptions(action, { ship, crew, station, target }) {
 
 /** Full client flow for an action: target selection -> options -> authoritative execution. */
 export async function runAction(action, ctx) {
-  const { ship, crew, station } = ctx;
+  const { ship, crew, station, event = null } = ctx;
+  const rollOptions = rollEventOptions(event);
   const needsTarget = ["starship"].includes(action.targeting?.type);
   const weaponRange = (() => {
     if (action.builtin === "npc-strike") return npcStrikeRange(action.strike, computeShipStats(ship).sensorRange);
@@ -292,7 +294,7 @@ export async function runAction(action, ctx) {
         actionId: action.id,
         crewUuid: crew?.uuid ?? null,
         stationId: station?.id ?? null,
-        options: { ...opts, targetKey, ...extra }
+        options: { ...opts, targetKey, ...extra, ...rollOptions }
       });
     try {
       await send();
@@ -319,13 +321,16 @@ export async function runAction(action, ctx) {
   if (isCardAttack(action) && ["strike", "npc-strike"].includes(action.builtin)) {
     const opts = await promptOptions(action, { ship, crew, station, target: null });
     if (opts !== null)
-      await beginNativeWeaponAttack({
-        shipUuid: ship.uuid,
-        actionId: action.id,
-        crewUuid: crew?.uuid ?? null,
-        stationId: station?.id ?? null,
-        options: opts
-      });
+      await beginNativeWeaponAttack(
+        {
+          shipUuid: ship.uuid,
+          actionId: action.id,
+          crewUuid: crew?.uuid ?? null,
+          stationId: station?.id ?? null,
+          options: opts
+        },
+        event
+      );
     return;
   }
   // single-target attacks: declaration card first (no roll, nothing spent), then the target is chosen on the card
@@ -343,7 +348,7 @@ export async function runAction(action, ctx) {
       });
       if (res?.messageId) {
         ui.notifications.info(T("SF2eTSC.attackCard.declared"));
-        await beginCardTargeting(res.messageId);
+        await beginCardTargeting(res.messageId, undefined, rollOptions);
       }
     } catch (err) {
       notifyError("SF2eTSC.errors.generic", { message: err.message });

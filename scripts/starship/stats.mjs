@@ -95,6 +95,19 @@ export const shipDC = (stats, slug) => (slug === "ac" ? stats.ac : 10 + (stats[s
  */
 export const secretVisibility = (secret) => (secret ? { messageMode: "gm", rollMode: "gmroll" } : {});
 
+/** Serialize the system's click-event roll behavior before a request is sent to the GM. */
+export function rollEventOptions(event, type = "check") {
+  if (!event || typeof event.shiftKey !== "boolean") return {};
+  const setting = type === "damage" ? "showDamageDialogs" : "showCheckDialogs";
+  const showByDefault = !!globalThis.game?.user?.settings?.[setting];
+  const options = { skipDialog: event.shiftKey ? showByDefault : !showByDefault };
+  const defaultMessageMode = globalThis.game?.settings?.get?.("core", "messageMode");
+  if (typeof defaultMessageMode === "string" && Object.hasOwn(globalThis.CONFIG?.ChatMessage?.modes ?? {}, defaultMessageMode))
+    options.messageMode = defaultMessageMode;
+  if (event.ctrlKey || event.metaKey) options.messageMode = game.user.isGM ? "gm" : "blind";
+  return options;
+}
+
 function statisticCtor(actor) {
   return actor?.saves?.fortitude?.constructor ?? actor?.skills?.acrobatics?.constructor ?? actor?.perception?.constructor ?? null;
 }
@@ -116,59 +129,55 @@ export async function rollNativeCheck({
   secret = false,
   actor = null,
   modifierOnly = null,
-  skipDialog = true,
+  skipDialog,
+  event = null,
+  messageMode,
   createMessage = true,
   onMessage = null
 }) {
-  let postedMessage = null;
-  try {
-    if (statistic) {
-      const stat = extraModifiers.length
-        ? statistic.clone({
-            modifiers: extraModifiers.map((m) =>
-              newModifier({
-                slug: m.slug ?? `tsc-${m.label ?? "mod"}`.toLowerCase().replace(/\s+/g, "-"),
-                label: m.label ?? L("mods.modifier", "Modifier"),
-                modifier: m.value,
-                type: m.type ?? "untyped"
-              })
-            )
-          })
-        : statistic;
-      const roll = await stat.check.roll({
-        dc: typeof dc === "number" ? { value: dc } : (dc ?? undefined),
-        extraRollOptions: ["starship", ...extraRollOptions],
-        createMessage,
-        ...(onMessage
-          ? {
-              callback: async (_roll, _outcome, message) => {
-                postedMessage = message?.id ? message : null;
-                await onMessage(message);
-              }
+  if (statistic && typeof statistic.check?.roll === "function") {
+    const stat = extraModifiers.length
+      ? statistic.clone({
+          modifiers: extraModifiers.map((m) =>
+            newModifier({
+              slug: m.slug ?? `tsc-${m.label ?? "mod"}`.toLowerCase().replace(/\s+/g, "-"),
+              label: m.label ?? L("mods.modifier", "Modifier"),
+              modifier: m.value,
+              type: m.type ?? "untyped"
+            })
+          )
+        })
+      : statistic;
+    const roll = await stat.check.roll({
+      dc: typeof dc === "number" ? { value: dc } : (dc ?? undefined),
+      extraRollOptions: ["starship", ...extraRollOptions],
+      createMessage,
+      ...(onMessage
+        ? {
+            callback: async (_roll, _outcome, message) => {
+              await onMessage(message);
             }
-          : {}),
-        skipDialog,
-        label,
-        ...secretVisibility(secret)
-      });
-      if (roll)
-        return {
-          degree: roll.degreeOfSuccess ?? (dc == null ? null : degreeOfSuccess(roll.total, dc?.value ?? dc)),
-          total: roll.total,
-          natural: roll.dice?.[0]?.total ?? null,
-          roll,
-          native: true
-        };
-      if (onMessage && createMessage)
-        throw new Error(
-          L("attackCard.nativeRollNotCompleted", "The system attack roll did not complete. Check chat and ship state before retrying.")
-        );
-    }
-  } catch (err) {
-    // For an attack, even an error before the callback might follow a posted message. Never auto-reroll it.
-    if (postedMessage || (onMessage && createMessage)) throw err;
-    log.warn("native check failed, using fallback", err);
+          }
+        : {}),
+      skipDialog,
+      event: event ?? undefined,
+      messageMode,
+      label,
+      ...secretVisibility(secret)
+    });
+    if (!roll) return null;
+    return {
+      degree: roll.degreeOfSuccess ?? (dc == null ? null : degreeOfSuccess(roll.total, dc?.value ?? dc)),
+      total: roll.total,
+      natural: roll.dice?.[0]?.total ?? null,
+      roll,
+      native: true
+    };
   }
+  if (statistic && onMessage && createMessage)
+    throw new Error(
+      L("attackCard.nativeRollNotCompleted", "The system attack roll did not complete. Check chat and ship state before retrying.")
+    );
   // fallback: plain roll
   const mod_ = modifierOnly ?? 0;
   const roll = await new Roll(`1d20 + ${mod_}`).evaluate();

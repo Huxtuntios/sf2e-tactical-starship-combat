@@ -147,8 +147,14 @@ async function runCheck(ctx) {
       dc,
       label: `${ctx.target.actor.name}: ${T(`SF2eTSC.ui.${c.save}`)}`,
       actor: ctx.target.actor,
+      skipDialog: ctx.options.skipDialog,
+      messageMode: ctx.options.messageMode,
       modifierOnly: computeShipStats(ctx.target.actor)[c.save]
     });
+    if (!res) {
+      ctx.cancelled = true;
+      return;
+    }
     ctx.degree = res.degree;
     ctx.rollResult = res;
     return;
@@ -181,8 +187,14 @@ async function runCheck(ctx) {
     extraModifiers: boost,
     secret: !!c.secret,
     modifierOnly: fallbackMod,
+    skipDialog: ctx.options.skipDialog,
+    messageMode: ctx.options.messageMode,
     extraRollOptions: [`action:${ctx.action.slug}`]
   });
+  if (!res) {
+    ctx.cancelled = true;
+    return;
+  }
   ctx.degree = res.degree;
   ctx.rollResult = res;
   ctx.dc = dc;
@@ -410,11 +422,14 @@ async function executeActionNow(params) {
   else if (action.builtin === "spell-attack") await resolveSpellAttack(ctx);
   else {
     await runCheck(ctx);
-    if (ctx.degree != null) ctx.degreeLabel = T(`SF2eTSC.degree.${DEGREE_KEYS[ctx.degree]}`);
-    if (action.builtin === "seek") await resolveSeekBuiltin(ctx, ctx.rollResult);
-    const fx = action.outcomes && ctx.degree != null ? (action.outcomes[DEGREE_KEYS[ctx.degree]] ?? []) : (action.effects ?? []);
-    await executeEffects(fx, ctx);
+    if (!ctx.cancelled) {
+      if (ctx.degree != null) ctx.degreeLabel = T(`SF2eTSC.degree.${DEGREE_KEYS[ctx.degree]}`);
+      if (action.builtin === "seek") await resolveSeekBuiltin(ctx, ctx.rollResult);
+      const fx = action.outcomes && ctx.degree != null ? (action.outcomes[DEGREE_KEYS[ctx.degree]] ?? []) : (action.effects ?? []);
+      await executeEffects(fx, ctx);
+    }
   }
+  if (ctx.cancelled) return { ok: true, cancelled: true, degree: null, reports: [], summary: attackSummaryOf(ctx) };
 
   if (ctx.moved)
     draft.afterCommit(async () => {
@@ -483,7 +498,9 @@ export const CLIENT_OPTION_KEYS = Object.freeze([
   "gmOverride",
   "sheetRoll",
   "mapChoice",
-  "areaExcludeKeys"
+  "areaExcludeKeys",
+  "skipDialog",
+  "messageMode"
 ]);
 const NUMERIC_OPTIONS = ["actions", "rank", "dcChoice", "manualDC", "dcLevel", "areaOrigin"];
 export function sanitizeActionRequest(payload, user) {
@@ -507,6 +524,10 @@ export function sanitizeActionRequest(payload, user) {
           .filter((x) => typeof x === "string" && x)
           .slice(0, 50)
           .map((x) => x.slice(0, 300));
+    } else if (k === "skipDialog") {
+      if (typeof v === "boolean") options.skipDialog = v;
+    } else if (k === "messageMode") {
+      if (typeof v === "string" && Object.hasOwn(globalThis.CONFIG?.ChatMessage?.modes ?? {}, v)) options.messageMode = v;
     } else if (typeof v === "string") options[k] = v.slice(0, 200);
   }
   const str = (v) => (typeof v === "string" && v ? v.slice(0, 300) : null);

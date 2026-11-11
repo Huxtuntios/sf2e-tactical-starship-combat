@@ -31,7 +31,7 @@ export class StationHUD extends TscApp {
     wireSheetTheme(this);
   }
   static async #act(event, target) {
-    await runHudAction(this.index, target.dataset.actionId);
+    await runHudAction(this.index, target.dataset.actionId, event);
   }
   static async #release(event, target) {
     try {
