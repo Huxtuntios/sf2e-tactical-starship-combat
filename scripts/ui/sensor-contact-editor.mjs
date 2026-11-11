@@ -5,12 +5,13 @@ import { T } from "../utils/foundry.mjs";
 import { notifyError, notifyInfo } from "../utils/logging.mjs";
 import { worldHazardChoices, compendiumHazardChoices, addSensorContact } from "../sensor/contact-service.mjs";
 import { contactEditorContext } from "../sensor/contact-editor-model.mjs";
+import { fitContactEditorActorList } from "../sensor/contact-editor-layout.mjs";
 
 export class SensorContactEditor extends TscApp {
   static DEFAULT_OPTIONS = {
     id: "sf2e-tsc-contact-editor",
     classes: ["sf2e-tsc", "tsc-contact-editor-window"],
-    position: { width: 460, height: "auto" },
+    position: { width: 460, height: 560 },
     window: { title: "SF2eTSC.contactEditor.title", icon: "fa-solid fa-plus", resizable: true },
     actions: { addContact: SensorContactEditor.#add, close: SensorContactEditor.#close }
   };
@@ -18,6 +19,7 @@ export class SensorContactEditor extends TscApp {
   channels = [];
   state = { source: "world", filter: "", uuid: "", name: "", zone: 1, detection: "undetected" };
   #compendium = null;
+  #resizeObserver = null;
   constructor(combat, options = {}) {
     super(options);
     this.combat = combat;
@@ -38,6 +40,7 @@ export class SensorContactEditor extends TscApp {
       source: f.querySelector('[name="source"]:checked')?.value ?? "world",
       filter: value("filter")?.value ?? this.state.filter,
       uuid: value("uuid")?.value ?? "",
+      listHeight: f.querySelector(".tsc-contact-editor-actor-list")?.clientHeight || this.state.listHeight,
       name: value("name")?.value ?? this.state.name,
       zone: Number(value("zone")?.value) || 1,
       detection: value("detection")?.value ?? "undetected"
@@ -46,6 +49,14 @@ export class SensorContactEditor extends TscApp {
   }
   _onRender(context, options) {
     super._onRender?.(context, options);
+    if (this.state.listHeight == null) fitContactEditorActorList(this.element);
+    if (!this.#resizeObserver && globalThis.ResizeObserver) {
+      const content = this.element.querySelector(".window-content");
+      if (content) {
+        this.#resizeObserver = new ResizeObserver(() => fitContactEditorActorList(this.element));
+        this.#resizeObserver.observe(content);
+      }
+    }
     const root = this.element.querySelector(".tsc-contact-editor");
     if (!root || root.dataset.tscWired) return;
     root.dataset.tscWired = "1";
@@ -62,6 +73,11 @@ export class SensorContactEditor extends TscApp {
         this.render();
       }
     });
+  }
+  _onClose(options) {
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
+    super._onClose?.(options);
   }
   static async #add() {
     const s = this.#read();

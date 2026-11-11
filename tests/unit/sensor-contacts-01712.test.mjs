@@ -307,15 +307,25 @@ test("compendium Starship Actor copies are independent and the index exposes the
         assert.ok(fields.includes(`flags.${MODULE}.starship.isStarship`));
         return [
           { _id: "enemy", uuid: source.uuid, name: source.name, type: source.type, flags },
-          { _id: "ordinary", name: "Ordinary NPC", type: "npc" }
+          { _id: "ordinary", name: "Ordinary NPC", type: "npc" },
+          ...Array.from({ length: 520 }, (_, i) => ({
+            _id: `hazard-${i}`,
+            name: `Large compendium hazard ${String(i).padStart(3, "0")}`,
+            type: "hazard"
+          }))
         ];
       }
     }
   ];
+  const choices = await compendiumHazardChoices();
   assert.deepEqual(
-    (await compendiumHazardChoices()).map((choice) => [choice.uuid, choice.kind, choice.role]),
+    choices.filter((choice) => choice.kind === "starship").map((choice) => [choice.uuid, choice.kind, choice.role]),
     [[source.uuid, "starship", "npc"]]
   );
+  const last = choices.find((choice) => choice.uuid === "Compendium.world.starships.Actor.hazard-519");
+  const context = contactEditorContext({ source: "compendium", uuid: last.uuid }, { zones: 3, world: [], compendium: choices });
+  assert.equal(choices.length, 521);
+  assert.equal(context.choices.find((choice) => choice.uuid === last.uuid).selected, true);
 });
 
 test("input validation and mine-managed actors are rejected", async () => {
@@ -356,6 +366,24 @@ test("editor view model filters and selects a detection state without confirmati
   assert.equal(Object.hasOwn(ctx, "needsConfirm"), false);
   assert.equal(Object.hasOwn(ctx, "confirmed"), false);
   assert.equal(contactEditorContext({ source: "custom" }, { zones: 3, world, compendium: [] }).isCustom, true);
+});
+
+test("editor view model keeps matching actors beyond 400 results selectable", () => {
+  installFoundryMock();
+  const world = Array.from({ length: 520 }, (_, i) => ({
+    uuid: `Actor.${i}`,
+    name: `Hazard ${String(i).padStart(3, "0")}`
+  }));
+  const selected = world[519];
+  const all = contactEditorContext({ source: "world", uuid: selected.uuid }, { zones: 3, world, compendium: [] });
+  assert.equal(all.choices.length, 520);
+  assert.equal(all.choices.at(-1).uuid, selected.uuid);
+  assert.equal(all.choices.at(-1).selected, true);
+  const filtered = contactEditorContext({ source: "world", filter: "519", uuid: selected.uuid }, { zones: 3, world, compendium: [] });
+  assert.deepEqual(
+    filtered.choices.map((choice) => [choice.uuid, choice.selected]),
+    [[selected.uuid, true]]
+  );
 });
 
 test("observed and identify actions apply without confirmation dialogs", async () => {
