@@ -126,6 +126,8 @@ const EXEC = {
           dc,
           label: `${targetActor.name}: ${fx.save.type}`,
           actor: targetActor,
+          skipDialog: ctx.options.skipDialog,
+          messageMode: ctx.options.messageMode,
           modifierOnly: computeShipStats(targetActor)[fx.save.type]
         });
         if (!res) {

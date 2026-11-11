@@ -422,10 +422,12 @@ async function executeActionNow(params) {
   else if (action.builtin === "spell-attack") await resolveSpellAttack(ctx);
   else {
     await runCheck(ctx);
-    if (ctx.degree != null) ctx.degreeLabel = T(`SF2eTSC.degree.${DEGREE_KEYS[ctx.degree]}`);
-    if (action.builtin === "seek") await resolveSeekBuiltin(ctx, ctx.rollResult);
-    const fx = action.outcomes && ctx.degree != null ? (action.outcomes[DEGREE_KEYS[ctx.degree]] ?? []) : (action.effects ?? []);
-    await executeEffects(fx, ctx);
+    if (!ctx.cancelled) {
+      if (ctx.degree != null) ctx.degreeLabel = T(`SF2eTSC.degree.${DEGREE_KEYS[ctx.degree]}`);
+      if (action.builtin === "seek") await resolveSeekBuiltin(ctx, ctx.rollResult);
+      const fx = action.outcomes && ctx.degree != null ? (action.outcomes[DEGREE_KEYS[ctx.degree]] ?? []) : (action.effects ?? []);
+      await executeEffects(fx, ctx);
+    }
   }
   if (ctx.cancelled) return { ok: true, cancelled: true, degree: null, reports: [], summary: attackSummaryOf(ctx) };
 

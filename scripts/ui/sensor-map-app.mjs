@@ -469,7 +469,7 @@ export class SensorMapApplication extends TscApp {
     Targeting.end();
   }
   static async #dockAct(event, target) {
-    await runHudAction(this.dockIndex, target.dataset.actionId);
+    await runHudAction(this.dockIndex, target.dataset.actionId, event);
   }
   static #dockPick(event, target) {
     this.dockIndex = Number(target.dataset.index);

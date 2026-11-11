@@ -461,6 +461,8 @@ export async function resolveAreaFire(ctx, kind) {
       label: `${entry.actor.name}: ${T("SF2eTSC.ui.reflex")}`,
       actor: entry.actor,
       extraModifiers: lockOn ? [{ slug: "tsc-lock-on", label: modLabel("lockOn"), type: "circumstance", value: lockOn }] : [],
+      skipDialog: ctx.options.skipDialog,
+      messageMode: ctx.options.messageMode,
       modifierOnly: computeShipStats(entry.actor).reflex + lockOn
     });
     if (!res) {
