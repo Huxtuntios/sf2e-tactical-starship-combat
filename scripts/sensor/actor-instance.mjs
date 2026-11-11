@@ -100,7 +100,17 @@ export async function revealSensorActorCombatant(combat, actor, combatant) {
 
 export async function restorePrivateSensorActorCombatant(combat, actor, combatant) {
   const ref = combatant?.flags?.[MODULE_ID]?.sensorMapInitiative;
-  if (combatant?.actorId !== actor?.id || ref?.combatId !== combat?.id) throw new Error("invalidPrivateSensorCombatant");
+  const instance = instanceFlag(actor);
+  const legacyEntry =
+    !Object.hasOwn(ref ?? {}, "combatId") &&
+    instance?.combatId === combat?.id &&
+    instance.privateContact === true &&
+    combatant?.combat?.id === combat?.id &&
+    ref?.contactDesignation === true &&
+    combatant.hidden === true &&
+    combatant.name === SENSOR_CONTACT_COMBATANT_NAME &&
+    combatant.img === SENSOR_CONTACT_COMBATANT_IMAGE;
+  if (combatant?.actorId !== actor?.id || (ref?.combatId !== combat?.id && !legacyEntry)) throw new Error("invalidPrivateSensorCombatant");
   await combatant.update({
     hidden: true,
     name: SENSOR_CONTACT_COMBATANT_NAME,

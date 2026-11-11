@@ -243,6 +243,47 @@ test("legacy private initiative entries without combatId can be revealed in thei
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
 });
 
+test("a failed legacy initiative update rolls back public reveal and remains retryable", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "rollback-legacy-source", name: "Legacy ambusher", role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 4,
+    detection: "undetected"
+  });
+  const actor = fromUuidSync(placement.actorUuid);
+  assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
+  const original = combat.combatants.find((entry) => entry.actorId === actor.id);
+  delete original.flags[MODULE_ID].sensorMapInitiative.combatId;
+  const update = original.update.bind(original);
+  let shouldFail = true;
+  original.update = async (changes) => {
+    if (shouldFail) {
+      shouldFail = false;
+      throw new Error("legacy Combatant update failed");
+    }
+    return update(changes);
+  };
+
+  await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /legacy Combatant update failed/);
+
+  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(original.hidden, true);
+  assert.equal(original.name, "Contact");
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, true);
+  assert.equal(original.flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, true);
+  assert.equal(privateContacts(combat.id).length, 1);
+  assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 0);
+
+  await changePrivateContact(combat, placement.key, "reveal");
+  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(combat.combatants.find((entry) => entry.actorId === actor.id).id, original.id);
+  assert.equal(original.hidden, false);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+});
+
 test("repeated private add backfills combatId on a legacy entry without creating a duplicate", async () => {
   const combat = setup();
   const source = makeShip({ id: "repeat-legacy-source", name: "Legacy scout", role: "npc" });
