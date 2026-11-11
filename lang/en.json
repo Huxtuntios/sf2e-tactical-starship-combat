@@ -1652,20 +1652,17 @@
       "cardFailed": "The drone state was saved but its card failed; inspect before retrying."
     },
     "privateMap": {
-      "activeGM": "Only the active GM can manage private contacts. No secret is sent over the module socket.",
+      "activeGM": "Only the active GM can manage these contacts.",
       "invalidStore": "Private sensor store is missing, duplicated, invalid or has unsafe permissions. Check its ownership and folder.",
       "storeName": "TSC private sensor contacts (GM only)",
       "invalidActor": "A private contact must be a world NPC starship or hazard with verifiable permissions.",
-      "actorExposed": "This Actor is accessible to a player or already a combatant. Its identity may already be disclosed; private placement is refused.",
-      "alreadyPublic": "This ship is already on the shared map; it cannot be made secret retroactively.",
+      "actorExposed": "This Actor is accessible to players or already a combatant; it cannot be staged privately. Choose Identified to place an accessible Actor.",
+      "alreadyPublic": "This Actor already has a Sensor Map entry.",
       "unnoticed": "Unnoticed — private GM contact",
-      "hint": "A staged contact is unavailable to targeting and hazard automation. Hidden contacts are withheld; observed contacts disclose only an anonymous position. Verify world permissions independently.",
-      "reveal": "Reveal as identified",
-      "revealWarning": "Publish this contact’s identity and position to every client? Information already delivered cannot be retracted.",
-      "observedWarning": "Publish an anonymous contact and its position to all clients? This information cannot be retracted from clients that received it.",
+      "reveal": "Identify",
       "rename": "Rename private contact",
       "legacyNotesWarning": "Zone notes are shared in Combat flags, including old GM notes. Do not enter secrets; existing notes are retained but cannot be edited here.",
-      "disclosureRequired": "Public hazard placement requires explicit publicActor=true and detection=identified; other placements may expose secrets."
+      "disclosureRequired": "Public hazard placement requires an identified detection state."
     },
     "installMine": {
       "title": "Install Mine — GM preparation",
@@ -1745,7 +1742,6 @@
     },
     "contactEditor": {
       "title": "Add Sensor Map object",
-      "intro": "Place a hazard, Starship Actor, or custom contact. Players see nothing until you choose a state that discloses it.",
       "source": "Source",
       "sources": {
         "world": "Actor from the world",
@@ -1761,8 +1757,6 @@
       "loading": "Loading compendiums…",
       "noChoices": "No hazards or Starship Actors found.",
       "copyNote": "A separate world Actor is created for each placement, leaving the compendium source unchanged.",
-      "detectionHint": "Undetected and hidden stay private. Observed shows an anonymous marker; identified discloses the Actor identity and requires confirmation.",
-      "confirm": "I confirm that players may learn this information.",
       "add": "Add",
       "addPublic": "Add environment object (asteroid, station, …)",
       "pick": "Choose a hazard first.",

@@ -272,6 +272,12 @@ export class MockJournalEntry {
     this.name = data.name;
     this.flags = structuredClone(data.flags);
     this.ownership = structuredClone(data.ownership);
+    this.folder = data.folder ?? null;
+  }
+  testUserPermission(user, level) {
+    if (user?.isGM) return true;
+    const granted = this.ownership?.[user?.id] ?? this.ownership?.default ?? 0;
+    return granted >= ({ NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
   }
   static async create(data) {
     const doc = new MockJournalEntry(data);

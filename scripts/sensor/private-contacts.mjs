@@ -15,7 +15,7 @@ import {
   restorePrivateSensorActorCombatant
 } from "./actor-instance.mjs";
 
-// Отдельный документ без родительской папки и наследуемых прав; секреты не входят в Combat и module socket.
+// Отдельный JournalEntry без родительской папки и наследуемых прав; в Combat сохраняется только проекция карты.
 function requireGM() {
   if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
 }
@@ -28,11 +28,15 @@ function storeFor(combatId) {
   if (!doc) return null;
   const ownership = doc.ownership ?? {};
   const marker = doc.flags?.[MODULE_ID]?.privateSensor;
+  const users = game.users?.contents;
   if (
     doc.folder ||
     ownership.default !== 0 ||
     marker?.schema !== 1 ||
     !Array.isArray(marker.contacts) ||
+    typeof doc.testUserPermission !== "function" ||
+    !Array.isArray(users) ||
+    users.some((user) => !user.isGM && doc.testUserPermission(user, "LIMITED")) ||
     Object.entries(ownership).some(([id, level]) => id !== "default" && Number(level) > 0 && !game.users.get(id)?.isGM)
   )
     throw new Error(T("SF2eTSC.privateMap.invalidStore"));

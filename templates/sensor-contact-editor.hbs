@@ -1,5 +1,4 @@
 <section class="tsc-contact-editor">
-  <p class="tsc-hint">{{localize "SF2eTSC.contactEditor.intro"}}</p>
   <fieldset>
     <legend>{{localize "SF2eTSC.contactEditor.source"}}</legend>
     {{#each sources}}
@@ -13,7 +12,7 @@
     {{#if loading}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.loading"}}</p>{{/if}}
     <label>{{localize "SF2eTSC.contactEditor.actor"}}
       <select name="uuid" size="8" aria-label="{{localize 'SF2eTSC.contactEditor.actor'}}">
-        {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{kindLabel}}{{#if roleLabel}} · {{roleLabel}}{{/if}} — {{name}}{{#if pack}} — {{pack}}{{/if}}{{#if visible}} ⚠{{/if}}</option>{{/each}}
+        {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{kindLabel}}{{#if roleLabel}} · {{roleLabel}}{{/if}} — {{name}}{{#if pack}} — {{pack}}{{/if}}</option>{{/each}}
       </select>
     </label>
     {{#unless choices.length}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.noChoices"}}</p>{{/unless}}
@@ -25,8 +24,6 @@
   <label>{{localize "SF2eTSC.ui.detection"}}
     <select name="detection">{{#each detections}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
   </label>
-  <p class="tsc-hint">{{localize "SF2eTSC.contactEditor.detectionHint"}}</p>
-  <label class="tsc-check"><input type="checkbox" name="confirmed" {{#if confirmed}}checked{{/if}} {{#unless needsConfirm}}disabled{{/unless}}> {{localize "SF2eTSC.contactEditor.confirm"}}</label>
   <footer class="tsc-detail-actions">
     <button type="button" data-action="addContact"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "SF2eTSC.contactEditor.add"}}</button>
     <button type="button" data-action="close">{{localize "SF2eTSC.ui.cancel"}}</button>

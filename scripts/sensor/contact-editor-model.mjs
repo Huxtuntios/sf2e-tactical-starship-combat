@@ -28,8 +28,6 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
       id,
       label: T(`SF2eTSC.detection.${id}`),
       selected: id === (state.detection ?? "undetected")
-    })),
-    needsConfirm: ["observed", "identified"].includes(state.detection),
-    confirmed: !!state.confirmed
+    }))
   };
 }

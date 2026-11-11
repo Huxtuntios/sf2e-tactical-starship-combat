@@ -6,11 +6,11 @@
  * - опасность или звездолёт из компендия → приватная копия в мире (владение NONE для игроков), затем тот же путь, чтобы каждая
  *   установка имела собственный документ и состояние; копия удаляется, если размещение не удалось;
  * - пользовательский контакт без Actor → addPrivateCustom;
- * - начальное состояние: undetected/hidden остаются только в закрытом журнале; observed публикует анонимный
- *   маркер, identified публикует личность — оба требуют явного подтверждения (confirmed === true).
+ * - начальное состояние задаётся выбором ведущего: undetected/hidden остаются в журнале; observed публикует
+ *   маркер без Actor, identified публикует объект.
  *
- * Правила передачи сведений не меняются; этот модуль только оркестрирует существующие операции. Приватность
- * в настоящем Foundry с несколькими клиентами НЕ проверена (см. docs/MANUAL-TEST-0.17.1-dev.13-ru.md).
+ * Правила передачи сведений не меняются; этот модуль только оркестрирует существующие операции. Реальное
+ * поведение с несколькими клиентами Foundry не проверено.
  */
 import { MODULE_ID, DETECTION_LEVELS } from "../constants.mjs";
 import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
@@ -40,7 +40,6 @@ function contactChoice(actor, extra = {}) {
   return {
     uuid: actor.uuid,
     name: actor.name,
-    visible: actorVisibleToPlayers(actor),
     kind: starship ? "starship" : "hazard",
     ...(starship ? { role: readStarship(actor).role } : {}),
     ...extra
@@ -105,9 +104,6 @@ function validateSpec(combat, spec) {
   if (!CONTACT_SOURCES.includes(spec?.source)) throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
   if (!DETECTION_LEVELS.includes(spec.detection)) throw new Error(T("SF2eTSC.contactEditor.invalidDetection"));
   if (!Number.isInteger(spec.zone) || spec.zone < 1 || spec.zone > getTsc(combat).zones) throw new Error(T("SF2eTSC.mapDrop.invalidZone"));
-  // Публикация информации — всегда явное решение ведущего.
-  if ((spec.detection === "observed" || spec.detection === "identified") && spec.confirmed !== true)
-    throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
 }
 
 async function applyDetection(combat, key, detection) {
@@ -132,7 +128,7 @@ async function publishActorContact(combat, actor, zone) {
 }
 
 /**
- * Добавляет контакт. spec: { source, uuid?, name?, zone, detection, confirmed }.
+ * Adds a contact using the selected detection state.
  * Возвращает { key?, actorUuid?, result }.
  */
 export async function addSensorContact(combat, spec, deps = {}) {
@@ -154,13 +150,13 @@ export async function addSensorContact(combat, spec, deps = {}) {
     throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
   const visible = actorVisibleToPlayers(source);
   if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
-  if (visible && (spec.detection !== "identified" || spec.confirmed !== true)) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+  if (visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
   const actor = await createSensorActorInstance(source, combat, {
     privateContact: !visible,
     createActor: deps.createActor
   });
   try {
-    // Actor доступный игрокам нельзя скрыть: допустимо только открытое размещение с подтверждением.
+    // Actor с доступом игроков нельзя разместить в состоянии, которое скроет его на карте.
     if (visible) {
       const result = await publishActorContact(combat, actor, spec.zone);
       return { key: actor.uuid, actorUuid: actor.uuid, result };

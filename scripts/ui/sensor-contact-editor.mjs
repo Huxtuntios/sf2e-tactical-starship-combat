@@ -16,7 +16,7 @@ export class SensorContactEditor extends TscApp {
   };
   static PARTS = { main: { template: tpl("sensor-contact-editor") } };
   channels = [];
-  state = { source: "world", filter: "", uuid: "", name: "", zone: 1, detection: "undetected", confirmed: false };
+  state = { source: "world", filter: "", uuid: "", name: "", zone: 1, detection: "undetected" };
   #compendium = null;
   constructor(combat, options = {}) {
     super(options);
@@ -40,8 +40,7 @@ export class SensorContactEditor extends TscApp {
       uuid: value("uuid")?.value ?? "",
       name: value("name")?.value ?? this.state.name,
       zone: Number(value("zone")?.value) || 1,
-      detection: value("detection")?.value ?? "undetected",
-      confirmed: !!value("confirmed")?.checked
+      detection: value("detection")?.value ?? "undetected"
     };
     return this.state;
   }
@@ -67,12 +66,12 @@ export class SensorContactEditor extends TscApp {
   static async #add() {
     const s = this.#read();
     try {
-      const spec = { source: s.source, uuid: s.uuid, name: s.name, zone: s.zone, detection: s.detection, confirmed: s.confirmed };
+      const spec = { source: s.source, uuid: s.uuid, name: s.name, zone: s.zone, detection: s.detection };
       if (spec.source !== "custom" && !spec.uuid) throw new Error(T("SF2eTSC.contactEditor.pick"));
       if (spec.source === "custom" && !spec.name.trim()) throw new Error(T("SF2eTSC.contactEditor.nameRequired"));
       const out = await addSensorContact(this.combat, spec);
       notifyInfo(`SF2eTSC.contactEditor.done.${out.result}`);
-      this.state = { ...this.state, uuid: "", name: "", confirmed: false };
+      this.state = { ...this.state, uuid: "", name: "" };
       this.render();
     } catch (err) {
       notifyError("SF2eTSC.errors.generic", { message: err.message });

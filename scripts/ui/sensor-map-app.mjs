@@ -594,28 +594,11 @@ export class SensorMapApplication extends TscApp {
     this.render();
   }
   static async #privateReveal(e, t) {
-    const ok = await foundry.applications.api.DialogV2.confirm({
-      classes: ["sf2e-tsc"],
-      window: { title: T("SF2eTSC.privateMap.reveal") },
-      content: `<p>${T("SF2eTSC.privateMap.revealWarning")}</p>`,
-      rejectClose: false
-    }).catch(() => false);
-    if (ok) {
-      await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
-      this.selected = null;
-      this.render();
-    }
+    await changePrivateContact(activeStarshipCombat(), t.dataset.key, "reveal");
+    this.selected = null;
+    this.render();
   }
   static async #privateDetect(e, t) {
-    if (t.dataset.level === "observed") {
-      const ok = await foundry.applications.api.DialogV2.confirm({
-        classes: ["sf2e-tsc"],
-        window: { title: T("SF2eTSC.ui.detection") },
-        content: `<p>${T("SF2eTSC.privateMap.observedWarning")}</p>`,
-        rejectClose: false
-      }).catch(() => false);
-      if (!ok) return;
-    }
     await changePrivateContact(activeStarshipCombat(), t.dataset.key, "detect", t.dataset.level);
     this.render();
   }
