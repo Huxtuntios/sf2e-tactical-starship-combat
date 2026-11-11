@@ -16,7 +16,6 @@ export function contactEditorContext(state, { zones, world, compendium, loading 
     isCompendium: source === "compendium",
     loading,
     filter: state.filter ?? "",
-    listHeight: Number.isFinite(state.listHeight) ? state.listHeight : null,
     name: state.name ?? "",
     choices: choices.map((c) => ({
       ...c,

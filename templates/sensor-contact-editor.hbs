@@ -12,7 +12,7 @@
     {{#if loading}}<p class="tsc-hint">{{localize "SF2eTSC.contactEditor.loading"}}</p>{{/if}}
     <div class="tsc-contact-editor-actor-picker">
       <label for="tsc-contact-editor-actor">{{localize "SF2eTSC.contactEditor.actor"}}</label>
-      <div class="tsc-contact-editor-actor-list" {{#if listHeight}}style="height: {{listHeight}}px"{{/if}}>
+      <div class="tsc-contact-editor-actor-list">
         <select id="tsc-contact-editor-actor" name="uuid" size="8" aria-label="{{localize 'SF2eTSC.contactEditor.actor'}}">
           {{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{kindLabel}}{{#if roleLabel}} · {{roleLabel}}{{/if}} — {{name}}{{#if pack}} — {{pack}}{{/if}}</option>{{/each}}
         </select>

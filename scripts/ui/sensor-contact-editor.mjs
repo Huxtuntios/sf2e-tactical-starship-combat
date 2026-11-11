@@ -5,7 +5,7 @@ import { T } from "../utils/foundry.mjs";
 import { notifyError, notifyInfo } from "../utils/logging.mjs";
 import { worldHazardChoices, compendiumHazardChoices, addSensorContact } from "../sensor/contact-service.mjs";
 import { contactEditorContext } from "../sensor/contact-editor-model.mjs";
-import { fitContactEditorActorList } from "../sensor/contact-editor-layout.mjs";
+import { fitContactEditorActorList, readManualContactEditorActorListHeight } from "../sensor/contact-editor-layout.mjs";
 
 export class SensorContactEditor extends TscApp {
   static DEFAULT_OPTIONS = {
@@ -17,9 +17,12 @@ export class SensorContactEditor extends TscApp {
   };
   static PARTS = { main: { template: tpl("sensor-contact-editor") } };
   channels = [];
-  state = { source: "world", filter: "", uuid: "", name: "", zone: 1, detection: "undetected" };
+  state = { source: "world", filter: "", uuid: "", listHeight: null, name: "", zone: 1, detection: "undetected" };
   #compendium = null;
   #resizeObserver = null;
+  #observedContent = null;
+  #observedPicker = null;
+  #resizePointerUp = null;
   constructor(combat, options = {}) {
     super(options);
     this.combat = combat;
@@ -40,7 +43,7 @@ export class SensorContactEditor extends TscApp {
       source: f.querySelector('[name="source"]:checked')?.value ?? "world",
       filter: value("filter")?.value ?? this.state.filter,
       uuid: value("uuid")?.value ?? "",
-      listHeight: f.querySelector(".tsc-contact-editor-actor-list")?.clientHeight || this.state.listHeight,
+      listHeight: this.state.listHeight,
       name: value("name")?.value ?? this.state.name,
       zone: Number(value("zone")?.value) || 1,
       detection: value("detection")?.value ?? "undetected"
@@ -49,17 +52,43 @@ export class SensorContactEditor extends TscApp {
   }
   _onRender(context, options) {
     super._onRender?.(context, options);
-    if (this.state.listHeight == null) fitContactEditorActorList(this.element);
+    fitContactEditorActorList(this.element, this.state.listHeight);
     if (!this.#resizeObserver && globalThis.ResizeObserver) {
+      this.#resizeObserver = new ResizeObserver(() => fitContactEditorActorList(this.element, this.state.listHeight));
+    }
+    if (this.#resizeObserver) {
       const content = this.element.querySelector(".window-content");
-      if (content) {
-        this.#resizeObserver = new ResizeObserver(() => fitContactEditorActorList(this.element));
+      const picker = this.element.querySelector(".tsc-contact-editor-actor-picker");
+      if (content && content !== this.#observedContent) {
         this.#resizeObserver.observe(content);
+        this.#observedContent = content;
+      }
+      if (picker !== this.#observedPicker) {
+        if (this.#observedPicker) this.#resizeObserver.unobserve(this.#observedPicker);
+        if (picker) this.#resizeObserver.observe(picker);
+        this.#observedPicker = picker;
       }
     }
     const root = this.element.querySelector(".tsc-contact-editor");
     if (!root || root.dataset.tscWired) return;
     root.dataset.tscWired = "1";
+    root.addEventListener("pointerdown", (ev) => {
+      const list = ev.target.closest?.(".tsc-contact-editor-actor-list");
+      if (!list) return;
+      if (this.#resizePointerUp) globalThis.document.removeEventListener("pointerup", this.#resizePointerUp);
+      const startHeight = list.clientHeight;
+      const stopResize = () => {
+        globalThis.document.removeEventListener("pointerup", stopResize);
+        this.#resizePointerUp = null;
+        const height = readManualContactEditorActorListHeight(this.element, startHeight);
+        if (height !== null) {
+          this.state.listHeight = height;
+          fitContactEditorActorList(this.element, this.state.listHeight);
+        }
+      };
+      this.#resizePointerUp = stopResize;
+      globalThis.document.addEventListener("pointerup", stopResize, { once: true });
+    });
     // Смена источника, фильтра или состояния перерисовывает только окно; выбранное значение сохраняется в this.state.
     root.addEventListener("change", (ev) => {
       const before = this.state;
@@ -75,8 +104,11 @@ export class SensorContactEditor extends TscApp {
     });
   }
   _onClose(options) {
+    if (this.#resizePointerUp) globalThis.document.removeEventListener("pointerup", this.#resizePointerUp);
     this.#resizeObserver?.disconnect();
     this.#resizeObserver = null;
+    this.#observedContent = null;
+    this.#observedPicker = null;
     super._onClose?.(options);
   }
   static async #add() {

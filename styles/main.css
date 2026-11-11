@@ -329,13 +329,13 @@
   flex: 1 1 180px;
   flex-direction: column;
   gap: 4px;
-  min-height: 140px;
+  min-height: 0;
   min-width: 0;
 }
 .tsc-contact-editor-actor-list {
   flex: 0 0 auto;
   height: 180px;
-  min-height: 100px;
+  min-height: 0;
   min-width: 0;
   overflow: auto;
   resize: vertical;
