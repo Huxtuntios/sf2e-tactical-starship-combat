@@ -138,7 +138,7 @@ export function syncStationItems() {
     const ships = allStarships().filter((s) => {
       const instance = s.flags?.[MODULE_ID]?.sensorContactInstance;
       if (instance?.privateContact === true) return false;
-      if (instance) return instance.combatId === combat?.id && publicShips.has(s.uuid);
+      if (instance) return publicShips.has(s.uuid);
       return readStarship(s).role === "player" || publicShips.has(s.uuid);
     });
     const desired = combat ? desiredStationItems(ships) : new Map();

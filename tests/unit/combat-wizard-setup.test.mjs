@@ -153,6 +153,63 @@ for (const origin of ["world NPC", "compendium player"]) {
   });
 }
 
+for (const origin of ["world NPC", "compendium player"]) {
+  for (const initiative of ["disabled", "beforeCrew"]) {
+    test(`retained ${origin} explicitly reused with ${initiative} ship initiative keeps station actions`, async (t) => {
+      const ctx = await setup({ scope: "stationed" });
+      ctx.settings.set("playerShipInitiative", initiative);
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      globalThis.foundry.applications.instances = new Map();
+      const crew = makeCharacter({ id: "reuse-pilot", name: "Reuse pilot" });
+      let source = makeShip({
+        id: "retained-player-source",
+        role: origin === "world NPC" ? "npc" : "player",
+        stations: [{ id: "pilot", type: "pilot", name: "Pilot", grade: "commercial", helmedBy: crew.uuid }],
+        crew: [{ actorUuid: crew.uuid, name: crew.name, role: "crew", stationId: "pilot" }]
+      });
+      if (origin === "compendium player") source = inPack(source);
+      const before = source.toObject();
+      const first = await startStarshipCombat({ playerShips: [{ uuid: source.uuid, zone: 2 }] });
+      const [copy] = copiesOf(source);
+      await syncStationItems();
+      assert.ok(crew.items.filter(isStationItem).length > 0);
+      await setStarshipCombatEnabled(first, false);
+      t.mock.timers.tick(50);
+      await syncStationItems();
+      assert.equal(crew.items.filter(isStationItem).length, 0);
+      const retained = copy.toObject();
+      const actors = game.actors.size;
+      const second = await startStarshipCombat({ playerShips: [{ uuid: copy.uuid, zone: 4 }] });
+      assert.notEqual(second.id, first.id);
+      assert.equal(game.actors.size, actors);
+      assert.deepEqual(copiesOf(source), [copy]);
+      assert.equal(getTsc(second).objects[0].actorUuid, copy.uuid);
+      assert.equal(copy.flags[M].sensorContactInstance.combatId, first.id);
+      assert.equal(
+        second.combatants.some((entry) => entry.actorId === copy.id),
+        initiative !== "disabled"
+      );
+      await syncStationItems();
+      const items = crew.items.filter(isStationItem);
+      assert.ok(items.length > 0);
+      assert.ok(items.every((item) => item.flags[M].stationAction.shipUuid === copy.uuid));
+      const ids = items.map((item) => item.id);
+      await syncStationItems();
+      assert.deepEqual(
+        crew.items.filter(isStationItem).map((item) => item.id),
+        ids
+      );
+      assert.deepEqual(copy.toObject(), retained);
+      assert.deepEqual(source.toObject(), before);
+      await setStarshipCombatEnabled(second, false);
+      t.mock.timers.tick(50);
+      await syncStationItems();
+      assert.equal(crew.items.filter(isStationItem).length, 0);
+      assert.equal(game.actors.get(copy.id), copy);
+    });
+  }
+}
+
 for (const kind of ["npc", "hazard"]) {
   test(`${kind}-only count N creates independent Actors including first, provenance and per-copy zones`, async () => {
     await setup();

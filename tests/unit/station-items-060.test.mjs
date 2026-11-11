@@ -196,13 +196,15 @@ test("inactive staged player copies do not publish actions into the current enco
   assert.ok(items.every((it) => !it.system.description.value.includes(copy.uuid)));
 });
 
-test("only current mapped instances are eligible; ordinary world player ships remain eligible off-map", async () => {
+test("mapped retained instances are eligible; unused copies stay excluded and ordinary world players remain eligible off-map", async () => {
   const s = await scenario();
   const { createSensorActorInstance } = await import("../../scripts/sensor/actor-instance.mjs");
   const { addObject } = await import("../../scripts/engine/sensor-ops.mjs");
   const { getTsc, saveTsc } = await import("../../scripts/combat/tsc-state.mjs");
   const old = await Combat.create({ active: false });
-  const stale = await createSensorActorInstance(s.ship, old);
+  const reused = await createSensorActorInstance(s.ship, old);
+  const leftover = await createSensorActorInstance(s.ship, old);
+  const privateCopy = await createSensorActorInstance(s.ship, old, { privateContact: true });
   const current = await createSensorActorInstance(s.ship, s.combat);
   const unmapped = await createSensorActorInstance(s.ship, s.combat);
   const world = makeShip({
@@ -212,22 +214,24 @@ test("only current mapped instances are eligible; ordinary world player ships re
     crew: [{ actorUuid: s.ava.uuid, name: s.ava.name, role: "crew", stationId: "world-pilot" }]
   });
   let state = getTsc(s.combat);
-  for (const ship of [stale, current]) state = addObject(state, { key: ship.uuid, actorUuid: ship.uuid, type: "starship", zone: 3 });
+  for (const ship of [reused, current, privateCopy])
+    state = addObject(state, { key: ship.uuid, actorUuid: ship.uuid, type: "starship", zone: 3 });
   await saveTsc(s.combat, state);
-  const snapshots = [s.ship, stale, current, unmapped, world].map((ship) => ship.toObject());
+  const snapshots = [s.ship, reused, leftover, privateCopy, current, unmapped, world].map((ship) => ship.toObject());
   await s.si.syncStationItems();
   const items = stationItems(s.ava);
   const shipUuids = new Set(items.map((it) => it.flags[M].stationAction.shipUuid));
-  assert.deepEqual(shipUuids, new Set([s.ship.uuid, current.uuid, world.uuid]));
-  assert.ok(items.every((it) => !it.system.description.value.includes(stale.uuid)));
-  assert.ok(items.every((it) => !it.system.description.value.includes(unmapped.uuid)));
+  assert.deepEqual(shipUuids, new Set([s.ship.uuid, reused.uuid, current.uuid, world.uuid]));
+  for (const excluded of [leftover, privateCopy, unmapped]) {
+    assert.ok(items.every((it) => !it.system.description.value.includes(excluded.uuid)));
+  }
   const ids = items.map((it) => it.id);
   await s.si.syncStationItems();
   assert.deepEqual(
     stationItems(s.ava).map((it) => it.id),
     ids
   );
-  [s.ship, stale, current, unmapped, world].forEach((ship, i) => assert.deepEqual(ship.toObject(), snapshots[i]));
+  [s.ship, reused, leftover, privateCopy, current, unmapped, world].forEach((ship, i) => assert.deepEqual(ship.toObject(), snapshots[i]));
 });
 
 test("public mapped NPC station actions remain eligible", async () => {
