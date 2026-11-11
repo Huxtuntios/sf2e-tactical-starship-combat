@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installFoundryMock } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
+import { MODULE_ID } from "../../scripts/constants.mjs";
+import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { LEGACY_ENVIRONMENT_TYPES, prepareLegacyEnvironmentObject } from "../../scripts/sensor/environment-object-names.mjs";
+import { addPrivateCustom } from "../../scripts/sensor/private-contacts.mjs";
 import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } from "../../scripts/ui/legacy-environment-object-dialog.mjs";
 
 test("legacy environment objects accept blank names for every standard type with localized labels", () => {
@@ -141,6 +144,106 @@ test("legacy submit displays creation failures without closing the dialog", asyn
   assert.equal(closed, false);
   assert.equal(errorElement.hidden, false);
   assert.equal(errorElement.textContent, "Sensor update failed.");
+});
+
+test("named public submit does not depend on an unavailable private journal", async () => {
+  installFoundryMock();
+  const errorElement = { hidden: true, textContent: "" };
+  const created = [];
+  let closed = false;
+  const result = await submitLegacyEnvironmentObject(
+    { name: "Named asteroid", type: "asteroid", zone: 2 },
+    {
+      dialog: { element: { querySelector: () => errorElement }, close: async () => (closed = true) },
+      app: { render() {} },
+      combat: { id: "combat" },
+      existingObjects: () => {
+        throw new Error(game.i18n.localize("SF2eTSC.privateMap.invalidStore"));
+      },
+      addCustom: async () => assert.fail("public objects must not use the private store"),
+      addPublic: async (combat, object) => created.push({ combat: combat.id, ...object })
+    }
+  );
+  assert.equal(result, true);
+  assert.deepEqual(created, [{ combat: "combat", name: "Named asteroid", type: "asteroid", zone: 2 }]);
+  assert.equal(closed, true);
+  assert.equal(errorElement.hidden, true);
+});
+
+test("legacy Sensor Map public submit succeeds when its private journal is invalid", async () => {
+  installFoundryMock();
+  const combat = makeStarshipCombat();
+  await addPrivateCustom(combat, "Existing private contact", 1);
+  game.journal.contents[0].folder = { id: "moved-folder" };
+  const { SensorMapApplication, registerSensorHandlers } = await import("../../scripts/ui/sensor-map-app.mjs");
+  registerSensorHandlers();
+
+  const originalDialog = foundry.applications.api.DialogV2;
+  const originalUx = foundry.applications.ux;
+  let dialogOptions;
+  class CapturedDialog {
+    constructor(options) {
+      dialogOptions = options;
+    }
+    render() {
+      return this;
+    }
+  }
+  foundry.applications.api.DialogV2 = CapturedDialog;
+  foundry.applications.ux = {
+    FormDataExtended: class {
+      constructor(form) {
+        this.object = form.object;
+      }
+    }
+  };
+  const errorElement = { hidden: true, textContent: "" };
+  let closed = false;
+  try {
+    await SensorMapApplication.DEFAULT_OPTIONS.actions.addPublicObject.call({ _privateObjects: [], render() {} });
+    const result = await dialogOptions.buttons[0].callback(
+      {},
+      { form: { object: { name: "", type: "asteroid", zone: 2 } } },
+      { element: { querySelector: () => errorElement }, close: async () => (closed = true) }
+    );
+    assert.equal(result, true);
+    assert.equal(closed, true);
+    assert.equal(errorElement.hidden, true);
+    assert.equal(getTsc(combat).objects.at(-1).name, "Asteroid 1");
+    assert.equal(getTsc(combat).objects.at(-1).zone, 2);
+  } finally {
+    foundry.applications.api.DialogV2 = originalDialog;
+    if (originalUx === undefined) delete foundry.applications.ux;
+    else foundry.applications.ux = originalUx;
+  }
+});
+
+test("legacy custom submit surfaces private journal errors and does not lose the entered object", async () => {
+  installFoundryMock();
+  const combat = makeStarshipCombat();
+  await addPrivateCustom(combat, "Existing contact", 1);
+  const store = game.journal.contents[0];
+  const originalContacts = structuredClone(store.flags[MODULE_ID].privateSensor.contacts);
+  store.folder = { id: "moved-folder" };
+  const errorElement = { hidden: true, textContent: "" };
+  let closed = false;
+
+  const result = await submitLegacyEnvironmentObject(
+    { name: "New private contact", type: "custom", zone: 2 },
+    {
+      dialog: { element: { querySelector: () => errorElement }, close: async () => (closed = true) },
+      app: { render() {} },
+      combat,
+      existingObjects: () => assert.fail("custom objects do not need public-name collision lookup"),
+      addCustom: addPrivateCustom,
+      addPublic: async () => assert.fail("custom objects must stay private")
+    }
+  );
+  assert.equal(result, false);
+  assert.equal(closed, false);
+  assert.equal(errorElement.hidden, false);
+  assert.equal(errorElement.textContent, game.i18n.localize("SF2eTSC.privateMap.invalidStore"));
+  assert.deepEqual(store.flags[MODULE_ID].privateSensor.contacts, originalContacts);
 });
 
 test("legacy environment dialog renders all type choices and an inline alert", () => {

@@ -15,7 +15,8 @@ export async function submitLegacyEnvironmentObject(data, { dialog, app, combat,
   errorElement.hidden = true;
   errorElement.textContent = "";
   try {
-    const object = prepareLegacyEnvironmentObject(data, existingObjects(), localize);
+    const needsGeneratedName = data?.type !== "custom" && !String(data?.name ?? "").trim();
+    const object = prepareLegacyEnvironmentObject(data, needsGeneratedName ? existingObjects() : [], localize);
     if (object.type === "custom") await addCustom(combat, object.name, object.zone);
     else await addPublic(combat, object);
   } catch (error) {

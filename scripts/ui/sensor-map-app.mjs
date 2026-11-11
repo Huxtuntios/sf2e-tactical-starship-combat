@@ -578,7 +578,7 @@ export class SensorMapApplication extends TscApp {
               dialog,
               app: this,
               combat: c,
-              existingObjects: () => [...getTsc(c).objects, ...privateContacts(c.id)],
+              existingObjects: () => [...getTsc(c).objects, ...(this._privateObjects ?? [])],
               addCustom: (combat, name, zone) => addPrivateCustom(combat, name, zone),
               addPublic: (combat, object) =>
                 request("sensorUpdate", {
