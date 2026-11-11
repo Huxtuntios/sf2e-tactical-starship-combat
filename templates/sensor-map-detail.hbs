@@ -23,6 +23,7 @@
       {{/if}}
       <div class="tsc-detail-actions">
         {{#if detail.canOpen}}<button type="button" data-action="openSheet" data-key="{{detail.key}}"><i class="fa-solid fa-file-lines"></i> {{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
+        {{#if @root.isGM}}{{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}{{/if}}
         {{#if detail.canMove}}
           <button type="button" data-action="moveLeft" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}" title="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
           <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>

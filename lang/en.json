@@ -800,6 +800,33 @@
       "create": "Create"
     },
     "initiative": {
+      "addOne": "Add to initiative",
+      "addAllNpc": "Add all NPC ships to initiative",
+      "bulkTitle": "Sensor Map initiative update",
+      "bulkSummary": "Initiative update: {added} added, {existing} already participating, {skipped} skipped, {failed} failed.",
+      "addedOne": "Added {name} to initiative.",
+      "existingOne": "{name} is already participating.",
+      "skippedOne": "Skipped {name}: {reason}.",
+      "failedOne": "Could not add {name} to initiative.",
+      "unnamed": "Unnamed object",
+      "none": "None",
+      "sections": {
+        "added": "Added ({count})",
+        "existing": "Already participating ({count})",
+        "skipped": "Skipped ({count})",
+        "failed": "Failed ({count})"
+      },
+      "reasons": {
+        "privateContact": "private or unidentified contact; reveal it before adding",
+        "hiddenContact": "hidden map object",
+        "markerOnly": "map marker has no Actor",
+        "notNpcShip": "not an NPC starship",
+        "playerShip": "player ship is never added automatically",
+        "noIndependentActor": "no independent Actor instance for this combat",
+        "actorMissing": "Actor could not be resolved",
+        "missingObject": "map object no longer exists",
+        "failed": "Combatant creation failed"
+      },
       "missingCrew": "Crew could not be added to initiative — actor missing or deleted: {names}. Remove the stale entries from the ship's crew.",
       "crewAddedMidCombat": "Added to the encounter: {names}. They act after rolling initiative (Combat Tracker).",
       "syncCrew": "Sync crew into initiative",
