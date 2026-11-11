@@ -86,12 +86,18 @@ test("duplicate drop moves the existing record without resetting settings; rejec
   const duplicate = { ...s, objects: [...s.objects, { ...s.objects[0] }] };
   assert.throws(() => dropActorOnMap(duplicate, actor, 2), /duplicateActors/);
 });
-test("GM-authoritative drop validates sender, UUID, type and zone; repeated requests write once (mock)", async () => {
+test("GM-authoritative drop validates sender, UUID and zone; each accepted placement gets an independent Actor", async () => {
   installFoundryMock();
   const { registerSensorHandlers } = await import("../../scripts/sensor/map-handlers.mjs");
   const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
   const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
-  const ship = makeShip({ id: "ship", name: "Actual" });
+  const ship = makeShip({ id: "ship", name: "Actual", role: "npc" });
+  ship.items.set("weapon", {
+    _id: "weapon",
+    name: "Source weapon",
+    type: "melee",
+    system: { charges: { value: 2 } }
+  });
   const combat = makeStarshipCombat();
   registerSensorHandlers();
   const responses = [];
@@ -119,11 +125,31 @@ test("GM-authoritative drop validates sender, UUID, type and zone; repeated requ
   );
   await Promise.all([send("one", "gm", { name: "Fake", type: "hazard" }), send("two", "gm", {})]);
   const t = getTsc(combat);
-  assert.equal(t.objects.length, 1);
-  assert.equal(t.objects[0].name, "Actual");
-  assert.equal(t.objects[0].type, "starship");
-  assert.equal(globalThis.__writes.length - start, 1);
-  assert.equal(responses.find((r) => r.requestId === "two").result, "unchanged");
+  assert.equal(t.objects.length, 2);
+  assert.deepEqual(
+    t.objects.map((o) => o.name),
+    ["Actual #1", "Actual #2"]
+  );
+  assert.equal(
+    t.objects.every((o) => o.type === "starship"),
+    true
+  );
+  const [first, second] = t.objects.map((o) => fromUuidSync(o.actorUuid));
+  assert.notEqual(first.uuid, ship.uuid);
+  assert.notEqual(first.uuid, second.uuid);
+  assert.equal(first.flags[MODULE_ID].tacticalCopyOf, ship.uuid);
+  assert.equal(second.flags[MODULE_ID].tacticalCopyOf, ship.uuid);
+  assert.equal(combat.combatants.filter((c) => c.actorId === first.id || c.actorId === second.id).length, 2);
+  await first.update({ "system.attributes.hp.value": 4 });
+  assert.equal(second.system.attributes.hp.value, 30);
+  assert.equal(ship.system.attributes.hp.value, 30);
+  const firstItem = first.items.contents[0];
+  const secondItem = second.items.contents[0];
+  firstItem.system.charges.value = 0;
+  assert.equal(secondItem.system.charges.value, 2);
+  assert.equal(ship.items.get("weapon").system.charges.value, 2);
+  assert.equal(responses.find((r) => r.requestId === "one").result, "added");
+  assert.equal(responses.find((r) => r.requestId === "two").result, "added");
 });
 test("initial heading is GM-authoritative and stale requests do not overwrite it (mock)", async () => {
   installFoundryMock();
@@ -180,14 +206,24 @@ test("all shipped compendium categories match catalogue and rank is never guesse
   assert.equal(weaponSummary({ name: "Legacy", category: { bad: true } }).hasCategory, false);
 });
 
-test("compendium Actor UUID is resolved by GM and no Actor is imported or modified (mock)", async () => {
+test("compendium Actor UUID is resolved by GM and copied into an independent world Actor (mock)", async () => {
   installFoundryMock();
   const { registerSensorHandlers } = await import("../../scripts/sensor/map-handlers.mjs");
   const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
   const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
   const combat = makeStarshipCombat();
   const uuid = "Compendium.test.hazards.Actor.h1";
-  const hazard = { uuid, documentName: "Actor", type: "hazard", name: "Actual hazard", img: "hazard.webp", pack: "test.hazards" };
+  const hazard = {
+    uuid,
+    documentName: "Actor",
+    type: "hazard",
+    name: "Actual hazard",
+    img: "hazard.webp",
+    pack: "test.hazards",
+    system: {},
+    flags: {},
+    toObject: () => ({ _id: "h1", name: "Actual hazard", type: "hazard", img: "hazard.webp", system: {}, flags: {} })
+  };
   globalThis.__extraUuids.set(uuid, hazard);
   registerSensorHandlers();
   const replies = [];
@@ -204,9 +240,13 @@ test("compendium Actor UUID is resolved by GM and no Actor is imported or modifi
   assert.equal(getTsc(combat).objects.length, 0);
   await dispatchSocketMessage(msg("yes", true), "gm", env);
   assert.equal(replies[1].ok, true);
-  assert.equal(getTsc(combat).objects[0].actorUuid, uuid);
+  const actorUuid = getTsc(combat).objects[0].actorUuid;
+  assert.notEqual(actorUuid, uuid);
+  const instance = fromUuidSync(actorUuid);
+  assert.equal(instance.flags[MODULE_ID].tacticalCopyOf, uuid);
+  assert.equal(instance.flags[MODULE_ID].contactImport.sourceUuid, uuid);
   assert.equal(JSON.stringify(hazard), before);
-  assert.equal(game.actors.size, 0);
+  assert.equal(game.actors.size, 1);
 });
 test("unknown source orientation and missing heading do not trigger automatic flips", () => {
   installFoundryMock();

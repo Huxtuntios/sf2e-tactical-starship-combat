@@ -3,7 +3,8 @@
 ## 0.17.1-dev.13 — experimental, unpublished
 
 - Fix CI UI regression: update the mine-modification smoke fixture to select the actual `installMineStock` action without weakening GM/player assertions.
-- Sensor Map add menu supports world and compendium Starship Actors as well as Hazards. Each compendium placement creates a new world Actor; preserve drag-and-drop, private contacts, explicit disclosure confirmation, and no public Combatant for hidden contacts.
+- Every Sensor Map Actor placement now creates a persistent independent world Actor copied from its template; repeated placements no longer move the same UUID. Copies retain template provenance, private contacts receive no player permissions or Combatant until revealed, NPC ships and complex hazards receive their own Combatant when public, and removing a contact cleans up its copy and initiative entry. Compendium imports and combat-start copies share the same Actor-copy helper.
+- Sensor Map copy regression coverage verifies two placements of one NPC remain independent after HP changes, with source state unchanged; privacy, reveal, initiative and deletion are covered by Foundry mocks. No real Foundry or multiplayer validation.
 - Add character-sheet station chooser during active starship combat. Claim and release use the existing Crew service and revalidate station occupancy through its per-ship serialized updates.
 - Add GM-confirmed Drone Block from native Strike damage cards, with drone and Strike selection, operator-level resistance through the existing damage pipeline, a manual-resolution path, and the 10-minute return/cooldown. Preserve Intercept and mine state; show a GM warning where Tech Core does not specify the effect of automatic retrieval.
 - With Drone Shield Protocol installed, offer a GM-confirmed manual-only path and strike receipt. Do not apply base retrieval/cooldown or invent shield/use-count state; show the required manual follow-up on the attack card.

@@ -5,6 +5,7 @@ import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
+import { deleteSensorActorInstance, ensureSensorActorCombatant, isSensorActorInstance } from "./actor-instance.mjs";
 
 // Отдельный документ без родительской папки и наследуемых прав; секреты не входят в Combat и module socket.
 function requireGM() {
@@ -233,12 +234,23 @@ export async function changePrivateContact(combat, key, op, zone) {
               });
         }
         await saveTsc(combat, next);
+        if (actor && isSensorActorInstance(actor, combat.id)) {
+          try {
+            await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: false });
+            await ensureSensorActorCombatant(combat, actor);
+          } catch (error) {
+            await saveTsc(combat, state);
+            await actor.update({ [`flags.${MODULE_ID}.sensorContactInstance.privateContact`]: true });
+            throw error;
+          }
+        }
       }
       contacts.splice(contacts.indexOf(contact), 1);
     } else throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     requireGM();
     if (storeFor(combat.id)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     await doc.update({ [`flags.${MODULE_ID}.privateSensor.contacts`]: contacts });
+    if (op === "remove" && contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);
     return true;
   });
 }
