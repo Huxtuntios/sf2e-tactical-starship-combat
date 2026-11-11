@@ -326,6 +326,38 @@ test("giant 8100x11700 becomes aspect-preserving lossless 2836x4096 blob; decode
   assert.deepEqual(revoked, ["blob:test-1"]);
 });
 
+test("unrelated settings retain the scaled background; explicit same-path refresh reloads it", async (t) => {
+  installFoundryMock();
+  const { layer, images, canvases, revoked } = imageMocks(t);
+  const app = new SensorMapApplication();
+  app._backgroundLayer = layer;
+  t.after(() => app._cleanup());
+  paintMapBackground(layer, "giant.png", app.backgroundRevision);
+  images[0].finish(8100, 11700);
+  await backgroundReady(layer);
+  const revision = app.backgroundRevision,
+    display = layer.style.backgroundImage;
+  for (const key of ["uiState", "starshipSheetTheme", "showUnknownContacts"]) {
+    assert.equal(app.wants("settings", { key: `sf2e-tactical-starship-combat.${key}` }), true);
+    assert.equal(app.backgroundRevision, revision);
+    paintMapBackground(layer, "giant.png", app.backgroundRevision);
+    assert.equal(layer.style.backgroundImage, display);
+  }
+  assert.equal(images.length, 1);
+  assert.equal(canvases.length, 1);
+  assert.deepEqual(revoked, []);
+  app.invalidateBackground();
+  assert.ok(app.backgroundRevision > revision);
+  paintMapBackground(layer, "giant.png", app.backgroundRevision);
+  assert.equal(images.length, 2);
+  assert.equal(images[1].assignments[0], `giant.png?tsc-map-revision=${app.backgroundRevision}`);
+  images[1].finish(8100, 11700);
+  await backgroundReady(layer);
+  assert.equal(canvases.length, 2);
+  assert.equal(layer.dataset.backgroundSource, "giant.png");
+  assert.deepEqual(revoked, ["blob:test-1"]);
+});
+
 test("ordinary 512 image retains original source/quality; revision reloads and source changes revoke blobs", async (t) => {
   const { layer, images, canvases, revoked } = imageMocks(t);
   paintMapBackground(layer, "ordinary.png");

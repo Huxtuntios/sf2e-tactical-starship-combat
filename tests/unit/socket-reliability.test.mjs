@@ -101,7 +101,7 @@ function expectError(state, key) {
   assert.equal(state.error?.message, game.i18n.localize(`SF2eTSC.errors.${key}`));
 }
 
-for (const type of ["executeAction", "executeNativeAttack", "resolveAttackCard"]) {
+for (const type of ["executeAction", "executeNativeAttack", "resolveAttackCard", "applyAttackCardDamage"]) {
   test(`${type}: first ack replaces 15s wait with one 120s result deadline`, async (t) => {
     const h = harness(t);
     const r = h.start(type);
@@ -336,7 +336,29 @@ test("socket initialization is idempotent; cleanup settles pending and permits r
   cleanup();
 });
 
-for (const type of ["sensorUpdate", "executeAction"]) {
+test("GM acknowledges remote damage before its deferred handler finishes", async (t) => {
+  const h = harness(t);
+  h.setUser("gm");
+  let finish;
+  registerHandler("applyAttackCardDamage", ({ user, remote, payload }) => {
+    assert.equal(user, game.users.get("gm2"));
+    assert.equal(remote, true);
+    assert.deepEqual(payload, { messageId: "damage-card" });
+    return new Promise((resolve) => (finish = resolve));
+  });
+  const dispatch = h.deliver(
+    { kind: "request", requestId: "damage-request", type: "applyAttackCardDamage", payload: { messageId: "damage-card" } },
+    "gm2"
+  );
+  await flush();
+  assert.deepEqual(h.sent, [{ kind: "accepted", requestId: "damage-request", to: "gm2" }]);
+  h.tick(20000);
+  finish({ applied: true });
+  await dispatch;
+  assert.deepEqual(h.sent[1], { kind: "response", requestId: "damage-request", to: "gm2", ok: true, result: { applied: true } });
+});
+
+for (const type of ["sensorUpdate", "executeAction", "applyAttackCardDamage"]) {
   test(`local ${type} is bounded without cancelling the handler or accepting socket replies`, async (t) => {
     const h = harness(t);
     h.setUser("gm");
@@ -358,7 +380,7 @@ for (const type of ["sensorUpdate", "executeAction"]) {
     const state = h.observe(request(type, { value: 1 }));
     await h.deliver({ kind: "response", requestId: "local-request", to: "gm", ok: true, result: "wrong" });
     await h.deliver({ kind: "accepted", requestId: "local-request", to: "gm" });
-    const deadline = type === "executeAction" ? 120000 : 15000;
+    const deadline = type === "sensorUpdate" ? 15000 : 120000;
     h.tick(deadline - 1);
     await flush();
     assert.equal(state.settled, 0);
@@ -415,47 +437,50 @@ test("local late rejection is consumed after authority loss", async (t) => {
   assert.equal(h.timers.size, 0);
 });
 
-test("real attack-card client's finally releases disabled/busy controls after ack timeout", async (t) => {
-  const h = harness(t);
-  const { registerAttackCards } = await import("../../scripts/chat/attack-card/client.mjs");
-  registerAttackCards();
-  const button = { dataset: { tscAttack: "cancel" }, disabled: false };
-  let click;
-  const card = {
-    querySelectorAll: (selector) => (selector === "[data-gm-only]" ? [] : [button]),
-    addEventListener: (name, fn) => {
-      click = fn;
+for (const action of ["cancel", "apply"]) {
+  test(`real attack-card ${action} releases disabled/busy controls after ack timeout`, async (t) => {
+    const h = harness(t);
+    if (action === "apply") h.setUser("gm2");
+    const { registerAttackCards } = await import("../../scripts/chat/attack-card/client.mjs");
+    registerAttackCards();
+    const button = { dataset: { tscAttack: action }, disabled: false };
+    let click;
+    const card = {
+      querySelectorAll: (selector) => (selector === "[data-gm-only]" ? [] : [button]),
+      addEventListener: (name, fn) => {
+        click = fn;
+      }
+    };
+    class Element {
+      queries = 0;
+      querySelector(selector) {
+        // Skip HTML rendering; exercise the actual production click handler and finally.
+        return selector === ".tsc-attack-card" && ++this.queries > 1 ? card : null;
+      }
     }
-  };
-  class Element {
-    queries = 0;
-    querySelector(selector) {
-      // Skip HTML rendering; exercise the actual production click handler and finally.
-      return selector === ".tsc-attack-card" && ++this.queries > 1 ? card : null;
-    }
-  }
-  const originalElement = globalThis.HTMLElement;
-  globalThis.HTMLElement = Element;
-  t.after(() => {
-    if (originalElement === undefined) delete globalThis.HTMLElement;
-    else globalThis.HTMLElement = originalElement;
+    const originalElement = globalThis.HTMLElement;
+    globalThis.HTMLElement = Element;
+    t.after(() => {
+      if (originalElement === undefined) delete globalThis.HTMLElement;
+      else globalThis.HTMLElement = originalElement;
+    });
+    const message = { id: "card-message", flags: { [MODULE_ID]: { attackCard: { createdBy: "p1" } } } };
+    Hooks.callAll("renderChatMessageHTML", message, new Element());
+    const event = {
+      target: { closest: (selector) => (selector === "[data-tsc-attack]" ? button : null) },
+      preventDefault() {},
+      stopPropagation() {}
+    };
+    click(event);
+    assert.equal(button.disabled, true);
+    assert.equal(button.dataset.busy, "1");
+    click(event);
+    assert.equal(h.sent.length, 1, "busy control prevents repeated clicks while waiting");
+    await h.deliver({ kind: "accepted", requestId: h.sent[0].requestId, to: game.user.id });
+    h.tick(120000);
+    await flush();
+    assert.equal(button.disabled, false);
+    assert.equal(button.dataset.busy, undefined);
+    assert.ok(globalThis.__notes.some(([kind, text]) => kind === "error" && text.includes(game.i18n.localize("SF2eTSC.errors.timeout"))));
   });
-  const message = { id: "card-message", flags: { [MODULE_ID]: { attackCard: { createdBy: "p1" } } } };
-  Hooks.callAll("renderChatMessageHTML", message, new Element());
-  const event = {
-    target: { closest: (selector) => (selector === "[data-tsc-attack]" ? button : null) },
-    preventDefault() {},
-    stopPropagation() {}
-  };
-  click(event);
-  assert.equal(button.disabled, true);
-  assert.equal(button.dataset.busy, "1");
-  click(event);
-  assert.equal(h.sent.length, 1, "busy control prevents repeated clicks while waiting");
-  await h.deliver({ kind: "accepted", requestId: h.sent[0].requestId, to: "p1" });
-  h.tick(120000);
-  await flush();
-  assert.equal(button.disabled, false);
-  assert.equal(button.dataset.busy, undefined);
-  assert.ok(globalThis.__notes.some(([kind, text]) => kind === "error" && text.includes(game.i18n.localize("SF2eTSC.errors.timeout"))));
-});
+}
