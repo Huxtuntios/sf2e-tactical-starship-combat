@@ -50,19 +50,24 @@ export async function ensureSensorActorCombatant(combat, actor) {
   return combatant;
 }
 
-/** Remove only the combatant and Actor document owned by this Sensor Map instance. */
-export async function deleteSensorActorInstance(combat, actorUuid) {
-  const actor = await fromUuidSafe(actorUuid);
-  const instance = instanceFlag(actor);
+/** Remove only the initiative entry owned by this Sensor Map instance. */
+export async function deleteSensorActorCombatant(combat, actorUuid) {
   const combatants = [...(combat?.combatants ?? [])].filter((combatant) => {
     const ref = combatant.flags?.[MODULE_ID]?.sensorContactInstance;
-    return ref?.combatId === combat?.id && (combatant.actorId === actor?.id || ref.actorUuid === actorUuid);
+    return ref?.combatId === combat?.id && ref.actorUuid === actorUuid;
   });
   if (combatants.length)
     await combat.deleteEmbeddedDocuments(
       "Combatant",
       combatants.map((combatant) => combatant.id)
     );
+}
+
+/** Remove only the combatant and Actor document owned by this Sensor Map instance. */
+export async function deleteSensorActorInstance(combat, actorUuid) {
+  const actor = await fromUuidSafe(actorUuid);
+  const instance = instanceFlag(actor);
+  await deleteSensorActorCombatant(combat, actorUuid);
   if (instance?.combatId === combat?.id) await actor.delete();
 }
 

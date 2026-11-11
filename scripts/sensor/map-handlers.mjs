@@ -30,6 +30,21 @@ export function registerSensorHandlers() {
         const actor = await fromUuidSafe(payload.actorUuid);
         if (!actor || actor.uuid !== payload.actorUuid || actor.documentName !== "Actor")
           throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
+        const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
+        if (getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid)) {
+          let result;
+          try {
+            await mutateTsc(combat, (state) => {
+              const change = dropActorOnMap(state, actor, payload.zone, { publicActor: payload.publicActor === true });
+              result = change.result;
+              return change.state;
+            });
+          } catch (error) {
+            if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
+            throw error;
+          }
+          return result;
+        }
         const instance = await createSensorActorInstance(actor, combat);
         const previous = getTsc(combat);
         let result;
@@ -44,7 +59,6 @@ export function registerSensorHandlers() {
           if (getTsc(combat).objects.some((o) => o.actorUuid === instance.uuid || o.key === instance.uuid))
             await mutateTsc(combat, () => previous);
           await deleteSensorActorInstance(combat, instance.uuid);
-          const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
           if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
           throw error;
         }

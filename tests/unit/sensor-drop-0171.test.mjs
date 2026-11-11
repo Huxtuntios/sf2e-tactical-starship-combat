@@ -151,6 +151,37 @@ test("GM-authoritative drop validates sender, UUID and zone; each accepted place
   assert.equal(responses.find((r) => r.requestId === "one").result, "added");
   assert.equal(responses.find((r) => r.requestId === "two").result, "added");
 });
+test("dropping an Actor already on the public map moves its existing record without copying", async () => {
+  installFoundryMock();
+  const { registerSensorHandlers } = await import("../../scripts/sensor/map-handlers.mjs");
+  const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
+  const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+  const ship = makeShip({ id: "legacy-map-ship", name: "Existing NPC", role: "npc" });
+  const combat = makeStarshipCombat({
+    objects: [{ key: ship.uuid, actorUuid: ship.uuid, type: "starship", name: ship.name, zone: 2 }]
+  });
+  registerSensorHandlers();
+  const replies = [];
+  const env = { users: game.users, selfId: "gm", isActiveGM: true, clientEvents: new Map(), emit: (r) => replies.push(r) };
+  await dispatchSocketMessage(
+    {
+      kind: "request",
+      type: "sensorUpdate",
+      requestId: "move-existing",
+      userId: "gm",
+      payload: { combatId: combat.id, op: "dropActor", actorUuid: ship.uuid, zone: 7, publicActor: false }
+    },
+    "gm",
+    env
+  );
+  assert.equal(replies[0].ok, true);
+  assert.equal(replies[0].result, "moved");
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(getTsc(combat).objects[0].actorUuid, ship.uuid);
+  assert.equal(getTsc(combat).objects[0].zone, 7);
+  assert.equal(game.actors.size, 1);
+  assert.equal(combat.combatants.size, 0);
+});
 test("initial heading is GM-authoritative and stale requests do not overwrite it (mock)", async () => {
   installFoundryMock();
   const { registerSensorHandlers } = await import("../../scripts/sensor/map-handlers.mjs");
