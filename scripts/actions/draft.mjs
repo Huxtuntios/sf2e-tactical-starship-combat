@@ -50,7 +50,7 @@ export class Draft {
     // Dialogs/rolls run under per-ship locks, so another ship may commit combat state while we wait.
     // Coordinate the shared combat write here: rebase our tsc delta onto the current state (conflict-aware)
     // and save it BEFORE any ship write, so a combat conflict aborts without partial ship writes.
-    return serialize("tsc-commit", async () => {
+    await serialize("tsc-commit", async () => {
       if (changed.some(({ actor, before }) => !equalState(snapshot(readStarship(actor)), snapshot(before))))
         throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
       let baseline = this.beforeTsc;
@@ -88,15 +88,17 @@ export class Draft {
             `Commit failed (${failed.length}/${results.length} writes)`
         );
       }
-      for (const [name, ...args] of this.hooks) Hooks.callAll(name, ...args);
-      for (const fn of this.after) {
-        try {
-          await fn();
-        } catch (err) {
-          log.error("afterCommit failed", err);
-        }
-      }
     });
+    // Hooks/afterCommit run outside the write lock: a callback may itself commit (e.g. a hazard trigger),
+    // which would deadlock if the outer commit still held tsc-commit while awaiting it.
+    for (const [name, ...args] of this.hooks) Hooks.callAll(name, ...args);
+    for (const fn of this.after) {
+      try {
+        await fn();
+      } catch (err) {
+        log.error("afterCommit failed", err);
+      }
+    }
   }
 }
 
@@ -128,6 +130,9 @@ export function rebaseTsc(base, mine, current) {
         const bv = bMap.get(key);
         if (equalState(mv, bv)) continue;
         const cv = cMap.get(key);
+        // A concurrent removal of an object we edit is a conflict: restoring it could resurrect a marker
+        // whose copied Actor was already deleted.
+        if (bv !== undefined && cv === undefined) throw conflict();
         if (cv !== undefined && !equalState(cv, bv)) throw conflict();
         const i = objs.findIndex((o) => o.key === key);
         if (i >= 0) objs[i] = clone(mv);
@@ -146,6 +151,7 @@ export function rebaseTsc(base, mine, current) {
           if (mv === undefined) delete rec[sub];
           continue;
         }
+        if (bv !== undefined && cv === undefined) throw conflict();
         if (cv !== undefined && !equalState(cv, bv)) throw conflict();
         if (mv === undefined) delete rec[sub];
         else rec[sub] = clone(mv);

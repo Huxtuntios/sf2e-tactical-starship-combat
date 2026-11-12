@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
-import { Draft } from "../../scripts/actions/draft.mjs";
+import { Draft, rebaseTsc } from "../../scripts/actions/draft.mjs";
 import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc, saveTsc, mutateTsc } from "../../scripts/combat/tsc-state.mjs";
 
@@ -202,4 +202,66 @@ test("fresh draft saves ship and map changes once", async () => {
   assert.equal(readStarship(actor).sp.value, 10);
   assert.equal(getTsc(combat).objects[0].zone, 2);
   assert.equal(callbacks, 1);
+});
+
+test("afterCommit callback may commit another draft without deadlocking", { timeout: 5000 }, async () => {
+  const { actor, combat } = setup();
+  const draft = new Draft(combat);
+  draft.tsc.objects[0].zone = 2;
+  draft.afterCommit(async () => {
+    const nested = new Draft(null);
+    (await nested.ship(actor.uuid)).data.notes = "nested";
+    await nested.commit();
+  });
+  await draft.commit();
+  assert.equal(getTsc(combat).objects[0].zone, 2);
+  assert.equal(readStarship(actor).notes, "nested");
+});
+
+test("rebase refuses to resurrect an object deleted concurrently", () => {
+  installFoundryMock();
+  const base = { objects: [{ key: "marker", zone: 3 }] };
+  const mine = { objects: [{ key: "marker", zone: 5 }] };
+  const current = { objects: [] };
+  assert.throws(() => rebaseTsc(base, mine, current));
+});
+
+test("rebase refuses to restore a knowledge entry deleted concurrently", () => {
+  installFoundryMock();
+  const base = { knowledge: { "ship-1": { zone: 1 } } };
+  const mine = { knowledge: { "ship-1": { zone: 2 } } };
+  const current = { knowledge: {} };
+  assert.throws(() => rebaseTsc(base, mine, current));
+});
+
+test("draft editing a concurrently deleted map object refuses commit before ship writes", async () => {
+  const { actor, combat } = setup();
+  const draft = new Draft(combat);
+  (await draft.ship(actor.uuid)).data.sp.value = 10;
+  draft.tsc.objects[1].zone = 5;
+  await mutateTsc(combat, (state) => {
+    state.objects = state.objects.filter((object) => object.key !== "marker");
+    return state;
+  });
+  await assert.rejects(draft.commit());
+  assert.equal(readStarship(actor).sp.value, 20);
+  assert.deepEqual(
+    getTsc(combat).objects.map((object) => object.key),
+    [actor.uuid]
+  );
+});
+
+test("draft keeps a concurrent object deletion when it did not edit that object", async () => {
+  const { actor, combat } = setup();
+  const draft = new Draft(combat);
+  draft.tsc.objects[0].zone = 2;
+  await mutateTsc(combat, (state) => {
+    state.objects = state.objects.filter((object) => object.key !== "marker");
+    return state;
+  });
+  await draft.commit();
+  assert.deepEqual(
+    getTsc(combat).objects.map((object) => [object.key, object.zone]),
+    [[actor.uuid, 2]]
+  );
 });
