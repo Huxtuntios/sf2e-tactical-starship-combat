@@ -80,7 +80,10 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       const canUndo =
         applied &&
         game.user.isGM &&
-        receipts.every((r) => r && r.undoable && !r.undone) &&
+        targets.every((target, i) => {
+          const r = receipts[i];
+          return !!r && r.undoable && !r.undone && r.shipUuid === actorOf(target).uuid;
+        }) &&
         targets.every((target) => can(game.user, actorOf(target), "adjustVitals"));
       controls.querySelectorAll("button,select").forEach((control) => {
         control.disabled = control.dataset.tscShipUndo ? !canUndo : locked;
@@ -172,6 +175,45 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
   };
 }
 
+/** Кнопка отмены на карточке урона, появившейся после применения; ссылается на квитанцию исходного броска. */
+function wireCardUndo(root, { send = request, resolve = fromUuidSync_ } = {}) {
+  if (root.dataset.tscCardUndoWired) return null;
+  root.dataset.tscCardUndoWired = "1";
+  const button = root.querySelector("[data-tsc-undo-damage]");
+  const refresh = () => {
+    const source = game.messages.get(button.dataset.messageId);
+    const target = resolve(button.dataset.targetUuid);
+    const actor = target?.actor ?? target;
+    const rec = source && actor ? damageReceiptOf(source, actor, Number(button.dataset.rollIndex)) : null;
+    button.disabled = !game.user.isGM || !rec || rec.undone || !rec.undoable || rec.shipUuid !== actor?.uuid;
+  };
+  const onClick = async (event) => {
+    if (!event.target.closest?.("[data-tsc-undo-damage]")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    try {
+      await send("undoToolbeltDamage", {
+        messageId: button.dataset.messageId,
+        targetUuid: button.dataset.targetUuid,
+        rollIndex: Number(button.dataset.rollIndex)
+      });
+      ui.notifications.info(T("SF2eTSC.toolbelt.damageUndone"));
+    } catch (error) {
+      ui.notifications.warn(error.message);
+    }
+    refresh();
+  };
+  root.addEventListener("click", onClick, true);
+  refresh();
+  return {
+    refresh,
+    close() {
+      root.removeEventListener("click", onClick, true);
+      delete root.dataset.tscCardUndoWired;
+    }
+  };
+}
+
 export function registerToolbeltDamage() {
   registerToolbeltDamageService();
   if (!moduleActive("pf2e-toolbelt")) return;
@@ -185,8 +227,13 @@ export function registerToolbeltDamage() {
   Hooks.on("renderChatMessageHTML", (message, html) => {
     sweep();
     const root = html instanceof HTMLElement ? html : html?.[0];
-    if (!root || !message.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage || message.flags?.[MODULE_ID]?.autoAppliedDamage)
+    if (!root) return;
+    if (root.querySelector("[data-tsc-undo-damage]")) {
+      const cardBinding = wireCardUndo(root);
+      if (cardBinding) roots.set(root, { binding: cardBinding, messageId: message.id });
       return;
+    }
+    if (!message.isDamageRoll || message.flags?.[MODULE_ID]?.attackCardDamage || message.flags?.[MODULE_ID]?.autoAppliedDamage) return;
     const binding = wireToolbeltDamage(message, root);
     if (binding) roots.set(root, { binding, messageId: message.id });
   });

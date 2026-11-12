@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installFoundryMock, loadContentFromDisk, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, loadContentFromDisk, makeShip, makeCharacter, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import { computeStarshipDamagePacket } from "../../scripts/engine/damage-packet.mjs";
+import { createActorCopy } from "../../scripts/combat/copies.mjs";
 import {
   applyToolbeltDamage,
   undoToolbeltDamage,
@@ -304,4 +305,53 @@ test("Toolbelt damage undo is GM-only", async () => {
   s.actor.owners.push(player.id);
   await assert.rejects(undoToolbeltDamage({ user: player, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } }));
   assert.equal(readStarship(s.actor).sp.value, 4);
+});
+
+test("damage undo blocks a repair landing before the draft load and a turn advance", async () => {
+  const s = await scenario();
+  await s.apply();
+  await patchStarship(s.actor, (d) => {
+    d.sp.value = 6;
+  });
+  await assert.rejects(
+    undoToolbeltDamage({ user: game.user, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } }),
+    /changed|изменил/i
+  );
+  const c = await scenario();
+  const combat = makeStarshipCombat();
+  await c.apply();
+  combat.round++;
+  await assert.rejects(
+    undoToolbeltDamage({ user: game.user, payload: { messageId: c.message.id, targetUuid: c.token.uuid, rollIndex: 0 } }),
+    /changed|изменил/i
+  );
+});
+
+test("copies do not inherit damage receipts and cannot undo the source hit", async () => {
+  const s = await scenario();
+  await s.apply();
+  const copy = await createActorCopy(s.actor, { name: "Copy" });
+  assert.equal(copy.flags[MODULE_ID].chatDamageApplications, undefined);
+  await assert.rejects(undoToolbeltDamage({ user: game.user, payload: { messageId: s.message.id, targetUuid: copy.uuid, rollIndex: 0 } }));
+  assert.equal(readStarship(s.actor).sp.value, 4);
+});
+
+test("pruned actor receipts disable undo even if the chat receipt survives", async () => {
+  const s = await scenario();
+  await s.apply();
+  s.actor.flags[MODULE_ID][CHAT_DAMAGE_FLAG] = [];
+  assert.equal(hasDamageReceipt(s.message, s.actor, 0), true);
+  assert.equal(damageReceiptOf(s.message, s.actor, 0), null);
+});
+
+test("the post-application damage card carries the undo button only for non-critical hits", async () => {
+  const s = await scenario();
+  await s.apply();
+  const card = game.messages.contents.at(-1);
+  assert.ok(card.content.includes("data-tsc-undo-damage"));
+  assert.ok(card.content.includes(s.message.id));
+  const crit = await scenario({ sp: 0, parts: [{ amount: 40, type: "piercing" }] });
+  await crit.apply({ mode: "hull" });
+  const critCard = game.messages.contents.at(-1);
+  assert.ok(!critCard.content.includes("data-tsc-undo-damage"));
 });

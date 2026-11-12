@@ -4,7 +4,7 @@ import { installFoundryMock, makeShip, makeStarshipCombat } from "../helpers/fou
 import { MODULE_ID as M } from "../../scripts/constants.mjs";
 import { readStarship, patchStarship, writeStarship } from "../../scripts/starship/starship-state.mjs";
 import { historyEntries, reversible, snapshot, historySummary } from "../../scripts/history/history.mjs";
-import { makeEffect, pruneExpired } from "../../scripts/starship/effects.mjs";
+import { makeEffect, pruneExpired, effectModifiers } from "../../scripts/starship/effects.mjs";
 import { sanitizeTiming, timingExpired, advanceEffects } from "../../scripts/starship/effect-timing.mjs";
 import { uiStateKey, restoreUiState, saveUiState, filterRows } from "../../scripts/ui/client-ui.mjs";
 import { registerSettings } from "../../scripts/settings.mjs";
@@ -372,4 +372,11 @@ test("shared history store fails closed and never reads its records", async () =
   const store = game.journal.get(settings.get("historyStoreId"));
   store.ownership.p1 = 2;
   assert.equal(historyEntries().length, 0);
+});
+
+test("effects without modifiers do not crash modifier aggregation", () => {
+  assert.deepEqual(effectModifiers([{ id: "e", slug: "e" }], "ac"), []);
+  assert.deepEqual(effectModifiers([{ id: "e", slug: "e", modifiers: [{ selector: "ac", value: 1 }] }], "ac"), [
+    { selector: "ac", value: 1, slug: "e" }
+  ]);
 });

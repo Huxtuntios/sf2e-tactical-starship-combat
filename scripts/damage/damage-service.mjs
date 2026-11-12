@@ -19,7 +19,8 @@ export async function applyDamageInDraft(
     nonlethal = false,
     source = null,
     attackLine = null,
-    silent = false
+    silent = false,
+    undoRef = null
   }
 ) {
   draft.auditReason = source || attackLine || damageType;
@@ -87,6 +88,6 @@ export async function applyDamageInDraft(
     if (draft.combat) draft.afterCommit(() => Initiative.enterCompromised(draft.combat, actor));
   }
   if (result.destroyed) draft.event(HOOK_EVENTS.destroyed, actor);
-  if (!silent) draft.afterCommit(() => postDamageCard({ actor, source, result, attackLine }));
+  if (!silent) draft.afterCommit(() => postDamageCard({ actor, source, result, attackLine, undoRef }));
   return result;
 }

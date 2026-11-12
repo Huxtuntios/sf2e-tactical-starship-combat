@@ -88,7 +88,7 @@ export function replaceStationBoost(effects, effect) {
 
 /** Effects that apply a given selector. */
 export function effectModifiers(effects, selector) {
-  return effects.flatMap((e) => e.modifiers.filter((m) => m.selector === selector).map((m) => ({ ...m, slug: e.slug })));
+  return effects.flatMap((e) => (e.modifiers ?? []).filter((m) => m.selector === selector).map((m) => ({ ...m, slug: e.slug })));
 }
 export function hasCondition(effects, condition) {
   return effects.some((e) => !e.against && e.conditions?.includes(condition));

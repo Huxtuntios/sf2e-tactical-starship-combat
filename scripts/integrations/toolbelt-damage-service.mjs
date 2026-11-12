@@ -1,12 +1,12 @@
 import { MODULE_ID } from "../constants.mjs";
 import { registerHandler } from "../socket.mjs";
 import { T, fromUuidSafe, moduleActive } from "../utils/foundry.mjs";
-import { isStarship, readStarship } from "../starship/starship-state.mjs";
+import { isStarship } from "../starship/starship-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
-import { equalState, snapshot } from "../history/history.mjs";
+import { combatGuard, equalState, snapshot } from "../history/history.mjs";
 import { nativeSystemId } from "../utils/system.mjs";
 
 const queues = new Map();
@@ -24,10 +24,6 @@ const vitalsOf = (d) => ({
   inoperable: d.inoperable,
   destroyed: d.destroyed
 });
-const combatGuardOf = () => {
-  const c = activeStarshipCombat();
-  return c ? { id: c.id, round: c.round, turn: c.turn } : null;
-};
 // Отмена допустима только если применение не перевело корабль в критическое состояние.
 const damageUndoable = (result) =>
   !result.becameCompromised &&
@@ -122,10 +118,12 @@ export async function applyToolbeltDamage({ user, payload }) {
         traits,
         criticalHit,
         nonlethal: traits.includes("nonlethal"),
-        source: `${T("SF2eTSC.toolbelt.source")}: ${message.id} (${parts.map((part) => `${part.amount} ${part.type}`).join(" + ")})`
+        source: `${T("SF2eTSC.toolbelt.source")}: ${message.id} (${parts.map((part) => `${part.amount} ${part.type}`).join(" + ")})`,
+        undoRef: { messageId: message.id, rollIndex: payload.rollIndex, targetUuid: payload.targetUuid }
       });
       const receipt = {
         key,
+        shipUuid: actor.uuid,
         mode: payload.mode,
         by: user.id,
         shield: result.shieldDamage,
@@ -133,7 +131,7 @@ export async function applyToolbeltDamage({ user, payload }) {
         undoable: damageUndoable(result),
         undone: false,
         after: vitalsOf(entry.data),
-        guard: combatGuardOf()
+        guard: combatGuard()
       };
       entry.writeOptions.extra = { [`flags.${MODULE_ID}.${CHAT_DAMAGE_FLAG}`]: [...records, receipt].slice(-100) };
       await draft.commit();
@@ -154,13 +152,10 @@ export async function applyToolbeltDamage({ user, payload }) {
   return task;
 }
 
+/** Только actor-side квитанция: chat-fallback переживает pruning, но отмена по нему невозможна. */
 export function damageReceiptOf(message, actor, index) {
   const key = damageApplicationKey(message.id, index);
-  return (
-    (actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? []).find((r) => r.key === key) ??
-    message.flags?.[MODULE_ID]?.damageReceipts?.[damageReceiptKey(actor.uuid, index)] ??
-    null
-  );
+  return (actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? []).find((r) => r.key === key) ?? null;
 }
 
 /** Точечная отмена одного применения урона: только суммы квитанции, без критических состояний. */
@@ -183,13 +178,16 @@ export async function undoToolbeltDamage({ user, payload }) {
       const records = actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? [];
       const rec = records.find((r) => r.key === key);
       if (!rec) rejectDamage("unsupported");
+      if (rec.shipUuid !== actor.uuid) rejectDamage("unsupported");
       if (rec.undone) rejectDamage("alreadyUndone");
       if (!rec.undoable) rejectDamage("undoUnsafe");
-      if (!equalState(vitalsOf(readStarship(actor)), rec.after) || !equalState(combatGuardOf(), rec.guard)) rejectDamage("undoConflict");
       const draft = new Draft(activeStarshipCombat(), { trackCombat: false });
       const entry = await draft.ship(actor.uuid);
+      // Сверяем с загруженным draft: ремонт/ход, пришедшие во время загрузки, должны блокировать, а не становиться новой базой.
+      if (!equalState(vitalsOf(entry.data), rec.after) || !equalState(combatGuard(), rec.guard)) rejectDamage("undoConflict");
       entry.writeOptions = {
         expected: snapshot(entry.data),
+        expectedCombat: rec.guard,
         extra: { [`flags.${MODULE_ID}.${CHAT_DAMAGE_FLAG}`]: records.map((r) => (r.key === key ? { ...r, undone: true } : r)) }
       };
       entry.data.sp.value = Math.min(entry.data.sp.max, entry.data.sp.value + rec.shield);

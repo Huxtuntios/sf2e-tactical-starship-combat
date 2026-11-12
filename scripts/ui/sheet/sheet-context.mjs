@@ -184,7 +184,8 @@ export async function buildSheetContext(sheet) {
       timingText: effectCaption(e),
       sustain: e.timing?.sustain,
       condition: e.timing?.mode === "condition",
-      text: e.modifiers.map((m) => `${m.selector} ${m.value > 0 ? "+" : ""}${m.value}`).join(", ") || (e.conditions ?? []).join(", ")
+      text:
+        (e.modifiers ?? []).map((m) => `${m.selector} ${m.value > 0 ? "+" : ""}${m.value}`).join(", ") || (e.conditions ?? []).join(", ")
     })),
     log: tsc
       ? tsc.log
