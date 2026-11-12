@@ -1,9 +1,10 @@
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { installFoundryMock, loadContentFromDisk, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, loadContentFromDisk, makeShip, makeCharacter, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import { executeDroneBlockSoft } from "../../scripts/actions/drone-block.mjs";
-import { readStarship } from "../../scripts/starship/starship-state.mjs";
+import { rebaseTsc } from "../../scripts/actions/draft.mjs";
+import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
 import { Content } from "../../scripts/content/loader.mjs";
 
 async function setup(extra = {}) {
@@ -157,4 +158,134 @@ test("the extra situational-modifier dialog is off by default", async () => {
   }
   assert.equal(captured.nativeModifierDialog.type, Boolean);
   assert.equal(captured.nativeModifierDialog.default, false);
+});
+
+test("rebaseTsc merges disjoint combat edits and appends log entries", async () => {
+  installFoundryMock();
+  const base = {
+    objects: [
+      { key: "a", zone: 1 },
+      { key: "b", zone: 2 }
+    ],
+    log: [{ t: 1, text: "old" }],
+    knowledge: {}
+  };
+  const mine = {
+    objects: [
+      { key: "a", zone: 5 },
+      { key: "b", zone: 2 }
+    ],
+    log: [
+      { t: 1, text: "old" },
+      { t: 2, text: "mine" }
+    ],
+    knowledge: { k1: { model: true } }
+  };
+  const current = {
+    objects: [
+      { key: "a", zone: 1 },
+      { key: "b", zone: 9 }
+    ],
+    log: [
+      { t: 1, text: "old" },
+      { t: 3, text: "theirs" }
+    ],
+    knowledge: {}
+  };
+  const out = rebaseTsc(base, mine, current);
+  assert.equal(out.objects.find((o) => o.key === "a").zone, 5);
+  assert.equal(out.objects.find((o) => o.key === "b").zone, 9);
+  assert.deepEqual(
+    out.log.map((l) => l.text),
+    ["old", "theirs", "mine"]
+  );
+  assert.deepEqual(out.knowledge.k1, { model: true });
+});
+
+test("rebaseTsc throws when both sides edited the same entity", async () => {
+  installFoundryMock();
+  const base = { objects: [{ key: "a", zone: 1 }] };
+  const mine = { objects: [{ key: "a", zone: 5 }] };
+  const current = { objects: [{ key: "a", zone: 9 }] };
+  assert.throws(() => rebaseTsc(base, mine, current));
+});
+
+test("removeStation keeps mine records whose map cleanup failed (live contact)", async () => {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const { registerShipHandlers } = await import("../../scripts/starship/ship-service.mjs");
+  const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
+  registerShipHandlers();
+  const ship = makeShip({
+    id: "s",
+    name: "Ship",
+    stations: [{ id: "dc", type: "drone-console", grade: "commercial", helmedBy: null }]
+  });
+  const combat = makeStarshipCombat({
+    objects: [
+      {
+        key: "Actor.hz",
+        actorUuid: "Actor.hz",
+        type: "hazard",
+        name: "Mine",
+        zone: 2,
+        mineRef: { shipUuid: ship.uuid, droneId: "d1", mineId: "m1" }
+      }
+    ]
+  });
+  await patchStarship(ship, (d) => {
+    d.drones = [
+      {
+        id: "d1",
+        ref: "pyrotechnics-drone",
+        stationId: "dc",
+        tscVersion: 1,
+        deployed: true,
+        mines: [{ id: "m1", state: "removed", zone: 2, combatId: combat.id }]
+      }
+    ];
+  });
+  let reply;
+  await dispatchSocketMessage(
+    { kind: "request", type: "removeStation", requestId: "x", payload: { shipUuid: ship.uuid, stationId: "dc" } },
+    "gm",
+    { users: game.users, selfId: "gm", isActiveGM: true, clientEvents: new Map(), emit: (r) => (reply = r) }
+  );
+  assert.equal(reply.ok, false);
+  assert.equal(readStarship(ship).drones.length, 1);
+  assert.equal(readStarship(ship).stations.length, 1);
+});
+
+test("removeStation deletes resolved mine records once their projection is gone", async () => {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const { registerShipHandlers } = await import("../../scripts/starship/ship-service.mjs");
+  const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
+  registerShipHandlers();
+  const ship = makeShip({
+    id: "s",
+    name: "Ship",
+    stations: [{ id: "dc", type: "drone-console", grade: "commercial", helmedBy: null }]
+  });
+  const combat = makeStarshipCombat({ objects: [] });
+  await patchStarship(ship, (d) => {
+    d.drones = [
+      {
+        id: "d1",
+        ref: "pyrotechnics-drone",
+        stationId: "dc",
+        tscVersion: 1,
+        deployed: true,
+        mines: [{ id: "m1", state: "removed", zone: 2, combatId: combat.id }]
+      }
+    ];
+  });
+  let reply;
+  await dispatchSocketMessage(
+    { kind: "request", type: "removeStation", requestId: "x", payload: { shipUuid: ship.uuid, stationId: "dc" } },
+    "gm",
+    { users: game.users, selfId: "gm", isActiveGM: true, clientEvents: new Map(), emit: (r) => (reply = r) }
+  );
+  assert.equal(reply.ok, true);
+  assert.deepEqual(readStarship(ship).drones, []);
 });

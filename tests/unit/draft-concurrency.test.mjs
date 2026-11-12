@@ -50,7 +50,7 @@ test("stale ship draft refuses to overwrite a saved unrelated edit", async () =>
   assert.equal(readStarship(actor).sp.value, 20);
 });
 
-test("stale map draft fails preflight before writing ship changes", async () => {
+test("stale map draft rebases a disjoint concurrent movement and still saves ship changes", async () => {
   const { actor, combat } = setup();
   const draft = new Draft(combat);
   (await draft.ship(actor.uuid)).data.sp.value = 10;
@@ -59,12 +59,34 @@ test("stale map draft fails preflight before writing ship changes", async () => 
     state.objects[1].zone = 4;
     return state;
   });
+  await draft.commit();
+  assert.equal(readStarship(actor).sp.value, 10);
+  assert.deepEqual(
+    getTsc(combat).objects.map((object) => object.zone),
+    [2, 4]
+  );
+});
+
+test("concurrent edit of the same map object refuses commit before ship writes", async () => {
+  const { actor, combat } = setup();
+  const draft = new Draft(combat);
+  (await draft.ship(actor.uuid)).data.sp.value = 10;
+  draft.tsc.objects[0].zone = 2;
+  let callbacks = 0;
+  draft.afterCommit(() => {
+    callbacks++;
+  });
+  await mutateTsc(combat, (state) => {
+    state.objects[0].zone = 9;
+    return state;
+  });
   await assert.rejects(draft.commit());
   assert.equal(readStarship(actor).sp.value, 20);
   assert.deepEqual(
     getTsc(combat).objects.map((object) => object.zone),
-    [1, 4]
+    [9, 3]
   );
+  assert.equal(callbacks, 0);
 });
 
 test("unchanged draft map does not overwrite a newer movement", async () => {
@@ -98,7 +120,7 @@ test("queued ship write rechecks draft snapshot after preflight", async () => {
   assert.equal(readStarship(actor).sp.value, 20);
 });
 
-test("queued map write rechecks draft snapshot and suppresses success callbacks", async () => {
+test("queued map write merges a disjoint concurrent movement and runs success callbacks", async () => {
   const { combat } = setup();
   const draft = new Draft(combat);
   draft.tsc.objects[0].zone = 2;
@@ -112,13 +134,38 @@ test("queued map write rechecks draft snapshot and suppresses success callbacks"
     return state;
   });
   await gate.entered;
+  const commit = draft.commit();
+  gate.release();
+  await earlier;
+  await commit;
+  assert.deepEqual(
+    getTsc(combat).objects.map((object) => object.zone),
+    [2, 4]
+  );
+  assert.equal(callbacks, 1);
+});
+
+test("queued map write conflicting on the same object rejects and suppresses success callbacks", async () => {
+  const { combat } = setup();
+  const draft = new Draft(combat);
+  draft.tsc.objects[0].zone = 2;
+  let callbacks = 0;
+  draft.afterCommit(() => {
+    callbacks++;
+  });
+  const gate = blockUpdate(combat);
+  const earlier = mutateTsc(combat, (state) => {
+    state.objects[0].zone = 9;
+    return state;
+  });
+  await gate.entered;
   const rejected = assert.rejects(draft.commit());
   gate.release();
   await earlier;
   await rejected;
   assert.deepEqual(
     getTsc(combat).objects.map((object) => object.zone),
-    [1, 4]
+    [9, 3]
   );
   assert.equal(callbacks, 0);
 });
