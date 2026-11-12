@@ -1,6 +1,7 @@
 import { MODULE_ID, DATA_VERSION, STARSHIP_TAG } from "../constants.mjs";
 import { stationGradeForLevel } from "../engine/advancement.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
+import { DAMAGE_GROUPS, normalizeDamageType, normalizeIwr } from "../engine/damage.mjs";
 import { linkInline } from "./inline-links.mjs";
 import { schemaStamp } from "./action-docs.mjs";
 import { nativeSystemId } from "../utils/system.mjs";
@@ -112,6 +113,46 @@ export function stationsFromContent(ship) {
   return out;
 }
 
+const CONTENT_DAMAGE_TYPES = new Set(Object.values(DAMAGE_GROUPS).flat());
+const CONTENT_IMMUNITY_TYPES = new Set([...CONTENT_DAMAGE_TYPES, ...STARSHIP_IMMUNITIES, "glitching", "sleep"]);
+
+/** Only plain damage-type/value entries are automated; qualified or unknown prose stays in the source notes. */
+function contentDamageValues(text) {
+  const entries = [];
+  for (const part of String(text ?? "").split(",")) {
+    const match = part.trim().match(/^([a-z]+)\s+(\d+)$/i);
+    if (!match) return {};
+    const type = normalizeDamageType(match[1]);
+    const value = Number(match[2]);
+    if (!CONTENT_DAMAGE_TYPES.has(type) || !Number.isSafeInteger(value) || value <= 0) return {};
+    entries.push({ type, value });
+  }
+  return normalizeIwr(entries);
+}
+
+function contentImmunities(text) {
+  const source = String(text ?? "").trim();
+  if (!source) return [...STARSHIP_IMMUNITIES];
+  // Malformed or nested qualifiers cannot expose their exception names as explicit immunities.
+  if (/[()]/.test(source.replace(/\([^()]*\)/g, ""))) return [];
+  const entries = [];
+  // Keep commas inside the one supported parenthetical clause together.
+  for (const part of source.split(/,(?![^()]*\))/)) {
+    const term = part.trim();
+    const base = term.match(/^starship\s+immunities(?:\s*\(except\s+([^()]+)\))?$/i);
+    if (base) {
+      const exceptions = base[1] ? base[1].split(/,|\s+and\s+/i).map(normalizeDamageType) : [];
+      // An unrecognised exception makes the whole term manual, not blanket immunity.
+      if (exceptions.every((type) => STARSHIP_IMMUNITIES.includes(type)))
+        entries.push(...STARSHIP_IMMUNITIES.filter((type) => !exceptions.includes(type)));
+    } else {
+      const type = normalizeDamageType(term);
+      if (CONTENT_IMMUNITY_TYPES.has(type)) entries.push(type);
+    }
+  }
+  return normalizeIwr(entries, false);
+}
+
 /** Hull/shield/stat block for the starship flag from a statblock entry. */
 export function starshipFlagFromContent(ship, role = "npc") {
   return {
@@ -136,9 +177,9 @@ export function starshipFlagFromContent(ship, role = "npc") {
     destroyed: false,
     heading: "left",
     fortify: ship.fortify ?? 0,
-    immunities: [...STARSHIP_IMMUNITIES],
-    resistances: {},
-    weaknesses: {},
+    immunities: contentImmunities(ship.immunities),
+    resistances: contentDamageValues(ship.resistances),
+    weaknesses: contentDamageValues(ship.weaknesses),
     traits: ship.traits ?? [],
     skills: ship.skills ?? {},
     sp: { value: ship.sp ?? 0, max: ship.sp ?? 0 },

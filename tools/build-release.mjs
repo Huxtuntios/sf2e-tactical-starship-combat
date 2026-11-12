@@ -16,7 +16,6 @@ const RUNTIME_PATHS = [
   "assets",
   "data",
   "lang",
-  "packs",
   "scripts",
   "styles",
   "templates",
@@ -111,6 +110,7 @@ export function buildRelease({
   }
   const entries = {};
   for (const relative of RUNTIME_PATHS) collect(root, relative, entries, packManifests);
+  for (const pack of manifest.packs) collect(root, pack.path, entries, packManifests);
   for (const pack of manifest.packs) {
     const packPath = posix(pack.path);
     const current = entries[`${packPath}/CURRENT`];

@@ -131,15 +131,24 @@ async function releaseStation({ user, payload }) {
   const ship = await shipFrom(payload.shipUuid);
   const data = readStarship(ship);
   const station = payload.stationId ? stationOf(data, payload.stationId) : data.stations.find((s) => s.helmedBy === payload.crewUuid);
-  if (!station) return false;
+  if (!station?.helmedBy) return false;
   const occupantUuid = station.helmedBy;
   const crewActor = await fromUuidSafe(occupantUuid);
   const crewEntry = data.crew.find((member) => member.actorUuid === occupantUuid);
   const controlsOccupant = crewActor && (canControlCrewActor(user, crewActor) || (!!crewEntry?.userId && crewEntry.userId === user.id));
   if (!(user.isGM || can(user, ship, "assignCrew") || controlsOccupant)) throw new Error(T("SF2eTSC.errors.noPermission"));
-  await patchStarship(ship, (d) => {
-    releaseStationIn(d, station.id);
+  const released = await patchStarship(ship, async (d) => {
+    const current = stationOf(d, station.id);
+    if (!current?.helmedBy) return false;
+    const currentActor = await fromUuidSafe(current.helmedBy);
+    const currentEntry = d.crew.find((member) => member.actorUuid === current.helmedBy);
+    const controlsCurrent =
+      (currentActor && canControlCrewActor(user, currentActor)) || (!!currentEntry?.userId && currentEntry.userId === user.id);
+    if (!(user.isGM || can(user, ship, "assignCrew") || controlsCurrent)) throw new Error(T("SF2eTSC.errors.noPermission"));
+    releaseStationIn(d, current.id);
+    return true;
   });
+  if (!released) return false;
   Hooks.callAll(HOOK_EVENTS.crewChanged, ship, null);
   return true;
 }

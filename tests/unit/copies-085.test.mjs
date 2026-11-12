@@ -1,10 +1,51 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyName, expandEntries, clampCount } from "../../scripts/combat/copies.mjs";
+import { copyName, expandEntries, clampCount, createActorCopy } from "../../scripts/combat/copies.mjs";
+import { MODULE_ID as M } from "../../scripts/constants.mjs";
+import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
+import { historyEntries, undoChange } from "../../scripts/history/history.mjs";
 import { seekDC } from "../../scripts/engine/detection.mjs";
 import { stationOptions } from "../../scripts/crew/station-options.mjs";
 import { normalizePreset, savePreset, listPresets, deletePreset } from "../../scripts/combat/presets.mjs";
-import { installFoundryMock } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, makeShip } from "../helpers/foundry-mock.mjs";
+
+for (const ownership of [undefined, { default: 0, p2: 3 }]) {
+  test(`Actor copies strip only the source Undo receipt and can Undo independently (${ownership ? "custom" : "inherited"} ownership)`, async () => {
+    installFoundryMock();
+    const source = makeShip({ id: "copy-source", name: "Source", owners: ["p1"] });
+    source.flags.otherModule = { historyUndoReceipt: "unrelated receipt", custom: { value: 7 } };
+    source.flags[M].custom = { value: 42 };
+    source.system.details = { biography: "preserved" };
+    await patchStarship(source, (data) => {
+      data.heading = "left";
+    });
+    const sourceEntry = historyEntries(source.uuid)[0];
+    await undoChange(sourceEntry.id);
+    const before = source.toObject();
+    assert.equal(before.flags[M].historyUndoReceipt.shipUuid, source.uuid);
+    const flags = { sensorContactInstance: { combatId: "combat", sourceUuid: source.uuid, privateContact: false } };
+    const copy = await createActorCopy(source, { name: "Independent copy", ownership, flags });
+    assert.notEqual(copy.uuid, source.uuid);
+    assert.equal(Object.hasOwn(copy.flags[M], "historyUndoReceipt"), false);
+    const expectedFlags = structuredClone(before.flags);
+    delete expectedFlags[M].historyUndoReceipt;
+    Object.assign(expectedFlags[M], { tacticalCopyOf: source.uuid, ...flags });
+    assert.deepEqual(copy.flags, expectedFlags, "all other source flags and caller flags survive");
+    assert.deepEqual(copy.ownership, ownership ?? before.ownership);
+    assert.deepEqual(copy.system, before.system);
+    assert.equal(copy.prototypeToken.name, "Independent copy");
+    await patchStarship(copy, (data) => {
+      data.heading = "left";
+    });
+    const copyEntry = historyEntries(copy.uuid)[0];
+    assert.equal(copyEntry.flags[M].history.shipUuid, copy.uuid);
+    await undoChange(copyEntry.id);
+    assert.equal(copyEntry.flags[M].history.undone, true);
+    assert.equal(readStarship(copy).heading, "right");
+    assert.equal(copy.flags[M].historyUndoReceipt.shipUuid, copy.uuid);
+    assert.deepEqual(source.toObject(), before, "copy creation and Undo never change source data or receipt");
+  });
+}
 
 test("copy names keep the level suffix", () => {
   assert.equal(copyName("Corsair (Lv 3)", 2), "Corsair #2 (Lv 3)");

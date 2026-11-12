@@ -1,11 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
-import { addPrivateContact, privateContacts, changePrivateContact } from "../../scripts/sensor/private-contacts.mjs";
+import { addPrivateContact, addPrivateCustom, privateContacts, changePrivateContact } from "../../scripts/sensor/private-contacts.mjs";
 import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { viewFor } from "../../scripts/engine/sensor-ops.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
+import { sensorUpdate } from "../../scripts/sensor/map-handlers.mjs";
+import { deleteSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
+import { addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
+import { T } from "../../scripts/utils/foundry.mjs";
 
 function setup() {
   const ctx = installFoundryMock();
@@ -148,4 +152,158 @@ test("a newly exposed Actor is not published by the staged reveal", async () => 
   await assert.rejects(changePrivateContact(combat, obj.key, "reveal"));
   assert.equal(getTsc(combat).objects.length, 0);
   assert.equal(privateContacts(combat.id).length, 1);
+});
+
+for (const detection of ["undetected", "hidden", "observed"]) {
+  test(`resize refuses to strand ordinary ${detection} private contacts without writes`, async () => {
+    const { enemy, combat } = setup();
+    await addPrivateContact(combat, enemy, 12);
+    const { key } = privateContacts(combat.id)[0];
+    await changePrivateContact(combat, key, "detect", detection);
+    const before = structuredClone(combat.flags);
+    const journalBefore = structuredClone(game.journal.contents[0].flags);
+    const writes = globalThis.__writes.length;
+    const resize = (zones) => sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "resize", zones } });
+    await assert.rejects(resize(3), { message: T("SF2eTSC.mapDrop.invalidZone") });
+    assert.equal(globalThis.__writes.length, writes);
+    assert.deepEqual(combat.flags, before);
+    assert.deepEqual(game.journal.contents[0].flags, journalBefore);
+    await resize(20);
+    assert.equal(getTsc(combat).zones, 20);
+    assert.equal(privateContacts(combat.id)[0].zone, 12);
+    await changePrivateContact(combat, key, "move", 4);
+    const fractionalWrites = globalThis.__writes.length;
+    await assert.rejects(resize(3.9), { message: T("SF2eTSC.mapDrop.invalidZone") });
+    assert.equal(globalThis.__writes.length, fractionalWrites);
+    await changePrivateContact(combat, key, "move", 3);
+    await resize(1); // Existing reducer/normalizer clamps the requested count to three.
+    assert.equal(getTsc(combat).zones, 3);
+    assert.equal(privateContacts(combat.id)[0].zone, 3);
+    if (detection === "observed") assert.equal(getTsc(combat).objects[0].zone, 3);
+    assert.equal(game.actors.get(enemy.id), enemy);
+  });
+}
+
+test("resize protects private custom contacts with the same identity-free invalid-zone error", async () => {
+  const { combat } = setup();
+  const key = await addPrivateCustom(combat, "Secret anomaly", 12);
+  const writes = globalThis.__writes.length;
+  const resize = () => sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "resize", zones: 3 } });
+  await assert.rejects(resize(), { message: T("SF2eTSC.mapDrop.invalidZone") });
+  assert.equal(globalThis.__writes.length, writes);
+  await changePrivateContact(combat, key, "move", 3);
+  await resize();
+  assert.equal(getTsc(combat).zones, 3);
+  assert.equal(privateContacts(combat.id)[0].zone, 3);
+});
+
+test("resize with an empty private store permits shrink and growth", async () => {
+  const { combat } = setup();
+  for (const zones of [3, 20]) {
+    await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "resize", zones } });
+    assert.equal(getTsc(combat).zones, zones);
+    assert.deepEqual(privateContacts(combat.id), []);
+  }
+});
+
+async function removalSetup() {
+  const { enemy, combat } = setup();
+  const placement = await addSensorContact(combat, { source: "world", uuid: enemy.uuid, zone: 4, detection: "observed" });
+  const actor = fromUuidSync(placement.actorUuid);
+  await addSensorObjectToInitiative(combat.id, placement.key);
+  const entry = combat.combatants.find((c) => c.actorId === actor.id);
+  return { enemy, combat, actor, entry, key: placement.key, journal: game.journal.contents[0] };
+}
+
+for (const target of ["combatant", "actor", "journal", "projection"]) {
+  for (const mode of ["reject", "silentVeto", "lostGM"]) {
+    if (target === "journal" && mode !== "reject") continue;
+    if (target === "projection" && mode !== "lostGM") continue;
+    test(`private removal retains its retry reference on ${target} ${mode}`, async () => {
+      const env = await removalSetup();
+      const { enemy, combat, actor, entry, key, journal } = env;
+      const events = [];
+      const restores = [];
+      let faultAt;
+      for (const [doc, method, kind] of [
+        [combat, "update", "projection"],
+        [combat, "deleteEmbeddedDocuments", "combatant"],
+        [actor, "delete", "actor"],
+        [journal, "update", "journal"]
+      ]) {
+        const original = doc[method].bind(doc);
+        restores.push(() => (doc[method] = original));
+        doc[method] = async (...args) => {
+          events.push(kind);
+          if (kind === target) {
+            faultAt = events.length;
+            if (mode === "reject") throw new Error("injected removal failure");
+            if (mode === "silentVeto") return doc;
+          }
+          const result = await original(...args);
+          if (kind === target && mode === "lostGM") game.user.active = false;
+          return result;
+        };
+      }
+      await assert.rejects(changePrivateContact(combat, key, "remove"));
+      assert.equal(events.length, faultAt, "no next write after failure or GM loss");
+      assert.equal(privateContacts(combat.id)[0].actorUuid, actor.uuid);
+      assert.equal(privateContacts(combat.id)[0].key, key);
+      assert.equal(game.actors.get(enemy.id), enemy);
+      if (target === "combatant" || target === "projection") assert.equal(game.actors.get(actor.id), actor);
+      if (target === "combatant" && mode !== "lostGM") assert.equal(combat.combatants.get(entry.id), entry);
+      for (const restore of restores) restore();
+      game.user.active = true;
+      await changePrivateContact(combat, key, "remove");
+      assert.deepEqual(privateContacts(combat.id), []);
+      assert.deepEqual(getTsc(combat).objects, []);
+      assert.equal(game.actors.has(actor.id), false);
+      assert.equal(combat.combatants.has(entry.id), false);
+      assert.equal(game.actors.get(enemy.id), enemy);
+      assert.equal(
+        globalThis.__writes.some((write) => write.doc === enemy.uuid && write.delete),
+        false
+      );
+    });
+  }
+}
+
+test("missing instance retry removes only known owned Combatants and preserves source and manual entries", async () => {
+  const { enemy, combat, actor, entry, key } = await removalSetup();
+  const [owned, manual, foreign] = await combat.createEmbeddedDocuments("Combatant", [
+    { actorId: actor.id, flags: { [MODULE_ID]: { sensorContactInstance: { combatId: combat.id, actorUuid: actor.uuid } } } },
+    { actorId: actor.id },
+    { actorId: actor.id, flags: { [MODULE_ID]: { sensorMapInitiative: { combatId: "other-combat" } } } }
+  ]);
+  await actor.delete();
+  await changePrivateContact(combat, key, "remove");
+  assert.equal(combat.combatants.has(entry.id), false);
+  assert.equal(combat.combatants.has(owned.id), false);
+  assert.equal(combat.combatants.get(manual.id), manual);
+  assert.equal(combat.combatants.get(foreign.id), foreign);
+  assert.deepEqual(privateContacts(combat.id), []);
+  assert.equal(game.actors.get(enemy.id), enemy);
+});
+
+test("private removal never deletes a direct source Actor or its unowned Combatant", async () => {
+  const { enemy, combat } = setup();
+  await addPrivateContact(combat, enemy, 4);
+  const { key } = privateContacts(combat.id)[0];
+  const [manual] = await combat.createEmbeddedDocuments("Combatant", [{ actorId: enemy.id }]);
+  await changePrivateContact(combat, key, "remove");
+  assert.equal(game.actors.get(enemy.id), enemy);
+  assert.equal(combat.combatants.get(manual.id), manual);
+  assert.deepEqual(privateContacts(combat.id), []);
+});
+
+test("instance cleanup does not delete foreign, compendium or synthetic Actors", async () => {
+  for (const context of ["foreign", "compendium", "synthetic"]) {
+    const { enemy, combat } = setup();
+    enemy.flags[MODULE_ID].sensorContactInstance = { combatId: context === "foreign" ? "other-combat" : combat.id };
+    if (context === "compendium") enemy.pack = "source-pack";
+    if (context === "synthetic") enemy.isToken = true;
+    await deleteSensorActorInstance(combat, enemy.uuid);
+    assert.equal(game.actors.get(enemy.id), enemy);
+    assert.equal(enemy.deleted, undefined);
+  }
 });

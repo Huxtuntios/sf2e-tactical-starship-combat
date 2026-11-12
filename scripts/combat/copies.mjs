@@ -62,6 +62,8 @@ export async function createActorCopy(
       ...structuredClone(flags)
     }
   };
+  // Undo recovery proof belongs to the source Actor's identity, never an independent copy.
+  delete data.flags[MODULE_ID].historyUndoReceipt;
   if (data.prototypeToken) data.prototypeToken.name = name;
   const create = deps.createActor ?? ((d) => (globalThis.Actor?.implementation ?? globalThis.Actor).create(d, { keepId: false }));
   return create(data);

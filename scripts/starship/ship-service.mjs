@@ -752,11 +752,8 @@ export function registerShipHandlers() {
     if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
     const combat = activeStarshipCombat();
     if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
-    const draft = new Draft(combat);
-    const { moveObject } = await import("../engine/sensor-ops.mjs");
-    draft.tsc = moveObject(draft.tsc, payload.key, payload.zone);
-    await draft.commit();
-    return true;
+    const { sensorUpdate } = await import("../sensor/map-handlers.mjs");
+    return sensorUpdate({ user, payload: { combatId: combat.id, key: payload.key, zone: payload.zone, op: "move" } });
   });
 }
 

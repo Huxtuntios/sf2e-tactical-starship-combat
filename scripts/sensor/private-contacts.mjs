@@ -604,13 +604,15 @@ export async function changePrivateContact(combat, key, op, zone) {
       contact.name = zone.trim();
     } else if (op === "remove") {
       await saveProjection(combat, contact, true);
+      requireGM();
+      if (contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);
+      requireGM();
       contacts.splice(contacts.indexOf(contact), 1);
     } else throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     requireGM();
     if (storeFor(combat.id)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     await doc.update({ [`flags.${MODULE_ID}.privateSensor.contacts`]: contacts });
     requireGM();
-    if (op === "remove" && contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);
     return true;
   });
 }

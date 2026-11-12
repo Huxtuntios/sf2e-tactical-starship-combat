@@ -10,6 +10,40 @@ import { MODULE_ID } from "../../scripts/constants.mjs";
 import { applySensorOp } from "../../scripts/sensor/map-model.mjs";
 
 const empty = () => defaultSensorState({ enabled: true, zones: 12 });
+for (const failure of ["reject", "silentVeto", "mapReject"]) {
+  test(`public instance removal retains a retryable map reference after ${failure}`, async () => {
+    installFoundryMock();
+    const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+    const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+    const source = makeShip({ id: "remove-source", role: "npc" });
+    const combat = makeStarshipCombat();
+    const user = game.users.get("gm");
+    await sensorUpdate({ user, payload: { combatId: combat.id, op: "dropActor", actorUuid: source.uuid, zone: 2, publicActor: true } });
+    const object = getTsc(combat).objects[0];
+    const actor = fromUuidSync(object.actorUuid);
+    const remove = () => sensorUpdate({ user, payload: { combatId: combat.id, op: "remove", key: object.key } });
+    const doc = failure === "mapReject" ? combat : actor;
+    const method = failure === "mapReject" ? "update" : "delete";
+    const original = doc[method].bind(doc);
+    doc[method] = async () => {
+      if (failure === "silentVeto") return doc;
+      throw new Error("injected removal failure");
+    };
+    await assert.rejects(remove());
+    assert.equal(getTsc(combat).objects[0]?.actorUuid, actor.uuid);
+    assert.equal(game.actors.get(source.id), source);
+    if (failure !== "mapReject") assert.equal(game.actors.get(actor.id), actor);
+    doc[method] = original;
+    await remove();
+    assert.deepEqual(getTsc(combat).objects, []);
+    assert.equal(game.actors.has(actor.id), false);
+    assert.equal(
+      combat.combatants.some((entry) => entry.actorId === actor.id),
+      false
+    );
+    assert.equal(game.actors.get(source.id), source);
+  });
+}
 test("initial GM heading is explicit, validated and cannot overwrite a later course", () => {
   const s = { ...empty(), objects: [{ key: "ship", type: "starship", zone: 2, heading: null }] };
   assert.equal(applySensorOp(s, { op: "setHeading", key: "ship", heading: "up" }), s);

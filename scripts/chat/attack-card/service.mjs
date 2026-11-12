@@ -1,4 +1,4 @@
-import { rollTypedDamage, typedDamageFormula } from "../../rolls/typed-damage.mjs";
+import { damagePartsFromRoll, rollTypedDamage, typedDamageFormula } from "../../rolls/typed-damage.mjs";
 /**
  * Attack card: GM-side flow. declareAttack → (card buttons | Sensor Map pick) → resolveAttackCard → damage.
  * All writes happen here, on the GM, through the socket handlers registered in client.mjs.
@@ -263,7 +263,9 @@ export async function rollAttackCardDamage({ user, payload }) {
         crit: pd.crit ? ` (${T("SF2eTSC.rolls.critical")})` : ""
       })
     });
-    await updateCard(message, { damageRoll: { formula, total: roll.total, crit: !!pd.crit, by: user.id }, error: null });
+    const types = new Set(parts.map((part) => part.type));
+    const evaluated = damagePartsFromRoll(roll, types.size === 1 ? parts[0].type : null);
+    await updateCard(message, { damageRoll: { formula, total: roll.total, parts: evaluated, crit: !!pd.crit, by: user.id }, error: null });
     return { ok: true, total: roll.total };
   } finally {
     damaging.delete(message.id);
@@ -281,6 +283,21 @@ export async function applyAttackCardDamage({ user, payload }) {
   if (damaging.has(message.id)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
   damaging.add(message.id);
   try {
+    const traits = (pd.traits ?? []).map((trait) => String(trait).toLowerCase());
+    const types = new Set(pd.damageParts?.length ? pd.damageParts.map((part) => part.type) : [pd.damageType ?? "untyped"]);
+    // Old mixed cards contain only an aggregate: require a re-roll instead of assigning it to the first type.
+    if (card.damageRoll.parts == null && types.size > 1) throw new Error(T("SF2eTSC.rolls.invalidDamage"));
+    const parts = damagePartsFromRoll(
+      card.damageRoll.parts == null
+        ? { total: card.damageRoll.total }
+        : {
+            instances: Array.isArray(card.damageRoll.parts)
+              ? card.damageRoll.parts.map((part) => ({ type: part.type, total: part.amount }))
+              : []
+          },
+      card.damageRoll.parts == null ? [...types][0] : null
+    );
+    const amount = parts.reduce((sum, part) => sum + part.amount, 0);
     const target = await fromUuidSafe(pd.targetUuid);
     if (!target || !isStarship(target)) throw new Error(T("SF2eTSC.errors.needTarget"));
     const draft = new Draft(activeStarshipCombat() ?? null);
@@ -298,8 +315,8 @@ export async function applyAttackCardDamage({ user, payload }) {
             { draft, combat: draft.combat, tsc: draft.tsc, options: {}, strikeId, ship: attacker, droneBlockOnly: true },
             { uuid: pd.targetUuid, actor: target, data: entry.data },
             {
-              amount: card.damageRoll.total,
-              traits: pd.traits ?? [],
+              amount,
+              traits,
               crit: !!pd.crit,
               attackLabel: card.weapon?.name ?? card.action?.name ?? pd.source ?? ""
             }
@@ -312,7 +329,7 @@ export async function applyAttackCardDamage({ user, payload }) {
         damageApplied: true,
         damageResult: {
           manual: true,
-          amount: card.damageRoll.total,
+          amount,
           resistance: rx.resistance ?? 0,
           protocolManual: !!rx.manualDamage.protocolManual,
           appliedBy: user.id
@@ -321,11 +338,13 @@ export async function applyAttackCardDamage({ user, payload }) {
       return { ok: true, manual: true, resistance: rx.resistance ?? 0 };
     }
     const d = await applyDamageInDraft(draft, pd.targetUuid, {
-      amount: card.damageRoll.total,
+      amount,
+      parts,
       damageType: pd.damageType,
       strikeResistance: rx.resistance ?? 0,
-      traits: pd.traits ?? [],
+      traits,
       criticalHit: !!pd.crit,
+      nonlethal: traits.includes("nonlethal"),
       source: pd.source,
       silent: true
     });

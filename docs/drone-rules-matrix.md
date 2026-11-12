@@ -1,4 +1,6 @@
-# Drone Console — rules and implementation matrix (updated dev.5 audit)
+# Drone Console — rules and implementation matrix
+
+The table retains the historical dev.5 evidence audit. Later implementation notes supersede its old unsupported/manual statuses; they do not certify live compatibility. See [current limitations](known-limitations.md) and [historical tests](testing.md#historical-dev-evidence-consolidated-2026-11-11).
 
 Evidence legend: **A** = official Archives of Nethys search excerpt; **L** = existing local catalogue/action data attributed to Tech Core, not independently checked against the book; **U** = user's technical summary, not a direct official transcription; **?** = insufficient or conflicting detail; GM must decide. The four supplied AoN pages returned HTTP 403 when fetched; individual effects must not be represented as fully verified by AoN. [AoN builder](https://2e.aonsrd.com/tactical-starship-combat/builder) search excerpts independently show the three upgrade names and levels and the shield protocol's first-block sentence; another excerpt contains the Mine Deployment Shell summary. A further indexed builder excerpt confirms Deploy Starship Mine is one action with manipulate and station traits, once per round, and its same-drone/same-zone restriction. Local source references: `data/stations/stations.json`, `data/actions/station-actions.json`, `data/equipment/misc.json` and `data/equipment/upgrades.json`.
 
@@ -28,7 +30,7 @@ The provided Tech Core text confirms base Drone Block at printed p.179: the sele
 
 ## dev.5 implementation status
 
-Deploy and Retrieve are individual station actions with GM-authoritative state changes and narrow guarded Undo; their action cost is tracked at the table. Deploy Starship Mine stores a mine and checks the same-drone zone and station round constraints; it does not implement detonation or modification. Every other listed drone-specific operation and all three upgrade effects remain manual/unimplemented. The user-provided Huiji Wiki translation was accessible as a secondary cross-check, not official text; some cost glyphs were lost in extraction. See `work-in-progress-0.16.5.md` for constraints, evidence and safety details.
+Deploy and Retrieve are individual station actions with GM-authoritative state changes and narrow guarded Undo; their action cost is tracked at the table. Deploy Starship Mine stores a mine and checks the same-drone zone and station round constraints; it does not implement detonation or modification. Every other listed drone-specific operation and all three upgrade effects remain manual/unimplemented. The user-provided Huiji Wiki translation was accessible as a secondary cross-check, not official text; some cost glyphs were lost in extraction. See [historical evidence](testing.md#historical-dev-evidence-consolidated-2026-11-11) and [limitations](known-limitations.md) for constraints and safety details.
 
 ## dev.7 implementation status
 

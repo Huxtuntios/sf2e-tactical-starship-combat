@@ -1,4 +1,6 @@
-# Source audit
+# Historical source notes
+
+These inherited notes record earlier research claims, not checks performed in the 2026-11-12 audit. The local Foundry installation, full-book reading and third-party integration claims below were not revalidated here. Current pinned upstream evidence and remaining compatibility limits are recorded in [Reality Check](reality-check.md).
 
 - **SF2e 1.6.0** (compiled bundle `sf2e.mjs`, `template.json`, packs dumped with `classic-level`): no starship content exists in the system (no ships, stations, hazards, station actions); Tech Core _character_ options already present (480 equipment, 323 feats, 30 actions) are **not** duplicated. Actor types: army, familiar, hazard, loot, party, vehicle (+character, npc) — no `starship`, so flags on `vehicle`/`npc` are used. Reused: `Statistic.check.roll`, `game.pf2e.Modifier`, native NPC initiative/XP (`EncounterPF2e.analyze` counts npc + hazard), hazard initiative via Stealth, `flags.sf2e.overridePriority` tie-breaking. Vehicles have only Fortitude and no initiative — reason NPC starships are `npc` actors.
 - **Tech Core text**: chapters 6–7 read in full (zones, areas, initiative, HP/SP/compromised/wrecked, battle stations & grades, weapons, creating starships, NPC starships, hazards).

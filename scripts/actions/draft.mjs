@@ -2,15 +2,14 @@ import { readStarship, writeStarship, isStarship } from "../starship/starship-st
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { fromUuidSafe } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
+import { equalState, snapshot } from "../history/history.mjs";
 
-/**
- * Transaction draft. All rule effects mutate clones; nothing is written until commit(), so an action can never be
- * "spent but not applied" or "applied but not spent": cost, frequency, effects, movement and log are one write set.
- */
+/** Staged changes with per-document conflict guards; a multi-document commit is not atomic. */
 export class Draft {
   constructor(combat, { trackCombat = true } = {}) {
     this.combat = combat ?? null;
     this.tsc = combat && trackCombat ? foundry.utils.deepClone(getTsc(combat)) : null;
+    this.beforeTsc = this.tsc ? foundry.utils.deepClone(this.tsc) : null;
     this.ships = new Map(); // uuid -> { actor, data }
     this.hazards = new Map(); // uuid -> { actor, patch }
     this.hooks = []; // [name, ...args] fired after a successful commit
@@ -44,10 +43,27 @@ export class Draft {
     const action = this.auditActionReason;
     const reason = action || this.auditReason || "";
     const undoable = this.allowUndo === true && !this.hazards.size && !action && this.ships.size === 1;
-    // Внутренние writeOptions позволяют атомарно сохранить метку применения вместе с уроном.
-    for (const { actor, data, writeOptions } of this.ships.values())
-      writes.push(writeStarship(actor, data, { ...writeOptions, hullPatch: data.hp, reason, undoable: undoable && !!this.auditReason }));
-    if (this.combat && this.tsc) writes.push(saveTsc(this.combat, this.tsc));
+    const changed = [...this.ships.values()].filter(
+      ({ before, data, writeOptions }) =>
+        !equalState(snapshot(before), snapshot(data)) || Object.keys(writeOptions?.extra ?? {}).length || writeOptions?.force
+    );
+    const changedTsc = this.combat && this.tsc && !equalState(this.beforeTsc, this.tsc);
+    if (
+      changed.some(({ actor, before }) => !equalState(snapshot(readStarship(actor)), snapshot(before))) ||
+      (changedTsc && !equalState(getTsc(this.combat), this.beforeTsc))
+    )
+      throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
+    for (const { actor, before, data, writeOptions } of changed)
+      writes.push(
+        writeStarship(actor, data, {
+          expected: snapshot(before),
+          ...writeOptions,
+          hullPatch: data.hp,
+          reason,
+          undoable: undoable && !!this.auditReason
+        })
+      );
+    if (changedTsc) writes.push(saveTsc(this.combat, this.tsc, { expected: this.beforeTsc }));
     for (const { actor, patch } of this.hazards.values()) writes.push(actor.update(patch));
     const results = await Promise.allSettled(writes);
     const failed = results.filter((r) => r.status === "rejected");

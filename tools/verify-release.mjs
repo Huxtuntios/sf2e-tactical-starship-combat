@@ -22,11 +22,24 @@ export function verifyRelease(directory, expectedTag = null) {
       .digest("hex");
     if (!sums.includes(`${hash}  ${name}`)) throw new Error(`Checksum mismatch: ${name}`);
   }
-  for (const pack of manifest.packs) if (!files[`${pack.path}/CURRENT`]) throw new Error(`Missing compiled pack: ${pack.path}`);
+  for (const pack of manifest.packs) {
+    const prefix = `${pack.path}/`;
+    const current = files[`${prefix}CURRENT`];
+    if (!current) throw new Error(`Missing compiled pack: ${pack.path}`);
+    const manifestName = strFromU8(current).trim();
+    if (!/^MANIFEST-\d+$/.test(manifestName)) throw new Error(`Invalid pack CURRENT: ${pack.path}`);
+    if (!files[`${prefix}${manifestName}`]?.length) throw new Error(`Missing pack manifest: ${pack.path}`);
+    if (
+      !Object.entries(files).some(
+        ([name, bytes]) => name.startsWith(prefix) && /^\d+\.(?:ldb|log)$/.test(name.slice(prefix.length)) && bytes.length
+      )
+    )
+      throw new Error(`Missing pack data: ${pack.path}`);
+  }
   return manifest;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const manifest = verifyRelease(path.resolve(process.argv[2] ?? "dist"), process.argv[3] ?? null);
-  console.log(`Verified release assets: ${manifest.id} ${manifest.version}; core/system declarations, ZIP manifest and hashes match.`);
+  console.log(`Verified release assets: ${manifest.id} ${manifest.version}; declarations, ZIP manifest, hashes and pack files checked.`);
 }

@@ -3,6 +3,7 @@ import { findObject, setHeading, updateObject, objectsInZone, setDetection, assi
 import { oppositeHeading } from "../engine/heading.mjs";
 import { resolveHullRestored } from "../engine/compromised.mjs";
 import { resolveSeek, detectionTargetability, seekDC } from "../engine/detection.mjs";
+import { degreeOfSuccess } from "../engine/degree.mjs";
 import { effectiveDetection } from "../engine/sensor-ops.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
 import { shipSkillValue } from "../starship/stats.mjs";
@@ -241,14 +242,7 @@ export async function resolveSeekBuiltin(ctx, rollResult) {
     const current = effectiveDetection(o, [observer]);
     if (current === "observed" || current === "identified") continue;
     const dcValue = await seekTargetDC(o);
-    const degree =
-      rollResult.total >= dcValue + 10
-        ? DEGREE.CRITICAL_SUCCESS
-        : rollResult.total >= dcValue
-          ? DEGREE.SUCCESS
-          : rollResult.total <= dcValue - 10
-            ? DEGREE.CRITICAL_FAILURE
-            : DEGREE.FAILURE;
+    const degree = degreeOfSuccess(rollResult.total, dcValue, rollResult.natural);
     const next = resolveSeek(current, degree);
     if (next !== current) {
       // the party shares sensor data: the GM detail panel and every player view read "party"

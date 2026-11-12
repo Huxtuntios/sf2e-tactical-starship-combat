@@ -36,6 +36,6 @@ Hooks (`Hooks.on(name, fn)`): `sf2eTsc.starshipCombatStarted`, `…CombatEnded`,
 
 ## 0.17.1-dev.12 additions
 
-- `api.addSensorContact(spec, combat = activeStarshipCombat())` — GM only. `spec = { source: "world" | "compendium" | "custom", uuid?, name?, zone, detection, confirmed }`. `observed` and `identified` require `confirmed: true`. A compendium hazard is copied into the world with no player access; the copy is removed if placement fails.
+- `api.addSensorContact(spec, combat = activeStarshipCombat())` — active GM only. `spec = { source: "world" | "compendium" | "custom", uuid?, name?, zone, detection }`. The selected detection state applies immediately; the current service does not require `confirmed`. World and compendium Hazard/Starship placements create independent world Actor copies, leaving sources unchanged. Actors accessible to players can only be placed as identified; otherwise the copy starts with player ownership NONE. An unreferenced copy is removed after placement failure; inspect pending contacts before retrying. See `scripts/sensor/contact-service.mjs` and `scripts/sensor/actor-instance.mjs`.
 - `api.syncMineContact({ shipUuid, droneId, mineId })` — GM only, idempotent. Creates or updates the mine's Hazard Actor and Sensor Map contact, or removes the contact and marks the Actor when the mine is detonated or removed.
 - `api.privacyProbe()` — any user. Reports what this client can see of the private Sensor Map data (`findings`, `counts`, `note`). An empty findings list is **not** a security proof.

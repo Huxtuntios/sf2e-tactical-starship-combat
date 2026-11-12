@@ -1,5 +1,5 @@
 import { publicLabel } from "../chat/attack-card/model.mjs";
-import { rollTypedDamage, typedDamageFormula } from "../rolls/typed-damage.mjs";
+import { damagePartsFromRoll, rollTypedDamage, typedDamageFormula } from "../rolls/typed-damage.mjs";
 import { DEGREE } from "../constants.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { classifyRange, calculateZoneDistance, rangePenalty } from "../engine/range.mjs";
@@ -125,8 +125,9 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
     mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
   for (const m of effectModifiers(fx, "attack"))
     mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
-  if (ctx.stats.attackModifier)
-    mods.push({ slug: "tsc-off-kilter", label: modLabel("offKilter"), type: "circumstance", value: ctx.stats.attackModifier });
+  if (ctx.stats.offKilter) mods.push({ slug: "tsc-off-kilter", label: modLabel("offKilter"), type: "circumstance", value: -2 });
+  for (const [i, m] of (ctx.data.customModifiers ?? []).filter((m) => m.selector === "attack").entries())
+    mods.push({ ...m, slug: `tsc-custom-attack-${i}` });
   for (const n of rp.notes) mods.push({ slug: `tsc-${n.key}`, label: modLabel(n.key), type: "untyped", value: n.value });
   if (mapPenalty) mods.push({ slug: "multiple-attack-penalty", label: T("SF2eTSC.ui.map"), type: "untyped", value: mapPenalty });
   const tstats = computeShipStats(target.actor);
@@ -344,36 +345,57 @@ export async function resolveStrike(ctx) {
   const secret = ctx.data.role !== "player" && (!me || !publicLabel(me, "party").known);
   const DamageRoll = globalThis.CONFIG?.Dice?.rolls?.find((Ctor) => Ctor.name === "DamageRoll");
   const damageType = weapon.damageType ?? "untyped";
-  // A mixed-type NPC formula cannot safely be labeled as a single damage instance.
-  const mixedTypes = new Set((weapon.damageParts ?? []).map((part) => part.type)).size > 1;
-  const typedFormula = !mixedTypes && /^[a-z][a-z0-9-]*$/.test(damageType) ? typedDamageFormula([{ formula, type: damageType }]) : null;
+  const formulas = weapon.npc
+    ? weapon.damageParts.map((part) => ({ ...part, formula: crit ? `(${part.formula})*2` : part.formula }))
+    : [{ formula, type: damageType }];
+  const types = new Set(formulas.map((part) => part.type));
+  const typedFormula = formulas.every((part) => /^[a-z][a-z0-9-]*$/.test(part.type)) ? typedDamageFormula(formulas) : null;
   // Select the fallback before evaluating a roll, never retry after a message might have been posted.
   const nativeAvailable = typedFormula && DamageRoll && (!DamageRoll.validate || DamageRoll.validate(typedFormula));
-  let amount;
+  let amount, parts;
   if (nativeAvailable) {
     const damageRoll = await rollTypedDamage(typedFormula, { actor: ctx.ship, suppressApply: true, secret, flavor });
-    amount = damageRoll.total;
+    parts = damagePartsFromRoll(damageRoll, types.size === 1 ? formulas[0].type : null);
+    amount = parts.reduce((sum, part) => sum + part.amount, 0);
   } else {
-    const roll = await new Roll(formula).evaluate();
-    await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor }, secretVisibility(secret));
-    amount = roll.total;
+    parts = [];
+    for (const part of formulas) {
+      const roll = await new Roll(part.formula).evaluate();
+      await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor }, secretVisibility(secret));
+      parts.push({ type: part.type, amount: roll.total });
+    }
+    amount = parts.reduce((sum, part) => sum + part.amount, 0);
   }
   const traits = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
   // reaction window (Reposition Shield, Drone Block, ...) before damage is applied to a player ship
   const rx = await Reactions.ask(ctx, target, { amount, traits, crit });
+  if (rx.manualDamage) {
+    ctx.reports.push(T("SF2eTSC.droneBlock.manualResult", { amount, resistance: rx.resistance ?? 0 }));
+    if (rx.manualDamage.protocolManual) ctx.reports.push(T("SF2eTSC.droneBlock.protocolManualResult", { resistance: rx.resistance ?? 0 }));
+    return;
+  }
   const dmgTraits = traits.includes("bypassing") || rx.bypassHull ? [...traits, "bypassing"] : traits;
   if (rx.shieldAbsorb) {
     const sp = (await ctx.draft.ship(target.uuid)).data.sp.value;
     const absorbed = Math.min(amount, rx.shieldAbsorb === "full" ? sp : Math.floor(sp / 2));
     amount -= absorbed;
+    // Remove absorption from evaluated components in instance/formula order, not from an aggregate alone.
+    let remaining = absorbed;
+    parts = parts.map((part) => {
+      const reduction = Math.min(part.amount, remaining);
+      remaining -= reduction;
+      return { ...part, amount: part.amount - reduction };
+    });
     ctx.reports.push(T("SF2eTSC.chat.shieldAbsorbed", { amount: absorbed }));
   }
   const dmg = await applyDamageInDraft(ctx.draft, target.uuid, {
     amount,
+    parts,
     damageType: weapon.damageType,
     strikeResistance: rx.resistance ?? 0,
     traits: dmgTraits,
     criticalHit: crit,
+    nonlethal: traits.includes("nonlethal"),
     source: ct(weapon.name),
     attackLine: null,
     silent: true
@@ -441,6 +463,7 @@ export async function resolveAreaFire(ctx, kind) {
     ctx.reports.push(T("SF2eTSC.chat.noTargetsInArea", { zones: zones.join(", ") }));
     return;
   }
+  const traits = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
   const baseDC = crewClassDC(ctx.crew) + (ctx.stats.areaDCModifier ?? 0);
   const total = await rollDamage(ctx, damageFormula(ctx, weapon, false), `${ct(weapon.name)}: ${T("SF2eTSC.chat.damage")}`);
   ctx.lines.push({
@@ -475,8 +498,9 @@ export async function resolveAreaFire(ctx, kind) {
       const dmg = await applyDamageInDraft(ctx.draft, o.key, {
         amount,
         damageType: weapon.damageType,
-        traits: weapon.traits.map((t) => String(t).toLowerCase()),
+        traits,
         criticalHit: res.degree === DEGREE.CRITICAL_FAILURE,
+        nonlethal: traits.includes("nonlethal"),
         source: ct(weapon.name),
         silent: !!ctx.cardMode
       });

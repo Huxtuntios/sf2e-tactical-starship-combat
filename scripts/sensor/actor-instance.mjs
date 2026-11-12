@@ -138,14 +138,16 @@ export async function deleteSensorActorCombatant(combat, actorUuid) {
     const initiativeRef = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
     return (
       (instanceRef?.combatId === combat?.id && instanceRef.actorUuid === actorUuid) ||
-      (initiativeRef?.combatId === combat?.id && combatant.actor?.uuid === actorUuid)
+      (initiativeRef?.combatId === combat?.id &&
+        (combatant.actor?.uuid === actorUuid || (!combatant.actor && actorUuid === `Actor.${combatant.actorId}`)))
     );
   });
-  if (combatants.length)
-    await combat.deleteEmbeddedDocuments(
-      "Combatant",
-      combatants.map((combatant) => combatant.id)
-    );
+  if (combatants.length) {
+    if (!isActiveGM()) throw new Error("Sensor Combatant deletion requires the active GM");
+    const ids = combatants.map((combatant) => combatant.id);
+    await combat.deleteEmbeddedDocuments("Combatant", ids);
+    if ([...(combat?.combatants ?? [])].some((combatant) => ids.includes(combatant.id))) throw new Error("couldNotDeleteSensorCombatant");
+  }
 }
 
 /** Remove only the combatant and Actor document owned by this Sensor Map instance. */
@@ -153,7 +155,11 @@ export async function deleteSensorActorInstance(combat, actorUuid) {
   const actor = await fromUuidSafe(actorUuid);
   const instance = instanceFlag(actor);
   await deleteSensorActorCombatant(combat, actorUuid);
-  if (instance?.combatId === combat?.id) await actor.delete();
+  if (instance?.combatId === combat?.id && actor.documentName === "Actor" && !actor.pack && !actor.isToken) {
+    if (!isActiveGM()) throw new Error("Sensor Actor deletion requires the active GM");
+    await actor.delete();
+    if (game.actors.get(actor.id)) throw new Error("couldNotDeleteSensorActorInstance");
+  }
 }
 
 export function isSensorActorInstance(actor, combatId) {
