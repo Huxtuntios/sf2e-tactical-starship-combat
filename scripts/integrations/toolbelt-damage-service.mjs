@@ -182,6 +182,7 @@ export async function undoToolbeltDamage({ user, payload }) {
       if (rec.undone) rejectDamage("alreadyUndone");
       if (!rec.undoable) rejectDamage("undoUnsafe");
       const draft = new Draft(activeStarshipCombat(), { trackCombat: false });
+      draft.auditReason = `${T("SF2eTSC.toolbelt.undoDamage")}: ${message.id}`;
       const entry = await draft.ship(actor.uuid);
       // Сверяем с загруженным draft: ремонт/ход, пришедшие во время загрузки, должны блокировать, а не становиться новой базой.
       if (!equalState(vitalsOf(entry.data), rec.after) || !equalState(combatGuard(), rec.guard)) rejectDamage("undoConflict");
