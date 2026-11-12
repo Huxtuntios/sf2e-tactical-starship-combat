@@ -1,8 +1,13 @@
 /* Корабельные режимы урона в строке цели Toolbelt и в штатной карточке броска. */
+/* Toolbelt renders .damage-application as a nowrap flex row; without wrapping, the ship controls squeeze the native buttons. */
+.damage-application:has(> .tsc-ship-damage-controls) {
+  flex-wrap: wrap;
+}
 .tsc-ship-damage-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
+  flex: 0 0 100%;
   width: 100%;
   padding-top: 4px;
 }

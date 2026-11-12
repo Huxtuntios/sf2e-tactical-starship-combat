@@ -3,6 +3,7 @@
 ## Unreleased — post-1.0.0 fixes
 
 - Scene-control buttons (Sensor Map, Station HUD, Start Combat, Toolbox) are registered during `init`: Foundry 14.370 calls `getSceneControlButtons` once, before `ready`, so the previous late registration left the buttons missing. Found and fix-verified in a live Foundry 14.370 / SF2e 1.7.0 world. This fix is **not** part of the published `v1.0.0` pre-release.
+- Toolbelt damage row: the ship controls (multiplier select + Through shields / Direct to hull) wrap onto their own line instead of squeezing Toolbelt's native apply-damage buttons inside its nowrap flex row. The multiplier select is kept for starship targets. Found via live Toolbelt 3.61.3 inspection; guarded by a Playwright layout fixture. Not part of the published `v1.0.0` pre-release.
 
 ## 1.0.0 — 2026-11-12
 
