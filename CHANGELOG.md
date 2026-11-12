@@ -5,6 +5,7 @@
 - Scene-control buttons (Sensor Map, Station HUD, Start Combat, Toolbox) are registered during `init`: Foundry 14.370 calls `getSceneControlButtons` once, before `ready`, so the previous late registration left the buttons missing. Found and fix-verified in a live Foundry 14.370 / SF2e 1.7.0 world. This fix is **not** part of the published `v1.0.0` pre-release.
 - Toolbelt damage row: the ship controls (multiplier select + Through shields / Direct to hull) wrap onto their own line instead of squeezing Toolbelt's native apply-damage buttons inside its nowrap flex row. The multiplier select is kept for starship targets. Found via live Toolbelt 3.61.3 inspection; guarded by a Playwright layout fixture. Not part of the published `v1.0.0` pre-release.
 - Removed the history Undo restore action. Live verification showed it could not reliably reverse changes (the combat guard drifted between recording and undo), and the GM can adjust ship state directly. The GM-only history journal remains as a read-only audit log; damage and critical states stay non-reversible. Not part of the published `v1.0.0` pre-release.
+- Toolbelt ship damage: a GM-only "Undo damage" button on the damage chat message returns exactly the shields/hull that one application removed. It is refused when the application caused a critical state, when the ship or combat changed since, or on repeat; per-application receipts prevent double undo. This is a narrow guarded reversal, distinct from the removed general history Undo. Not part of the published `v1.0.0` pre-release.
 
 ## 1.0.0 — 2026-11-12
 

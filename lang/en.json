@@ -1337,6 +1337,12 @@
       "mixedTargets": "Apply ship damage separately from ordinary actors, or use individual Toolbelt target rows.",
       "useShipShields": "Shield Block is for a personal shield. Use Damage through shields or Direct hull damage for a starship.",
       "applied": "Ship damage applied.",
+      "undoDamage": "Undo damage",
+      "undoDamageHint": "Return exactly the shields/hull this application removed. GM only; refused if the ship entered a critical state or changed since.",
+      "damageUndone": "Ship damage undone.",
+      "alreadyUndone": "This damage application has already been undone.",
+      "undoUnsafe": "This application caused a critical state (compromised/destroyed/inoperable) and cannot be undone automatically; the GM must adjust manually.",
+      "undoConflict": "The ship or combat changed since this damage was applied; undo refused. The GM must adjust manually.",
       "targetUnavailable": "The ship target is no longer available. Damage was not applied; refresh the card and check the target.",
       "mergedUnsupported": "A merged, injected or split Toolbelt card cannot be reliably matched to earlier receipts. Do not apply it again blindly: the GM must inspect the original cards and resolve damage manually."
     },

@@ -2,10 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, loadContentFromDisk, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
 import { computeStarshipDamagePacket } from "../../scripts/engine/damage-packet.mjs";
-import { applyToolbeltDamage, damagePartsFromMessage, CHAT_DAMAGE_FLAG } from "../../scripts/integrations/toolbelt-damage-service.mjs";
+import {
+  applyToolbeltDamage,
+  undoToolbeltDamage,
+  damageReceiptOf,
+  damagePartsFromMessage,
+  CHAT_DAMAGE_FLAG
+} from "../../scripts/integrations/toolbelt-damage-service.mjs";
 import { hasDamageReceipt } from "../../scripts/integrations/toolbelt-damage.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
-import { readStarship } from "../../scripts/starship/starship-state.mjs";
+import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
 import { rollTypedDamage } from "../../scripts/rolls/typed-damage.mjs";
 
 // Модель уже вычисленного DamageRoll. alter не бросает кости заново.
@@ -253,4 +259,49 @@ test("Toolbelt Better Chat merge, injection and split fail closed before ship mu
     assert.equal(readStarship(s.actor).sp.value, 12);
     assert.equal(globalThis.__writes.length, before);
   }
+});
+
+test("Toolbelt damage undo returns exactly the applied shields/hull and cannot run twice", async () => {
+  const s = await scenario();
+  await s.apply();
+  assert.equal(readStarship(s.actor).sp.value, 4);
+  const undo = (user = game.user) =>
+    undoToolbeltDamage({ user, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } });
+  assert.deepEqual(await undo(), { shield: 8, hull: 0 });
+  assert.equal(readStarship(s.actor).sp.value, 12);
+  assert.equal(s.actor.system.attributes.hp.value, 30);
+  assert.equal(damageReceiptOf(s.message, s.actor, 0).undone, true);
+  await assert.rejects(undo(), /already|уже|undone/i);
+});
+
+test("Toolbelt damage undo refuses applications that caused a critical state", async () => {
+  const s = await scenario({ sp: 0, parts: [{ amount: 40, type: "piercing" }] });
+  await s.apply({ mode: "hull" });
+  assert.equal(damageReceiptOf(s.message, s.actor, 0).undoable, false);
+  await assert.rejects(
+    undoToolbeltDamage({ user: game.user, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } }),
+    /unsafe|критическ|critical/i
+  );
+});
+
+test("Toolbelt damage undo refuses when the ship changed since the application", async () => {
+  const s = await scenario();
+  await s.apply();
+  await patchStarship(s.actor, (d) => {
+    d.sp.value = 5;
+  });
+  await assert.rejects(
+    undoToolbeltDamage({ user: game.user, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } }),
+    /changed|изменил/i
+  );
+  assert.equal(readStarship(s.actor).sp.value, 5);
+});
+
+test("Toolbelt damage undo is GM-only", async () => {
+  const s = await scenario();
+  await s.apply();
+  const player = game.users.get("p1");
+  s.actor.owners.push(player.id);
+  await assert.rejects(undoToolbeltDamage({ user: player, payload: { messageId: s.message.id, targetUuid: s.token.uuid, rollIndex: 0 } }));
+  assert.equal(readStarship(s.actor).sp.value, 4);
 });

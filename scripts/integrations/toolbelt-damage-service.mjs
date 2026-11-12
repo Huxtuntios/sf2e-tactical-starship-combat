@@ -1,12 +1,12 @@
 import { MODULE_ID } from "../constants.mjs";
 import { registerHandler } from "../socket.mjs";
 import { T, fromUuidSafe, moduleActive } from "../utils/foundry.mjs";
-import { isStarship } from "../starship/starship-state.mjs";
+import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
-import { snapshot } from "../history/history.mjs";
+import { equalState, snapshot } from "../history/history.mjs";
 import { nativeSystemId } from "../utils/system.mjs";
 
 const queues = new Map();
@@ -16,6 +16,25 @@ export const damageReceiptKey = (actorUuid, rollIndex) => `${actorUuid.replace(/
 const rejectDamage = (key) => {
   throw new Error(T(`SF2eTSC.toolbelt.${key}`));
 };
+const vitalsOf = (d) => ({
+  hp: d.hp.value,
+  sp: d.sp.value,
+  compromised: d.compromised,
+  wrecked: d.wrecked,
+  inoperable: d.inoperable,
+  destroyed: d.destroyed
+});
+const combatGuardOf = () => {
+  const c = activeStarshipCombat();
+  return c ? { id: c.id, round: c.round, turn: c.turn } : null;
+};
+// Отмена допустима только если применение не перевело корабль в критическое состояние.
+const damageUndoable = (result) =>
+  !result.becameCompromised &&
+  !result.becameInoperable &&
+  !result.destroyed &&
+  !result.stationsMalfunctioned &&
+  !(result.compromisedIncrease > 0);
 
 /** Только реальные типизированные экземпляры броска; клиент не присылает готовое число урона. */
 export function damagePartsFromMessage(message, rollIndex, multiplier, addend = 0) {
@@ -97,10 +116,7 @@ export async function applyToolbeltDamage({ user, payload }) {
       const draft = new Draft(activeStarshipCombat(), { trackCombat: false });
       draft.allowUndo = true;
       const entry = await draft.ship(actor.uuid);
-      entry.writeOptions = {
-        expected: snapshot(entry.data),
-        extra: { [`flags.${MODULE_ID}.${CHAT_DAMAGE_FLAG}`]: [...records, { key, mode: payload.mode, by: user.id }].slice(-100) }
-      };
+      entry.writeOptions = { expected: snapshot(entry.data) };
       const result = await applyDamageInDraft(draft, actor.uuid, {
         parts,
         traits,
@@ -108,10 +124,22 @@ export async function applyToolbeltDamage({ user, payload }) {
         nonlethal: traits.includes("nonlethal"),
         source: `${T("SF2eTSC.toolbelt.source")}: ${message.id} (${parts.map((part) => `${part.amount} ${part.type}`).join(" + ")})`
       });
+      const receipt = {
+        key,
+        mode: payload.mode,
+        by: user.id,
+        shield: result.shieldDamage,
+        hull: result.hullDamage,
+        undoable: damageUndoable(result),
+        undone: false,
+        after: vitalsOf(entry.data),
+        guard: combatGuardOf()
+      };
+      entry.writeOptions.extra = { [`flags.${MODULE_ID}.${CHAT_DAMAGE_FLAG}`]: [...records, receipt].slice(-100) };
       await draft.commit();
       // Метка в акторе уже сохранена атомарно с уроном. Ошибка обновления чата не разрешает повторное списание.
       try {
-        await message.update({ [`flags.${MODULE_ID}.damageReceipts.${receiptKey}`]: { by: user.id, mode: payload.mode } });
+        await message.update({ [`flags.${MODULE_ID}.damageReceipts.${receiptKey}`]: receipt });
       } catch (error) {
         console.warn(`${MODULE_ID} | Damage receipt was saved on the actor, but not on the message`, error);
       }
@@ -126,6 +154,64 @@ export async function applyToolbeltDamage({ user, payload }) {
   return task;
 }
 
+export function damageReceiptOf(message, actor, index) {
+  const key = damageApplicationKey(message.id, index);
+  return (
+    (actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? []).find((r) => r.key === key) ??
+    message.flags?.[MODULE_ID]?.damageReceipts?.[damageReceiptKey(actor.uuid, index)] ??
+    null
+  );
+}
+
+/** Точечная отмена одного применения урона: только суммы квитанции, без критических состояний. */
+export async function undoToolbeltDamage({ user, payload }) {
+  if (!moduleActive("pf2e-toolbelt")) rejectDamage("inactive");
+  if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  if (!Number.isInteger(payload.rollIndex) || payload.rollIndex < 0) rejectDamage("invalid");
+  const target = await fromUuidSafe(payload.targetUuid);
+  const actor = target?.actor ?? target;
+  if (!isStarship(actor)) rejectDamage("shipOnly");
+  if (!can(user, actor, "adjustVitals")) throw new Error(T("SF2eTSC.errors.noPermission"));
+  const message = game.messages.get(payload.messageId);
+  if (!message || !mayRead(user, message)) throw new Error(T("SF2eTSC.errors.noPermission"));
+  const previous = queues.get(actor.uuid) ?? Promise.resolve();
+  const task = previous
+    .catch(() => {})
+    .then(async () => {
+      const key = damageApplicationKey(message.id, payload.rollIndex);
+      const receiptKey = damageReceiptKey(actor.uuid, payload.rollIndex);
+      const records = actor.flags?.[MODULE_ID]?.[CHAT_DAMAGE_FLAG] ?? [];
+      const rec = records.find((r) => r.key === key);
+      if (!rec) rejectDamage("unsupported");
+      if (rec.undone) rejectDamage("alreadyUndone");
+      if (!rec.undoable) rejectDamage("undoUnsafe");
+      if (!equalState(vitalsOf(readStarship(actor)), rec.after) || !equalState(combatGuardOf(), rec.guard)) rejectDamage("undoConflict");
+      const draft = new Draft(activeStarshipCombat(), { trackCombat: false });
+      const entry = await draft.ship(actor.uuid);
+      entry.writeOptions = {
+        expected: snapshot(entry.data),
+        extra: { [`flags.${MODULE_ID}.${CHAT_DAMAGE_FLAG}`]: records.map((r) => (r.key === key ? { ...r, undone: true } : r)) }
+      };
+      entry.data.sp.value = Math.min(entry.data.sp.max, entry.data.sp.value + rec.shield);
+      entry.data.hp.value = Math.min(entry.data.hp.max, entry.data.hp.value + rec.hull);
+      await draft.commit();
+      try {
+        await message.update({ [`flags.${MODULE_ID}.damageReceipts.${receiptKey}.undone`]: true });
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Damage undo receipt was saved on the actor, but not on the message`, error);
+      }
+      return { shield: rec.shield, hull: rec.hull };
+    });
+  queues.set(actor.uuid, task);
+  task
+    .finally(() => {
+      if (queues.get(actor.uuid) === task) queues.delete(actor.uuid);
+    })
+    .catch(() => {});
+  return task;
+}
+
 export function registerToolbeltDamageService() {
   registerHandler("toolbeltDamage", applyToolbeltDamage);
+  registerHandler("undoToolbeltDamage", undoToolbeltDamage);
 }
