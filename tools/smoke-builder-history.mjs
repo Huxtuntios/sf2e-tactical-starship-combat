@@ -32,7 +32,6 @@ const contexts = {
       summary: "Корпус: 100 → 80; щиты: 30 → 10",
       reason: "Изменение после столкновения",
       fieldsText: "Корпус, щиты",
-      canUndo: i % 2 === 0,
       effects: [],
       stations: []
     }))

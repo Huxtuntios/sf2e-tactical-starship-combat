@@ -1,6 +1,5 @@
 import { registerModuleThemeHooks } from "./ui/sheet/sheet-theme.mjs";
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
-import { registerHistoryHandlers } from "./history/history.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
 import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
 import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
@@ -119,7 +118,6 @@ Hooks.once("ready", async () => {
     registerReactionHandlers,
     registerShipHandlers,
     registerEffectHandlers,
-    registerHistoryHandlers,
     registerSensorHandlers
   ])
     fn();

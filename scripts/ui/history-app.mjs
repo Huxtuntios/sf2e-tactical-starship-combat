@@ -1,10 +1,8 @@
 import { MODULE_ID } from "../constants.mjs";
-import { request } from "../socket.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { historyEntries, historySummary } from "../history/history.mjs";
 import { T } from "../utils/foundry.mjs";
-import { notifyError } from "../utils/logging.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 
 export class HistoryApplication extends TscApp {
@@ -12,22 +10,6 @@ export class HistoryApplication extends TscApp {
     classes: ["sf2e-tsc", "tsc-history"],
     position: { width: 720, height: 560 },
     actions: {
-      undo: async function (event, target) {
-        if (
-          !(await foundry.applications.api.DialogV2.confirm({
-            classes: ["sf2e-tsc"],
-            window: { title: T("SF2eTSC.qol.undo") },
-            content: `<p>${T("SF2eTSC.qol.undoHint")}</p>`
-          }))
-        )
-          return;
-        try {
-          await request("undoHistory", { messageId: target.dataset.id });
-          this.render();
-        } catch (err) {
-          notifyError("SF2eTSC.errors.generic", { message: err.message });
-        }
-      },
       historyLink: async function (event, target) {
         if (!game.user.isGM) return;
         const actor = await fromUuid(target.dataset.uuid);
@@ -72,7 +54,6 @@ export class HistoryApplication extends TscApp {
           fieldsText: r.fields.join(", "),
           effects: effects.map((e) => ({ ...e, label: ct(e.label) })),
           stations,
-          canUndo: r.undoable && !r.undone,
           time: new Date(r.at).toLocaleString()
         };
       })

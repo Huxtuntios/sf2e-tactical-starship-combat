@@ -157,7 +157,7 @@ test("станционное действие меняет состояние и
     extra: { drones: [{ id: "drone-1", ref: "repair-drone", stationId: "d", tscVersion: 1, deployed: false }] }
   });
   const { executeAction } = await import("../../scripts/actions/action-engine.mjs");
-  const { historyEntries, undoChange, reversible } = await import("../../scripts/history/history.mjs");
+  const { historyEntries, reversible } = await import("../../scripts/history/history.mjs");
   const req = {
     user: game.users.get("p1"),
     shipUuid: ship.uuid,
@@ -171,8 +171,10 @@ test("станционное действие меняет состояние и
   assert.equal(ship.flags["sf2e-tactical-starship-combat"].starship.drones[0].deployed, true);
   const record = historyEntries(ship.uuid)[0];
   assert.equal(record.flags["sf2e-tactical-starship-combat"].history.undoable, true);
-  await undoChange(record.id);
-  assert.equal(ship.flags["sf2e-tactical-starship-combat"].starship.drones[0].deployed, false);
+  assert.equal(
+    reversible(record.flags["sf2e-tactical-starship-combat"].history.before, record.flags["sf2e-tactical-starship-combat"].history.after),
+    true
+  );
   const a = { drones: [{ id: "x", tscVersion: 1, deployed: false, mines: [] }] };
   const b = { drones: [{ id: "x", tscVersion: 1, deployed: true, mines: [{ id: "mine" }] }] };
   assert.equal(reversible(a, b), false);
