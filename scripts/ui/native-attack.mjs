@@ -2,7 +2,7 @@ import { request } from "../socket.mjs";
 import { Targeting } from "./targeting.mjs";
 import { openSensorMap } from "./launchers.mjs";
 import { notifyError } from "../utils/logging.mjs";
-import { T, escapeHtml } from "../utils/foundry.mjs";
+import { T, escapeHtml, moduleSetting } from "../utils/foundry.mjs";
 import { rollEventOptions } from "../starship/stats.mjs";
 
 /** Per-attack modifiers are proposed by the player and explicitly approved by the GM before rolling. */
@@ -79,7 +79,7 @@ export async function beginNativeWeaponAttack(payload, event = null) {
         try {
           const selected = await preview({ ...current, options: { ...current.options, targetKey } });
           for (const warning of selected.result.warnings ?? []) ui.notifications.warn(warning);
-          const manualModifiers = await promptManualModifiers(selected.result.knownModifiers);
+          const manualModifiers = moduleSetting("nativeModifierDialog") ? await promptManualModifiers(selected.result.knownModifiers) : [];
           if (manualModifiers === null) return;
           const result = await request("executeNativeAttack", {
             ...selected.candidate,

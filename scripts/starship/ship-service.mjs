@@ -116,14 +116,22 @@ export function registerShipHandlers() {
     const s = await ship(payload.shipUuid);
     if (!(user.isGM || can(user, s, "configureShip"))) throw new Error(T("SF2eTSC.errors.noPermission"));
     await patchStarship(s, (d) => {
-      d.stations = d.stations.filter((x) => x.id !== payload.stationId);
+      const sid = payload.stationId;
+      const stationDrones = (Array.isArray(d.drones) ? d.drones : []).filter((x) => x?.stationId === sid);
+      // Armed mines keep a Hazard Actor and a map contact; removing their console would orphan both.
+      if (stationDrones.some((x) => (Array.isArray(x.mines) ? x.mines : []).some((m) => m?.state === "armed")))
+        throw new Error(T("SF2eTSC.droneControl.errors.stationMines"));
+      d.stations = d.stations.filter((x) => x.id !== sid);
       d.crew.forEach((c) => {
-        if (c.stationId === payload.stationId) c.stationId = null;
+        if (c.stationId === sid) c.stationId = null;
       });
       (d.upgrades ?? []).forEach((u) => {
-        if (u?.stationId === payload.stationId) u.stationId = null;
+        if (u?.stationId === sid) u.stationId = null;
       });
-    }); // upgrades are kept, unassigned
+      d.drones = (Array.isArray(d.drones) ? d.drones : []).filter((x) => x?.stationId !== sid);
+      if (d.droneMineFrequency && typeof d.droneMineFrequency === "object" && !Array.isArray(d.droneMineFrequency))
+        d.droneMineFrequency = Object.fromEntries(Object.entries(d.droneMineFrequency).filter(([k]) => !k.startsWith(`${sid}:`)));
+    }); // upgrades are kept, unassigned; drones and mine frequency bound to the station are removed
     return true;
   });
 

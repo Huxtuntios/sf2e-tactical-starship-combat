@@ -34,6 +34,12 @@ export function registerSettings() {
     choices: { warn: L("ruleEnforcement.warn"), strict: L("ruleEnforcement.strict") }
   });
   reg("attackCards", { name: L("attackCards.name"), hint: L("attackCards.hint"), type: Boolean, default: true });
+  reg("nativeModifierDialog", {
+    name: L("nativeModifierDialog.name"),
+    hint: L("nativeModifierDialog.hint"),
+    type: Boolean,
+    default: false
+  });
   reg("autoOpenSensorMap", {
     name: L("autoOpenSensorMap.name"),
     hint: L("autoOpenSensorMap.hint"),
