@@ -79,3 +79,5 @@ No user world was opened or migrated. Source Actors/compendiums are not modified
 - The release workflow still runs after publication and uses asset replacement; immutable-release draft preparation and human/policy gates must be satisfied separately. It was not modified or invoked.
 
 **Decision: retain the pre-release version.** Prepare PR #2 and local artifacts for review only. Do not merge it, publish a stable tag or submit to the Foundry catalog until critical live/policy/provenance gates are satisfied.
+
+_Release-status update (2026-11-12): the maintainer merged PR #15 and directed 1.0.0 release preparation; see the 1.0.0 addendum in [release readiness](release-readiness.md). The live/policy/provenance gates above remain unexecuted and still condition publication._

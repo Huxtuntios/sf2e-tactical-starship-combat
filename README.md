@@ -10,9 +10,9 @@ Tactical starship combat for **Starfinder Second Edition** in **Foundry VTT 14**
 
 Each character keeps their own initiative and spends their normal actions. By default, the player starship does not gain a separate turn; compromised ships have the rules-specific hull-integrity exception.
 
-> **Experimental, AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
+> **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **Pre-1.0; not live-certified.** The current 0.17.1-dev.13 build is experimental and unpublished. Use manual installation in a backed-up test world. Review [release readiness](docs/release-readiness.md), [the reality check](docs/reality-check.md) and [current limitations](docs/known-limitations.md) before campaign use or publication.
+> **1.0.0 — not live-certified.** A live Foundry v14 / SF2e multiplayer session has not been performed; automated checks and browser fixtures are not live certification. Review [release readiness](docs/release-readiness.md), [the reality check](docs/reality-check.md) and [current limitations](docs/known-limitations.md) before campaign use or publication.
 
 ## Requirements
 
@@ -71,7 +71,7 @@ Current source review covered Toolbelt **3.60.0**; earlier notes covered **3.59.
 The `latest` address works after a **regular, non-prerelease** GitHub release is published. To install a specific release, including a prerelease, use its `module.json` asset after it has been published:
 
 ```text
-https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v0.16.0/module.json
+https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v1.0.0/module.json
 ```
 
 For manual installation, create `Data/modules/sf2e-tactical-starship-combat/` and extract **`module.zip`** into it. `module.json` must be directly inside that directory. GitHub's automatic **Source code** archives are development sources, not installable module packages.

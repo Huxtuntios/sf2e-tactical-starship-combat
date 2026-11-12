@@ -1,15 +1,65 @@
 # Changelog
 
-## Post-wizard Reality Check — unpublished, 2026-11-12
+## 1.0.0 — 2026-11-12
+
+First stable release. It consolidates the published `v0.16.0` stable release, the `0.17.0` build, the `0.17.1-dev.1–13` experimental series (published as pre-release `v0.17.1-dev.13`), the reliability follow-up (PR #12/#13), the combat-wizard improvements (PR #14) and the post-wizard reality-check audit (PR #15). Per-build details are preserved in the sections below. Compatibility declarations, the module ID, pack names and document IDs are unchanged; no world migration is required.
+
+### Added
+
+- Combat wizard: improved roster selection and safe bulk encounter setup. Drafts stay write-free until confirmation; NPC ships and hazards become independent instances; existing world Actors are preserved with checked compensating cleanup; review totals sit beside their labels.
+- Sensor Map: one GM window to add world hazards, compendium hazards or custom contacts with an initial detection state. Private contacts are staged in a GM-only journal; observed publishes an anonymous marker; full reveal is confirmed, staged and recoverable, with an explicit GM pending-identification recovery control.
+- Sensor Map: every Actor placement creates a persistent independent world Actor copied from its template; repeated placements no longer move one UUID; removing a contact cleans up its copy and initiative entry.
+- Sensor Map: initiative controls with private/anonymous entries, legacy private-initiative support and restoration on reveal failure.
+- Sensor Map appearance: four combat-scoped course-arrow formats (none, text, emoji, custom image) with size, spacing, placement and opacity; per-object auto-mirror overrides; per-object angle, flips and base direction; background rotation/flips that do not affect zones or coordinates.
+- Character-sheet station claim/release during active starship combat through the existing Crew service.
+- Drone Console: individual tracked drones with capacity checks, Deploy/Retrieve, base Drone Block on supported Strikes, GM-confirmed Drone Block from native Strike damage cards with operator-level resistance and the 10-minute return, and a manual-only Drone Shield Protocol path with a strike receipt.
+- Mines: Install Mine stock inside the undeployed Pyrotechnics Drone with GM-confirmed modifications; Deploy Starship Mine creates a dedicated Hazard Actor and a linked public map contact; GM resolution, movement and modification helpers remain manual-confirm tools.
+- Native SF2e check dialogs for ship rolls and the native SF2e attack card on supported ship-weapon paths.
+- GM-only bounded history journal with configurable chat announcements; station-scoped Boost Battle Station and GM-approved per-roll situational modifiers.
+- Frame-provided upgrade recognition, weapon-selector damage/proficiency display and interactive rule links with conservative damage-type inheritance.
+- API: `addSensorContact`, `syncMineContact`, `privacyProbe`.
+
+### Changed
+
+- Detection UX: selecting a contact state applies it immediately, without an extra checkbox or confirmation dialog.
+- Station actions are scoped to the current encounter; explicitly reused retained ships keep their actions through current map participation instead of the instance's original combat ID.
+- Toolbelt manual ×2/×3 scales damage but no longer establishes a critical hit; critical evidence uses the original stored roll degree or an unambiguous native attack-damage outcome.
+- Socket waits are bounded: a 15-second initial wait, then one 120-second result deadline after the first eligible acknowledgement; disconnected or changed-GM requests are rejected and late replies ignored.
+- Undo persists a private intent and one bounded Actor receipt for guarded recovery after history-finalization failure; snapshots compare structurally. HP/SP, damage and critical states remain non-undoable.
+- Reveal uses journal-only staged intent with guarded finish-forward recovery instead of whole-Combat rollback.
+
+### Fixed
+
+- Stale Draft snapshots and queued writes are guarded; station release reauthorizes against the current occupant; independent copies no longer inherit the source's Undo receipt.
+- `setZone` routes through Sensor Map authority/reveal guards; map shrink cannot strand private contacts; public/private removal keeps its references until owned-document cleanup succeeds, including silent deletion vetoes and explicit retries.
+- Evaluated NPC damage components are preserved, nonlethal damage propagates, typed attack modifiers apply once, and Seek honors natural-20/1 adjustments.
+- Level zero is preserved for NPC/hazard creation; the player minimum and cancellation behavior are retained.
+- The Sensor Map background DOM survives part replacement; giant rasters use a PNG display copy capped at 4096 pixels without changing the source; window-owned actor caches invalidate on document/permission/catalog changes.
+- Unnamed Sensor Map environment objects, actor picker sizing/overlap, damage reaction deadlines and unrelated background reloads.
+- The release ZIP no longer includes transient or stale LevelDB files.
+
+### Improved
+
+- Packaging builds only manifest-declared compiled packs and rejects incomplete LevelDB structures; the release workflow re-downloads and verifies uploaded assets.
+- Unambiguous catalogue defenses are imported into mechanical flags with source notes retained; old worlds are not rewritten automatically.
+- Documentation is consolidated without deleting release history or attribution; EN/RU guides are corrected; pinned-source, offline-test and policy/provenance evidence is recorded in `docs/reality-check.md` and `docs/release-readiness.md`.
+
+### Compatibility
+
+- Declarations are unchanged: Foundry v14 (minimum `14.361`, verified `14`, maximum `14`); SF2e `1.6.0+` (verified `1.6.1`); PF2e `8.6.0+` (verified `8.6.1`) with active SF2e Anachronism `2.4.0+`. No dependency or system version was raised for this release.
+- No action/reaction accounting is added; the GM and players track the 3 actions + reaction themselves.
+- Live Foundry multiplayer, real Toolbelt integration and the human-content/policy gates in `docs/release-readiness.md` remain unexecuted. This release records automated, fixture and source-review evidence, not live certification. Tagging, publication and catalog submission are separate maintainer decisions after those gates.
+
+## Post-wizard Reality Check — shipped in 1.0.0 (2026-11-12)
 
 - Preserve level zero in NPC/hazard creation; retain player minimum and cancellation behavior.
 - Guard changed Draft snapshots in Actor/Combat queues, skip unchanged snapshots, and reauthorize queued station release against its current occupant. Independent copies no longer inherit the source's Undo receipt.
 - Route `setZone` through Sensor Map authority/reveal/mine guards; refuse map shrink that strands private contacts. Retain public/private removal references until owned-document cleanup succeeds, including silent deletion vetoes and explicit retries.
 - Preserve evaluated NPC damage components, propagate nonlethal damage, apply typed attack modifiers once, honor manual-only Drone Shield Protocol, and include natural-20/1 adjustments in Seek. Import unambiguous catalogue defenses while retaining source notes; old worlds are not rewritten automatically.
 - Package only declared compiled packs and reject incomplete LevelDB structures. Consolidate duplicate documentation and obsolete WIP reports without deleting release history, attribution or unique safety notes.
-- Record pinned-source, offline-test and policy/provenance evidence in `docs/reality-check.md` and `docs/release-readiness.md`. Keep `0.17.1-dev.13` and all compatibility declarations unchanged: real Foundry, multi-client, integration and human-content gates still block stable 1.0.0 and catalog submission.
+- Record pinned-source, offline-test and policy/provenance evidence in `docs/reality-check.md` and `docs/release-readiness.md`. Kept `0.17.1-dev.13` and all compatibility declarations unchanged at audit time; real Foundry, multi-client, integration and human-content gates still block publication and catalog submission.
 
-## Reliability follow-up to 0.17.1-dev.13 — unpublished
+## Reliability follow-up to 0.17.1-dev.13 — shipped in 1.0.0
 
 - Retain the Sensor Map background DOM through full/partial part replacement; use one source/revision loader and an aspect-preserving PNG display copy capped at 4096 pixels for giant images. Preserve ordinary image quality and original paths/files; release blobs/images/canvases on change/close. Cache only visible known Actor resolutions/data/statistics per window, with document/permission/catalog invalidation and stale-result rejection; skip unrequested parts. Chromium exercises an actual 8100×11700 PNG and 360 objects.
 - Add an explicit GM pending-identification recovery control and public mutation/initiative guards while a reveal is pending. Recovery reports conflicts locally and releases busy controls on success/failure; render/hooks never initiate recovery writes.
