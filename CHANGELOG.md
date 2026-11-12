@@ -30,6 +30,7 @@ First stable release. It consolidates the published `v0.16.0` stable release, th
 
 ### Fixed
 
+- Scene-control buttons (Sensor Map, Station HUD, Start Combat, Toolbox) are registered during `init`: Foundry 14.370 calls `getSceneControlButtons` once, before `ready`, so the previous late registration left the buttons missing. Found and fix-verified in a live Foundry 14.370 / SF2e 1.7.0 world.
 - Stale Draft snapshots and queued writes are guarded; station release reauthorizes against the current occupant; independent copies no longer inherit the source's Undo receipt.
 - `setZone` routes through Sensor Map authority/reveal guards; map shrink cannot strand private contacts; public/private removal keeps its references until owned-document cleanup succeeds, including silent deletion vetoes and explicit retries.
 - Evaluated NPC damage components are preserved, nonlethal damage propagates, typed attack modifiers apply once, and Seek honors natural-20/1 adjustments.
