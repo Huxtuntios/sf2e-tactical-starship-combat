@@ -6,22 +6,26 @@
 .tsc-ship-damage-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
   flex: 0 0 100%;
   width: 100%;
   padding-top: 4px;
   font-size: 12px;
+  align-items: stretch;
 }
 .tsc-ship-damage-controls button {
-  flex: 1 1 73px;
+  flex: 1 1 90px;
   white-space: normal;
-  line-height: 1.2;
-  min-height: 19px;
+  line-height: 1.25;
+  min-height: 40px;
+  padding: 4px 6px;
   font-size: 12px;
 }
 .tsc-ship-damage-controls select {
-  flex: 0 0 36px;
-  max-width: 36px;
+  flex: 0 0 44px;
+  max-width: 44px;
+  min-height: 40px;
+  padding: 0 2px;
   font-size: 12px;
 }
 .tsc-ship-damage-applied .tsc-ship-damage-controls {

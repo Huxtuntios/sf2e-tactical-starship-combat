@@ -64,35 +64,20 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
           button.title = T(`SF2eTSC.toolbelt.${mode}Hint`);
           controls.append(button);
         }
-        const undo = document.createElement("button");
-        undo.type = "button";
-        undo.dataset.tscShipUndo = "1";
-        undo.textContent = T("SF2eTSC.toolbelt.undoDamage");
-        undo.title = T("SF2eTSC.toolbelt.undoDamageHint");
-        controls.append(undo);
         row.append(controls);
       }
       const applied = targets.every((target) => hasDamageReceipt(message, actorOf(target), rowIndex(row)));
       row.classList.toggle("tsc-ship-damage-applied", applied);
       const locked =
         applied || row.classList.contains("applied") || targets.some((target) => !can(game.user, actorOf(target), "adjustVitals"));
-      const receipts = targets.map((target) => damageReceiptOf(message, actorOf(target), rowIndex(row)));
-      const canUndo =
-        applied &&
-        game.user.isGM &&
-        targets.every((target, i) => {
-          const r = receipts[i];
-          return !!r && r.undoable && !r.undone && r.shipUuid === actorOf(target).uuid;
-        }) &&
-        targets.every((target) => can(game.user, actorOf(target), "adjustVitals"));
       controls.querySelectorAll("button,select").forEach((control) => {
-        control.disabled = control.dataset.tscShipUndo ? !canUndo : locked;
+        control.disabled = locked;
       });
     }
   };
   const onClick = async (event) => {
     const button = event.target.closest?.(
-      "[data-tsc-ship-damage], [data-tsc-ship-undo], [data-action='target-applyDamage'], [data-action='applyDamage'], [data-action='target-shieldBlock'], [data-action='shieldBlock']"
+      "[data-tsc-ship-damage], [data-action='target-applyDamage'], [data-action='applyDamage'], [data-action='target-shieldBlock'], [data-action='shieldBlock']"
     );
     const row = button?.closest(".damage-application");
     if (!row || !root.contains(row)) return;
@@ -105,21 +90,6 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       return;
     }
     if (!ships.length) return;
-    if (button.dataset.tscShipUndo) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      try {
-        if (ships.length !== targets.length) throw new Error(T("SF2eTSC.toolbelt.mixedTargets"));
-        for (const target of ships) {
-          await send("undoToolbeltDamage", { messageId: message.id, targetUuid: target.uuid, rollIndex: rowIndex(row) });
-        }
-        ui.notifications.info(T("SF2eTSC.toolbelt.damageUndone"));
-      } catch (error) {
-        ui.notifications.warn(error.message);
-      }
-      refresh();
-      return;
-    }
     const healing = Number(button.dataset.multiplier) < 0;
     if (healing && !button.dataset.tscShipDamage) return;
     event.preventDefault();
