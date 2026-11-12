@@ -83,6 +83,8 @@ Hooks.once("init", () => {
   registerItemTagging();
   registerModuleThemeHooks();
   registerActionSheetThemes();
+  // Foundry 14.370 calls getSceneControlButtons once, on the first SceneControls render before "ready".
+  registerControls();
   log.info(`${MODULE_TITLE} initialized`);
 });
 
@@ -126,7 +128,6 @@ Hooks.once("ready", async () => {
   registerStationItems();
   registerCombatHooks();
   registerCrewSyncHooks();
-  registerControls();
   checkCausodesConflict();
   registerRefreshHooks();
   registerPetCabinMonitor();
