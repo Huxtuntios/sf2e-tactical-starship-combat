@@ -2,9 +2,13 @@
 
 ## Evidence and local commands
 
-This is historical offline evidence and an **unexecuted live-world checklist**, not release certification. Consolidation date: **2026-11-11**; earlier stage reports did not record calendar dates. Their results are preserved as reported, not independently rerun by this cleanup. Manifest declarations, source review, Node mocks, Chromium fixtures and hosted CI are not live Foundry tests. The current manifest is **0.17.1-dev.13**, with **22 packs**; totals below belong to their recorded worktrees.
+This is historical offline evidence and an **unexecuted live-world checklist**, not release certification. Consolidation date: **2026-11-11**; earlier stage reports did not record calendar dates. Their results are preserved as reported, not independently rerun by this cleanup. Manifest declarations, source review, Node mocks, Chromium fixtures and hosted CI are not live Foundry tests. The manifest at consolidation was **0.17.1-dev.13**, with **22 packs**; totals below belong to their recorded worktrees.
 
 Use `npm ci`, then `npm run check`; install Chromium with `npx playwright install chromium`, then `npm run test:ui`. Linux CI uses `--with-deps`; `CHROMIUM_PATH` selects an existing browser. Packaging is not compatibility evidence. See [release readiness](release-readiness.md) and [reality check](reality-check.md) before any tagging/publishing.
+
+## 1.0.0 release preparation — local results, 2026-11-12
+
+Branch `release/1.0.0`, base `0cdf1b65c838799304f0553ee288efefcef5c798` (merged PR #15), version synchronized to `1.0.0` in manifest/package/lockfile. Baseline on the pristine base: `npm ci` succeeded; `npm run check` passed **1,242/1,242** Node tests with zero failures, cancellations or skips, plus formatting, ESLint, content validation and 22 compiled packs; `npm run test:ui` passed **57/57** Chromium fixtures. After the release changes: `npm run check` again **1,242/1,242** and `npm run test:ui` **57/57**. One intermediate `format:check` warning on an added `docs/reality-check.md` line was fixed with scoped Prettier and the full check rerun. The `release-070` version-format assertion was updated to accept stable semver (`>= 0.7.0` minimum and manifest/package match retained); no test was disabled or weakened. `npm run build:release` and `node tools/verify-release.mjs dist v1.0.0` passed: matching ZIP-root/external manifests, checksums and declared pack structures. Hosted CI on `main` at the base commit was green (run `43174357113`). These are offline results, not live Foundry execution; the live and human/policy gates below remain unexecuted.
 
 ## Post-wizard audit — local results, 2026-11-12
 

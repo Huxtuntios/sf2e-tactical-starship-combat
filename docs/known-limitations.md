@@ -1,8 +1,8 @@
 # Known limitations
 
-## Reliability follow-up — unpublished, source/mock tested only
+## Reliability follow-up — shipped in 1.0.0, source/mock tested only
 
-This section supersedes conflicting historical notes below for the changed paths. The module version and manifest compatibility declarations are unchanged. No live Foundry, actual Toolbelt execution, multi-client privacy or GM failover was exercised.
+This section supersedes conflicting historical notes below for the changed paths. The manifest compatibility declarations are unchanged. No live Foundry, actual Toolbelt execution, multi-client privacy or GM failover was exercised.
 
 - Sensor Map retains its background node and one asynchronous source/revision loader across part replacement. Giant rasters use a PNG display copy capped at 4096 pixels, with original path/file unchanged; ordinary images are not rescaled. Initial full-image decoding still consumes memory, and tainted/CORS-restricted canvases or unavailable encoding can fall back to the full native image. Failed/timed-out loads need an explicit source/revision refresh rather than automatic repeated retries. Same-URL content replacement needs `invalidateSensorMapBackground()` or a Combat update with `tscForceMapBackground: true`. Actor caches are window-owned and pruned to visible known UUIDs; actual Foundry synthetic/compendium hook delivery remains unverified.
 - Socket waits are bounded: 15 seconds initially, then one 120-second result deadline after the first eligible acknowledgement. Local GM waits are bounded too. Disconnect/active-GM changes reject outstanding requests; delayed replies cannot revive them. A timeout only ends the caller's wait: the handler may still finish and write documents. Inspect state and chat before retrying. These queues and bounded receipts do **not** guarantee distributed exactly-once processing.
@@ -11,7 +11,7 @@ This section supersedes conflicting historical notes below for the changed paths
 - Reveal recovery finishes forward from a private journal intent; it cannot undo information already disclosed. Stages are advisory: actual map/Actor/Combatant identity, ownership, initiative and duplicates are rechecked. Conflicts keep the contact pending for GM inspection; completed journal receipts retain only the latest 64 reveals. Local serialization is not a distributed lock, and external document edits can still conflict. The GM map button exposes pending recovery even after public placement; public edits/initiative for its key/Actor and resizing are guarded, while independent public marker additions do not require a valid private journal. No render/hook initiates recovery writes.
 - The ordered, unexecuted live-world checklist is in [testing](testing.md). A real server with separate GM/player clients is required before claiming compatibility or confidentiality. No action or reaction accounting, world-wide migration, release publication or system upgrade is added.
 
-## 0.17.1-dev.13 — current limitations
+## 1.0.0 — current limitations
 
 - Native SF2e check dialogs are reached through `Statistic.check.roll`, so system modifier enable/disable, manual typed modifiers, fortune/misfortune, roll visibility, and `showCheckDialogs` remain system-owned. For socketed rolls the initiating click's Shift/visibility options are serialized before the request; the authoritative roll still runs in the GM's Foundry client, so any dialog is displayed there. The module's ship damage formulas use SF2e `DamageRoll` for typed chat output, but custom ship damage has no native damage-options dialog and is not changed by `showDamageDialogs` (`scripts/starship/stats.mjs`, `scripts/rolls/typed-damage.mjs`). The prior source review recorded that SF2e 1.7.0 does not expose its internal `DamageModifierDialog` as a public arbitrary-formula API; that external review has not been repeated in this docs cleanup.
 - Compendium index discovery and Actor creation are mocked; verify real Foundry/SF2e packs, permission inheritance, repeated placements and source immutability in a test world. Hidden player Starships are refused. Selecting identified intentionally discloses identity; the current contact menu applies the selected state without another confirmation.
@@ -29,7 +29,7 @@ This section supersedes conflicting historical notes below for the changed paths
 
 ## Historical stage limitations
 
-Older version-specific sections throughout this document retain implementation/provenance context, not the current status of every feature. The reliability and dev.13 sections above supersede old public-only contact, notes-only inventory, protocol and pet-cabin descriptions. Historical tests and source inputs are consolidated in [testing](testing.md#historical-dev-evidence-consolidated-2026-11-11).
+Older version-specific sections throughout this document retain implementation/provenance context, not the current status of every feature. The reliability and current-limitations sections above supersede old public-only contact, notes-only inventory, protocol and pet-cabin descriptions. Historical tests and source inputs are consolidated in [testing](testing.md#historical-dev-evidence-consolidated-2026-11-11).
 
 ### 0.17.1-dev.11
 

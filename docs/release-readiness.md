@@ -84,3 +84,11 @@ Foundry AI policy states that all user-facing prepared written text must be huma
 - SF2e rules reference, not blanket provenance: <https://2e.aonsrd.com/>
 
 See [Reality Check](reality-check.md) for inspected paths, confirmed defects and executed evidence. Maintainer-only workflow instructions remain in the source repository's `docs/RELEASING.md`.
+
+## 1.0.0 preparation addendum — 2026-11-12
+
+The maintainer merged PR #15 into `main` (`0cdf1b65c838799304f0553ee288efefcef5c798`, hosted CI green) and directed release preparation. Branch `release/1.0.0` synchronizes version `1.0.0` in `module.json`, `package.json` and both `package-lock.json` version fields, adds the categorized `1.0.0` CHANGELOG section and `docs/releases/1.0.0.md`, and updates the README banners, publishing guide and current-version wording. Compatibility declarations, dependencies, the module ID, repository URLs, pack names and document IDs are unchanged; no gameplay mechanic was changed. The `release-070` version-format test now accepts stable semver while keeping the historical `>= 0.7.0` minimum and the manifest/package match.
+
+Executed local evidence is recorded in [testing](testing.md#100-release-preparation--local-results-2026-11-12): baseline and post-change `npm run check` **1,242/1,242**, `npm run test:ui` **57/57**, `npm run build:release` and `node tools/verify-release.mjs dist v1.0.0` passed. This synchronizes the version for a review PR; it is not publication authorization.
+
+**The blocking human confirmations and live acceptance gates above remain unexecuted.** They still condition any `v1.0.0` tag, GitHub Release publication, `latest`-channel availability and Foundry catalog submission. In particular: live Foundry v14/SF2e multiplayer and PF2e + Anachronism sessions, real Toolbelt/libWrapper integration, human authorship of the PR #14 wizard interface originals, Russian translation review, SVG rights, ORC/reserved-material legal review and human-written catalog marketing. Do not treat the green automated checks or this addendum as a substitute for those gates.

@@ -64,7 +64,8 @@ test("0.7.0: attackButtons computes totals with MAP", async () => {
 
 test("0.7.0: version", () => {
   const v = JSON.parse(rd("module.json")).version;
-  assert.match(v, /^0\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/);
-  assert.ok(Number(v.split(".")[1]) >= 7);
+  assert.match(v, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/);
+  const [major, minor] = v.split(".").map(Number);
+  assert.ok(major > 0 || minor >= 7);
   assert.equal(JSON.parse(rd("package.json")).version, v);
 });
