@@ -12,7 +12,6 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **1.0.0 — not live-certified.** A live Foundry v14 / SF2e multiplayer session has not been performed; automated checks and browser fixtures are not live certification. Review [release readiness](docs/release-readiness.md), [the reality check](docs/reality-check.md) and [current limitations](docs/known-limitations.md) before campaign use or publication.
 
 ## Requirements
 
