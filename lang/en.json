@@ -776,6 +776,10 @@
         "name": "Attack declaration cards",
         "hint": "Controls legacy and spell attack declaration cards. Weapon Strikes select a target on the Sensor Map and use a system roll message."
       },
+      "nativeModifierDialog": {
+        "name": "Extra situational-modifier dialog",
+        "hint": "Show the module's six-row situational modifier form before the system roll dialog. Off by default: the system roll dialog already provides modifier rows, so only one window opens."
+      },
       "ruleEnforcement": {
         "name": "Rule enforcement",
         "hint": "Warn: every station rule (helming, grade, malfunction, requirements, frequency, range, detection) is shown as a warning on the chat card and nothing is blocked. Strict: the module refuses the action (the GM can still override).",
@@ -1337,6 +1341,12 @@
       "mixedTargets": "Apply ship damage separately from ordinary actors, or use individual Toolbelt target rows.",
       "useShipShields": "Shield Block is for a personal shield. Use Damage through shields or Direct hull damage for a starship.",
       "applied": "Ship damage applied.",
+      "undoDamage": "Undo damage",
+      "undoDamageHint": "Return exactly the shields/hull this application removed. GM only; refused if the ship entered a critical state or changed since.",
+      "damageUndone": "Ship damage undone.",
+      "alreadyUndone": "This damage application has already been undone.",
+      "undoUnsafe": "This application caused a critical state (compromised/destroyed/inoperable) and cannot be undone automatically; the GM must adjust manually.",
+      "undoConflict": "The ship or combat changed since this damage was applied; undo refused. The GM must adjust manually.",
       "targetUnavailable": "The ship target is no longer available. Damage was not applied; refresh the card and check the target.",
       "mergedUnsupported": "A merged, injected or split Toolbelt card cannot be reliably matched to earlier receipts. Do not apply it again blindly: the GM must inspect the original cards and resolve damage manually."
     },
@@ -1388,6 +1398,7 @@
         "cooldown": "This drone is not yet available or its cooldown cannot be checked.",
         "useAction": "Use the station action to deploy or retrieve a drone.",
         "noEligible": "No eligible tracked drone is available.",
+        "stationMines": "This console's drones still have armed mines on the map. Remove or detonate them before removing the station.",
         "mineZone": "This drone already has an armed mine in this zone.",
         "mineRound": "This station has already deployed a mine this round.",
         "mineMap": "The ship must be placed on the current Sensor Map in an active combat.",
@@ -1422,6 +1433,9 @@
     },
     "droneBlock": {
       "choose": "Choose a deployed drone for this Strike. Close to decline.",
+      "softTitle": "Drone Block (soft)",
+      "softHint": "Return the drone and start its 10-minute cooldown. Resistance {resistance} is reported for the GM to apply against the triggering Strike; no damage is applied and no action or reaction is spent here.",
+      "softResistance": "Resistance (GM applies)",
       "confirmTitle": "Confirm Drone Block",
       "confirm": "{attacker}'s {attack} would hit {target} for {amount} damage. {drone} grants resistance {resistance} and will be returned for 10 minutes. Confirm Drone Block and choose how to resolve damage.",
       "resolution": "Damage handling",

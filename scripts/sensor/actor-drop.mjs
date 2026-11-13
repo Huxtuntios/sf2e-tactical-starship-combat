@@ -1,6 +1,7 @@
 import { MODULE_ID, FLAGS } from "../constants.mjs";
 import { addObject, moveObject } from "../engine/sensor-ops.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
+import { initialShipTransform } from "./appearance.mjs";
 
 /** Данные события не являются доверенным документом: авторитетный GM повторно разрешает UUID. */
 export function sensorDragData(event) {
@@ -39,7 +40,7 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false } = {})
     zone,
     heading,
     detection: { party: "identified" },
-    ...(ship ? { mapTransform: { baseDirection: "unknown" } } : { icon: "⚠" })
+    ...(ship ? { mapTransform: initialShipTransform(actor.flags?.[MODULE_ID]?.[FLAGS.STARSHIP]?.mapTransform, heading) } : { icon: "⚠" })
   };
   let next = addObject(state, object);
   if (hazard)

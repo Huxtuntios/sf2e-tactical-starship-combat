@@ -25,6 +25,32 @@ export async function openStationHUD() {
   const ex = openApps(StationHUD)[0];
   return ex ? ex.bringToFront() : new StationHUD().render(true);
 }
+/** Scene-button toggles: a second press closes the window the button opened instead of stacking another. */
+export async function toggleSensorMap() {
+  const { SensorMapApplication } = await import("./sensor-map-app.mjs");
+  const { openApps } = await import("./base-app.mjs");
+  const ex = openApps(SensorMapApplication)[0];
+  return ex ? ex.close() : openSensorMap();
+}
+export async function toggleStationHUD() {
+  const { StationHUD } = await import("./station-hud.mjs");
+  const { openApps } = await import("./base-app.mjs");
+  const ex = openApps(StationHUD)[0];
+  return ex ? ex.close() : openStationHUD();
+}
+export async function toggleStartWizard() {
+  const { StartCombatWizard } = await import("./start-wizard.mjs");
+  const { openApps } = await import("./base-app.mjs");
+  const ex = openApps(StartCombatWizard)[0];
+  return ex ? ex.close() : openStartWizard();
+}
+export async function toggleToolbox() {
+  // DialogV2 windows live in foundry.applications.instances (a Map), not the legacy ui.windows registry.
+  const instances = foundry.applications.instances;
+  const open = instances ? [...instances.values()].filter((w) => w.rendered && w.options?.classes?.includes("tsc-toolbox-dialog")) : [];
+  if (open.length) return Promise.all(open.map((w) => w.close()));
+  return openToolbox();
+}
 export async function openBrowser(mode = "hazards") {
   const { ContentBrowser } = await import("./hazard-browser.mjs");
   const b = new ContentBrowser();

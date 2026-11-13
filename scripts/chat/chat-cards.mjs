@@ -45,7 +45,7 @@ export async function postActionCard({ actor, action, crewName, stationName, deg
 }
 
 /** Card describing structured damage output (mirrors the damage engine result). */
-export async function postDamageCard({ actor, source, result, attackLine = null }) {
+export async function postDamageCard({ actor, source, result, attackLine = null, undoRef = null }) {
   const r = result;
   const lines = [];
   if (attackLine) lines.push(attackLine);
@@ -64,12 +64,17 @@ export async function postDamageCard({ actor, source, result, attackLine = null 
     lines.push(`<p class="tsc-alert">${T("SF2eTSC.chat.compromisedUp", { value: r.newState.compromised })}</p>`);
   if (r.stationsMalfunctioned) lines.push(`<p class="tsc-alert">⚠ ${T("SF2eTSC.chat.stationsMalfunction")}</p>`);
   if (r.destroyed) lines.push(`<p class="tsc-alert tsc-destroyed">☠ ${T("SF2eTSC.chat.destroyed")}</p>`);
+  const undoable =
+    undoRef && !r.becameCompromised && !r.becameInoperable && !r.destroyed && !r.stationsMalfunctioned && !(r.compromisedIncrease > 0);
+  const undo = undoable
+    ? `<div class="tsc-card-undo"><button type="button" data-tsc-undo-damage data-message-id="${escapeHtml(undoRef.messageId)}" data-target-uuid="${escapeHtml(undoRef.targetUuid)}" data-roll-index="${undoRef.rollIndex}">${T("SF2eTSC.toolbelt.undoDamage")}</button></div>`
+    : "";
   return post({
     actor,
     flags: { damage: r },
     content: wrap(
       "damage",
-      `<header><h3>${escapeHtml(actor.name)}</h3><span>${escapeHtml(source ?? T("SF2eTSC.chat.damageTaken"))}</span></header><div class="tsc-body">${lines.join("")}</div>`
+      `<header><h3>${escapeHtml(actor.name)}</h3><span>${escapeHtml(source ?? T("SF2eTSC.chat.damageTaken"))}</span></header><div class="tsc-body">${lines.join("")}</div>${undo}`
     )
   });
 }

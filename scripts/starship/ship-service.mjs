@@ -1,6 +1,7 @@
 import { saveInstallMinePlan } from "../actions/install-mine-plan.mjs";
+import { MODULE_ID } from "../constants.mjs";
 import { installMines, changeKnownMod, discardStoredMine, operatorClassStatus } from "../engine/mine-stock.mjs";
-import { syncMineContact, syncMineContactSafe } from "../sensor/mine-contact.mjs";
+import { syncMineContact, syncMineContactSafe, mineRefOf, mineObjectFor, findMineActors, MINE_FLAG } from "../sensor/mine-contact.mjs";
 import { updateProtocolDrone } from "../actions/protocol-manual.mjs";
 import { updatePetCabin } from "../actions/pet-onboard.mjs";
 import { markManualIntercept } from "../actions/intercept-manual.mjs";
@@ -10,7 +11,7 @@ import { moveOwnedMine, uniqueOwnedMine } from "../actions/mine-resolution.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { computeShipStats } from "./stats.mjs";
-import { patchStarship, stationOf, writeStarship, isStarship, loadStarship } from "./starship-state.mjs";
+import { patchStarship, stationOf, writeStarship, isStarship, loadStarship, readStarship } from "./starship-state.mjs";
 import { registerHandler, request } from "../socket.mjs";
 import { can } from "../crew/permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
@@ -115,15 +116,35 @@ export function registerShipHandlers() {
   registerHandler("removeStation", async ({ user, payload }) => {
     const s = await ship(payload.shipUuid);
     if (!(user.isGM || can(user, s, "configureShip"))) throw new Error(T("SF2eTSC.errors.noPermission"));
+    const sid = payload.stationId;
+    // A resolved mine whose map cleanup failed still has a live contact / stale Hazard Actor. Deleting its
+    // drone record would make that projection unrepairable ("Sync contact" needs the record), so refuse here.
+    for (const drone of (readStarship(s).drones ?? []).filter((x) => x?.stationId === sid)) {
+      for (const mine of Array.isArray(drone.mines) ? drone.mines : []) {
+        const ref = mineRefOf(s.uuid, drone.id, mine.id);
+        const combat = game.combats?.get(mine.combatId);
+        const contact = combat ? mineObjectFor(getTsc(combat), ref) : null;
+        const actor = findMineActors(s.uuid, drone.id, mine.id)[0];
+        const staleActor = !!actor && actor.flags?.[MODULE_ID]?.[MINE_FLAG]?.state !== mine.state;
+        if (mine.state === "armed" || contact || staleActor) throw new Error(T("SF2eTSC.droneControl.errors.stationMines"));
+      }
+    }
     await patchStarship(s, (d) => {
-      d.stations = d.stations.filter((x) => x.id !== payload.stationId);
+      const stationDrones = (Array.isArray(d.drones) ? d.drones : []).filter((x) => x?.stationId === sid);
+      // Armed mines keep a Hazard Actor and a map contact; removing their console would orphan both.
+      if (stationDrones.some((x) => (Array.isArray(x.mines) ? x.mines : []).some((m) => m?.state === "armed")))
+        throw new Error(T("SF2eTSC.droneControl.errors.stationMines"));
+      d.stations = d.stations.filter((x) => x.id !== sid);
       d.crew.forEach((c) => {
-        if (c.stationId === payload.stationId) c.stationId = null;
+        if (c.stationId === sid) c.stationId = null;
       });
       (d.upgrades ?? []).forEach((u) => {
-        if (u?.stationId === payload.stationId) u.stationId = null;
+        if (u?.stationId === sid) u.stationId = null;
       });
-    }); // upgrades are kept, unassigned
+      d.drones = (Array.isArray(d.drones) ? d.drones : []).filter((x) => x?.stationId !== sid);
+      if (d.droneMineFrequency && typeof d.droneMineFrequency === "object" && !Array.isArray(d.droneMineFrequency))
+        d.droneMineFrequency = Object.fromEntries(Object.entries(d.droneMineFrequency).filter(([k]) => !k.startsWith(`${sid}:`)));
+    }); // upgrades are kept, unassigned; drones and mine frequency bound to the station are removed
     return true;
   });
 

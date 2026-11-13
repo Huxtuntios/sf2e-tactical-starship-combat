@@ -1,7 +1,15 @@
 import { MODULE_ID } from "../constants.mjs";
 import { T } from "../utils/foundry.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
-import { openSensorMap, openStationHUD, openStartWizard, openToolbox, openStarshipSheet, openNPCStarshipSheet } from "./launchers.mjs";
+import {
+  openSensorMap,
+  toggleSensorMap,
+  toggleStationHUD,
+  toggleStartWizard,
+  toggleToolbox,
+  openStarshipSheet,
+  openNPCStarshipSheet
+} from "./launchers.mjs";
 import { canConvertToStarship } from "../integrations/aztecs.mjs";
 import { canConvert } from "../integrations/causodes.mjs";
 import { defaultStarship } from "../engine/validation.mjs";
@@ -51,10 +59,10 @@ export function registerControls() {
       if (Array.isArray(group.tools)) group.tools.push(tool);
       else group.tools[name] = tool;
     };
-    add("tscSensorMap", "fa-solid fa-satellite", "SF2eTSC.ui.sensorMap", openSensorMap, false, 101);
-    add("tscStationHud", "fa-solid fa-gamepad", "SF2eTSC.ui.stationHud", openStationHUD, false, 102);
-    add("tscStart", "fa-solid fa-jet-fighter", "SF2eTSC.ui.startCombat", openStartWizard, true, 103);
-    add("tscToolbox", "fa-solid fa-toolbox", "SF2eTSC.ui.toolbox", openToolbox, true, 104);
+    add("tscSensorMap", "fa-solid fa-satellite", "SF2eTSC.ui.sensorMap", toggleSensorMap, false, 101);
+    add("tscStationHud", "fa-solid fa-gamepad", "SF2eTSC.ui.stationHud", toggleStationHUD, false, 102);
+    add("tscStart", "fa-solid fa-jet-fighter", "SF2eTSC.ui.startCombat", toggleStartWizard, true, 103);
+    add("tscToolbox", "fa-solid fa-toolbox", "SF2eTSC.ui.toolbox", toggleToolbox, true, 104);
   });
 
   const contextOptions = (options) => {

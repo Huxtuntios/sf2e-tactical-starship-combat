@@ -1,5 +1,4 @@
-import { registerHandler } from "../socket.mjs";
-/** GM-only bounded audit records; legacy GM-whisper records remain readable. */
+/** GM-only bounded audit records; legacy GM-whisper records remain readable. History is read-only: the GM adjusts state manually. */
 import { MODULE_ID } from "../constants.mjs";
 import { T } from "../utils/foundry.mjs";
 import { getTsc, activeStarshipCombat } from "../combat/tsc-state.mjs";
@@ -145,8 +144,6 @@ export async function recordChange(actor, beforeData, afterData, { reason = "", 
     const doc = await ensureHistoryStore();
     record.id = foundry.utils.randomID(16);
     const next = [...recordsOf(doc), record];
-    // Pending intent is recovery evidence, even when the Actor write failed or has not started yet.
-    if (next.slice(0, -80).some((item) => item.undoIntent && !item.undone)) throw new Error(T("SF2eTSC.qol.historyFailed"));
     await doc.update({ [`flags.${MODULE_ID}.historyStore.records`]: next.slice(-80) });
     const mode = game.settings.get(MODULE_ID, "chatAnnouncements") ?? "important";
     const important = fields.some((field) => ["destroyed", "inoperable", "compromised", "wrecked"].includes(field));
@@ -155,151 +152,5 @@ export async function recordChange(actor, beforeData, afterData, { reason = "", 
       await ChatMessage.create({ content: `<p>${foundry.utils.escapeHTML(text)}</p>`, speaker: ChatMessage.getSpeaker({ actor }) });
     }
     return journalEntry(doc, record.id);
-  });
-}
-
-const undoConflict = () => new Error(T("SF2eTSC.qol.undoConflict"));
-/** Resolve only the GM-configured private Journal or a trusted legacy whisper, never caller-supplied record data. */
-function undoTarget(messageId) {
-  const id = String(messageId);
-  const journal = id.startsWith("j:") ? historyStore() : null;
-  if (id.startsWith("j:") && !journal) throw undoConflict();
-  const recordId = journal ? id.slice(2) : null;
-  const key = JSON.stringify(journal ? ["journal", journal.id, recordId] : ["message", id]);
-  const read = () => {
-    if (journal) {
-      const current = historyStore();
-      if (current?.id !== journal.id) throw new Error(T("SF2eTSC.qol.historyStoreInvalid"));
-      const matches = recordsOf(current).filter((item) => item.id === recordId);
-      if (matches.length > 1 || (matches.length && matches[0].schema !== 1)) throw undoConflict();
-      return matches[0];
-    }
-    const message = game.messages.get(id);
-    if (!message) return undefined;
-    if (!trustedRecord(message)) throw undoConflict();
-    return message.flags[MODULE_ID].history;
-  };
-  return { key, journal, recordId, id, read };
-}
-function validIntent(intent, target, shipUuid) {
-  return (
-    intent?.schema === 1 &&
-    typeof intent.id === "string" &&
-    /^[a-zA-Z0-9]{16}$/.test(intent.id) &&
-    intent.key === target.key &&
-    intent.shipUuid === shipUuid
-  );
-}
-function finalizedRecord(current, expected) {
-  return current?.undone === true && current.undoable === false && equalState(current, { ...expected, undone: true, undoable: false });
-}
-async function updateUndoRecord(target, expected, patch, validate = () => {}) {
-  const update = async () => {
-    if (!game.user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
-    const current = target.read();
-    validate();
-    if (patch.undone && finalizedRecord(current, expected)) return;
-    if (!equalState(current, expected)) throw undoConflict();
-    if (target.journal) {
-      const doc = historyStore();
-      const next = recordsOf(doc).map((item) => (item.id === target.recordId ? { ...item, ...patch } : item));
-      await doc.update({ [`flags.${MODULE_ID}.historyStore.records`]: next });
-    } else {
-      await game.messages
-        .get(target.id)
-        .update(Object.fromEntries(Object.entries(patch).map(([k, value]) => [`flags.${MODULE_ID}.history.${k}`, value])));
-    }
-  };
-  // Only the short Journal read-modify-write owns this queue. It never waits for an Actor queue.
-  return target.journal ? serialize("tsc-history-store", update) : update();
-}
-/** One bounded receipt per Actor: never replace proof while its trusted record still has an unfinished intent. */
-function replaceableReceipt(receipt, shipUuid) {
-  try {
-    const parts = JSON.parse(receipt.key);
-    if (!Array.isArray(parts)) return false;
-    const target = undoTarget(
-      parts[0] === "journal" && parts.length === 3 ? `j:${parts[2]}` : parts[0] === "message" && parts.length === 2 ? parts[1] : ""
-    );
-    if (!validIntent(receipt, target, shipUuid)) return false;
-    const record = target.read();
-    // Module retention never removes a pending intent. A missing record has no remaining recovery operation.
-    return !record || (record.undone === true && record.undoable === false && equalState(record.undoIntent, receipt));
-  } catch {
-    return false;
-  }
-}
-async function performUndo(messageId) {
-  const target = undoTarget(messageId);
-  let r = target.read();
-  if (!r?.undoable || r.undone || !r.before || !r.after || !equalState(r.guard, combatGuard())) throw undoConflict();
-  if (!reversible(r.before, r.after)) throw new Error(T("SF2eTSC.qol.undoUnsafe"));
-  r = structuredClone(r);
-  if (r.undoIntent && !validIntent(r.undoIntent, target, r.shipUuid)) throw undoConflict();
-  const { loadStarship, readStarship, patchStarship } = await import("../starship/starship-state.mjs");
-  const actor = await loadStarship(r.shipUuid);
-  if (!r.undoIntent) {
-    if (!equalState(snapshot(readStarship(actor)), r.after) || !equalState(r.guard, combatGuard())) throw undoConflict();
-    const intent = { schema: 1, id: foundry.utils.randomID(16), key: target.key, shipUuid: actor.uuid };
-    await updateUndoRecord(target, r, { undoIntent: intent });
-    r = { ...r, undoIntent: intent };
-  }
-  const options = { history: false, expectedCombat: r.guard, extra: {} };
-  await patchStarship(
-    actor,
-    (data) => {
-      if (!equalState(target.read(), r)) throw undoConflict();
-      const receipt = actor.flags?.[MODULE_ID]?.historyUndoReceipt;
-      const recovered = equalState(receipt, r.undoIntent);
-      const expected = recovered ? r.before : r.after;
-      if (!equalState(snapshot(data), expected)) throw undoConflict();
-      if (!recovered && receipt && !replaceableReceipt(receipt, actor.uuid)) throw undoConflict();
-      // patchStarship reads these options after its mutator, within the Actor queue; performWrite rechecks both guards.
-      options.expected = expected;
-      if (!recovered) {
-        Object.assign(data, structuredClone(r.before));
-        options.extra = { [`flags.${MODULE_ID}.historyUndoReceipt`]: r.undoIntent };
-      }
-      // A matching receipt with actor-before is a guarded no-op; actor-before alone (including ABA) is never proof.
-    },
-    options
-  );
-  const validate = () => {
-    if (
-      !equalState(actor.flags?.[MODULE_ID]?.historyUndoReceipt, r.undoIntent) ||
-      !equalState(snapshot(readStarship(actor)), r.before) ||
-      !equalState(combatGuard(), r.guard)
-    )
-      throw undoConflict();
-  };
-  try {
-    await updateUndoRecord(target, r, { undone: true, undoable: false }, validate);
-  } catch (err) {
-    // A lost finalization acknowledgment is already complete, not a reason to restore a second time.
-    if (!finalizedRecord(target.read(), r)) throw err;
-    validate();
-  }
-  return true;
-}
-const undoQueues = new Map();
-export async function undoChange(messageId) {
-  if (!game.user?.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
-  const id = String(messageId);
-  // Same-record requests share one operation independently of the Journal queue. Sequential completed Undo still conflicts.
-  const existing = undoQueues.get(id);
-  if (existing) return existing;
-  const task = performUndo(id);
-  undoQueues.set(id, task);
-  try {
-    return await task;
-  } finally {
-    if (undoQueues.get(id) === task) undoQueues.delete(id);
-  }
-}
-
-export function registerHistoryHandlers() {
-  registerHandler("undoHistory", async ({ user, payload }) => {
-    if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
-    return undoChange(payload.messageId);
   });
 }

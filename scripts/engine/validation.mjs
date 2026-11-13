@@ -1,4 +1,5 @@
 import { normalizeCrewAssignments } from "./crew-assignments.mjs";
+import { normalizeObjectTransform } from "../sensor/appearance.mjs";
 import { DATA_VERSION, GRADES, HEADINGS, STARSHIP_ROLES, STATION_TYPES } from "../constants.mjs";
 
 /** Immunities shared by all "starship immunities" (Tech Core p.172). */
@@ -41,6 +42,7 @@ export function defaultStarship() {
     offKilter: false,
     destroyed: false,
     heading: "right",
+    mapTransform: null,
     immunities: [],
     resistances: {},
     weaknesses: {},
@@ -89,6 +91,7 @@ export function normalizeStarship(input) {
     warnings.push(`heading "${d.heading}" invalid, using right`);
     d.heading = "right";
   }
+  d.mapTransform = d.mapTransform && typeof d.mapTransform === "object" ? normalizeObjectTransform(d.mapTransform) : null;
   if (!STARSHIP_ROLES.includes(d.role)) {
     warnings.push(`role "${d.role}" invalid, using npc`);
     d.role = "npc";

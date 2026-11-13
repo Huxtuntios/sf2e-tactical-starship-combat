@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { installFoundryMock, makeCharacter, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import { crewStationsView } from "../../scripts/crew/crew-stations-view.mjs";
 
@@ -67,5 +68,24 @@ test("character sheets expose the station command through Foundry's AppV1 and Ap
   assert.equal(
     v2Controls.some((control) => control.action === "tscCrewStations"),
     true
+  );
+});
+
+test("scene controls register at init and add tools to the Foundry 14.370 controls record", async () => {
+  installFoundryMock();
+  const { registerControls } = await import("../../scripts/ui/controls.mjs");
+  registerControls();
+  const controls = { tokens: { name: "tokens", tools: {} } };
+  Hooks.callAll("getSceneControlButtons", controls);
+  for (const tool of ["tscSensorMap", "tscStationHud", "tscStart", "tscToolbox"]) assert.ok(controls.tokens.tools[tool], tool);
+
+  const main = readFileSync(new URL("../../scripts/main.mjs", import.meta.url), "utf8");
+  const initAt = main.indexOf('Hooks.once("init"');
+  const readyAt = main.indexOf('Hooks.once("ready"');
+  const regAt = main.indexOf("registerControls();");
+  assert.ok(initAt >= 0 && readyAt > initAt, "init and ready hooks exist");
+  assert.ok(
+    regAt > initAt && regAt < readyAt,
+    "registerControls must run in init: Foundry 14.370 calls getSceneControlButtons once before ready"
   );
 });

@@ -125,6 +125,11 @@ export function normalizeObjectTransform(value = {}) {
 export function normalizeAutoMirrorOverride(value) {
   return value === true || value === false ? value : null;
 }
+/** Initial map transform for a ship: a stored per-actor transform wins, otherwise the art faces the ship's sheet heading. */
+export function initialShipTransform(stored, heading) {
+  if (stored && typeof stored === "object") return normalizeObjectTransform(stored);
+  return normalizeObjectTransform({ baseDirection: ["left", "right"].includes(heading) ? heading : "right" });
+}
 /** Отражение выводится из курса, а не накапливается от событий. Курс карты сегодня только left/right. */
 export function visualTransform(value, heading, autoMirror = false, autoMirrorOverride = null) {
   const t = normalizeObjectTransform(value);

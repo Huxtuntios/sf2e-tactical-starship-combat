@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID as M } from "../../scripts/constants.mjs";
 import { readStarship, patchStarship, writeStarship } from "../../scripts/starship/starship-state.mjs";
-import { historyEntries, undoChange, reversible, snapshot, historySummary } from "../../scripts/history/history.mjs";
-import { makeEffect, pruneExpired } from "../../scripts/starship/effects.mjs";
+import { historyEntries, reversible, snapshot, historySummary } from "../../scripts/history/history.mjs";
+import { makeEffect, pruneExpired, effectModifiers } from "../../scripts/starship/effects.mjs";
 import { sanitizeTiming, timingExpired, advanceEffects } from "../../scripts/starship/effect-timing.mjs";
 import { uiStateKey, restoreUiState, saveUiState, filterRows } from "../../scripts/ui/client-ui.mjs";
 import { registerSettings } from "../../scripts/settings.mjs";
@@ -85,39 +85,6 @@ test("history is GM-only and shows exact shields/hull deltas plus reason", async
   assert.equal(r.undoable, false);
   assert.equal(actor.flags[M].history, undefined);
 });
-test("0.12 guarded undo restores module state but keeps unrelated system fields", async () => {
-  const { actor } = setup();
-  await patchStarship(actor, (d) => {
-    d.heading = "left";
-  });
-  const [m] = historyEntries();
-  actor.system.details = { biography: "keep me" };
-  await undoChange(m.id);
-  assert.equal(readStarship(actor).heading, "right");
-  assert.equal(actor.system.details.biography, "keep me");
-  assert.equal(m.flags[M].history.undone, true);
-  await assert.rejects(undoChange(m.id));
-});
-test("0.12 undo refuses incompatible later edits including manual system HP edits", async () => {
-  const { actor } = setup();
-  await patchStarship(actor, (d) => {
-    d.heading = "left";
-  });
-  const [m] = historyEntries();
-  await actor.update({ "system.attributes.hp.value": 99 });
-  await assert.rejects(undoChange(m.id));
-  assert.equal(readStarship(actor).heading, "left");
-});
-test("0.12 undo refuses changed combat budgets, turn or round", async () => {
-  const { actor } = setup();
-  const combat = makeStarshipCombat();
-  await patchStarship(actor, (d) => {
-    d.heading = "left";
-  });
-  const [m] = historyEntries();
-  combat.round++;
-  await assert.rejects(undoChange(m.id));
-});
 test("0.12 critical damage/configuration changes are audit-only", async () => {
   const { actor } = setup();
   const before = snapshot(readStarship(actor));
@@ -127,16 +94,14 @@ test("0.12 critical damage/configuration changes are audit-only", async () => {
   });
   assert.equal(historyEntries()[0].flags[M].history.undoable, false);
 });
-test("0.12 players cannot read or undo GM history", async () => {
+test("0.12 players cannot read GM history", async () => {
   const { actor, setUser } = setup();
   await patchStarship(actor, (d) => {
     d.sp.value = 8;
   });
-  const id = historyEntries()[0].id;
   const player = game.users.find((u) => !u.isGM);
   setUser(player.id);
   assert.deepEqual(historyEntries(), []);
-  await assert.rejects(undoChange(id));
 });
 test("0.12 stale expected snapshots rejected inside serialized actor write", async () => {
   const { actor } = setup();
@@ -154,7 +119,6 @@ test("damage drafts and normal action drafts cannot be reversed", async () => {
   await draft.commit();
   const [m] = historyEntries();
   assert.equal(m.flags[M].history.undoable, false);
-  await assert.rejects(undoChange(m.id));
   assert.equal(readStarship(actor).sp.value, 8);
   const action = new Draft(null);
   (await action.ship(actor.uuid)).data.sp.value = 7;
@@ -213,7 +177,7 @@ test("0.13 history search and undo filter compose; reset restores all rows", () 
   );
 });
 
-test("legacy trusted GM whisper remains readable and undoable", async () => {
+test("legacy trusted GM whisper remains readable as audit", async () => {
   const { actor } = setup();
   const before = snapshot(readStarship(actor));
   await patchStarship(
@@ -231,9 +195,6 @@ test("legacy trusted GM whisper remains readable and undoable", async () => {
     }
   });
   assert.equal(historyEntries()[0].id, old.id);
-  await undoChange(old.id);
-  assert.equal(readStarship(actor).heading, "right");
-  assert.equal(old.flags[M].history.undone, true);
 });
 test("legacy HP/SP history remains readable but cannot undo possible damage", async () => {
   const { actor } = setup();
@@ -255,9 +216,7 @@ test("legacy HP/SP history remains readable but cannot undo possible damage", as
   const writes = globalThis.__writes.length;
   const messages = game.messages.size;
   assert.equal(historyEntries()[0].id, old.id);
-  await assert.rejects(undoChange(old.id));
   assert.equal(readStarship(actor).sp.value, 8);
-  assert.equal(old.flags[M].history.undone, false);
   assert.equal(globalThis.__writes.length, writes);
   assert.equal(game.messages.size, messages);
 });
@@ -267,13 +226,12 @@ test("0.12 forged player history flags are neither displayed nor executable", as
   const gm = game.user.id,
     player = game.users.find((u) => !u.isGM);
   setUser(player.id);
-  const forged = await ChatMessage.create({
+  await ChatMessage.create({
     whisper: [gm],
     flags: { [M]: { history: { schema: 1, shipUuid: actor.uuid, before: data, after: data, undoable: true, guard: null } } }
   });
   setUser(gm);
   assert.deepEqual(historyEntries(), []);
-  await assert.rejects(undoChange(forged.id));
 });
 test("0.12 audit retention is bounded to 80 GM records", async () => {
   const { actor } = setup();
@@ -406,14 +364,19 @@ test("chat modes do not announce no-ops, and journal stays private", async () =>
   }
 });
 
-test("shared history store fails closed and never reads or undoes its records", async () => {
+test("shared history store fails closed and never reads its records", async () => {
   const { actor, settings } = setup();
   await patchStarship(actor, (d) => {
     d.sp.value = 9;
   });
-  const entry = historyEntries()[0];
   const store = game.journal.get(settings.get("historyStoreId"));
   store.ownership.p1 = 2;
   assert.equal(historyEntries().length, 0);
-  await assert.rejects(undoChange(entry.id));
+});
+
+test("effects without modifiers do not crash modifier aggregation", () => {
+  assert.deepEqual(effectModifiers([{ id: "e", slug: "e" }], "ac"), []);
+  assert.deepEqual(effectModifiers([{ id: "e", slug: "e", modifiers: [{ selector: "ac", value: 1 }] }], "ac"), [
+    { selector: "ac", value: 1, slug: "e" }
+  ]);
 });

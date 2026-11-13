@@ -128,6 +128,27 @@ async function promptOptions(action, { ship, crew, station, target }) {
     fields.push(
       `<div class="form-group"><label>${T("SF2eTSC.ui.map")}</label><select name="mapChoice"><option value="0">${T("SF2eTSC.rolls.map0")}</option><option value="1">${T("SF2eTSC.rolls.map1")}</option><option value="2">${T("SF2eTSC.rolls.map2")}</option></select></div>`
     );
+  if (action.id === "drone-block") {
+    const records = readStarship(ship).drones;
+    const drones = (Array.isArray(records) ? records : []).filter(
+      (d) =>
+        d?.tscVersion === 1 &&
+        d.stationId === station?.id &&
+        d.deployed === true &&
+        records.filter((other) => other?.id === d.id).length === 1
+    );
+    if (!drones.length) {
+      notifyError("SF2eTSC.errors.generic", { message: T("SF2eTSC.droneControl.errors.noEligible") });
+      return null;
+    }
+    const entries = drones
+      .map(
+        (d) =>
+          `<option value="${foundry.utils.escapeHTML(d.id)}">${foundry.utils.escapeHTML(ct(Content.drones.find((t) => t.id === d.ref)?.name ?? d.ref))} (${foundry.utils.escapeHTML(d.id)})</option>`
+      )
+      .join("");
+    fields.push(`<div class="form-group"><label>${T("SF2eTSC.droneControl.type")}</label><select name="droneId">${entries}</select></div>`);
+  }
   if (["deploy-drone", "retrieve-drone", "deploy-starship-mine"].includes(action.id)) {
     const deployed = action.id !== "deploy-drone";
     const records = readStarship(ship).drones;
@@ -286,6 +307,17 @@ export async function runAction(action, ctx) {
   const execute = async (targetKey, targetObj) => {
     const opts = await promptOptions(action, { ship, crew, station, target: targetObj });
     if (opts === null) return;
+    if (action.id === "drone-block") {
+      const level = crew?.system?.details?.level?.value ?? crew?.level;
+      const resistance = Number.isInteger(level) && level >= 1 ? Math.floor(level / 2) : 0;
+      const go = await foundry.applications.api.DialogV2.confirm({
+        classes: ["sf2e-tsc"],
+        window: { title: T("SF2eTSC.droneBlock.softTitle") },
+        content: `<p>${foundry.utils.escapeHTML(T("SF2eTSC.droneBlock.softHint", { resistance }))}</p>`,
+        rejectClose: false
+      }).catch(() => false);
+      if (!go) return;
+    }
     if (action.id === "deploy-starship-mine") opts.mineId = randomId("mine");
     if (action.id === "repair-hull-drone") opts.repairId = randomId("repair");
     const send = (extra = {}) =>

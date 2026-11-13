@@ -26,6 +26,7 @@ import { registerHandler } from "../socket.mjs";
 import { fromUuidSafe, fromUuidSync_, T, moduleSetting, levelDC } from "../utils/foundry.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
 import { executeDroneMovement } from "./drone-actions.mjs";
+import { executeDroneBlockSoft } from "./drone-block.mjs";
 import { executeDroneRepair } from "./drone-repair.mjs";
 
 export const actionLabel = (a) => (game.i18n.has(`SF2eTSC.actions.${a.id}`) ? T(`SF2eTSC.actions.${a.id}`) : ct(a.name));
@@ -221,10 +222,12 @@ function reactionResultFor(ctx) {
  * -> effects -> state transition (cost + frequency + effects in ONE commit) -> chat -> hooks.
  */
 export async function executeAction(params) {
-  // top-level executions are serialized on the GM: two near-simultaneous requests can't both read the same
-  // budget/MAP/target state (nested reaction executions share the parent's draft and run inline)
+  // top-level executions are serialized per ship on the GM: two near-simultaneous requests for the same ship
+  // can't both read the same budget/MAP/target state (nested reaction executions share the parent's draft and
+  // run inline). Other ships proceed independently: an open roll dialog on one ship must not stall the table.
+  // Cross-ship writes stay safe via the per-actor write queue and per-combat sensor/tsc serialization.
   if (params.draft) return executeActionNow(params);
-  return serialize("tsc", () => executeActionNow(params));
+  return serialize(`tsc-action:${params.shipUuid}`, () => executeActionNow(params));
 }
 
 /** Structured result used by attack result cards (no Foundry objects). */
@@ -264,6 +267,10 @@ async function executeActionNow(params) {
   if (["deploy-drone", "retrieve-drone", "deploy-starship-mine"].includes(action.id)) {
     if (parent || params.dryRun) fail("invalidData");
     return executeDroneMovement({ user, ship, crewUuid, stationId: params.stationId, options, action });
+  }
+  if (action.id === "drone-block" && !params.strikeId) {
+    if (parent || params.dryRun) fail("invalidData");
+    return executeDroneBlockSoft({ user, ship, crewUuid, stationId: params.stationId, options, action });
   }
   if (action.id === "repair-hull-drone") {
     if (parent || params.dryRun) fail("invalidData");

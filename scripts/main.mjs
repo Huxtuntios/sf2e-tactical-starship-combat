@@ -1,6 +1,5 @@
 import { registerModuleThemeHooks } from "./ui/sheet/sheet-theme.mjs";
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
-import { registerHistoryHandlers } from "./history/history.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
 import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
 import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
@@ -83,6 +82,8 @@ Hooks.once("init", () => {
   registerItemTagging();
   registerModuleThemeHooks();
   registerActionSheetThemes();
+  // Foundry 14.370 calls getSceneControlButtons once, on the first SceneControls render before "ready".
+  registerControls();
   log.info(`${MODULE_TITLE} initialized`);
 });
 
@@ -117,7 +118,6 @@ Hooks.once("ready", async () => {
     registerReactionHandlers,
     registerShipHandlers,
     registerEffectHandlers,
-    registerHistoryHandlers,
     registerSensorHandlers
   ])
     fn();
@@ -126,7 +126,6 @@ Hooks.once("ready", async () => {
   registerStationItems();
   registerCombatHooks();
   registerCrewSyncHooks();
-  registerControls();
   checkCausodesConflict();
   registerRefreshHooks();
   registerPetCabinMonitor();
