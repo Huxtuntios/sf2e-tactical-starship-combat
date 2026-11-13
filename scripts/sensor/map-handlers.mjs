@@ -128,6 +128,17 @@ export async function sensorUpdate({ user, payload: raw }) {
     if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid);
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
     await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
+    // Remember the art orientation on the Actor itself so future placements and copies inherit it.
+    if (payload.op === "objectVisual" && payload.visual?.transform) {
+      const o = findObject(getTsc(combat), payload.key);
+      const a = o?.mapTransform ? await fromUuidSafe(o.actorUuid ?? o.key) : null;
+      if (a && isStarship(a) && !a.pack) {
+        const { patchStarship } = await import("../starship/starship-state.mjs");
+        await patchStarship(a, (d) => {
+          d.mapTransform = o.mapTransform;
+        });
+      }
+    }
     if (before != null) {
       try {
         const state = getTsc(combat),

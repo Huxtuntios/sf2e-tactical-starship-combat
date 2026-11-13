@@ -1,4 +1,4 @@
-import { safeImagePath } from "../sensor/appearance.mjs";
+import { safeImagePath, initialShipTransform } from "../sensor/appearance.mjs";
 import { objectType } from "../sensor/object-types.mjs";
 import { normalizeDetection, normalizePreset } from "./presets.mjs";
 import { assignStation, normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
@@ -283,7 +283,9 @@ export async function startStarshipCombat(config = {}) {
         heading: spec.kind === "hazard" ? null : spec.heading,
         level: spec.kind === "hazard" ? (actor.system?.details?.level?.value ?? 0) : readStarship(actor).level,
         detection: { party: normalizeDetection(spec.detection, "identified") },
-        ...(spec.kind === "hazard" ? { icon: "⚠", stealthDC: hazardStealthDC(actor) } : { mapTransform: { baseDirection: "unknown" } })
+        ...(spec.kind === "hazard"
+          ? { icon: "⚠", stealthDC: hazardStealthDC(actor) }
+          : { mapTransform: initialShipTransform(readStarship(actor).mapTransform, readStarship(actor).heading) })
       });
       if (spec.kind === "hazard") state.hazardState[actor.uuid] = { disabled: false, placement: "sensor" };
     }

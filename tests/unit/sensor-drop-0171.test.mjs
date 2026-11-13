@@ -80,8 +80,9 @@ test("world and compendium starships and public hazards use their actual actor d
   assert.equal(s.objects[0].key, ship.uuid);
   assert.equal(s.objects[0].name, "Real ship");
   assert.equal(s.objects[0].heading, "left");
-  assert.equal(s.objects[0].mapTransform.baseDirection, "unknown");
+  assert.equal(s.objects[0].mapTransform.baseDirection, "left");
   assert.equal(visualTransform(s.objects[0].mapTransform, "left", true).auto, false);
+  assert.equal(visualTransform(s.objects[0].mapTransform, "right", true).auto, true);
   assert.deepEqual(ship.flags, before);
   const hazard = new MockActor({ id: "hz", name: "Hazard", type: "hazard" });
   assert.throws(() => dropActorOnMap(s, hazard, 5), /disclosureRequired/);
@@ -313,14 +314,15 @@ test("compendium Actor UUID is resolved by GM and copied into an independent wor
   assert.equal(JSON.stringify(hazard), before);
   assert.equal(game.actors.size, 1);
 });
-test("unknown source orientation and missing heading do not trigger automatic flips", () => {
+test("missing heading defaults the art to right-facing; no course means no automatic flip", () => {
   installFoundryMock();
   const ship = makeShip({ id: "unknown" });
   delete ship.flags[MODULE_ID].starship.heading;
   const o = dropActorOnMap(empty(), ship, 1, { publicActor: true }).state.objects[0];
   assert.equal(o.heading, null);
+  assert.equal(o.mapTransform.baseDirection, "right");
   assert.equal(visualTransform(o.mapTransform, o.heading, true).auto, false);
-  assert.equal(visualTransform(o.mapTransform, "left", true).auto, false);
-  assert.equal(visualTransform({ ...o.mapTransform, baseDirection: "right" }, "left", true).auto, true);
-  assert.equal(visualTransform({ ...o.mapTransform, baseDirection: "right", flipX: true }, "left", true).scaleX, 1);
+  assert.equal(visualTransform(o.mapTransform, "left", true).auto, true);
+  assert.equal(visualTransform(o.mapTransform, "right", true).auto, false);
+  assert.equal(visualTransform({ ...o.mapTransform, flipX: true }, "left", true).scaleX, 1);
 });
