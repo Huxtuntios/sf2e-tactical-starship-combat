@@ -1,6 +1,6 @@
 # SF2e Tactical Starship Combat
 
-[Русская версия](README.ru.md) · [User guide](docs/guide-en.md) · [Releases](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases) · [Report a bug](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues)
+[Русская версия](README.ru.md) · [User guide](docs/guide-en.md) · [Releases](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases) · [Report a bug](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/issues) · [![GitHub all releases](https://img.shields.io/github/downloads/Huxtuntios/sf2e-tactical-starship-combat/total)](https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases)
 
 ![Foundry VTT 14](https://img.shields.io/badge/Foundry_VTT-14-informational)
 ![Starfinder 2e](https://img.shields.io/badge/System-Starfinder_2e-orange)
