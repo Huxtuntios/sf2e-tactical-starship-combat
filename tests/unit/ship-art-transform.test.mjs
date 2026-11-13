@@ -60,12 +60,12 @@ test("editing object art orientation remembers it on the Actor and copies inheri
   assert.deepEqual(readStarship(copy).mapTransform, TRANSFORM);
 });
 
-test("object orientation menu offers only left/right base directions", async () => {
+test("object orientation menu offers left/right for a ship with a horizontal base direction", async () => {
   installFoundryMock();
   const { MapAppearanceApplication } = await import("../../scripts/ui/map-appearance-app.mjs");
   const ship = makeShip({ id: "menu" });
   const combat = makeStarshipCombat({
-    objects: [{ key: ship.uuid, type: "starship", heading: "left", mapTransform: { baseDirection: "unknown" } }]
+    objects: [{ key: ship.uuid, type: "starship", heading: "left", mapTransform: { baseDirection: "left" } }]
   });
   const app = new MapAppearanceApplication(combat, ship.uuid);
   const ctx = await app._prepareContext();
@@ -73,5 +73,36 @@ test("object orientation menu offers only left/right base directions", async () 
     ctx.directions.map((d) => d.id),
     ["left", "right"]
   );
-  assert.equal(ctx.directions.find((d) => d.selected).id, "right");
+  assert.equal(ctx.directions.find((d) => d.selected).id, "left");
+});
+
+test("a legacy saved direction is preserved until the GM explicitly changes it", async () => {
+  installFoundryMock();
+  const { MapAppearanceApplication, objectVisualFromForm } = await import("../../scripts/ui/map-appearance-app.mjs");
+  const ship = makeShip({ id: "legacy" });
+  const combat = makeStarshipCombat({
+    objects: [{ key: ship.uuid, type: "starship", heading: "left", mapTransform: { baseDirection: "unknown" }, art: "" }]
+  });
+  const app = new MapAppearanceApplication(combat, ship.uuid);
+  const ctx = await app._prepareContext();
+  assert.deepEqual(
+    ctx.directions.map((d) => d.id),
+    ["unknown", "left", "right"]
+  );
+  assert.equal(ctx.directions.find((d) => d.selected).id, "unknown");
+  const visual = objectVisualFromForm(
+    {
+      baseDirection: "unknown",
+      rotation: 0,
+      flipX: false,
+      flipY: false,
+      art: "new-art.webp",
+      autoMirrorOverride: "inherit",
+      arrowAppearanceMode: "inherit"
+    },
+    app._objectSnapshot,
+    app._appearanceSnapshot
+  );
+  assert.equal(visual.art, "new-art.webp");
+  assert.equal(visual.transform, undefined);
 });

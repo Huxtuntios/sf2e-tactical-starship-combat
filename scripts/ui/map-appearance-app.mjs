@@ -131,10 +131,13 @@ export class MapAppearanceApplication extends TscApp {
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
         selected: id === (this.key ? arrowAppearance : a).arrowPosition
       })),
-      directions: ["left", "right"].map((id) => ({
+      directions: (["left", "right"].includes(transform.baseDirection)
+        ? ["left", "right"]
+        : [transform.baseDirection, "left", "right"]
+      ).map((id) => ({
         id,
         label: T(`SF2eTSC.mapVisual.positions.${id}`),
-        selected: id === (["left", "right"].includes(transform.baseDirection) ? transform.baseDirection : "right")
+        selected: id === transform.baseDirection
       })),
       autoMirrorOptions: ["inherit", "on", "off"].map((id) => ({
         id,
