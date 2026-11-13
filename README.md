@@ -12,7 +12,6 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-
 ## Requirements
 
 | Requirement                               | Version / notes                                                                  |
