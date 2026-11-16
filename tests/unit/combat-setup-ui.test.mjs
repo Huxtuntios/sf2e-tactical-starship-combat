@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installFoundryMock, makeShip } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
 import { normalizePreset, savePreset, listPresets } from "../../scripts/combat/presets.mjs";
+import { MODULE_ID } from "../../scripts/constants.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const rd = (p) => fs.readFileSync(path.join(root, p), "utf8");
@@ -93,4 +94,68 @@ test("the auto-open review setting is registered and localized in EN and RU", ()
     assert.ok(json.SF2eTSC.wizard.crewSummary);
     assert.ok(json.SF2eTSC.wizard.maximize);
   }
+});
+
+test("a live Crew Manager edit refreshes the draft player assignments", async () => {
+  const { app } = await loadWizard();
+  const crew = makeCharacter({ id: "pilot", name: "Pilot" });
+  const ship = makeShip({ id: "player", role: "player", stations: [{ id: "pilot", type: "pilot", helmedBy: null }] });
+  await app.loadDraft({ playerShips: [{ uuid: ship.uuid, zone: 2 }] });
+  assert.equal(app.getDraft().playerShips[0].stationAssignments.find((s) => s.stationId === "pilot").actorUuid, null);
+  ship.flags[MODULE_ID].starship.stations[0].helmedBy = crew.uuid;
+  ship.flags[MODULE_ID].starship.crew = [{ actorUuid: crew.uuid, name: crew.name, role: "crew", stationId: "pilot" }];
+  assert.equal(app.wants("actor", ship), true);
+  assert.equal(app.getDraft().playerShips[0].stationAssignments.find((s) => s.stationId === "pilot").actorUuid, crew.uuid);
+});
+
+test("a live edit that deletes a station prunes it from the draft assignments", async () => {
+  const { app } = await loadWizard();
+  const ship = makeShip({
+    id: "player",
+    role: "player",
+    stations: [
+      { id: "pilot", type: "pilot", helmedBy: null },
+      { id: "gun", type: "gunner", helmedBy: null }
+    ]
+  });
+  await app.loadDraft({ playerShips: [{ uuid: ship.uuid, zone: 2 }] });
+  ship.flags[MODULE_ID].starship.stations = [{ id: "pilot", type: "pilot", helmedBy: null }];
+  app.wants("actor", ship);
+  assert.deepEqual(
+    app.getDraft().playerShips[0].stationAssignments.map((s) => s.stationId),
+    ["pilot"]
+  );
+});
+
+test("a preset assignment naming a deleted station is pruned on load", async () => {
+  const { app } = await loadWizard();
+  const crew = makeCharacter({ id: "pilot", name: "Pilot" });
+  const ship = makeShip({ id: "player", role: "player", stations: [{ id: "pilot", type: "pilot", helmedBy: null }] });
+  await app.loadDraft({
+    playerShips: [
+      {
+        uuid: ship.uuid,
+        zone: 2,
+        stationAssignments: [
+          { stationId: "ghost", actorUuid: crew.uuid },
+          { stationId: "pilot", actorUuid: crew.uuid }
+        ]
+      }
+    ]
+  });
+  const assignments = app.getDraft().playerShips[0].stationAssignments;
+  assert.equal(
+    assignments.some((s) => s.stationId === "ghost"),
+    false
+  );
+  assert.equal(assignments.find((s) => s.stationId === "pilot").actorUuid, crew.uuid);
+});
+
+test("the browser auto-opens when empty and collapses when composing unless manually expanded", async () => {
+  const { app } = await loadWizard();
+  assert.ok(rd("templates/start-wizard.hbs").includes("{{#if browseOpen}}open{{/if}}"));
+  assert.equal((await app._prepareContext()).browseOpen, true);
+  const npc = makeShip({ id: "npc", role: "npc" });
+  await app.loadDraft({ enemies: [{ uuid: npc.uuid, detection: "identified" }] });
+  assert.equal((await app._prepareContext()).browseOpen, false);
 });

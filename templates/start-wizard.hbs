@@ -17,7 +17,7 @@
   </fieldset>
   <fieldset>
     <legend>1. {{localize "SF2eTSC.wizard.roster"}}</legend>
-    <details class="tsc-wizard-browse" {{#unless roster.length}}open{{/unless}}>
+    <details class="tsc-wizard-browse" {{#if browseOpen}}open{{/if}}>
       <summary>{{localize "SF2eTSC.wizard.browseActors"}} · {{localize "SF2eTSC.wizard.selected"}}: <strong data-selected-count>{{selectedCount}}</strong></summary>
       <div class="tsc-row-inputs tsc-wizard-filters">
         <label>{{localize "SF2eTSC.contactEditor.source"}} <select name="source">{{#each sources}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>

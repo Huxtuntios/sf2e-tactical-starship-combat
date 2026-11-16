@@ -44,6 +44,8 @@ export class StartCombatWizard extends TscApp {
     }
   };
   static PARTS = { main: { template: tpl("start-wizard") } };
+  channels = ["combat", "actor", "crew"];
+  #browseOpen;
   #zones = null;
   #roster = [];
   #objects = [];
@@ -178,8 +180,8 @@ export class StartCombatWizard extends TscApp {
     }));
     for (const assignment of spec.stationAssignments ?? []) {
       const current = assignments.find((s) => s.stationId === assignment.stationId);
+      // Drop assignments for stations that no longer exist so a stale preset cannot block validation.
       if (current) current.actorUuid = assignment.actorUuid ?? null;
-      else assignments.push({ stationId: assignment.stationId, actorUuid: assignment.actorUuid ?? null });
     }
     const row = {
       id: String(++this.#nextId),
@@ -216,6 +218,27 @@ export class StartCombatWizard extends TscApp {
     if (this.#busy || this.#completed) return;
     this.#roster = this.#roster.filter((r) => !(r.uuid === uuid && r.kind === kind));
     this.#invalidateReview();
+  }
+  /** Re-derive a player row's assignments from the live ship so Crew Manager edits are not overwritten on confirm. */
+  #syncPlayerAssignments(row) {
+    const data = this.#shipData(row);
+    if (!data) return false;
+    const eligible = new Set(this.#worldCharacters().map((a) => a.uuid));
+    const observers = new Set((data.crew ?? []).filter((c) => c.role === "observer").map((c) => c.actorUuid));
+    const next = (data.stations ?? []).map((s) => ({
+      stationId: s.id,
+      actorUuid: eligible.has(s.helmedBy) && !observers.has(s.helmedBy) && !this.#excluded.has(s.helmedBy) ? s.helmedBy : null
+    }));
+    if (JSON.stringify(next) === JSON.stringify(row.stationAssignments)) return false;
+    row.stationAssignments = next;
+    return true;
+  }
+  wants(channel, doc) {
+    if ((channel === "actor" || channel === "crew") && doc?.uuid) {
+      const row = this.#roster.find((r) => r.uuid === doc.uuid && r.kind === "starship" && r.role === "player");
+      if (row && this.#syncPlayerAssignments(row)) this.#invalidateReview();
+    }
+    return this.channels.includes(channel);
   }
   async loadDraft(config = {}) {
     if (this.#busy || this.#completed) return;
@@ -294,6 +317,7 @@ export class StartCombatWizard extends TscApp {
       selectedCount: this.#selected.size,
       canAdd: this.#pendingCount() > 0,
       roster,
+      browseOpen: this.#browseOpen ?? this.#roster.length === 0,
       scope: T(`SF2eTSC.settings.crewInitiativeScope.${moduleSetting("crewInitiativeScope")}`),
       objects: this.#objects.map((o) => ({
         ...o,
@@ -371,6 +395,10 @@ export class StartCombatWizard extends TscApp {
     root.dataset.wizardWired = "true";
     root.addEventListener("input", (event) => this.#change(event, false));
     root.addEventListener("change", (event) => this.#change(event, true));
+    root.addEventListener("click", (event) => {
+      const summary = event.target.closest?.(".tsc-wizard-browse > summary");
+      if (summary) this.#browseOpen = !summary.parentElement.open;
+    });
     this.#setBusy(this.#busy);
   }
   #change(event, committed) {

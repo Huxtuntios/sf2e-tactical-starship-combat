@@ -135,6 +135,11 @@ globalThis.runWizardChecks=async()=>{
   check('crew-manager-button-present',!!rowFor(player.uuid).querySelector('[data-action="openCrewManager"]'));
   check('default-station-assignments-from-sheet',app.getDraft().playerShips[0].stationAssignments.some(s=>s.stationId==='pilot'&&s.actorUuid===crew.uuid));
   check('browse-collapsed-when-composing',!root.querySelector('.tsc-wizard-browse').open);
+  root.querySelector('.tsc-wizard-browse summary').click();await tick();
+  check('manual-expand-opens',root.querySelector('.tsc-wizard-browse').open);
+  await set('[name="source"]','compendium');
+  check('browse-expansion-survives-source-change',root.querySelector('.tsc-wizard-browse').open);
+  await set('[name="source"]','world');
   await set('[name="filter"]','Asteroid');await set('[data-candidate][data-uuid="Actor.hazard"]',true);await action('addSelected');
   await field(hazard.uuid,'count',2);await field(hazard.uuid,'detection','observed');
   await action('addObjRow');await set('.tsc-obj-row [data-f="name"]','Debris cloud');
