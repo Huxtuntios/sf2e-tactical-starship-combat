@@ -1,0 +1,23 @@
+<section class="tsc-wizard tsc-combat-review" data-wizard-review role="status" aria-busy="{{busy}}">
+  <p class="tsc-dim">{{localize "SF2eTSC.wizard.reviewHint"}}</p>
+  {{#if review}}
+    <dl>
+      <dt>{{localize "SF2eTSC.roleTypes.player"}}</dt><dd>{{review.player}}</dd>
+      <dt>{{localize "SF2eTSC.roleTypes.npc"}}</dt><dd>{{review.npc}}</dd>
+      <dt>{{localize "SF2eTSC.ui.hazards"}}</dt><dd>{{review.hazards}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.objects"}}</dt><dd>{{review.objects}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.total"}}</dt><dd>{{review.total}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.newActors"}}</dt><dd>{{review.copies}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.reusedActors"}}</dt><dd>{{review.reused}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.selectedCrew"}}</dt><dd>{{review.crew}}</dd>
+      <dt>{{localize "SF2eTSC.wizard.unidentified"}}</dt><dd>{{review.unidentified}}</dd>
+    </dl>
+    <ul class="tsc-list">{{#each review.entries}}<li><strong>{{name}} × {{count}}</strong> · {{localize "SF2eTSC.ui.zone"}}: {{zones}} · {{detection}} {{heading}}<small class="tsc-dim"> · {{usage}}</small>{{#if assignments.length}}<ul>{{#each assignments}}<li>{{station}}: {{name}}</li>{{/each}}</ul>{{/if}}</li>{{/each}}{{#each review.custom}}<li>{{name}} · {{localize "SF2eTSC.ui.zone"}}: {{zone}} · {{detectionLabel}}</li>{{/each}}</ul>
+  {{else}}
+    <p class="tsc-hint">{{localize "SF2eTSC.wizard.emptyRoster"}}</p>
+  {{/if}}
+  <footer>
+    <button type="button" data-action="back"><i class="fa-solid fa-pen" aria-hidden="true"></i> {{localize "SF2eTSC.wizard.backToEdit"}}</button>
+    <button type="button" data-action="confirm" {{#unless review}}disabled{{/unless}}><i class="fa-solid fa-jet-fighter" aria-hidden="true"></i> {{localize "SF2eTSC.wizard.confirmStart"}}</button>
+  </footer>
+</section>

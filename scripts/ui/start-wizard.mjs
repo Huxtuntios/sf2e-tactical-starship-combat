@@ -3,11 +3,11 @@ import { TscApp, tpl } from "./base-app.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { startStarshipCombat } from "../combat/starship-combat.mjs";
 import { worldHazardChoices, compendiumHazardChoices } from "../sensor/contact-service.mjs";
-import { fromUuidSafe, fromUuidSync_, moduleSetting, T } from "../utils/foundry.mjs";
+import { fromUuidSafe, moduleSetting, T } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
-import { openDashboard } from "./launchers.mjs";
-import { combatantForActor } from "../combat/tsc-state.mjs";
-import { occupantView } from "../crew/occupant.mjs";
+import { openDashboard, openCrewManager } from "./launchers.mjs";
+import { openCombatReview, CombatReviewApp } from "./combat-review.mjs";
+import { openApps } from "./base-app.mjs";
 import { ZONE_LIMITS, DETECTION_LEVELS } from "../constants.mjs";
 import { listPresets, savePreset, deletePreset, normalizeDetection, clampZones, DEFAULT_ZONES } from "../combat/presets.mjs";
 import { safeImagePath } from "../sensor/appearance.mjs";
@@ -23,13 +23,12 @@ export class StartCombatWizard extends TscApp {
     id: "sf2e-tsc-start",
     tag: "form",
     classes: ["sf2e-tsc", "tsc-start-wizard-window"],
-    window: { title: "SF2eTSC.ui.startCombat", icon: "fa-solid fa-jet-fighter" },
-    position: { width: 840, height: 720 },
+    window: { title: "SF2eTSC.ui.startCombat", icon: "fa-solid fa-jet-fighter", resizable: true },
+    position: { width: 900, height: 800 },
     form: { handler: StartCombatWizard.#submit, closeOnSubmit: false },
     actions: {
       addSelected: StartCombatWizard.#addSelected,
       removeRoster: StartCombatWizard.#removeRoster,
-      removeAssignment: StartCombatWizard.#removeAssignment,
       refreshSources: StartCombatWizard.#refreshSources,
       editDraft: StartCombatWizard.#editDraft,
       cancel: StartCombatWizard.#cancel,
@@ -38,7 +37,10 @@ export class StartCombatWizard extends TscApp {
       removeObjRow: StartCombatWizard.#removeObjRow,
       loadPreset: StartCombatWizard.#loadPreset,
       deletePreset: StartCombatWizard.#deletePreset,
-      savePreset: StartCombatWizard.#savePreset
+      savePreset: StartCombatWizard.#savePreset,
+      openReview: StartCombatWizard.#openReview,
+      openCrewManager: StartCombatWizard.#openCrewManager,
+      toggleMaximize: StartCombatWizard.#toggleMaximize
     }
   };
   static PARTS = { main: { template: tpl("start-wizard") } };
@@ -60,6 +62,8 @@ export class StartCombatWizard extends TscApp {
   #completed = false;
   #closed = false;
   #error = "";
+  #maximized = false;
+  #restorePos = null;
 
   #zone(value, fallback = 1) {
     return Math.min(clampZones(this.#zones), Math.max(1, Math.round(Number(value)) || fallback));
@@ -99,6 +103,36 @@ export class StartCombatWizard extends TscApp {
 
   getDraft() {
     return clone(this.#readConfig());
+  }
+  reviewContext() {
+    return this.#previewContext(this.#readConfig());
+  }
+  isBusy() {
+    return this.#busy;
+  }
+  async confirmFromReview() {
+    if (this.#busy || this.#completed || this.#closed) return;
+    this.#setBusy(true);
+    try {
+      const cfg = this.#readConfig();
+      this.#validate(cfg);
+      await startStarshipCombat(clone(this.#review?.config ?? cfg));
+      this.#completed = true;
+    } catch (err) {
+      this.#review = null;
+      this.#showError(err);
+    } finally {
+      this.#setBusy(false);
+    }
+    if (this.#completed) {
+      for (const app of openApps(CombatReviewApp)) app.close();
+      await this.close().catch(() => null);
+      try {
+        await openDashboard();
+      } catch (err) {
+        this.#showError(err);
+      }
+    } else if (!this.#closed) await this.render();
   }
   selectCandidate(uuid, selected = true, kind = null) {
     if (this.#busy || this.#completed) return;
@@ -160,7 +194,7 @@ export class StartCombatWizard extends TscApp {
       heading: spec.heading === "left" || spec.heading === "right" ? spec.heading : role === "player" ? (data?.heading ?? "right") : "left",
       count: clampCount(spec.count ?? 1),
       zones: Array.isArray(spec.zones) ? spec.zones.join(", ") : String(spec.zones ?? ""),
-      reuse: spec.reuse === true,
+      reuse: spec.reuse ?? true,
       stationAssignments: clone(assignments)
     };
     this.#roster.push(row);
@@ -234,23 +268,6 @@ export class StartCombatWizard extends TscApp {
       if (!this.#canReuse(row)) row.reuse = false;
     }
     const roster = this.#roster.map((row) => this.#rosterContext(row));
-    const existing = new Set(this.#existingCrew().map((c) => c.actorUuid));
-    const observers = this.#observers();
-    const assigned = new Set(
-      this.#playerRows()
-        .flatMap((r) => r.stationAssignments.map((s) => s.actorUuid))
-        .filter(Boolean)
-    );
-    const characters = this.#worldCharacters()
-      .filter((a) => !existing.has(a.uuid) && !observers.has(a.uuid))
-      .map((a) => ({
-        uuid: a.uuid,
-        name: a.name,
-        checked: this.#crew.has(a.uuid) || assigned.has(a.uuid)
-      }));
-    const missingCrew = [...this.#crew]
-      .filter((uuid) => !this.#worldCharacters().some((a) => a.uuid === uuid))
-      .map((uuid) => ({ uuid, name: uuid, checked: true, missing: true }));
     const candidates = (
       this.#browse.source === "world" ? world : this.#browse.source === "compendium" ? compendium : [...world, ...compendium]
     ).map((c) => ({
@@ -277,7 +294,6 @@ export class StartCombatWizard extends TscApp {
       selectedCount: this.#selected.size,
       canAdd: this.#pendingCount() > 0,
       roster,
-      characters: this.#playerRows().length ? [...characters, ...missingCrew] : [],
       scope: T(`SF2eTSC.settings.crewInitiativeScope.${moduleSetting("crewInitiativeScope")}`),
       objects: this.#objects.map((o) => ({
         ...o,
@@ -287,7 +303,6 @@ export class StartCombatWizard extends TscApp {
       objectTypes: optionsFor(OBJECT_TYPES, OBJECT_TYPES[0], (id) => T(`SF2eTSC.objectTypes.${id}`)),
       detectionLevels: optionsFor(DETECTION_LEVELS, "observed", (id) => T(`SF2eTSC.detection.${id}`)),
       midZone: Math.ceil(clampZones(this.#zones) / 2),
-      review: this.#review ? this.#previewContext(this.#review.config) : null,
       busy: this.#busy,
       error: this.#error,
       submitLabel: T(this.#busy ? "SF2eTSC.wizard.working" : this.#review ? "SF2eTSC.wizard.confirmStart" : "SF2eTSC.wizard.preview")
@@ -297,38 +312,9 @@ export class StartCombatWizard extends TscApp {
     const actor = this.#actors.get(row.uuid);
     const data = this.#shipData(row);
     const player = row.kind === "starship" && row.role === "player";
-    const observers = this.#observers();
-    const characters = this.#worldCharacters().filter((a) => !observers.has(a.uuid));
-    const selectedCrew = (uuid) => !this.#excluded.has(uuid) && characters.some((a) => a.uuid === uuid);
-    const members = (data?.crew ?? []).map((c) => {
-      const character = characters.find((a) => a.uuid === c.actorUuid);
-      const station = row.stationAssignments.find((s) => s.actorUuid === c.actorUuid);
-      return {
-        uuid: c.actorUuid,
-        name: character?.name ?? c.name ?? c.actorUuid,
-        occupant: occupantView(c.actorUuid, { fallbackName: c.name }),
-        missing: !fromUuidSync_(c.actorUuid),
-        observer: c.role === "observer",
-        locked: !character || c.role === "observer",
-        checked: c.role !== "observer" && selectedCrew(c.actorUuid),
-        station: data?.stations.find((s) => s.id === station?.stationId)?.name,
-        inCombat: !!(character && game.combat && combatantForActor(game.combat, character))
-      };
-    });
-    const stations = (data?.stations ?? []).map((s) => {
-      const assignment = row.stationAssignments.find((a) => a.stationId === s.id);
-      const value = assignment ? assignment.actorUuid : (s.helmedBy ?? null);
-      const unavailable = value && !characters.some((a) => a.uuid === value);
-      return {
-        id: s.id,
-        name: s.name,
-        empty: !value,
-        current: occupantView(s.helmedBy, { fallbackName: data?.crew.find((c) => c.actorUuid === s.helmedBy)?.name }),
-        choices: characters.map((a) => ({ uuid: a.uuid, name: a.name, selected: value === a.uuid })),
-        unavailable: unavailable ? value : null
-      };
-    });
     const useOriginal = player && actor && !actor.pack && data?.role === "player";
+    const crewCount = (data?.crew ?? []).filter((c) => c.role !== "observer").length;
+    const stationedCount = (data?.stations ?? []).filter((s) => s.helmedBy).length;
     return {
       ...row,
       player,
@@ -345,9 +331,8 @@ export class StartCombatWizard extends TscApp {
             ? "SF2eTSC.wizard.existingActor"
             : "SF2eTSC.wizard.freshCopies"
       ),
-      members,
-      stations,
-      orphanAssignments: row.stationAssignments.filter((a) => !(data?.stations ?? []).some((s) => s.id === a.stationId))
+      crewCount,
+      stationedCount
     };
   }
   #matches(choice) {
@@ -417,35 +402,6 @@ export class StartCombatWizard extends TscApp {
       if (row) this.updateRoster(row.uuid, row.kind, { [input.dataset.field]: input.type === "checkbox" ? input.checked : input.value });
       if (committed && ["role", "count", "detection", "reuse"].includes(input.dataset.field)) this.render();
     }
-    if (input.hasAttribute("data-member") || input.hasAttribute("data-extra-crew")) {
-      const uuid = input.dataset.uuid;
-      if (input.hasAttribute("data-extra-crew")) {
-        if (input.checked) this.#crew.add(uuid);
-        else this.#crew.delete(uuid);
-      } else if (input.checked) this.#excluded.delete(uuid);
-      else this.#excluded.add(uuid);
-      if (!input.checked)
-        for (const row of this.#playerRows())
-          row.stationAssignments.forEach((s) => {
-            if (s.actorUuid === uuid) s.actorUuid = null;
-          });
-      if (committed) this.render();
-    }
-    if (input.hasAttribute("data-station")) {
-      const row = this.#roster.find((r) => r.id === rowElement?.dataset.rowId);
-      const uuid = input.value || null;
-      if (row && (!uuid || (!this.#observers().has(uuid) && this.#worldCharacters().some((a) => a.uuid === uuid)))) {
-        row.stationAssignments = row.stationAssignments.filter((s) => s.stationId !== input.dataset.station);
-        if (uuid) {
-          row.stationAssignments.forEach((s) => {
-            if (s.actorUuid === uuid) s.actorUuid = null;
-          });
-          this.#excluded.delete(uuid);
-        }
-        row.stationAssignments.push({ stationId: input.dataset.station, actorUuid: uuid });
-        if (committed) this.render();
-      }
-    }
     const obj = input.closest(".tsc-obj-row");
     if (obj && input.dataset.f) {
       const draft = this.#objects.find((o) => o.id === obj.dataset.objectId);
@@ -455,8 +411,7 @@ export class StartCombatWizard extends TscApp {
   #invalidateReview() {
     this.#review = null;
     this.#error = "";
-    const preview = this.element?.querySelector?.("[data-wizard-review]");
-    if (preview) preview.hidden = true;
+    for (const app of openApps(CombatReviewApp)) app.close();
     const error = this.element?.querySelector?.("[data-wizard-error]");
     if (error) error.hidden = true;
     const submit = this.element?.querySelector?.("[data-wizard-submit]");
@@ -622,13 +577,6 @@ export class StartCombatWizard extends TscApp {
     if (row) this.removeRoster(row.uuid, row.kind);
     await this.render();
   }
-  static async #removeAssignment(event, target) {
-    if (this.#busy) return;
-    const row = this.#roster.find((r) => r.id === target.closest("[data-roster-row]")?.dataset.rowId);
-    if (row) row.stationAssignments = row.stationAssignments.filter((s) => s.stationId !== target.dataset.stationId);
-    this.#invalidateReview();
-    await this.render();
-  }
   static async #refreshSources() {
     if (this.#busy) return;
     this.#invalidateReview();
@@ -640,12 +588,47 @@ export class StartCombatWizard extends TscApp {
     this.#invalidateReview();
     await this.render();
   }
+  static async #openReview() {
+    if (this.#busy || this.#completed) return;
+    try {
+      const cfg = this.#readConfig();
+      this.#validate(cfg);
+      this.#review = { config: clone(cfg) };
+      this.#error = "";
+      await openCombatReview(this);
+    } catch (err) {
+      this.#review = null;
+      this.#showError(err);
+    }
+    if (!this.#closed) await this.render();
+  }
+  static async #openCrewManager() {
+    await openCrewManager();
+  }
+  static #toggleMaximize() {
+    const el = this.element;
+    if (!this.#maximized) {
+      this.#restorePos = { ...this.position };
+      this.#maximized = true;
+      el?.classList.add("tsc-maximized");
+      const w = globalThis.innerWidth ?? 1280,
+        h = globalThis.innerHeight ?? 800;
+      this.setPosition?.({ left: 8, top: 8, width: Math.max(320, w - 16), height: Math.max(240, h - 16) });
+    } else {
+      this.#maximized = false;
+      el?.classList.remove("tsc-maximized");
+      if (this.#restorePos) this.setPosition?.(this.#restorePos);
+    }
+    const btn = el?.querySelector?.('[data-action="toggleMaximize"]');
+    if (btn) btn.setAttribute("aria-pressed", String(this.#maximized));
+  }
   static #cancel() {
     return this.close();
   }
   async close(options) {
     if (this.#busy) return this;
     this.#closed = true;
+    for (const app of openApps(CombatReviewApp)) app.close();
     return super.close(options);
   }
   static #pickObjectArt(event, target) {
@@ -747,6 +730,7 @@ export class StartCombatWizard extends TscApp {
       if (!this.#review || JSON.stringify(cfg) !== JSON.stringify(this.#review.config)) {
         this.#review = { config: clone(cfg) };
         this.#error = "";
+        if (moduleSetting("autoOpenCombatReview") ?? true) await openCombatReview(this);
         await this.render();
         return;
       }

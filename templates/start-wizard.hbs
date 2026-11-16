@@ -1,5 +1,8 @@
 <section class="tsc-wizard" aria-busy="{{busy}}">
-  <p class="tsc-dim">{{localize "SF2eTSC.wizard.draftHint"}}</p>
+  <div class="tsc-wizard-top">
+    <p class="tsc-dim">{{localize "SF2eTSC.wizard.draftHint"}}</p>
+    <button type="button" class="tsc-icon-btn" data-action="toggleMaximize" aria-pressed="false" aria-label="{{localize 'SF2eTSC.wizard.maximize'}}" data-tooltip="{{localize 'SF2eTSC.wizard.maximize'}}"><i class="fa-solid fa-expand" aria-hidden="true"></i></button>
+  </div>
   <p class="tsc-warn-box" data-wizard-error role="alert" {{#unless error}}hidden{{/unless}}>{{error}}</p>
   <fieldset class="tsc-presets">
     <legend>{{localize "SF2eTSC.wizard.presets"}}</legend>
@@ -13,35 +16,29 @@
     </div>
   </fieldset>
   <fieldset>
-    <legend>1. {{localize "SF2eTSC.wizard.browseActors"}}</legend>
-    <div class="tsc-row-inputs tsc-wizard-filters">
-      <label>{{localize "SF2eTSC.contactEditor.source"}} <select name="source">{{#each sources}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
-      <label>{{localize "SF2eTSC.ui.type"}} <select name="kind">{{#each kinds}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
-      <label>{{localize "SF2eTSC.wizard.pack"}} <select name="pack"><option value="">{{localize "SF2eTSC.wizard.allPacks"}}</option>{{#each packs}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
-      <button type="button" data-action="refreshSources" aria-label="{{localize 'SF2eTSC.wizard.refreshSources'}}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
-      <label class="tsc-wizard-search">{{localize "SF2eTSC.contactEditor.filter"}} <input type="search" name="filter" value="{{filter}}" placeholder="{{localize 'SF2eTSC.ui.search'}}"></label>
-    </div>
-    <div class="tsc-wizard-candidates" role="group" aria-label="{{localize 'SF2eTSC.wizard.browseActors'}}">
-      {{#each candidates}}
-        <label class="tsc-check tsc-wizard-candidate" data-candidate-row data-name="{{name}}" data-uuid="{{uuid}}" data-kind="{{kind}}" data-pack="{{pack}}" {{#if hidden}}hidden{{/if}}>
-          <input type="checkbox" data-candidate data-uuid="{{uuid}}" data-kind="{{kind}}" {{#if checked}}checked{{/if}} {{#if inRoster}}disabled{{/if}}>
-          <span>{{name}} <small class="tsc-dim">{{kindLabel}} · {{sourceLabel}}{{#if inRoster}} · {{localize "SF2eTSC.wizard.inRoster"}}{{/if}}</small></span>
-        </label>
-      {{/each}}
-      <p class="tsc-hint" data-no-candidates {{#unless noCandidates}}hidden{{/unless}}>{{localize "SF2eTSC.contactEditor.noChoices"}}</p>
-    </div>
-    <div class="tsc-row-inputs">
-      <span aria-live="polite">{{localize "SF2eTSC.wizard.selected"}}: <strong data-selected-count>{{selectedCount}}</strong></span>
-      <button type="button" data-action="addSelected" {{#unless canAdd}}disabled{{/unless}}>{{localize "SF2eTSC.wizard.addSelected"}}</button>
-    </div>
-  </fieldset>
-  <fieldset>
-    <legend>2. {{localize "SF2eTSC.ui.sensorMap"}}</legend>
-    <label class="tsc-zone-in">{{localize "SF2eTSC.ui.zoneCount"}} <input type="number" name="zones" value="{{zones}}" min="{{zoneMin}}" max="{{zoneMax}}" required></label>
-    <p class="tsc-dim">{{localize "SF2eTSC.wizard.zoneHint"}}</p>
-  </fieldset>
-  <fieldset>
-    <legend>3. {{localize "SF2eTSC.wizard.roster"}}</legend>
+    <legend>1. {{localize "SF2eTSC.wizard.roster"}}</legend>
+    <details class="tsc-wizard-browse" {{#unless roster.length}}open{{/unless}}>
+      <summary>{{localize "SF2eTSC.wizard.browseActors"}} · {{localize "SF2eTSC.wizard.selected"}}: <strong data-selected-count>{{selectedCount}}</strong></summary>
+      <div class="tsc-row-inputs tsc-wizard-filters">
+        <label>{{localize "SF2eTSC.contactEditor.source"}} <select name="source">{{#each sources}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+        <label>{{localize "SF2eTSC.ui.type"}} <select name="kind">{{#each kinds}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+        <label>{{localize "SF2eTSC.wizard.pack"}} <select name="pack"><option value="">{{localize "SF2eTSC.wizard.allPacks"}}</option>{{#each packs}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
+        <button type="button" data-action="refreshSources" aria-label="{{localize 'SF2eTSC.wizard.refreshSources'}}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
+        <label class="tsc-wizard-search">{{localize "SF2eTSC.contactEditor.filter"}} <input type="search" name="filter" value="{{filter}}" placeholder="{{localize 'SF2eTSC.ui.search'}}"></label>
+      </div>
+      <div class="tsc-wizard-candidates" role="group" aria-label="{{localize 'SF2eTSC.wizard.browseActors'}}">
+        {{#each candidates}}
+          <label class="tsc-check tsc-wizard-candidate" data-candidate-row data-name="{{name}}" data-uuid="{{uuid}}" data-kind="{{kind}}" data-pack="{{pack}}" {{#if hidden}}hidden{{/if}}>
+            <input type="checkbox" data-candidate data-uuid="{{uuid}}" data-kind="{{kind}}" {{#if checked}}checked{{/if}} {{#if inRoster}}disabled{{/if}}>
+            <span>{{name}} <small class="tsc-dim">{{kindLabel}} · {{sourceLabel}}{{#if inRoster}} · {{localize "SF2eTSC.wizard.inRoster"}}{{/if}}</small></span>
+          </label>
+        {{/each}}
+        <p class="tsc-hint" data-no-candidates {{#unless noCandidates}}hidden{{/unless}}>{{localize "SF2eTSC.contactEditor.noChoices"}}</p>
+      </div>
+      <div class="tsc-row-inputs">
+        <button type="button" data-action="addSelected" {{#unless canAdd}}disabled{{/unless}}>{{localize "SF2eTSC.wizard.addSelected"}}</button>
+      </div>
+    </details>
     <div class="tsc-wizard-roster">
       {{#each roster}}
         <article class="tsc-wizard-roster-row" data-roster-row data-row-id="{{id}}">
@@ -58,26 +55,24 @@
             {{/unless}}
           </div>
           <p class="tsc-dim">{{usage}}</p>
-          {{#unless player}}<label class="tsc-check"><input type="checkbox" data-field="reuse" {{#if reuse}}checked{{/if}} {{#unless canReuse}}disabled{{/unless}}> {{localize "SF2eTSC.wizard.reuseActor"}}</label><p class="tsc-dim">{{localize "SF2eTSC.wizard.reuseHint"}}</p>{{/unless}}
+          {{#unless player}}<label class="tsc-check"><input type="checkbox" data-field="reuse" {{#if reuse}}checked{{/if}} {{#unless canReuse}}disabled{{/unless}}> {{localize "SF2eTSC.wizard.reuseActor"}}</label>{{/unless}}
           {{#if player}}
-            <details class="tsc-crew-group" data-crew-group="{{id}}" open>
-              <summary>{{localize "SF2eTSC.wizard.crewStations"}}</summary>
-              <p class="tsc-dim">{{localize "SF2eTSC.wizard.crewHint"}} <em>{{@root.scope}}</em></p>
-              <div class="tsc-wizard-crew-list">
-                {{#each members}}<label class="tsc-check"><input type="checkbox" data-member data-uuid="{{uuid}}" {{#if checked}}checked{{/if}} {{#if locked}}disabled{{/if}}> {{> tscOccupant occupant size="sm"}}<small class="tsc-dim">{{#if missing}}{{localize "SF2eTSC.crew.missingActor"}}{{else}}{{#if observer}}{{localize "SF2eTSC.roles.observer"}}{{else}}{{#if station}}{{station}}{{else}}{{localize "SF2eTSC.wizard.freeCrew"}}{{/if}}{{/if}}{{/if}}{{#if inCombat}} · {{localize "SF2eTSC.wizard.alreadyInCombat"}}{{/if}}</small></label>{{else}}<p class="tsc-hint">{{localize "SF2eTSC.crew.empty"}}</p>{{/each}}
-              </div>
-              <p class="tsc-dim">{{localize "SF2eTSC.wizard.stationHint"}}</p>
-              {{#each stations}}<div class="tsc-wizard-station"><label>{{name}} <select data-station="{{id}}"><option value="" {{#if empty}}selected{{/if}}>{{localize "SF2eTSC.crew.unoccupied"}}</option>{{#if unavailable}}<option value="{{unavailable}}" selected>{{localize "SF2eTSC.crew.missingActor"}}: {{unavailable}}</option>{{/if}}{{#each choices}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label><small class="tsc-dim">{{localize "SF2eTSC.wizard.sourceOccupant"}}: {{> tscOccupant current size="sm"}}</small></div>{{/each}}
-              {{#each orphanAssignments}}<p class="tsc-warn">{{localize "SF2eTSC.wizard.staleAssignment"}}: {{stationId}} <button type="button" data-action="removeAssignment" data-station-id="{{stationId}}">{{localize "SF2eTSC.ui.remove"}}</button></p>{{/each}}
-            </details>
+            <div class="tsc-wizard-crew-summary">
+              <span class="tsc-dim">{{localize "SF2eTSC.wizard.crewSummary" crew=crewCount stations=stationedCount}} <em>{{@root.scope}}</em></span>
+              <button type="button" data-action="openCrewManager"><i class="fa-solid fa-users" aria-hidden="true"></i> {{localize "SF2eTSC.ui.crewManager"}}</button>
+            </div>
           {{/if}}
         </article>
       {{else}}<p class="tsc-hint">{{localize "SF2eTSC.wizard.emptyRoster"}}</p>{{/each}}
     </div>
-    {{#if characters.length}}<details><summary>{{localize "SF2eTSC.wizard.otherCharacters"}}</summary><div class="tsc-wizard-crew-list">{{#each characters}}<label class="tsc-check"><input type="checkbox" data-extra-crew data-uuid="{{uuid}}" {{#if checked}}checked{{/if}}> {{name}}{{#if missing}} <small class="tsc-warn">{{localize "SF2eTSC.crew.missingActor"}}</small>{{/if}}</label>{{/each}}</div></details>{{/if}}
   </fieldset>
   <fieldset>
-    <legend>4. {{localize "SF2eTSC.wizard.objects"}}</legend>
+    <legend>2. {{localize "SF2eTSC.ui.sensorMap"}}</legend>
+    <label class="tsc-zone-in">{{localize "SF2eTSC.ui.zoneCount"}} <input type="number" name="zones" value="{{zones}}" min="{{zoneMin}}" max="{{zoneMax}}" required></label>
+    <p class="tsc-dim">{{localize "SF2eTSC.wizard.zoneHint"}}</p>
+  </fieldset>
+  <fieldset>
+    <legend>3. {{localize "SF2eTSC.wizard.objects"}}</legend>
     <div class="tsc-obj-rows" data-obj-rows>
       {{#each objects}}<div class="tsc-row-inputs tsc-obj-row" data-object-id="{{id}}">
         <label>{{localize "SF2eTSC.ui.name"}} <input type="text" data-f="name" value="{{name}}" required></label>
@@ -100,26 +95,10 @@
     </div></template>
     <button type="button" data-action="addObjRow"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "SF2eTSC.ui.addObject"}}</button>
   </fieldset>
-  {{#if review}}<fieldset class="tsc-wizard-review" data-wizard-review role="status">
-    <legend>{{localize "SF2eTSC.wizard.review"}}</legend>
-    <p>{{localize "SF2eTSC.wizard.reviewHint"}}</p>
-    <dl>
-      <dt>{{localize "SF2eTSC.roleTypes.player"}}</dt><dd>{{review.player}}</dd>
-      <dt>{{localize "SF2eTSC.roleTypes.npc"}}</dt><dd>{{review.npc}}</dd>
-      <dt>{{localize "SF2eTSC.ui.hazards"}}</dt><dd>{{review.hazards}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.objects"}}</dt><dd>{{review.objects}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.total"}}</dt><dd>{{review.total}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.newActors"}}</dt><dd>{{review.copies}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.reusedActors"}}</dt><dd>{{review.reused}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.selectedCrew"}}</dt><dd>{{review.crew}}</dd>
-      <dt>{{localize "SF2eTSC.wizard.unidentified"}}</dt><dd>{{review.unidentified}}</dd>
-    </dl>
-    <ul class="tsc-list">{{#each review.entries}}<li><strong>{{name}} × {{count}}</strong> · {{localize "SF2eTSC.ui.zone"}}: {{zones}} · {{detection}} {{heading}}<small class="tsc-dim"> · {{usage}}</small>{{#if assignments.length}}<ul>{{#each assignments}}<li>{{station}}: {{name}}</li>{{/each}}</ul>{{/if}}</li>{{/each}}{{#each review.custom}}<li>{{name}} · {{localize "SF2eTSC.ui.zone"}}: {{zone}} · {{detectionLabel}}</li>{{/each}}</ul>
-    <button type="button" data-action="editDraft">{{localize "SF2eTSC.wizard.backToEdit"}}</button>
-  </fieldset>{{/if}}
   <footer>
     <input type="text" name="presetName" value="{{presetName}}" placeholder="{{localize 'SF2eTSC.wizard.presetName'}}" aria-label="{{localize 'SF2eTSC.wizard.presetName'}}">
     <button type="button" data-action="savePreset"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> {{localize "SF2eTSC.wizard.presetSave"}}</button>
+    <button type="button" data-action="openReview"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> {{localize "SF2eTSC.wizard.review"}}</button>
     <button type="button" data-action="cancel">{{localize "SF2eTSC.ui.cancel"}}</button>
     <button type="submit" data-wizard-submit>{{submitLabel}}</button>
   </footer>

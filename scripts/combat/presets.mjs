@@ -20,7 +20,7 @@ const num = (n, d = undefined) => {
 };
 const placement = (s) => ({
   ...(s.heading === "left" || s.heading === "right" ? { heading: s.heading } : {}),
-  ...(s.reuse === true ? { reuse: true } : {}),
+  ...(typeof s.reuse === "boolean" ? { reuse: s.reuse } : {}),
   ...(Array.isArray(s.stationAssignments)
     ? {
         stationAssignments: s.stationAssignments

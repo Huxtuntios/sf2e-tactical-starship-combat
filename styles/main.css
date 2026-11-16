@@ -1064,8 +1064,6 @@ a.tsc-check:hover {
   min-width: 0;
 }
 .tsc-wizard .tsc-wizard-candidates {
-  max-height: 200px;
-  overflow: auto;
   border: 1px solid var(--tsc-line);
   border-radius: 4px;
   margin: 6px 0;
@@ -1085,8 +1083,7 @@ a.tsc-check:hover {
   display: block;
 }
 .tsc-wizard .tsc-wizard-roster {
-  max-height: 340px;
-  overflow: auto;
+  margin-top: 6px;
 }
 .tsc-wizard .tsc-wizard-roster-row {
   border: 1px solid var(--tsc-line);
@@ -1107,26 +1104,42 @@ a.tsc-check:hover {
 .tsc-wizard > p {
   margin: 4px 0;
 }
-.tsc-wizard .tsc-wizard-crew-list {
-  max-height: 160px;
-  overflow: auto;
-}
-.tsc-wizard .tsc-wizard-station {
+.tsc-wizard .tsc-wizard-crew-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
   align-items: center;
-  margin: 6px 0;
+  gap: 6px 10px;
+  margin-top: 6px;
 }
-.tsc-wizard .tsc-wizard-station label {
-  display: flex;
-  align-items: center;
+.tsc-wizard .tsc-wizard-crew-summary span {
   flex: 1 1 240px;
-  gap: 6px;
+  min-width: 0;
 }
-.tsc-wizard .tsc-wizard-station select {
+.tsc-wizard .tsc-wizard-browse > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.tsc-wizard .tsc-wizard-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.tsc-wizard .tsc-wizard-top p {
   flex: 1;
   min-width: 0;
+}
+.tsc-wizard .tsc-icon-btn {
+  flex: 0 0 auto;
+}
+.tsc-combat-review dl {
+  width: fit-content;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+.tsc-combat-review li {
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
 }
 .tsc-wizard .tsc-obj-row {
   padding: 6px 0;
@@ -1141,19 +1154,6 @@ a.tsc-check:hover {
 }
 .tsc-wizard .tsc-wizard-art input {
   flex: 1;
-}
-.tsc-wizard .tsc-wizard-review {
-  background: var(--tsc-panel);
-  border-color: var(--tsc-accent);
-}
-.tsc-wizard .tsc-wizard-review dl {
-  width: fit-content;
-  max-width: 100%;
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-.tsc-wizard .tsc-wizard-review li {
-  margin-bottom: 4px;
-  overflow-wrap: anywhere;
 }
 .tsc-wizard footer {
   position: sticky;
