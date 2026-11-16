@@ -47,6 +47,13 @@ export function registerSettings() {
     default: true,
     scope: "client"
   });
+  reg("autoOpenCombatReview", {
+    name: L("autoOpenCombatReview.name"),
+    hint: L("autoOpenCombatReview.hint"),
+    type: Boolean,
+    default: true,
+    scope: "client"
+  });
   reg("autoRoutine", {
     name: L("autoRoutine.name"),
     hint: L("autoRoutine.hint"),

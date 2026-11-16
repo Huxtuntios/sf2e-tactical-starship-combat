@@ -605,8 +605,16 @@
       "copyZonesHint": "Zones for copy #1, #2, ... separated by commas. Copies without a listed zone use the zone on the left.",
       "draftHint": "Build a draft, preview it, then confirm. Browsing, adding, loading, previewing and cancelling do not write Actors, Combat or Journals. Saving/deleting presets only changes the preset setting.",
       "browseActors": "Browse Actors",
-      "sources": { "world": "World", "compendium": "Compendiums", "all": "World + compendiums" },
-      "kinds": { "all": "All types", "starship": "Starships", "hazard": "Hazards" },
+      "sources": {
+        "world": "World",
+        "compendium": "Compendiums",
+        "all": "World + compendiums"
+      },
+      "kinds": {
+        "all": "All types",
+        "starship": "Starships",
+        "hazard": "Hazards"
+      },
       "pack": "Compendium",
       "allPacks": "All compendiums",
       "refreshSources": "Refresh source lists",
@@ -648,7 +656,9 @@
       "newActors": "New Actor copies/imports",
       "reusedActors": "Existing Actors used",
       "selectedCrew": "Selected crew (initiative follows the crew mode)",
-      "unidentified": "Not identified to players"
+      "unidentified": "Not identified to players",
+      "maximize": "Maximize / restore window",
+      "crewSummary": "Crew: {crew} · Stationed: {stations}. Manage crews in the Crew Manager or during combat."
     },
     "builder": {
       "badHp": "Hull Points must be a positive integer.",
@@ -800,6 +810,10 @@
         "log": "Log Only",
         "important": "Important Only",
         "all": "All Changes"
+      },
+      "autoOpenCombatReview": {
+        "name": "Auto-open the pre-combat review (this client)",
+        "hint": "Open the review dialog automatically when previewing a combat. Validation always runs; the review can also be opened manually."
       }
     },
     "edit": {

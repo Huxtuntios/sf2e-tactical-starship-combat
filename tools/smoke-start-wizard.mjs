@@ -20,6 +20,7 @@ mock = mock
   .replace(/export async function loadContentFromDisk\(\) \{[\s\S]*?\n\}/, "");
 fs.writeFileSync(path.join(out, "foundry-mock.mjs"), mock);
 const compiled = Handlebars.precompile(fs.readFileSync(path.join(root, "templates/start-wizard.hbs"), "utf8"));
+const reviewCompiled = Handlebars.precompile(fs.readFileSync(path.join(root, "templates/combat-review.hbs"), "utf8"));
 const { OCCUPANT_PARTIAL } = await import("../scripts/crew/occupant.mjs");
 const occupant = Handlebars.precompile(OCCUPANT_PARTIAL);
 const index = JSON.parse(fs.readFileSync(path.join(root, "data/index.json"), "utf8"));
@@ -31,12 +32,14 @@ const content = Object.fromEntries(
 );
 const script = `
 import {installFoundryMock,makeShip,makeCharacter,MockActor} from './foundry-mock.mjs';
-installFoundryMock({lang: document.documentElement.lang});
+const mockCtx=installFoundryMock({lang: document.documentElement.lang});
 const {Content}=await import('${rootUrl}/scripts/content/loader.mjs');
 for(const [key,rows] of Object.entries(${json(content)}))Content[key]=new Map(rows.map(row=>[row.id,row]));
 Content.loaded=true;
 const root=document.querySelector('#app');
+const reviewRoot=document.createElement('form');reviewRoot.className='application sf2e-tsc tsc-review-host';reviewRoot.setAttribute('data-sheet-theme','dark');document.body.appendChild(reviewRoot);
 const template=Handlebars.template(${compiled});
+const reviewTemplate=Handlebars.template(${reviewCompiled});
 Handlebars.registerPartial('tscOccupant',Handlebars.template(${occupant}));
 Handlebars.registerHelper('localize',(key,options)=>game.i18n.format(key,options.hash));
 Handlebars.registerHelper('dotsafe',key=>String(key).replace(/\\./g,'__DOT__'));
@@ -55,36 +58,43 @@ game.actors.delete(packed.id);packed.pack='world.starships';Object.definePropert
 __extraUuids.set(packed.uuid,packed);
 game.packs=[{documentName:'Actor',collection:'world.starships',metadata:{label:'Starship Pack'},getIndex:async()=>[{_id:packed.id,uuid:packed.uuid,name:packed.name,type:packed.type,flags:packed.flags}]}];
 class FixtureApplication {
-  constructor(){this.element=root;this.rendered=false;this.position={width:840,height:850};}
+  constructor(){this.element=this.constructor.name==='CombatReviewApp'?reviewRoot:root;this.rendered=false;this.position={width:840,height:850};}
   async render(){
-    if(this.constructor.name!=='StartCombatWizard'){globalThis.dashboardOpened=true;return this;}
+    const name=this.constructor.name;
+    if(name==='CombatReviewApp'){globalThis.reviewApp=this;const ctx=await this._prepareContext({});reviewRoot.innerHTML=reviewTemplate(ctx);if(!this.rendered)this._onFirstRender?.(ctx,{});this.rendered=true;this._onRender?.(ctx,{});return this;}
+    if(name!=='StartCombatWizard'){globalThis.dashboardOpened=true;return this;}
     const context=await this._prepareContext({});root.innerHTML=template(context);
     if(!this.rendered)this._onFirstRender?.(context,{});
     this.rendered=true;this._onRender?.(context,{});return this;
   }
   setPosition(){}
-  async close(){this.closed=true;this.rendered=false;this._onClose?.({});return this;}
+  async close(){this.closed=true;this.rendered=false;if(this.constructor.name==='CombatReviewApp')this.element.innerHTML='';this._onClose?.({});return this;}
 }
 foundry.applications.api.ApplicationV2=FixtureApplication;
 foundry.applications.instances=new Map();
 foundry.applications.apps={FilePicker:{implementation:class{constructor({callback}){this.callback=callback;}render(){this.callback('moon.webp');}}}};
 const {StartCombatWizard}=await import('${rootUrl}/scripts/ui/start-wizard.mjs');
+const {CombatReviewApp}=await import('${rootUrl}/scripts/ui/combat-review.mjs');
 let app=new StartCombatWizard();globalThis.wizard=app;
 root.addEventListener('click',event=>{const target=event.target.closest('[data-action]');if(!target||target.disabled)return;const handler=StartCombatWizard.DEFAULT_OPTIONS.actions[target.dataset.action];if(handler)globalThis.lastAction=Promise.resolve(handler.call(app,event,target));});
 root.addEventListener('submit',event=>{event.preventDefault();globalThis.lastAction=Promise.resolve(StartCombatWizard.DEFAULT_OPTIONS.form.handler.call(app,event,root,{object:{}}));});
+reviewRoot.addEventListener('click',event=>{const target=event.target.closest('[data-action]');if(!target||target.disabled)return;const handler=CombatReviewApp.DEFAULT_OPTIONS.actions[target.dataset.action];if(handler)globalThis.lastAction=Promise.resolve(handler.call(globalThis.reviewApp,event,target));});
 await app.render();
 const tick=async()=>{await globalThis.lastAction;await new Promise(resolve=>setTimeout(resolve,0));};
 const set=async(selector,value)=>{const input=root.querySelector(selector);if(!input)throw new Error('Missing '+selector);if(input.type==='checkbox')input.checked=value;else input.value=value;input.dispatchEvent(new Event(input.type==='search'?'input':'change',{bubbles:true}));await tick();};
 const action=async(name)=>{const button=root.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing action '+name);button.click();await tick();};
-globalThis.fixture={checks,check,tick,set,action,player,enemy,hazard,packed,crew,root};
+const reviewAction=async(name)=>{const button=reviewRoot.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing review action '+name);button.click();await tick();};
+const reviewOpen=()=>!!(globalThis.reviewApp&&globalThis.reviewApp.rendered&&reviewRoot.querySelector('[data-wizard-review]'));
+globalThis.fixture={checks,check,tick,set,action,reviewAction,player,enemy,hazard,packed,crew,root,reviewRoot};
 check('production-form',!!root.querySelector('.tsc-wizard'));
 check('one-zone-count',root.querySelectorAll('[name="zones"]').length===1);
 check('no-preconfirmation-document-writes',__writes.length===0);
+check('resizable-and-maximize',StartCombatWizard.DEFAULT_OPTIONS.window.resizable===true&&!!StartCombatWizard.DEFAULT_OPTIONS.actions.toggleMaximize);
 const submit=async()=>{root.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await tick();};
 const visible=()=>[...root.querySelectorAll('[data-candidate-row]')].filter(row=>!row.hidden);
 const rowFor=uuid=>[...root.querySelectorAll('[data-roster-row]')].find(row=>row.textContent.includes(uuid));
 const field=async(uuid,name,value)=>{const row=rowFor(uuid);if(!row)throw new Error('Missing roster '+uuid);await set('[data-row-id="'+row.dataset.rowId+'"] [data-field="'+name+'"]',value);};
-const fresh=async()=>{app=new StartCombatWizard();globalThis.wizard=app;await app.render();};
+const fresh=async()=>{if(globalThis.reviewApp)await globalThis.reviewApp.close();app=new StartCombatWizard();globalThis.wizard=app;await app.render();};
 const beforePlayer=JSON.stringify(player.toObject());
 const beforeEnemy=JSON.stringify(enemy.toObject());
 const beforePack=JSON.stringify(packed.toObject());
@@ -121,12 +131,15 @@ globalThis.runWizardChecks=async()=>{
   await set('[name="source"]','world');await set('[name="filter"]','Рассветная');
   await set('[data-candidate][data-uuid="Actor.player"]',true);await action('addSelected');
   check('world-player-added',app.getDraft().playerShips.length===1);
-  await set('[data-station="pilot"]','');await set('[data-station="gun"]',crew.uuid);
-  check('station-release-and-assign-draft',app.getDraft().playerShips[0].stationAssignments.some(s=>s.stationId==='gun'&&s.actorUuid===crew.uuid));
-  await set('[data-member][data-uuid="'+crew.uuid+'"]',false);
-  check('deselect-crew-clears-assignment',app.getDraft().excludeCrew.includes(crew.uuid)&&app.getDraft().playerShips[0].stationAssignments.every(s=>!s.actorUuid));
-  await set('[data-station="pilot"]',crew.uuid);
-  check('assign-includes-crew',!app.getDraft().excludeCrew.includes(crew.uuid));
+  check('crew-controls-not-duplicated',!root.querySelector('[data-station]')&&!root.querySelector('[data-member]')&&!root.querySelector('[data-extra-crew]'));
+  check('crew-manager-button-present',!!rowFor(player.uuid).querySelector('[data-action="openCrewManager"]'));
+  check('default-station-assignments-from-sheet',app.getDraft().playerShips[0].stationAssignments.some(s=>s.stationId==='pilot'&&s.actorUuid===crew.uuid));
+  check('browse-collapsed-when-composing',!root.querySelector('.tsc-wizard-browse').open);
+  root.querySelector('.tsc-wizard-browse summary').click();await tick();
+  check('manual-expand-opens',root.querySelector('.tsc-wizard-browse').open);
+  await set('[name="source"]','compendium');
+  check('browse-expansion-survives-source-change',root.querySelector('.tsc-wizard-browse').open);
+  await set('[name="source"]','world');
   await set('[name="filter"]','Asteroid');await set('[data-candidate][data-uuid="Actor.hazard"]',true);await action('addSelected');
   await field(hazard.uuid,'count',2);await field(hazard.uuid,'detection','observed');
   await action('addObjRow');await set('.tsc-obj-row [data-f="name"]','Debris cloud');
@@ -143,29 +156,47 @@ globalThis.runWizardChecks=async()=>{
   check('presets-do-not-write-documents',__writes.length===0);
   await action('deletePreset');check('preset-delete',root.querySelector('[name="presetPick"]').options.length===1);
   await submit();
-  check('first-submit-review-only',!!root.querySelector('[data-wizard-review]')&&__writes.length===0);
-  check('review-totals',root.querySelector('[data-wizard-review] dl').textContent.includes('8'));
-  check('review-expanded-zones',root.querySelector('[data-wizard-review]').textContent.includes('8, 7, 6'));
+  check('first-submit-opens-review-dialog',reviewOpen()&&__writes.length===0);
+  check('review-not-inline',!root.querySelector('[data-wizard-review]'));
+  check('review-totals',reviewRoot.querySelector('[data-wizard-review] dl').textContent.includes('8'));
+  check('review-expanded-zones',reviewRoot.querySelector('[data-wizard-review]').textContent.includes('8, 7, 6'));
   await field(enemy.uuid,'heading','left');
-  check('edit-invalidates-preview',root.querySelector('[data-wizard-review]').hidden);
-  await submit();check('new-preview-required',__writes.length===0&&!root.querySelector('[data-wizard-review]').hidden);
-  await action('cancel');check('cancel-no-documents',app.closed&&__writes.length===0);
-  await fresh();await submit();
-  check('empty-roster-error',!!root.querySelector('[data-wizard-error]').textContent.trim()&&__writes.length===0);
-  await app.loadDraft({enemies:[{uuid:'Actor.missing-source',count:2}]});await submit();
-  check('stale-preset-error-no-documents',root.querySelector('[data-wizard-error]').textContent.trim().length>0&&__writes.length===0);
-  await app.loadDraft({enemies:[{uuid:enemy.uuid,count:2,detection:'identified',zone:8,zones:[8,7]}],playerShips:[{uuid:player.uuid,zone:2}]});
-  await submit();game.user=game.users.get('p1');await submit();
-  check('failed-confirm-keeps-draft',app.getDraft().enemies[0].count===2&&!app.closed&&root.querySelector('[data-wizard-error]').textContent.trim().length>0&&__writes.length===0);
-  game.user=game.users.get('gm');await submit();
-  root.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));const first=globalThis.lastAction;
-  check('confirmation-busy-disables-controls',root.querySelector('[data-wizard-submit]').disabled);
-  root.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await first;await tick();
-  check('confirm-once-completes',app.closed&&game.combats.size===1&&game.combat.combatants.filter(c=>c.actor?.flags?.['sf2e-tactical-starship-combat']?.tacticalCopyOf===enemy.uuid).length===2);
+  check('edit-closes-review',!reviewOpen());
+  await submit();check('new-preview-required',__writes.length===0&&reviewOpen());
+  await reviewAction('back');
+  check('back-to-edit-keeps-draft',!reviewOpen()&&!app.closed&&app.getDraft().enemies.length===2);
+  await action('openReview');
+  check('manual-review-opens',reviewOpen());
+  await reviewAction('confirm');
+  check('dialog-confirm-completes',app.closed&&game.combat.combatants.filter(c=>c.actor?.flags?.['sf2e-tactical-starship-combat']?.tacticalCopyOf===enemy.uuid).length===3);
+  check('review-closed-after-confirm',!reviewOpen());
   check('dashboard-opens-after-success',globalThis.dashboardOpened===true);
   check('source-player-preserved',JSON.stringify(player.toObject())===beforePlayer);
   check('source-npc-preserved',JSON.stringify(enemy.toObject())===beforeEnemy);
   check('source-compendium-preserved',JSON.stringify(packed.toObject())===beforePack);
+  mockCtx.settings.set('autoOpenCombatReview',false);
+  __writes.length=0;
+  await fresh();await submit();
+  check('empty-roster-error',!!root.querySelector('[data-wizard-error]').textContent.trim()&&__writes.length===0&&!reviewOpen());
+  await app.loadDraft({enemies:[{uuid:'Actor.missing-source',count:2}]});await submit();
+  check('stale-preset-error-no-documents',root.querySelector('[data-wizard-error]').textContent.trim().length>0&&__writes.length===0&&!reviewOpen());
+  await app.loadDraft({enemies:[{uuid:enemy.uuid,count:2,detection:'identified',zone:8,zones:[8,7]}],playerShips:[{uuid:player.uuid,zone:2}]});
+  await submit();
+  check('auto-off-no-dialog',!reviewOpen()&&__writes.length===0);
+  check('auto-off-arms-confirm',root.querySelector('[data-wizard-submit]').textContent===game.i18n.format('SF2eTSC.wizard.confirmStart'));
+  await action('openReview');check('manual-review-with-auto-off',reviewOpen());await reviewAction('back');
+  check('validation-active-with-auto-off',!root.querySelector('[data-wizard-error]').textContent.trim());
+  const submitEvent=()=>root.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  submitEvent();const first=globalThis.lastAction;
+  check('confirmation-busy-disables-controls',root.querySelector('[data-wizard-submit]').disabled);
+  submitEvent();await first;await tick();
+  check('confirm-once-completes',app.closed&&game.combat.combatants.filter(c=>c.actor?.flags?.['sf2e-tactical-starship-combat']?.tacticalCopyOf===enemy.uuid).length===2);
+  await fresh();
+  await app.loadDraft({playerShips:[{uuid:player.uuid,zone:2,stationAssignments:[{stationId:'gun',actorUuid:crew.uuid}]}],excludeCrew:[],enemies:[{uuid:enemy.uuid,count:1,detection:'identified',reuse:false}]});
+  check('preset-station-assignments-applied',app.getDraft().playerShips[0].stationAssignments.some(s=>s.stationId==='gun'&&s.actorUuid===crew.uuid));
+  check('explicit-false-reuse-preserved',app.getDraft().enemies[0].reuse===false);
+  await app.loadDraft({enemies:[{uuid:enemy.uuid,count:1,detection:'identified'}]});
+  check('legacy-preset-defaults-reuse-true',app.getDraft().enemies[0].reuse===true);
 };
 await globalThis.runWizardChecks();
 await fresh();
@@ -178,7 +209,7 @@ for (const lang of ["en", "ru"]) {
   fs.writeFileSync(path.join(out, `wizard-${lang}.mjs`), script);
   fs.writeFileSync(
     path.join(out, `wizard-${lang}.html`),
-    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><title>Combat wizard — browser fixture</title><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#141b29;font:14px Arial;margin:0;padding:20px;color:#e3ecfa}.application{width:860px;max-width:calc(100vw - 40px);margin:auto}.window-header{padding:12px;font-weight:bold;background:#162133}.window-content{padding:12px;box-sizing:border-box}#result{font-size:11px;max-width:860px;margin:auto;white-space:pre-wrap}.tsc-wizard{max-height:none}</style><main class="application sf2e-tsc" data-sheet-theme="dark"><header class="window-header">${lang === "ru" ? "Создать тактический бой звездолётов" : "Start tactical starship combat"} · ${lang === "ru" ? "Браузерная тестовая среда" : "Browser fixture"}</header><form id="app" class="window-content"></form></main><pre id="result">waiting</pre><script src="${rootUrl}/node_modules/handlebars/dist/handlebars.runtime.js"></script><script type="module" src="./wizard-${lang}.mjs"></script></html>`
+    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><title>Combat wizard — browser fixture</title><link rel="stylesheet" href="${rootUrl}/styles/main.css"><style>body{background:#141b29;font:14px Arial;margin:0;padding:20px;color:#e3ecfa}.application{width:860px;max-width:calc(100vw - 40px);margin:auto}.window-header{padding:12px;font-weight:bold;background:#162133}.window-content{padding:12px;box-sizing:border-box}#result{font-size:11px;max-width:860px;margin:auto;white-space:pre-wrap}.tsc-wizard{max-height:none}.tsc-review-host{margin-top:16px;border:1px solid #2c3e57}</style><main class="application sf2e-tsc" data-sheet-theme="dark"><header class="window-header">${lang === "ru" ? "Создать тактический бой звездолётов" : "Start tactical starship combat"} · ${lang === "ru" ? "Браузерная тестовая среда" : "Browser fixture"}</header><form id="app" class="window-content"></form></main><pre id="result">waiting</pre><script src="${rootUrl}/node_modules/handlebars/dist/handlebars.runtime.js"></script><script type="module" src="./wizard-${lang}.mjs"></script></html>`
   );
 }
 console.log(`Wrote wizard fixtures to ${out}`);

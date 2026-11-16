@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-11-16
+
+Usability release for the combat creation window. The Sensor Map, crew/station interfaces and combat mechanics are unchanged; the module ID, pack names and document IDs are unchanged and no world migration is required.
+
+- The pre-combat review and validation moved out of the creation window into a separate review dialog with a dedicated open button. A new client setting "Auto-open the pre-combat review" controls automatic display; validation and the two-step confirmation stay active regardless, and the review can always be opened manually. Returning to editing keeps the draft.
+- The actor browser is collapsed into an expandable section (open only while the roster is empty), and the duplicated per-ship crew/station editing controls were removed. Each player ship shows a compact crew/station summary with a button that opens the existing Crew Manager; crews remain editable during combat. Initiative participation, station assignments and preset compatibility are preserved.
+- The creation window now uses one primary scrolling area instead of nested scroll containers, is resizable, and gained a maximize/restore toggle; the default size is larger so encounters with several starships stay practical.
+- The "Use existing world Actor instead of a fresh copy" option now defaults to enabled for new eligible entries. Presets keep an explicitly saved value (including `false`); older presets without the flag use the new default. Ineligible entries (multiple copies, private detection, compendium source, token, role mismatch) still cannot reuse, and reusing still leaves the original Actor untouched.
+
 ## 1.1.0 — 2026-11-13
 
 Post-1.0.0 reliability and usability release. All changes were developed and live-verified on Foundry 14.370 / SF2e 1.7.0 / Toolbelt 3.61.3. Compatibility declarations, the module ID, pack names and document IDs are unchanged; no world migration is required.
