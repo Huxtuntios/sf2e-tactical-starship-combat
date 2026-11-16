@@ -172,12 +172,8 @@ export class StartCombatWizard extends TscApp {
     if (valid) this.#actors.set(choice.uuid, actor);
     const data = valid && choice.kind === "starship" ? readStarship(actor) : null;
     const role = spec.role ?? (data?.role === "player" ? "player" : "npc");
-    const eligible = new Set(this.#worldCharacters().map((a) => a.uuid));
-    const observers = new Set((data?.crew ?? []).filter((c) => c.role === "observer").map((c) => c.actorUuid));
-    const assignments = (data?.stations ?? []).map((s) => ({
-      stationId: s.id,
-      actorUuid: eligible.has(s.helmedBy) && !observers.has(s.helmedBy) && !this.#excluded.has(s.helmedBy) ? s.helmedBy : null
-    }));
+    const sourceAssignments = this.#sourceAssignments(data);
+    const assignments = clone(sourceAssignments);
     for (const assignment of spec.stationAssignments ?? []) {
       const current = assignments.find((s) => s.stationId === assignment.stationId);
       // Drop assignments for stations that no longer exist so a stale preset cannot block validation.
@@ -197,7 +193,8 @@ export class StartCombatWizard extends TscApp {
       count: clampCount(spec.count ?? 1),
       zones: Array.isArray(spec.zones) ? spec.zones.join(", ") : String(spec.zones ?? ""),
       reuse: spec.reuse ?? true,
-      stationAssignments: clone(assignments)
+      stationAssignments: clone(assignments),
+      sourceAssignments: clone(sourceAssignments)
     };
     this.#roster.push(row);
     if (!this.#canReuse(row)) row.reuse = false;
@@ -219,17 +216,22 @@ export class StartCombatWizard extends TscApp {
     this.#roster = this.#roster.filter((r) => !(r.uuid === uuid && r.kind === kind));
     this.#invalidateReview();
   }
-  /** Re-derive a player row's assignments from the live ship so Crew Manager edits are not overwritten on confirm. */
-  #syncPlayerAssignments(row) {
-    const data = this.#shipData(row);
-    if (!data) return false;
+  /** Pure derivation of a ship's current station assignments, used as both the initial draft and the change baseline. */
+  #sourceAssignments(data) {
     const eligible = new Set(this.#worldCharacters().map((a) => a.uuid));
-    const observers = new Set((data.crew ?? []).filter((c) => c.role === "observer").map((c) => c.actorUuid));
-    const next = (data.stations ?? []).map((s) => ({
+    const observers = new Set((data?.crew ?? []).filter((c) => c.role === "observer").map((c) => c.actorUuid));
+    return (data?.stations ?? []).map((s) => ({
       stationId: s.id,
       actorUuid: eligible.has(s.helmedBy) && !observers.has(s.helmedBy) && !this.#excluded.has(s.helmedBy) ? s.helmedBy : null
     }));
-    if (JSON.stringify(next) === JSON.stringify(row.stationAssignments)) return false;
+  }
+  /** Adopt live Crew Manager edits only when the source assignments changed; unrelated ship updates keep preset choices. */
+  #syncPlayerAssignments(row) {
+    const data = this.#shipData(row);
+    if (!data) return false;
+    const next = this.#sourceAssignments(data);
+    if (JSON.stringify(next) === JSON.stringify(row.sourceAssignments)) return false;
+    row.sourceAssignments = next;
     row.stationAssignments = next;
     return true;
   }

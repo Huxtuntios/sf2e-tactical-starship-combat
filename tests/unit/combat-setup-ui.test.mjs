@@ -159,3 +159,27 @@ test("the browser auto-opens when empty and collapses when composing unless manu
   await app.loadDraft({ enemies: [{ uuid: npc.uuid, detection: "identified" }] });
   assert.equal((await app._prepareContext()).browseOpen, false);
 });
+
+test("an unrelated ship update keeps preset station choices; a real source change adopts them", async () => {
+  const { app } = await loadWizard();
+  const chosen = makeCharacter({ id: "chosen", name: "Chosen" });
+  const source = makeCharacter({ id: "source", name: "Source" });
+  const ship = makeShip({
+    id: "player",
+    role: "player",
+    stations: [{ id: "pilot", type: "pilot", helmedBy: source.uuid }],
+    crew: [{ actorUuid: source.uuid, name: source.name, role: "crew", stationId: "pilot" }]
+  });
+  await app.loadDraft({
+    playerShips: [{ uuid: ship.uuid, zone: 2, stationAssignments: [{ stationId: "pilot", actorUuid: chosen.uuid }] }]
+  });
+  const pilot = () => app.getDraft().playerShips[0].stationAssignments.find((s) => s.stationId === "pilot").actorUuid;
+  assert.equal(pilot(), chosen.uuid);
+  ship.name = "Renamed ship";
+  ship.system.attributes.hp.value = 1;
+  app.wants("actor", ship);
+  assert.equal(pilot(), chosen.uuid, "rename/HP update must not discard the preset choice");
+  ship.flags[MODULE_ID].starship.stations[0].helmedBy = null;
+  app.wants("actor", ship);
+  assert.equal(pilot(), null, "a real station release is adopted into the draft");
+});
