@@ -223,7 +223,8 @@ test("sheet attack prompts on damage application and protects against reapplicat
   await rollAttackCardDamage({ user: game.users.get("p2"), payload: { messageId: attack.messageId } });
   await applyAttackCardDamage({ user: game.users.get("gm"), payload: { messageId: attack.messageId } });
   assert.equal(readStarship(ship).drones[0].deployed, false);
-  assert.ok(readStarship(ship).appliedStrikeReceipts.includes(`chat:${attack.messageId}`));
+  const attackCard = game.messages.get(attack.messageId).flags["sf2e-tactical-starship-combat"].attackCard;
+  assert.ok(readStarship(ship).appliedStrikeReceipts.includes(`chat:${attackCard.applicationId}`));
   await assert.rejects(() => applyAttackCardDamage({ user: game.users.get("gm"), payload: { messageId: attack.messageId } }));
   assert.equal(crew.system.details.level.value, 8);
 });

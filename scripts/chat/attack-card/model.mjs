@@ -70,19 +70,28 @@ export function canStartResolve(card, locked) {
 }
 
 /**
- * Reconcile a native attack card's deferred damage with the degree of a system reroll. Pure: returns the same card
- * when nothing changes. Already-applied damage is never reopened, and a reroll that misses removes the pending damage.
+ * Reconcile a native attack card with the degree of a system reroll. Pure: returns the same card when nothing
+ * changes. Already-applied damage is never reopened. A reroll that hits builds pending damage from the bound
+ * weapon/target data (so a miss rolled into a hit gains damage controls); a reroll that misses clears it. Whenever the
+ * damage requirement changes, an unapplied damage roll is discarded so the GM must roll the correct damage again.
  * @param {object|null} card the module attackCard flag
  * @param {string|null} outcomeKey the rerolled degree key from the system context (e.g. "criticalSuccess")
  */
 export function reconcileRerolledCard(card, outcomeKey) {
   if (!card?.native || card.damageApplied) return card;
-  const pending = card.result?.pendingDamage;
-  if (!pending) return card;
   const degree = DEGREE_KEYS.indexOf(outcomeKey);
   if (degree < 0) return card;
+  const hit = degree >= DEGREE.SUCCESS;
+  const crit = degree === DEGREE.CRITICAL_SUCCESS;
+  const oldPending = card.result?.pendingDamage ?? null;
+  const source = card.boundDamage ?? oldPending;
+  const newPending = hit && source ? { ...source, crit } : null;
+  const changed = !!newPending !== !!oldPending || (!!newPending && !!oldPending && newPending.crit !== oldPending.crit);
+  if (!changed) return card;
   const result = { ...card.result };
-  if (degree < DEGREE.SUCCESS) delete result.pendingDamage;
-  else result.pendingDamage = { ...pending, crit: degree === DEGREE.CRITICAL_SUCCESS };
-  return { ...card, result };
+  if (newPending) result.pendingDamage = newPending;
+  else delete result.pendingDamage;
+  const next = { ...card, result };
+  delete next.damageRoll;
+  return next;
 }

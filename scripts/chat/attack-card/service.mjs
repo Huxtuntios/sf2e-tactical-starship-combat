@@ -243,10 +243,11 @@ function pendingCard(payload) {
 /** Roll (or re-roll) the damage of a hit from a sheet attack. Nothing is applied; repeat rolls are allowed. */
 export async function rollAttackCardDamage({ user, payload }) {
   const { message, card, pd } = pendingCard(payload);
+  const appId = card.applicationId ?? message.id;
   const crewActor = card.request.crewUuid ? await fromUuidSafe(card.request.crewUuid) : null;
   if (!mayResolveCard(user, card, crewActor)) throw new Error(T("SF2eTSC.errors.noPermission"));
-  if (damaging.has(message.id)) throw new Error(T("SF2eTSC.rolls.busy"));
-  damaging.add(message.id);
+  if (damaging.has(appId)) throw new Error(T("SF2eTSC.rolls.busy"));
+  damaging.add(appId);
   try {
     const formula = pd.crit ? pd.critFormula : pd.formula;
     const parts = pd.damageParts?.length
@@ -268,7 +269,7 @@ export async function rollAttackCardDamage({ user, payload }) {
     await updateCard(message, { damageRoll: { formula, total: roll.total, parts: evaluated, crit: !!pd.crit, by: user.id }, error: null });
     return { ok: true, total: roll.total };
   } finally {
-    damaging.delete(message.id);
+    damaging.delete(appId);
   }
 }
 /**
@@ -279,9 +280,10 @@ export async function rollAttackCardDamage({ user, payload }) {
 export async function applyAttackCardDamage({ user, payload }) {
   if (!user?.isGM) throw new Error(T("SF2eTSC.errors.noPermission"));
   const { message, card, pd } = pendingCard(payload);
+  const appId = card.applicationId ?? message.id;
   if (!card.damageRoll) throw new Error(T("SF2eTSC.rolls.rollDamageFirst"));
-  if (damaging.has(message.id)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
-  damaging.add(message.id);
+  if (damaging.has(appId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
+  damaging.add(appId);
   try {
     const traits = (pd.traits ?? []).map((trait) => String(trait).toLowerCase());
     const types = new Set(pd.damageParts?.length ? pd.damageParts.map((part) => part.type) : [pd.damageType ?? "untyped"]);
@@ -302,7 +304,7 @@ export async function applyAttackCardDamage({ user, payload }) {
     if (!target || !isStarship(target)) throw new Error(T("SF2eTSC.errors.needTarget"));
     const draft = new Draft(activeStarshipCombat() ?? null);
     const entry = await draft.ship(pd.targetUuid);
-    const strikeId = `chat:${message.id}`;
+    const strikeId = `chat:${appId}`;
     if (entry.data.appliedStrikeReceipts != null && !Array.isArray(entry.data.appliedStrikeReceipts))
       throw new Error(T("SF2eTSC.droneBlock.invalid"));
     if ((entry.data.appliedStrikeReceipts ?? []).includes(strikeId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
@@ -364,7 +366,7 @@ export async function applyAttackCardDamage({ user, payload }) {
     });
     return { ok: true, result: d };
   } finally {
-    damaging.delete(message.id);
+    damaging.delete(appId);
   }
 }
 
