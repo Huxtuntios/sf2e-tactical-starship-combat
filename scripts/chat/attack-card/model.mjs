@@ -4,6 +4,7 @@
  */
 import { effectiveDetection } from "../../engine/sensor-ops.mjs";
 import { canControlCrewActor } from "../../crew/permissions.mjs";
+import { DEGREE, DEGREE_KEYS } from "../../constants.mjs";
 
 export const CARD_FLAG = "attackCard";
 export const ATTACK_BUILTINS = ["strike", "npc-strike", "spell-attack"];
@@ -66,4 +67,22 @@ export function pickMapChoice(payload, card, MAP_CHOICES) {
 /** A card may start resolving only once: open status and not locked in memory. */
 export function canStartResolve(card, locked) {
   return !locked && card?.status === "open";
+}
+
+/**
+ * Reconcile a native attack card's deferred damage with the degree of a system reroll. Pure: returns the same card
+ * when nothing changes. Already-applied damage is never reopened, and a reroll that misses removes the pending damage.
+ * @param {object|null} card the module attackCard flag
+ * @param {string|null} outcomeKey the rerolled degree key from the system context (e.g. "criticalSuccess")
+ */
+export function reconcileRerolledCard(card, outcomeKey) {
+  if (!card?.native || card.damageApplied) return card;
+  const pending = card.result?.pendingDamage;
+  if (!pending) return card;
+  const degree = DEGREE_KEYS.indexOf(outcomeKey);
+  if (degree < 0) return card;
+  const result = { ...card.result };
+  if (degree < DEGREE.SUCCESS) delete result.pendingDamage;
+  else result.pendingDamage = { ...pending, crit: degree === DEGREE.CRITICAL_SUCCESS };
+  return { ...card, result };
 }
