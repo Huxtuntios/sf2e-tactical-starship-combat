@@ -22,6 +22,15 @@ const mkRoll = (id, total = 10) => ({
   toJSON: () => ({ class: "CheckRoll", formula: "1d20+5", total, dice: [{ faces: 20, total }], options: { type: "attack-roll", id } })
 });
 
+/** Roll double whose serialized options reflect live mutation, as the real system pipeline does. */
+const liveRoll = (total, opts = {}) => {
+  const options = { type: "attack-roll", isReroll: false, degreeOfSuccess: 2, rollerId: "gm", domains: ["attack"], ...opts };
+  return {
+    options,
+    toJSON: () => ({ class: "CheckRoll", formula: "1d20+5", total, dice: [{ faces: 20, total }], options: { ...options } })
+  };
+};
+
 const BOUND = {
   damageParts: null,
   formula: "1d6",
@@ -204,6 +213,24 @@ test("keep-higher that keeps the old roll still matches the source", async () =>
   // new roll is lower; the system posts the OLD roll when keeping higher
   onSystemReroll(mkRoll("A", 18), mkRoll("A2", 5));
   const rerolled = rerolledMessage(mkRoll("A", 18), { outcome: "criticalSuccess" });
+  await onRerollMessageCreated(rerolled);
+  assert.equal(rerolled.flags[MODULE_ID][CARD_FLAG].applicationId, "app-A");
+});
+
+test("correlation survives the system mutating isReroll on the source and recomputing degree on the posted roll", async () => {
+  installFoundryMock();
+  _resetRerollSupport();
+  const srcRoll = liveRoll(16, { isReroll: false, degreeOfSuccess: 2 });
+  await sourceMessage(srcRoll, { card: nativeCard({ applicationId: "app-A" }) });
+  // The hook's oldRoll is a verbatim clone of the source's original JSON (isReroll still false) ...
+  const oldRollArg = liveRoll(16, { isReroll: false, degreeOfSuccess: 2 });
+  // ... but by hook time the system has flipped the SOURCE roll's isReroll to true.
+  srcRoll.options.isReroll = true;
+  const newRoll = liveRoll(10, { isReroll: true, degreeOfSuccess: 2 });
+  onSystemReroll(oldRollArg, newRoll);
+  // The posted roll's degreeOfSuccess is recomputed after the hook (2 -> 1).
+  const createdRoll = liveRoll(10, { isReroll: true, degreeOfSuccess: 1 });
+  const rerolled = rerolledMessage(createdRoll, { outcome: "success" });
   await onRerollMessageCreated(rerolled);
   assert.equal(rerolled.flags[MODULE_ID][CARD_FLAG].applicationId, "app-A");
 });

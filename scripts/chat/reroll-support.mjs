@@ -32,10 +32,20 @@ export function isNativeCheckContext(context) {
   return !!context && !["damage-roll", "spell-cast"].includes(context.type);
 }
 
-/** Stable identity of an evaluated roll; the system clones the source roll verbatim into the reroll. */
+/**
+ * Stable identity of an evaluated roll. The system flips `options.isReroll` on the source roll and recomputes
+ * `options.degreeOfSuccess` on the posted roll around the reroll hook, so both volatile fields are excluded —
+ * otherwise the source lookup and the created-message match would each compare against a key that has already changed.
+ */
 function rollKey(roll) {
   try {
-    return typeof roll?.toJSON === "function" ? JSON.stringify(roll.toJSON()) : null;
+    const json = typeof roll?.toJSON === "function" ? roll.toJSON() : null;
+    if (!json) return null;
+    if (json.options) {
+      delete json.options.isReroll;
+      delete json.options.degreeOfSuccess;
+    }
+    return JSON.stringify(json);
   } catch {
     return null;
   }
