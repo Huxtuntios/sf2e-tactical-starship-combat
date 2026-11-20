@@ -498,7 +498,11 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
     },
     applications: {
       api: {
-        ApplicationV2: class {},
+        ApplicationV2: class {
+          async close() {
+            return this;
+          }
+        },
         HandlebarsApplicationMixin: (B) => B,
         DialogV2: { confirm: async () => true, prompt: async () => null }
       }

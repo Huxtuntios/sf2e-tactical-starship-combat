@@ -1112,8 +1112,19 @@ a.tsc-check:hover {
   padding: 4px;
 }
 .tsc-wizard .tsc-wizard-candidate {
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px;
+}
+.tsc-wizard .tsc-wizard-candidate > label {
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+}
+.tsc-wizard .tsc-wizard-candidate > button {
+  width: 32px;
+  min-height: 32px;
 }
 .tsc-wizard .tsc-wizard-candidate span,
 .tsc-wizard .tsc-wizard-roster-row header > div {

@@ -30,6 +30,7 @@ export class StartCombatWizard extends TscApp {
       addSelected: StartCombatWizard.#addSelected,
       removeRoster: StartCombatWizard.#removeRoster,
       refreshSources: StartCombatWizard.#refreshSources,
+      previewOriginal: StartCombatWizard.#previewOriginal,
       editDraft: StartCombatWizard.#editDraft,
       cancel: StartCombatWizard.#cancel,
       pickObjectArt: StartCombatWizard.#pickObjectArt,
@@ -55,7 +56,7 @@ export class StartCombatWizard extends TscApp {
   #actors = new Map();
   #choices = new Map();
   #compendium = null;
-  #browse = { source: "world", filter: "", kind: "all", pack: "" };
+  #browse = { source: "world", filter: "", kind: "all", pack: "", minLevel: "", maxLevel: "" };
   #presetPick = "";
   #presetName = "";
   #nextId = 0;
@@ -314,6 +315,9 @@ export class StartCombatWizard extends TscApp {
       kinds: optionsFor(["all", "starship", "hazard"], this.#browse.kind, (id) => T(`SF2eTSC.wizard.kinds.${id}`)),
       packs: [...new Set(compendium.map((c) => c.pack).filter(Boolean))].sort().map((id) => ({ id, selected: id === this.#browse.pack })),
       filter: this.#browse.filter,
+      minLevel: this.#browse.minLevel,
+      maxLevel: this.#browse.maxLevel,
+      invalidLevelRange: this.#invalidLevelRange(),
       candidates,
       noCandidates: !candidates.some((c) => !c.hidden),
       selectedCount: this.#selected.size,
@@ -366,8 +370,14 @@ export class StartCombatWizard extends TscApp {
     return (
       (!this.#browse.filter || text.includes(this.#browse.filter.toLocaleLowerCase())) &&
       (this.#browse.kind === "all" || this.#browse.kind === choice.kind) &&
-      (!this.#browse.pack || this.#browse.pack === choice.pack)
+      (!this.#browse.pack || this.#browse.pack === choice.pack) &&
+      (this.#browse.minLevel === "" || (Number.isFinite(choice.level) && choice.level >= Number(this.#browse.minLevel))) &&
+      (this.#browse.maxLevel === "" || (Number.isFinite(choice.level) && choice.level <= Number(this.#browse.maxLevel)))
     );
+  }
+  #invalidLevelRange() {
+    const { minLevel, maxLevel } = this.#browse;
+    return minLevel !== "" && maxLevel !== "" && Number(minLevel) > Number(maxLevel);
   }
   #pendingCount() {
     return [...this.#selected.values()].filter((c) => !this.#roster.some((r) => keyOf(r.uuid, r.kind) === keyOf(c.uuid, c.kind))).length;
@@ -381,14 +391,21 @@ export class StartCombatWizard extends TscApp {
     const button = this.element?.querySelector?.('[data-action="addSelected"]');
     if (button) button.disabled = this.#busy || !this.#pendingCount();
   }
-  #filterCandidates() {
+  #filterCandidates(committed = false) {
     let visible = 0;
     this.element?.querySelectorAll?.("[data-candidate-row]").forEach((row) => {
-      row.hidden = !this.#matches({ name: row.dataset.name, uuid: row.dataset.uuid, kind: row.dataset.kind, pack: row.dataset.pack });
+      const choice = this.#choices.get(keyOf(row.dataset.uuid, row.dataset.kind));
+      row.hidden = !choice || !this.#matches(choice);
       if (!row.hidden) visible++;
     });
     const hint = this.element?.querySelector?.("[data-no-candidates]");
     if (hint) hint.hidden = visible > 0;
+    const invalid = this.#invalidLevelRange();
+    const error = this.element?.querySelector?.("[data-level-error]");
+    if (error && (committed || !invalid)) error.hidden = !invalid;
+    this.element?.querySelectorAll?.('[name="minLevel"], [name="maxLevel"]').forEach((input) => {
+      input.setAttribute("aria-invalid", String(!!error && !error.hidden));
+    });
   }
   _onRender(context, options) {
     super._onRender?.(context, options);
@@ -412,12 +429,12 @@ export class StartCombatWizard extends TscApp {
       this.selectCandidate(input.dataset.uuid, input.checked, input.dataset.kind);
       return;
     }
-    if (["source", "filter", "kind", "pack"].includes(input.name)) {
+    if (["source", "filter", "kind", "pack", "minLevel", "maxLevel"].includes(input.name)) {
       this.#browse[input.name] = input.value;
       if (input.name === "source" && committed) {
         this.#browse.pack = "";
         this.render();
-      } else this.#filterCandidates();
+      } else this.#filterCandidates(committed);
       return;
     }
     if (input.name === "zones") {
@@ -606,6 +623,21 @@ export class StartCombatWizard extends TscApp {
     const row = this.#roster.find((r) => r.id === target.closest("[data-roster-row]")?.dataset.rowId);
     if (row) this.removeRoster(row.uuid, row.kind);
     await this.render();
+  }
+  static async #previewOriginal(event, target) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.#busy || this.#completed || this.#closed) return;
+    const choice = this.#choices.get(keyOf(target.dataset.uuid, target.dataset.kind));
+    if (!choice?.originalUuid) return;
+    try {
+      const actor = await fromUuidSafe(choice.originalUuid);
+      if (this.#closed) return;
+      if (actor?.documentName !== "Actor" || !actor.pack) throw new Error("originalUnavailable");
+      await actor.sheet.render(true);
+    } catch {
+      ui.notifications.warn(T("SF2eTSC.wizard.originalUnavailable"));
+    }
   }
   static async #refreshSources() {
     if (this.#busy) return;

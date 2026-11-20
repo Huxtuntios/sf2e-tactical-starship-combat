@@ -56,6 +56,11 @@ for(let i=0;i<520;i++)makeShip({id:'large-'+i,name:'Catalogue '+String(i).padSta
 const packed=makeShip({id:'packed',name:'Cargo Tug',role:'npc'});
 game.actors.delete(packed.id);packed.pack='world.starships';Object.defineProperty(packed,'uuid',{value:'Compendium.world.starships.Actor.packed'});
 __extraUuids.set(packed.uuid,packed);
+const originalsOpened=[];packed.sheet={render:force=>originalsOpened.push({uuid:packed.uuid,force})};
+enemy._stats={compendiumSource:packed.uuid};
+makeShip({id:'level-low',name:'Low ship',role:'npc',level:-1});
+makeShip({id:'level-zero',name:'Zero ship',role:'npc',level:0});
+const unknown=new MockActor({id:'level-unknown',name:'Unknown level',type:'hazard'});game.actors.set(unknown.id,unknown);
 game.packs=[{documentName:'Actor',collection:'world.starships',metadata:{label:'Starship Pack'},getIndex:async()=>[{_id:packed.id,uuid:packed.uuid,name:packed.name,type:packed.type,flags:packed.flags}]}];
 class FixtureApplication {
   constructor(){this.element=this.constructor.name==='CombatReviewApp'?reviewRoot:root;this.rendered=false;this.position={width:840,height:850};}
@@ -85,7 +90,7 @@ const set=async(selector,value)=>{const input=root.querySelector(selector);if(!i
 const action=async(name)=>{const button=root.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing action '+name);button.click();await tick();};
 const reviewAction=async(name)=>{const button=reviewRoot.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing review action '+name);button.click();await tick();};
 const reviewOpen=()=>!!(globalThis.reviewApp&&globalThis.reviewApp.rendered&&reviewRoot.querySelector('[data-wizard-review]'));
-globalThis.fixture={checks,check,tick,set,action,reviewAction,player,enemy,hazard,packed,crew,root,reviewRoot};
+globalThis.fixture={checks,check,tick,set,action,reviewAction,player,enemy,hazard,packed,crew,root,reviewRoot,originalsOpened};
 check('production-form',!!root.querySelector('.tsc-wizard'));
 check('one-zone-count',root.querySelectorAll('[name="zones"]').length===1);
 check('no-preconfirmation-document-writes',__writes.length===0);
@@ -99,6 +104,52 @@ const beforePlayer=JSON.stringify(player.toObject());
 const beforeEnemy=JSON.stringify(enemy.toObject());
 const beforePack=JSON.stringify(packed.toObject());
 globalThis.runWizardChecks=async()=>{
+  const bounds=!!root.querySelector('[name="minLevel"]')&&!!root.querySelector('[name="maxLevel"]');
+  check('level-range-controls',bounds);
+  if(bounds){
+    check('valid-level-input-does-not-describe-error',!root.querySelector('[name="minLevel"]').getAttribute('aria-describedby').split(' ').includes(root.querySelector('[data-level-error]').id));
+    check('empty-level-bounds-include-unknown',visible().some(row=>row.dataset.uuid===unknown.uuid));
+    await set('[name="maxLevel"]','0');
+    check('max-zero-includes-negative-and-zero',visible().map(row=>row.dataset.uuid).sort().join(',')==='Actor.level-low,Actor.level-zero');
+    await set('[name="minLevel"]','0');
+    check('equal-bounds-include-zero',visible().length===1&&visible()[0].dataset.uuid==='Actor.level-zero');
+    await set('[name="minLevel"]','-1');await set('[name="maxLevel"]','-1');
+    check('equal-negative-bounds',visible().length===1&&visible()[0].dataset.uuid==='Actor.level-low');
+    await set('[name="minLevel"]','3');await set('[name="maxLevel"]','3');
+    await set('[name="kind"]','hazard');
+    check('hazard-level-filter',visible().length===1&&visible()[0].dataset.uuid===hazard.uuid);
+    await set('[name="kind"]','all');
+    await set('[data-candidate][data-uuid="Actor.enemy"]',true);
+    const unchanged=JSON.stringify(app.getDraft());
+    await set('[name="minLevel"]','4');
+    check('reversed-range-warning',visible().length===0&&!root.querySelector('[data-level-error]').hidden&&root.querySelector('[name="minLevel"]').getAttribute('aria-invalid')==='true');
+    check('range-keeps-selection-and-draft',root.querySelector('[data-selected-count]').textContent==='1'&&JSON.stringify(app.getDraft())===unchanged);
+    check('range-warning-not-combat-form-invalid',root.checkValidity());
+    await set('[name="maxLevel"]','');
+    check('minimum-only-excludes-lower-levels',visible().length===0&&root.querySelector('[data-level-error]').hidden);
+    await set('[name="source"]','compendium');await set('[name="minLevel"]','3');
+    check('compendium-level-inclusive',visible().length===1&&visible()[0].dataset.uuid===packed.uuid);
+    await set('[name="source"]','all');await set('[name="maxLevel"]','3');
+    check('all-sources-level-filter',visible().some(row=>row.dataset.uuid===packed.uuid)&&visible().some(row=>row.dataset.uuid===enemy.uuid)&&!visible().some(row=>row.dataset.uuid===unknown.uuid));
+    await action('refreshSources');
+    check('range-persists-after-render',root.querySelector('[name="minLevel"]').value==='3'&&root.querySelector('[name="maxLevel"]').value==='3'&&!visible().some(row=>row.dataset.uuid===unknown.uuid));
+    await set('[name="source"]','world');await set('[name="minLevel"]','');await set('[name="maxLevel"]','');
+    await set('[data-candidate][data-uuid="Actor.enemy"]',false);
+    check('cleared-bounds-restore-unknown',visible().some(row=>row.dataset.uuid===unknown.uuid));
+  }
+  const preview=root.querySelector('[data-action="previewOriginal"][data-uuid="Actor.enemy"]');
+  check('original-preview-control',!!preview);
+  if(preview){
+    check('preview-outside-label',!preview.closest('label')&&preview.type==='button');
+    preview.click();await tick();
+    check('preview-native-original-no-selection',originalsOpened.length===1&&originalsOpened[0].uuid===packed.uuid&&originalsOpened[0].force&&root.querySelector('[data-selected-count]').textContent==='0');
+    check('preview-no-submit-or-documents',__writes.length===0&&!reviewOpen()&&app.getDraft().enemies.length===0);
+    const unavailable=root.querySelector('[data-action="previewOriginal"][data-uuid="Actor.hazard"]');
+    check('no-original-disabled-with-explanation',unavailable.disabled&&!!unavailable.getAttribute('title'));
+    root.querySelector('[data-candidate-row][data-uuid="Actor.enemy"] label').click();await tick();
+    check('candidate-label-still-selects',root.querySelector('[data-selected-count]').textContent==='1');
+    await set('[data-candidate][data-uuid="Actor.enemy"]',false);
+  }
   check('world-index-over-400',root.querySelectorAll('[data-candidate]').length>500);
   await set('[name="filter"]','Catalogue 519');
   check('search-after-400',visible().length===1&&visible()[0].dataset.uuid==='Actor.large-519');

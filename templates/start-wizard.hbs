@@ -19,19 +19,26 @@
     <legend>1. {{localize "SF2eTSC.wizard.roster"}}</legend>
     <details class="tsc-wizard-browse" {{#if browseOpen}}open{{/if}}>
       <summary>{{localize "SF2eTSC.wizard.browseActors"}} · {{localize "SF2eTSC.wizard.selected"}}: <strong data-selected-count>{{selectedCount}}</strong></summary>
-      <div class="tsc-row-inputs tsc-wizard-filters">
+      <search class="tsc-row-inputs tsc-wizard-filters" aria-label="{{localize 'SF2eTSC.wizard.browseActors'}}">
         <label>{{localize "SF2eTSC.contactEditor.source"}} <select name="source">{{#each sources}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
         <label>{{localize "SF2eTSC.ui.type"}} <select name="kind">{{#each kinds}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
         <label>{{localize "SF2eTSC.wizard.pack"}} <select name="pack"><option value="">{{localize "SF2eTSC.wizard.allPacks"}}</option>{{#each packs}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
         <button type="button" data-action="refreshSources" aria-label="{{localize 'SF2eTSC.wizard.refreshSources'}}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
         <label class="tsc-wizard-search">{{localize "SF2eTSC.contactEditor.filter"}} <input type="search" name="filter" value="{{filter}}" placeholder="{{localize 'SF2eTSC.ui.search'}}"></label>
-      </div>
+        <label for="sf2e-tsc-level-min">{{localize "SF2eTSC.wizard.minLevel"}} <input id="sf2e-tsc-level-min" type="number" name="minLevel" value="{{minLevel}}" step="1" aria-invalid="{{invalidLevelRange}}" aria-describedby="sf2e-tsc-level-hint" aria-errormessage="sf2e-tsc-level-error"></label>
+        <label for="sf2e-tsc-level-max">{{localize "SF2eTSC.wizard.maxLevel"}} <input id="sf2e-tsc-level-max" type="number" name="maxLevel" value="{{maxLevel}}" step="1" aria-invalid="{{invalidLevelRange}}" aria-describedby="sf2e-tsc-level-hint" aria-errormessage="sf2e-tsc-level-error"></label>
+        <span class="tsc-hint" id="sf2e-tsc-level-hint">{{localize "SF2eTSC.wizard.levelRangeHint"}}</span>
+      </search>
+      <p class="tsc-warn-box" id="sf2e-tsc-level-error" data-level-error role="status" {{#unless invalidLevelRange}}hidden{{/unless}}>{{localize "SF2eTSC.wizard.invalidLevelRange"}}</p>
       <div class="tsc-wizard-candidates" role="group" aria-label="{{localize 'SF2eTSC.wizard.browseActors'}}">
         {{#each candidates}}
-          <label class="tsc-check tsc-wizard-candidate" data-candidate-row data-name="{{name}}" data-uuid="{{uuid}}" data-kind="{{kind}}" data-pack="{{pack}}" {{#if hidden}}hidden{{/if}}>
-            <input type="checkbox" data-candidate data-uuid="{{uuid}}" data-kind="{{kind}}" {{#if checked}}checked{{/if}} {{#if inRoster}}disabled{{/if}}>
-            <span>{{name}} <small class="tsc-dim">{{kindLabel}} · {{sourceLabel}}{{#if inRoster}} · {{localize "SF2eTSC.wizard.inRoster"}}{{/if}}</small></span>
-          </label>
+          <div class="tsc-wizard-candidate" data-candidate-row data-name="{{name}}" data-uuid="{{uuid}}" data-kind="{{kind}}" data-pack="{{pack}}" {{#if hidden}}hidden{{/if}}>
+            <label class="tsc-check">
+              <input type="checkbox" data-candidate data-uuid="{{uuid}}" data-kind="{{kind}}" {{#if checked}}checked{{/if}} {{#if inRoster}}disabled{{/if}}>
+              <span>{{name}} <small class="tsc-dim">{{kindLabel}} · {{sourceLabel}}{{#if inRoster}} · {{localize "SF2eTSC.wizard.inRoster"}}{{/if}}</small></span>
+            </label>
+            <button type="button" class="tsc-icon-btn" data-action="previewOriginal" data-uuid="{{uuid}}" data-kind="{{kind}}" {{#unless originalUuid}}disabled{{/unless}} aria-label="{{localize 'SF2eTSC.wizard.previewOriginal'}}: {{name}}" title="{{#if originalUuid}}{{localize 'SF2eTSC.wizard.previewOriginal'}}{{else}}{{localize 'SF2eTSC.wizard.noOriginal'}}{{/if}}"><i class="fa-solid fa-book-open" aria-hidden="true"></i></button>
+          </div>
         {{/each}}
         <p class="tsc-hint" data-no-candidates {{#unless noCandidates}}hidden{{/unless}}>{{localize "SF2eTSC.contactEditor.noChoices"}}</p>
       </div>

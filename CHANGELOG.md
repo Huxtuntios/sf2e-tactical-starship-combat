@@ -11,6 +11,8 @@ Native reroll support for module chat rolls. The module ID, pack names and docum
 
 - Action-list review fixes: PC station actions remain clickable for the GM outside combat and after strict-mode preview failures, preserving the existing execution checks and override dialog. Native compendium action sheets display the selected operator's contextual DCs and save links without modifying the Item source; changing operators or closing the sheet clears the previous viewing context. Native inline-save labels no longer repeat the DC already supplied by the system, including contextual operator DCs; save parameters and DC visibility are unchanged.
 
+- Combat setup: the actor browser now filters starships and hazards by inclusive minimum/maximum level, including −1 and 0; empty bounds impose no limit. Each row has a separate button to open its native compendium original using stored provenance, without selecting the row or importing a copy. Missing provenance disables the button; unavailable originals produce a notification. Filtering preserves selections and the encounter draft.
+
 ## 1.2.0 — 2026-11-16
 
 Usability release for the combat creation window. The Sensor Map, crew/station interfaces and combat mechanics are unchanged; the module ID, pack names and document IDs are unchanged and no world migration is required.
