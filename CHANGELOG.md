@@ -9,6 +9,8 @@ Native reroll support for module chat rolls. The module ID, pack names and docum
 
 - Starship and station action lists now separate execution from inspection: the action-cost button runs the existing action workflow, while the name opens the localized native action Item from the module compendium. Ship-specific NPC abilities open as temporary native Items without importing documents. Action-description disclosure triangles and name underlining are removed; availability warnings use compact, keyboard-accessible tooltip controls. Disabled actions remain readable. Applied to PC/NPC station lists, NPC actions, Station HUD and the Sensor Map dock; mechanics and native character-sheet controls are unchanged.
 
+- Action-list review fixes: PC station actions remain clickable for the GM outside combat and after strict-mode preview failures, preserving the existing execution checks and override dialog. Native compendium action sheets display the selected operator's contextual DCs and save links without modifying the Item source; changing operators or closing the sheet clears the previous viewing context. Native inline-save labels no longer repeat the DC already supplied by the system, including contextual operator DCs; save parameters and DC visibility are unchanged.
+
 ## 1.2.0 — 2026-11-16
 
 Usability release for the combat creation window. The Sensor Map, crew/station interfaces and combat mechanics are unchanged; the module ID, pack names and document IDs are unchanged and no world migration is required.

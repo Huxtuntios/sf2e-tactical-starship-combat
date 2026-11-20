@@ -136,6 +136,22 @@ test("save links keep basic/DC params but have no duplicate DC or redundant oute
   assert.equal(linkInline("(DC 17 basic Reflex save)"), "@Check[reflex|dc:17|basic]{basic Reflex save}");
 });
 
+test("native contextual save labels leave DC rendering to the system", () => {
+  for (const [label, clean] of [
+    ["your Computers DC (24)", "Computers"],
+    ["your class DC (24)", "class"],
+    ["your starship’s Fortitude DC (24)", "starship’s Fortitude"],
+    ["вашего КС Компьютеров (24)", "Компьютеров"],
+    ["вашего КС класса соляриана (24)", "класса соляриана"],
+    ["КС Стойкости вашего звездолёта (24)", "Стойкости вашего звездолёта"]
+  ]) {
+    const token = `@Check[will|dc:24|basic|showDC:gm]{${label}}`;
+    assert.equal(normalizeNativeChecks(token), `@Check[will|dc:24|basic|showDC:gm]{${clean}}`);
+  }
+  const different = "@Check[will|dc:24]{your Computers DC (25)}";
+  assert.equal(normalizeNativeChecks(different), different);
+});
+
 test("custom labels, DC visibility and HTML attributes are not replaced indiscriminately", () => {
   assert.equal(normalizeNativeChecks("@Check[reflex|dc:17|showDC:gm]{Dodge}"), "@Check[reflex|dc:17|showDC:gm]{Dodge}");
   assert.equal(normalizeNativeChecks("@Check[reflex|dc:17]{DC 18 special}"), "@Check[reflex|dc:17]{DC 18 special}");

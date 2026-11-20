@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.mjs";
-import { T } from "../utils/foundry.mjs";
+import { T, fromUuidSafe } from "../utils/foundry.mjs";
+import { setActionSheetContext } from "./action-sheet-theme.mjs";
 import { modulePackId } from "../utils/system.mjs";
 import { Content } from "../content/loader.mjs";
 import { buildActionItemData } from "../content/action-docs.mjs";
@@ -35,7 +36,14 @@ export async function showActionDescription(event, target) {
         while (folder?.folder) folder = folder.folder;
         return folder?.name === language;
       }) ?? matches[0];
-    if (row) return (await pack.getDocument(row._id)).sheet.render(true);
+    if (row) {
+      const item = await pack.getDocument(row._id);
+      setActionSheetContext(item.sheet, {
+        crew: await fromUuidSafe(target.dataset.crewUuid),
+        ship: this?.document ?? (await fromUuidSafe(target.dataset.shipUuid))
+      });
+      return item.sheet.render(true);
+    }
   }
   const action = Content.actions.get(id) ?? (this?.document ? buildNpcAction(readStarship(this.document), id) : null);
   const data = buildActionItemData(action ?? { id, name: target.textContent.trim() });

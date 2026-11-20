@@ -4,6 +4,7 @@ import { checkChatContent, safeInlineDamage } from "../content/inline-checks.mjs
 import { rollTypedDamage, inlineDamageFormula } from "../rolls/typed-damage.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { safeDiceFormula } from "../content/inline-dice.mjs";
+import { normalizeNativeChecks } from "../content/native-checks.mjs";
 export function wireInlineClicks(root) {
   if (!root) return;
   // The native editor resolves explicit system links; unresolved expressions remain visible as text.
@@ -13,7 +14,7 @@ export function wireInlineClicks(root) {
       if (node.dataset.tscNativePending) return;
       node.dataset.tscNativePending = "1";
       const source = node.dataset.tscNative;
-      const escaped = String(source).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escaped = normalizeNativeChecks(String(source).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
       Promise.resolve()
         .then(() => editor.enrichHTML(escaped))
         .then((html) => {

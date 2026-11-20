@@ -56,7 +56,7 @@ export async function buildSheetContext(sheet) {
       const preview = previewAction(a, { ship: actor, crew, station: st, combat });
       return {
         id: a.id,
-        enabled: preview.enabled,
+        enabled: preview.enabled || isGM,
         reasons: preview.reasons.join(" · "),
         warnings: (preview.warnings ?? []).join(" · "),
         name: actionLabel(a),

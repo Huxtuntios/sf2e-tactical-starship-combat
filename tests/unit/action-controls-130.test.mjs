@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import Handlebars from "handlebars";
-import { installFoundryMock, loadContentFromDisk, makeCharacter, makeShip } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, loadContentFromDisk, makeCharacter, makeShip, makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 
 test("description handlers open the localized compendium Item without a game action", async () => {
   installFoundryMock();
@@ -129,24 +129,31 @@ test("ship-specific NPC descriptions use an unsaved native Item with the complet
   assert.equal(game.messages.size, 0);
 });
 
-test("sheet action rows preserve availability, cost labels and frequency", async () => {
-  installFoundryMock();
-  await loadContentFromDisk();
-  const crew = makeCharacter({ id: "operator", name: "Operator" });
-  const ship = makeShip({
-    id: "ship",
-    stations: [{ id: "scanners", name: "Scanners", type: "scanners", grade: "commercial", helmedBy: crew.uuid }]
-  });
-  const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
-  const context = await buildSheetContext({ document: ship, tab: "stations", tabs: ["stations"], isNpc: false });
-  const actions = context.stations[0].actionList;
-  assert.ok(actions.length);
-  assert.ok(
-    actions.every((row) => !row.enabled && row.reasons),
-    "no combat blocks execution, not descriptions"
-  );
-  assert.ok(actions.every((row) => row.costLabel && row.html));
-});
+for (const isGM of [true, false])
+  for (const inCombat of [true, false]) {
+    test(`PC station availability: GM=${isGM}, strict combat=${inCombat}`, async () => {
+      const { setUser } = installFoundryMock();
+      if (!isGM) setUser("p1");
+      await loadContentFromDisk();
+      const crew = makeCharacter({ id: "operator", name: "Operator", owners: ["p1"] });
+      const ship = makeShip({
+        id: "ship",
+        owners: ["p1"],
+        stations: [
+          { id: "scanners", name: "Scanners", type: "scanners", grade: "commercial", helmedBy: crew.uuid, malfunctioning: inCombat }
+        ]
+      });
+      if (inCombat) makeStarshipCombat();
+      const { buildSheetContext } = await import("../../scripts/ui/sheet/sheet-context.mjs");
+      const context = await buildSheetContext({ document: ship, tab: "stations", tabs: ["stations"], isNpc: false });
+      const actions = context.stations[0].actionList;
+      const targetLock = actions.find((row) => row.id === "target-lock");
+      assert.ok(targetLock);
+      assert.equal(targetLock.enabled, isGM, "the GM must reach execution and its existing override dialog");
+      assert.ok(targetLock.reasons.includes(game.i18n.localize(`SF2eTSC.errors.${inCombat ? "malfunctioning" : "noCombat"}`)));
+      assert.ok(actions.every((row) => row.costLabel && row.html));
+    });
+  }
 
 const rows = [
   { id: "one", name: "Single action", icon: "◆", enabled: true },
@@ -178,6 +185,20 @@ function render(template, context) {
     h.registerPartial(name, "");
   return h.compile(readFileSync(new URL(`../../templates/${template}.hbs`, import.meta.url), "utf8"))(context);
 }
+
+test("description controls preserve the selected operator across sheet, HUD and dock", () => {
+  const actions = [{ id: "target-lock", name: "Target Lock" }];
+  for (const [template, context] of [
+    ["starship-sheet", { tab: "stations", ship: {}, stations: [{ id: "scanner", helmedBy: "Actor.operator", actionList: actions }] }],
+    ["station-hud", { crewUuid: "Actor.operator", shipUuid: "Actor.ship", actions }],
+    ["sensor-map-dock", { dock: { crewUuid: "Actor.operator", shipUuid: "Actor.ship", actions } }]
+  ]) {
+    const html = render(template, context);
+    const button = html.match(/<button[^>]+data-action="describeAction"[^>]*>/)?.[0];
+    assert.match(button, /data-crew-uuid="Actor.operator"/, template);
+    if (template !== "starship-sheet") assert.match(button, /data-ship-uuid="Actor.ship"/, template);
+  }
+});
 
 for (const [name, template, context, execution] of [
   ["PC stations", "starship-sheet", { tab: "stations", stations: [{ id: "station", actionList: rows }], ship: {} }, "runAction"],

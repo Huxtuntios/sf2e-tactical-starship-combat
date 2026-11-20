@@ -13,7 +13,10 @@ export function normalizeNativeChecks(html) {
         .find((part) => /^dc:-?\d+$/.test(part))
         ?.slice(3);
       if (dc === undefined) return match;
-      const clean = label.replace(new RegExp(String.raw`^(?:DC|КС)\s*${dc}(?:\s+|$)`, "i"), "");
+      const clean = label
+        .replace(new RegExp(String.raw`^your (.+) DC\s+\(${dc}\)$`, "i"), "$1")
+        .replace(new RegExp(String.raw`^(?:ваш(?:его|ему|ей|им)\s+)?КС\s+(.+)\s+\(${dc}\)$`, "iu"), "$1")
+        .replace(new RegExp(String.raw`^(?:DC|КС)\s*${dc}(?:\s+|$)`, "i"), "");
       return `@Check[${params}]${clean ? `{${clean}}` : ""}`;
     });
   };
