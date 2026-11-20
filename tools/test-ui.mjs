@@ -25,6 +25,7 @@ const fixtures = [
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],
   ["smoke-chat-card-layout.mjs", "chat-card-layout"],
+  ["smoke-action-controls.mjs", "action-controls"],
   ["smoke-description-links.mjs", "description-links"]
 ];
 for (const [tool, folder] of fixtures) {
@@ -87,6 +88,31 @@ try {
           { timeout: 10000 }
         );
         const result = JSON.parse(await page.locator("#result").innerText());
+        if (folder === "action-controls") {
+          const descriptionButton = page.locator('[data-kind="HUD"] .tsc-action-name').first();
+          const before = await page.evaluate(() => globalThis.actionControlExecutions.length);
+          await descriptionButton.focus();
+          await descriptionButton.press("Enter");
+          await page.locator("dialog[open]").waitFor();
+          const noExecution = await page.evaluate((n) => globalThis.actionControlExecutions.length === n, before);
+          result.checks.push({ name: "keyboard-description-only", pass: noExecution });
+          await page.locator("dialog[open] [data-close]").click();
+          await page.waitForFunction(() => !globalThis.document.querySelector("dialog"));
+          const warning = page.locator('[data-kind="HUD"] .tsc-action-warning').first();
+          await warning.focus();
+          await warning.press("Enter");
+          const tooltip = await page.evaluate(() => globalThis.actionTooltip.includes("Warning text"));
+          result.checks.push({ name: "keyboard-warning-tooltip", pass: tooltip });
+          const cost = page.locator('[data-kind="HUD"] .tsc-action-cost').first();
+          await cost.focus();
+          await cost.press("Space");
+          const oneExecution = await page.evaluate((n) => globalThis.actionControlExecutions.length === n + 1, before);
+          result.checks.push({ name: "keyboard-cost-executes-once", pass: oneExecution });
+          const focusVisible = await cost.evaluate((el) => globalThis.getComputedStyle(el).outlineStyle !== "none");
+          result.checks.push({ name: "cost-keyboard-focus-visible", pass: focusVisible });
+          result.passed = result.checks.every((check) => check.pass);
+          await page.locator('[data-kind="HUD"]').screenshot({ path: path.join(out, folder, name.replace(/\.html$/, ".png")) });
+        }
         if (folder === "builder-history" && name.startsWith("builder-")) {
           const select = page.locator('select[name="size"]');
           await select.focus();

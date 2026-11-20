@@ -1,6 +1,7 @@
 import { wireSheetTheme } from "./sheet/sheet-theme.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { buildHudContext, runHudAction } from "./hud-model.mjs";
+import { showActionDescription, showActionWarning } from "./action-controls.mjs";
 import { Crew } from "../crew/crew-service.mjs";
 import { notifyError } from "../utils/logging.mjs";
 
@@ -13,6 +14,8 @@ export class StationHUD extends TscApp {
     position: { width: 320, height: "auto", top: 80, left: 120 },
     actions: {
       act: StationHUD.#act,
+      describeAction: showActionDescription,
+      actionWarning: showActionWarning,
       repair: StationHUD.#act,
       release: StationHUD.#release,
       ready: StationHUD.#ready,

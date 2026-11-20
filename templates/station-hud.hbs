@@ -19,11 +19,13 @@
 <ul class="tsc-actions">
   
 {{#each actions}}
-    <li><button type="button" data-action="act" data-action-id="{{id}}" {{#unless enabled}}disabled{{/unless}} title="{{#if enabled}}{{#if warnings}}⚠ {{warnings}} — {{/if}}{{text}}{{else}}{{reasons}}{{/if}}" aria-label="{{name}} {{icon}}">
-      <span class="cost">{{icon}}</span><span class="name">{{name}}</span>{{#if needsTarget}}<i class="fa-solid fa-bullseye" aria-hidden="true"></i>{{/if}}{{#if frequency}}<small>{{frequency}}</small>{{/if}}
-      {{#unless enabled}}<small class="why">{{reasons}}</small>{{/unless}}{{#if warnings}}<small class="why tsc-warn" role="note"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{warnings}}</small>{{/if}}
-    </button>
-    <details class="tsc-action-desc"><summary>{{localize "SF2eTSC.ui.actionDescription"}}</summary><div class="tsc-desc-body">{{{desc}}}</div></details></li>
+    <li class="tsc-action-row">
+      <button type="button" class="tsc-action-cost" data-action="act" data-action-id="{{id}}" {{#unless enabled}}disabled{{/unless}} title="{{#if enabled}}{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}{{else}}{{reasons}}{{/if}}" aria-label="{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}"><span class="cost" aria-hidden="true">{{icon}}</span></button>
+      <button type="button" class="tsc-action-name" data-action="describeAction" data-action-id="{{id}}" aria-haspopup="dialog" aria-label="{{localize 'SF2eTSC.ui.actionDescription'}}: {{name}}">{{name}}</button>
+      <span class="tsc-action-meta">{{#if needsTarget}}<i class="fa-solid fa-bullseye" title="{{localize 'SF2eTSC.ui.target'}}" aria-hidden="true"></i>{{/if}}{{#if frequency}}<small>{{frequency}}</small>{{/if}}</span>
+      {{#if reasons}}<button type="button" class="tsc-action-warning {{#unless enabled}}blocked{{/unless}}" data-action="actionWarning" data-tooltip-text="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}" aria-label="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{else}}{{#if warnings}}<button type="button" class="tsc-action-warning" data-action="actionWarning" data-tooltip-text="{{warnings}}" aria-label="{{warnings}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{/if}}{{/if}}
+      <template class="tsc-description-content"><p>{{costLabel}}{{#if frequency}} · {{frequency}}{{/if}}</p>{{{desc}}}{{#if reasons}}<p>{{reasons}}</p>{{/if}}{{#if warnings}}<p>{{warnings}}</p>{{/if}}</template>
+    </li>
   {{/each}}
   </ul>
   {{#if passive}}<p class="tsc-dim tsc-passive">{{passive}}</p>{{/if}}

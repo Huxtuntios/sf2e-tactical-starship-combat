@@ -3,11 +3,12 @@ import { MODULE_ID } from "../../constants.mjs";
 import { Content } from "../../content/loader.mjs";
 import { readStarship } from "../../starship/starship-state.mjs";
 import { previewAction, COST_ICON } from "../action-runner.mjs";
+import { actionCostLabel } from "../action-controls.mjs";
 import { actionLabel } from "../../actions/action-engine.mjs";
 import { T } from "../../utils/foundry.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
-import { strikeLine } from "../../utils/labels.mjs";
+import { strikeLine, traitsText } from "../../utils/labels.mjs";
 import { collectNpcActions, normalizeNpcStrike } from "../../actions/npc-rows.mjs";
 import { escHTML, npcIssueText } from "./sheet-model.mjs";
 
@@ -19,6 +20,8 @@ export function npcRow(a, st, actor, msgs = []) {
       id: a.id,
       name: actionLabel(a),
       icon: "∞",
+      costLabel: actionCostLabel("passive"),
+      traits: traitsText(a.traits),
       enabled: false,
       reasons: T("SF2eTSC.ui.passive"),
       text: ctPlain(a.text),
@@ -32,6 +35,10 @@ export function npcRow(a, st, actor, msgs = []) {
     id: a.id,
     name,
     icon: COST_ICON(a.cost),
+    costLabel: actionCostLabel(a.cost),
+    traits: traitsText(a.traits),
+    frequency: a.frequency ? T(`SF2eTSC.frequency.${a.frequency.per}`) : null,
+    warnings: (p.warnings ?? []).join(" · "),
     enabled: p.enabled || game.user.isGM,
     reasons: [...p.reasons, ...msgs].join(" · "),
     text,

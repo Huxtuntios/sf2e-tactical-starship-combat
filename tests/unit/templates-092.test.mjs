@@ -42,7 +42,7 @@ test("0.9.2: action dock - warnings leave the button enabled, hard blocks disabl
     }
   };
   let html = render("sensor-map-dock", base);
-  assert.match(html, /data-action-id="strike"\s+class="has-warning"/);
+  assert.match(html, /data-action-id="strike"\s+class="[^"]*\bhas-warning\b/);
   assert.doesNotMatch(html.split('data-action-id="strike"')[1].split("</button>")[0], /disabled/);
   assert.match(html.split('data-action-id="locked"')[1].split("</button>")[0], /disabled/);
   assert.doesNotMatch(html, /dockPick/, "a single station needs no picker");

@@ -1,6 +1,7 @@
 /** Skin only this module's native action items. Other SF2e sheets retain their normal theme. */
 import { MODULE_ID } from "../constants.mjs";
 import { wireSheetTheme, paintSheetTheme } from "./sheet/sheet-theme.mjs";
+import { wireInlineClicks } from "./inline-clicks.mjs";
 export function isThemedStationAction(item) {
   const flags = item?.flags?.[MODULE_ID];
   return item?.type === "action" && !!(flags?.stationAction || flags?.packAction);
@@ -11,6 +12,7 @@ export function skinActionSheet(app, html) {
   if (!root?.querySelector) return;
   root.classList.add("sf2e-tsc", "tsc-action-sheet");
   wireSheetTheme({ element: root });
+  wireInlineClicks(root);
 }
 export function refreshActionThemes() {
   globalThis.document?.querySelectorAll(".tsc-action-sheet").forEach((root) => paintSheetTheme(root));

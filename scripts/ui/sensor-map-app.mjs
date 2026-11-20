@@ -28,6 +28,7 @@ import { HazardEngine } from "../hazards/hazard-engine.mjs";
 import { displayDesignation } from "../utils/designations.mjs";
 import { ICONS, observerKeys, canMoveKey, sensorPartsFor } from "../sensor/map-model.mjs";
 import { buildHudContext, runHudAction } from "./hud-model.mjs";
+import { showActionDescription, showActionWarning } from "./action-controls.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
@@ -102,6 +103,8 @@ export class SensorMapApplication extends TscApp {
       editZone: SensorMapApplication.#editZone,
       cancelTargeting: SensorMapApplication.#cancel,
       dockAct: SensorMapApplication.#dockAct,
+      describeAction: showActionDescription,
+      actionWarning: showActionWarning,
       dockPick: SensorMapApplication.#dockPick,
       openCrew: () => openCrewManager(),
       addInitiative: guardPrivate(SensorMapApplication.#addInitiative),
