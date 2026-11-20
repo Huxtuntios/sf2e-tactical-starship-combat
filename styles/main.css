@@ -413,6 +413,10 @@
 .sf2e-tsc-card .tsc-label {
   opacity: 0.75;
 }
+.sf2e-tsc-card .tsc-value {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
 .sf2e-tsc-card .tsc-degree {
   font-weight: 700;
   margin: 2px 0;
@@ -943,15 +947,21 @@ a.tsc-check:hover {
 }
 .tsc-attack-card dl {
   display: grid;
-  grid-template-columns: auto 1fr;
+  /* Label may take its natural width, but the value keeps a readable floor: an unbounded `auto` label track
+     grows to the longest label's max-content and starves the value track at narrow chat widths, collapsing
+     values to a one-character column. */
+  grid-template-columns: minmax(0, max-content) minmax(8em, 1fr);
   gap: 1px 8px;
   margin: 4px 0;
 }
 .tsc-attack-card dt {
   opacity: 0.75;
+  min-width: 0;
 }
 .tsc-attack-card dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .tsc-attack-card .tsc-ac-targets {
   list-style: none;

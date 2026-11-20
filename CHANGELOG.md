@@ -5,6 +5,7 @@
 Native reroll support for module chat rolls. The module ID, pack names and document IDs are unchanged and no world migration is required.
 
 - Module attack rolls, checks, saving throws and skill rolls keep the game system's own right-click reroll options (Hero Point, keep new / higher / lower). A system reroll now preserves the module's deferred-damage controls and attack receipts on the rerolled message instead of dropping them, and refreshes the damage controls to the rerolled degree: a reroll that misses clears the pending damage, while already-applied damage is never reopened or applied twice. The reroll itself stays the system's mechanism — no module context menu or duplicate options are added, and ordinary system chat messages are unaffected.
+- Chat card readability: the attack card's label/value grid no longer lets a long label (such as the Russian multiple-attack penalty) squeeze the value column into a one-character-per-line strip at narrow chat widths. The value column keeps a readable minimum and wraps at words, labels wrap instead of starving values, and wide cards keep their compact one-line labels; station and damage card values wrap safely without horizontal overflow. Rendering only — roll results, mechanics and message data are unchanged. Guarded by a Playwright layout fixture (Russian/English, 200–480 px, light and dark).
 
 ## 1.2.0 — 2026-11-16
 

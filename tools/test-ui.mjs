@@ -24,6 +24,7 @@ const fixtures = [
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],
+  ["smoke-chat-card-layout.mjs", "chat-card-layout"],
   ["smoke-description-links.mjs", "description-links"]
 ];
 for (const [tool, folder] of fixtures) {
