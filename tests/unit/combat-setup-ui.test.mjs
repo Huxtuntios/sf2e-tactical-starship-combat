@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installFoundryMock, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, makeShip, makeCharacter, MockActor } from "../helpers/foundry-mock.mjs";
+import { worldHazardChoices, compendiumHazardChoices } from "../../scripts/sensor/contact-service.mjs";
 import { normalizePreset, savePreset, listPresets } from "../../scripts/combat/presets.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 
@@ -16,6 +17,176 @@ const loadWizard = async () => {
   app.render = async () => app;
   return { StartCombatWizard, app };
 };
+
+test("world choices expose numeric levels without guessing from names", () => {
+  installFoundryMock();
+  const low = makeShip({ id: "low", name: "Renamed (Lv 20)", level: -1 });
+  const zero = makeShip({ id: "zero", level: 0 });
+  const hazard = new MockActor({ id: "hazard", type: "hazard", system: { details: { level: { value: 7 } } } });
+  const unknown = new MockActor({ id: "unknown", type: "hazard" });
+  game.actors.set(hazard.id, hazard);
+  game.actors.set(unknown.id, unknown);
+  const choices = new Map(worldHazardChoices().map((choice) => [choice.uuid, choice]));
+  assert.equal(choices.get(low.uuid).level, -1);
+  assert.equal(choices.get(zero.uuid).level, 0);
+  assert.equal(choices.get(hazard.uuid).level, 7);
+  assert.equal(choices.get(unknown.uuid).level, null);
+});
+
+test("compendium choices request level fields and point to their own original", async () => {
+  installFoundryMock();
+  let requested;
+  game.packs = [
+    {
+      documentName: "Actor",
+      collection: "world.sources",
+      metadata: { label: "Sources" },
+      async getIndex({ fields }) {
+        requested = fields;
+        return [
+          { _id: "ship", name: "Ship", type: "npc", flags: { [MODULE_ID]: { starship: { isStarship: true, level: -1 } } } },
+          { _id: "hazard", name: "Hazard", type: "hazard", system: { details: { level: { value: 0 } } } }
+        ];
+      }
+    }
+  ];
+  const choices = await compendiumHazardChoices();
+  assert.ok(requested.includes(`flags.${MODULE_ID}.starship.level`));
+  assert.ok(requested.includes("system.details.level.value"));
+  assert.equal(choices.find((choice) => choice.kind === "starship").level, -1);
+  assert.equal(choices.find((choice) => choice.kind === "hazard").level, 0);
+  for (const choice of choices) assert.equal(choice.originalUuid, choice.uuid);
+});
+
+test("world originals use stored provenance, including copy chains, never names", () => {
+  installFoundryMock();
+  const uuid = "Compendium.world.sources.Actor.original";
+  const source = makeShip({ id: "source", name: "Renamed" });
+  source._stats = { compendiumSource: uuid };
+  const legacy = makeShip({ id: "legacy" });
+  legacy.flags.core = { sourceId: uuid };
+  const imported = makeShip({ id: "imported" });
+  imported.flags[MODULE_ID].contactImport = { sourceUuid: uuid };
+  const sensor = makeShip({ id: "sensor" });
+  sensor.flags[MODULE_ID].sensorContactInstance = { sourceUuid: source.uuid };
+  const copy = makeShip({ id: "copy" });
+  copy.flags[MODULE_ID].tacticalCopyOf = source.uuid;
+  const noSource = makeShip({ id: "no-source", name: source.name });
+  const cyclic = makeShip({ id: "cyclic" });
+  cyclic.flags[MODULE_ID].tacticalCopyOf = cyclic.uuid;
+  const choices = new Map(worldHazardChoices().map((choice) => [choice.uuid, choice]));
+  for (const actor of [source, legacy, imported, sensor, copy]) assert.equal(choices.get(actor.uuid).originalUuid, uuid);
+  for (const actor of [noSource, cyclic]) assert.equal(choices.get(actor.uuid).originalUuid, null);
+});
+
+test("original preview opens the native compendium sheet without selection or document writes", async () => {
+  const { app, StartCombatWizard } = await loadWizard();
+  const ship = makeShip({ id: "source", name: "Renamed", role: "npc" });
+  const uuid = "Compendium.world.sources.Actor.original";
+  ship._stats = { compendiumSource: uuid };
+  const opened = [];
+  globalThis.__extraUuids.set(uuid, { documentName: "Actor", pack: "world.sources", sheet: { render: (force) => opened.push(force) } });
+  await app._prepareContext();
+  app.selectCandidate(ship.uuid, true, "starship");
+  const before = app.getDraft();
+  const preview = StartCombatWizard.DEFAULT_OPTIONS.actions.previewOriginal;
+  assert.equal(typeof preview, "function");
+  let prevented = false;
+  let stopped = false;
+  await preview.call(
+    app,
+    {
+      preventDefault() {
+        prevented = true;
+      },
+      stopPropagation() {
+        stopped = true;
+      }
+    },
+    { dataset: { uuid: ship.uuid, kind: "starship" } }
+  );
+  assert.deepEqual(opened, [true]);
+  assert.ok(prevented && stopped);
+  assert.equal((await app._prepareContext()).selectedCount, 1);
+  assert.deepEqual(app.getDraft(), before);
+  assert.deepEqual(globalThis.__writes, []);
+});
+
+test("a missing compendium original reports failure without importing a replacement", async () => {
+  const { app, StartCombatWizard } = await loadWizard();
+  const hazard = new MockActor({ id: "hazard", type: "hazard" });
+  hazard._stats = { compendiumSource: "Compendium.world.sources.Actor.missing" };
+  game.actors.set(hazard.id, hazard);
+  await app._prepareContext();
+  const preview = StartCombatWizard.DEFAULT_OPTIONS.actions.previewOriginal;
+  assert.equal(typeof preview, "function");
+  await preview.call(app, { preventDefault() {}, stopPropagation() {} }, { dataset: { uuid: hazard.uuid, kind: "hazard" } });
+  assert.equal(globalThis.__notes.at(-1)?.[1], game.i18n.localize("SF2eTSC.wizard.originalUnavailable"));
+  assert.equal(game.actors.size, 1);
+  assert.deepEqual(globalThis.__writes, []);
+});
+
+for (const failure of ["resolve", "render", "world", "item"]) {
+  test(`original preview handles ${failure} failure without writes`, async () => {
+    const { app, StartCombatWizard } = await loadWizard();
+    const ship = makeShip({ id: "source" });
+    ship._stats = { compendiumSource: "Compendium.world.sources.Actor.original" };
+    await app._prepareContext();
+    let rendered = 0;
+    globalThis.fromUuid = async () => {
+      if (failure === "resolve") throw new Error("permission denied");
+      return {
+        documentName: failure === "item" ? "Item" : "Actor",
+        pack: failure === "world" ? null : "world.sources",
+        sheet: {
+          render() {
+            rendered++;
+            throw new Error("sheet unavailable");
+          }
+        }
+      };
+    };
+    await StartCombatWizard.DEFAULT_OPTIONS.actions.previewOriginal.call(
+      app,
+      { preventDefault() {}, stopPropagation() {} },
+      { dataset: { uuid: ship.uuid, kind: "starship" } }
+    );
+    assert.equal(rendered, failure === "render" ? 1 : 0);
+    assert.equal(globalThis.__notes.at(-1)?.[1], game.i18n.localize("SF2eTSC.wizard.originalUnavailable"));
+    assert.deepEqual(globalThis.__writes, []);
+  });
+}
+
+test("closing the wizard while the original loads does not open a late sheet", async () => {
+  const { app, StartCombatWizard } = await loadWizard();
+  const ship = makeShip({ id: "source" });
+  ship._stats = { compendiumSource: "Compendium.world.sources.Actor.original" };
+  await app._prepareContext();
+  let resolve;
+  let rendered = 0;
+  globalThis.fromUuid = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  const opening = StartCombatWizard.DEFAULT_OPTIONS.actions.previewOriginal.call(
+    app,
+    { preventDefault() {}, stopPropagation() {} },
+    { dataset: { uuid: ship.uuid, kind: "starship" } }
+  );
+  await app.close();
+  resolve({
+    documentName: "Actor",
+    pack: "world.sources",
+    sheet: {
+      render() {
+        rendered++;
+      }
+    }
+  });
+  await opening;
+  assert.equal(rendered, 0);
+  assert.deepEqual(globalThis.__writes, []);
+});
 
 test("preset normalization keeps an explicit reuse boolean and omits an absent one", () => {
   assert.equal(normalizePreset({ enemies: [{ uuid: "Actor.a", reuse: false }] }).enemies[0].reuse, false);

@@ -20,6 +20,7 @@ import * as A from "./sheet/sheet-actions.mjs";
 import { openStationHUD, openCrewManager } from "./launchers.mjs";
 import { wireCrewSelects } from "../crew/crew-view.mjs";
 import { wireInlineClicks } from "./inline-clicks.mjs";
+import { showActionDescription, showActionWarning } from "./action-controls.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const guard = (fn) =>
@@ -90,6 +91,8 @@ export class StarshipSheet extends LiveMixin(HandlebarsApplicationMixin(foundry.
       exportJson: A.exportJson,
       importJson: guard(A.importJson),
       runAction: guard(A.runShipAction),
+      describeAction: guard(showActionDescription),
+      actionWarning: showActionWarning,
       removeEffect: guard(A.removeEffect),
       openHolodock: A.holodock,
       openHistory: function () {

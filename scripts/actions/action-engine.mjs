@@ -243,7 +243,8 @@ function attackSummaryOf(ctx) {
     map: ctx.mapState ? { before: ctx.mapState.current, choice: String(ctx.mapState.manualIndex ?? 0) } : null,
     weapon: ctx.weapon ? { id: ctx.weapon.id, name: ctx.weapon.name } : null,
     targetName: ctx.target?.actor?.name ?? null,
-    pendingDamage: ctx.pendingDamage ?? null
+    pendingDamage: ctx.pendingDamage ?? null,
+    boundDamage: ctx.boundDamage ?? null
   };
 }
 

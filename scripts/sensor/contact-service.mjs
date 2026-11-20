@@ -13,7 +13,7 @@
  * поведение с несколькими клиентами Foundry не проверено.
  */
 import { MODULE_ID, DETECTION_LEVELS } from "../constants.mjs";
-import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
+import { isActiveGM, T, fromUuidSafe, fromUuidSync_ } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "./private-contacts.mjs";
@@ -35,12 +35,40 @@ function isContactActor(actor) {
   return (actor?.type === "hazard" && !actor.flags?.[MODULE_ID]?.[MINE_FLAG]) || isStarship(actor);
 }
 
+function contactLevel(actor) {
+  const level = isStarship(actor) ? actor.flags[MODULE_ID].starship.level : actor.system?.details?.level?.value;
+  return Number.isFinite(level) ? level : null;
+}
+
+function originalCompendiumUuid(actor) {
+  const seen = new Set();
+  while (actor && !seen.has(actor.uuid)) {
+    seen.add(actor.uuid);
+    if (actor.pack) return actor.uuid;
+    const flags = actor.flags?.[MODULE_ID];
+    const sources = [
+      actor._stats?.compendiumSource,
+      actor.flags?.core?.sourceId,
+      flags?.contactImport?.sourceUuid,
+      flags?.sensorContactInstance?.sourceUuid,
+      flags?.tacticalCopyOf
+    ].filter((uuid) => typeof uuid === "string");
+    const original = sources.find((uuid) => uuid.startsWith("Compendium."));
+    if (original) return original;
+    const parent = sources.find((uuid) => /^Actor\.[^.]+$/.test(uuid));
+    actor = parent ? fromUuidSync_(parent) : null;
+  }
+  return null;
+}
+
 function contactChoice(actor, extra = {}) {
   const starship = isStarship(actor);
   return {
     uuid: actor.uuid,
     name: actor.name,
     kind: starship ? "starship" : "hazard",
+    level: contactLevel(actor),
+    originalUuid: originalCompendiumUuid(actor),
     ...(starship ? { role: readStarship(actor).role } : {}),
     ...extra
   };
@@ -61,13 +89,21 @@ export async function compendiumHazardChoices() {
     if (pack.documentName !== "Actor") continue;
     try {
       const index = await pack.getIndex({
-        fields: ["type", `flags.${MODULE_ID}.starship.isStarship`, `flags.${MODULE_ID}.starship.role`]
+        fields: [
+          "type",
+          `flags.${MODULE_ID}.starship.isStarship`,
+          `flags.${MODULE_ID}.starship.role`,
+          `flags.${MODULE_ID}.starship.level`,
+          "system.details.level.value"
+        ]
       });
       for (const e of index)
         if (e.type === "hazard" || e.flags?.[MODULE_ID]?.starship?.isStarship) {
           out.push({
             uuid: e.uuid ?? `Compendium.${pack.collection}.Actor.${e._id}`,
             name: e.name,
+            level: contactLevel(e),
+            originalUuid: e.uuid ?? `Compendium.${pack.collection}.Actor.${e._id}`,
             kind: e.flags?.[MODULE_ID]?.starship?.isStarship ? "starship" : "hazard",
             ...(e.flags?.[MODULE_ID]?.starship?.isStarship ? { role: e.flags[MODULE_ID].starship.role } : {}),
             pack: pack.metadata?.label ?? pack.collection

@@ -15,7 +15,8 @@ import { activeStarshipCombat, getTsc } from "../../combat/tsc-state.mjs";
 import { findObject } from "../../engine/sensor-ops.mjs";
 import { gradeIndex } from "../../engine/advancement.mjs";
 import { permissionsFor, roleOf } from "../../crew/permissions.mjs";
-import { COST_ICON } from "../action-runner.mjs";
+import { COST_ICON, previewAction } from "../action-runner.mjs";
+import { actionCostLabel } from "../action-controls.mjs";
 import { actionLabel } from "../../actions/action-engine.mjs";
 import { T, fromUuidSync_ } from "../../utils/foundry.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
@@ -51,14 +52,22 @@ export async function buildSheetContext(sheet) {
   const stations = data.stations.map((st) => {
     const crew = st.helmedBy ? fromUuidSync(st.helmedBy) : null;
     const def = Content.stations.get(st.type);
-    const acts = (sheet.isNpc ? [] : actionsForStation(st.type, st.grade, gradeIndex, { data, station: st })).map((a) => ({
-      id: a.id,
-      enabled: true,
-      name: actionLabel(a),
-      icon: COST_ICON(a.cost),
-      text: ctPlain(a.text),
-      html: checkLinksHTML(linkContextDCs(ct(a.text), { crew, ship: actor }))
-    }));
+    const acts = (sheet.isNpc ? [] : actionsForStation(st.type, st.grade, gradeIndex, { data, station: st })).map((a) => {
+      const preview = previewAction(a, { ship: actor, crew, station: st, combat });
+      return {
+        id: a.id,
+        enabled: preview.enabled || isGM,
+        reasons: preview.reasons.join(" · "),
+        warnings: (preview.warnings ?? []).join(" · "),
+        name: actionLabel(a),
+        icon: COST_ICON(a.cost),
+        costLabel: actionCostLabel(a.cost),
+        traits: traitsText(a.traits),
+        frequency: a.frequency ? T(`SF2eTSC.frequency.${a.frequency.per}`) : null,
+        text: ctPlain(a.text),
+        html: checkLinksHTML(linkContextDCs(ct(a.text), { crew, ship: actor }))
+      };
+    });
     const occupant = occupantView(st.helmedBy, { fallbackName: data.crew.find((c) => c.actorUuid === st.helmedBy)?.name ?? null });
     return {
       ...st,

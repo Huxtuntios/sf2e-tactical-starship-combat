@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 — 2026-11-19
+
+Native reroll support for module chat rolls. The module ID, pack names and document IDs are unchanged and no world migration is required.
+
+- Module attack rolls, checks, saving throws and skill rolls keep the game system's own right-click reroll options (Hero Point, keep new / higher / lower). A system reroll now preserves the module's deferred-damage controls and attack receipts on the rerolled message instead of dropping them, and refreshes the damage controls to the rerolled degree: a reroll that misses clears the pending damage, while already-applied damage is never reopened or applied twice. The reroll itself stays the system's mechanism — no module context menu or duplicate options are added, and ordinary system chat messages are unaffected.
+- Chat card readability: the attack card's label/value grid no longer lets a long label (such as the Russian multiple-attack penalty) squeeze the value column into a one-character-per-line strip at narrow chat widths. The value column keeps a readable minimum and wraps at words, labels wrap instead of starving values, and wide cards keep their compact one-line labels; station and damage card values wrap safely without horizontal overflow. Rendering only — roll results, mechanics and message data are unchanged. Guarded by a Playwright layout fixture (Russian/English, 200–480 px, light and dark).
+
+- Starship and station action lists now separate execution from inspection: the action-cost button runs the existing action workflow, while the name opens the localized native action Item from the module compendium. Ship-specific NPC abilities open as temporary native Items without importing documents. Action-description disclosure triangles and name underlining are removed; availability warnings use compact, keyboard-accessible tooltip controls. Disabled actions remain readable. Applied to PC/NPC station lists, NPC actions, Station HUD and the Sensor Map dock; mechanics and native character-sheet controls are unchanged.
+
+- Action-list review fixes: PC station actions remain clickable for the GM outside combat and after strict-mode preview failures, preserving the existing execution checks and override dialog. Native compendium action sheets display the selected operator's contextual DCs and save links without modifying the Item source; changing operators or closing the sheet clears the previous viewing context. Native inline-save labels no longer repeat the DC already supplied by the system, including contextual operator DCs; save parameters and DC visibility are unchanged.
+
+- Combat setup: the actor browser now filters starships and hazards by inclusive minimum/maximum level, including −1 and 0; empty bounds impose no limit. Each row has a separate button to open its native compendium original using stored provenance, without selecting the row or importing a copy. Missing provenance disables the button; unavailable originals produce a notification. Filtering preserves selections and the encounter draft.
+
 ## 1.2.0 — 2026-11-16
 
 Usability release for the combat creation window. The Sensor Map, crew/station interfaces and combat mechanics are unchanged; the module ID, pack names and document IDs are unchanged and no world migration is required.

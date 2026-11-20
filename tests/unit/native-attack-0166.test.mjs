@@ -63,7 +63,10 @@ test("all chat modes: preview writes nothing and a missed shot creates one syste
     assert.equal(result.degree, 0); // natural 4 versus AC 18
     assert.equal(game.messages.size, 1);
     assert.equal(rolls().length, 1);
-    assert.equal(game.messages.get(result.messageId).flags[M].attackCard, undefined);
+    const missCard = game.messages.get(result.messageId).flags[M].attackCard;
+    assert.equal(missCard.native, true);
+    assert.equal(missCard.result.pendingDamage, null);
+    assert.ok(missCard.boundDamage, "a miss binds weapon/target data so a reroll that hits can build damage");
     assert.equal(
       game.messages.contents.some((m) => m.flags[M]?.attackDiag),
       false

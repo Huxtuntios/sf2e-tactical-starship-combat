@@ -315,20 +315,16 @@ export async function resolveStrike(ctx) {
   ctx.lines.push(...res.lines);
   ctx.degreeLabel = DEGREE_LABEL(res.degree);
   ctx.degree = res.degree;
-  if (res.degree < DEGREE.SUCCESS) {
-    ctx.reports.push(T("SF2eTSC.chat.miss"));
-    return;
-  }
   const crit = res.degree === DEGREE.CRITICAL_SUCCESS;
   if (ctx.options.sheetRoll) {
     // sheet roll: attack roll, damage roll and damage application are three separate steps (§8). The target is
-    // bound here on the GM side; the card can only roll/apply damage for exactly this target, once.
+    // bound here on the GM side; the card can only roll/apply damage for exactly this target, once. The weapon/target
+    // data is bound even on a miss so a system reroll that hits can build the pending damage.
     const traitsL = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
-    ctx.pendingDamage = {
+    ctx.boundDamage = {
       damageParts: weapon.npc ? weapon.damageParts : null,
       formula: damageFormula(ctx, weapon, false),
       critFormula: damageFormula(ctx, weapon, true),
-      crit,
       damageType: weapon.damageType,
       extraTypes: (weapon.damageParts ?? []).slice(1).map((p) => p.type),
       traits: traitsL,
@@ -336,7 +332,16 @@ export async function resolveStrike(ctx) {
       targetKey: target.key,
       source: weapon.name
     };
-    ctx.reports.push(T("SF2eTSC.rolls.damagePending"));
+    if (res.degree >= DEGREE.SUCCESS) {
+      ctx.pendingDamage = { ...ctx.boundDamage, crit };
+      ctx.reports.push(T("SF2eTSC.rolls.damagePending"));
+    } else {
+      ctx.reports.push(T("SF2eTSC.chat.miss"));
+    }
+    return;
+  }
+  if (res.degree < DEGREE.SUCCESS) {
+    ctx.reports.push(T("SF2eTSC.chat.miss"));
     return;
   }
   // Keep the same formula and application order, but use the system's typed damage roll for chat.

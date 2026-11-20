@@ -17,6 +17,7 @@ import { registerSensorHandlers, invalidateSensorMapActors, invalidateSensorMapB
 import { registerCombatHooks } from "./combat/starship-combat.mjs";
 import { registerCrewSyncHooks } from "./combat/crew-sync.mjs";
 import { registerAttackCards } from "./chat/attack-card.mjs";
+import { registerRerollSupport } from "./chat/reroll-support.mjs";
 import { registerStationItems } from "./crew/station-items.mjs";
 import { decorateTracker } from "./combat/tracker.mjs";
 import { registerControls } from "./ui/controls.mjs";
@@ -122,6 +123,7 @@ Hooks.once("ready", async () => {
   ])
     fn();
   registerAttackCards();
+  registerRerollSupport();
   registerToolbeltDamage();
   registerStationItems();
   registerCombatHooks();

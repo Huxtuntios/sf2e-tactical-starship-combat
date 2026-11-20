@@ -24,6 +24,8 @@ const fixtures = [
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],
+  ["smoke-chat-card-layout.mjs", "chat-card-layout"],
+  ["smoke-action-controls.mjs", "action-controls"],
   ["smoke-description-links.mjs", "description-links"]
 ];
 for (const [tool, folder] of fixtures) {
@@ -86,6 +88,83 @@ try {
           { timeout: 10000 }
         );
         const result = JSON.parse(await page.locator("#result").innerText());
+        if (folder === "start-wizard") {
+          const before = await page.evaluate(() => {
+            globalThis.fixture.root.querySelector(".tsc-wizard-browse").open = true;
+            return {
+              opened: globalThis.fixture.originalsOpened.length,
+              writes: globalThis.__writes.length,
+              draft: JSON.stringify(globalThis.wizard.getDraft())
+            };
+          });
+          const preview = page.locator('[data-action="previewOriginal"][data-uuid="Actor.enemy"]');
+          await preview.focus();
+          await preview.press("Enter");
+          await page.waitForFunction((n) => globalThis.fixture.originalsOpened.length === n + 1, before.opened);
+          await preview.press("Space");
+          await page.waitForFunction((n) => globalThis.fixture.originalsOpened.length === n + 2, before.opened);
+          const unchanged = await page.evaluate(
+            (before) =>
+              globalThis.__writes.length === before.writes &&
+              JSON.stringify(globalThis.wizard.getDraft()) === before.draft &&
+              globalThis.fixture.root.querySelector("[data-selected-count]").textContent === "0",
+            before
+          );
+          result.checks.push({ name: "keyboard-preview-without-selection-or-submit", pass: unchanged });
+          result.checks.push({
+            name: "preview-focus-visible",
+            pass: await preview.evaluate((el) => globalThis.getComputedStyle(el).outlineStyle !== "none")
+          });
+          await page.evaluate(async () => {
+            globalThis.fixture.enemy.name = "Очень длинное имя корабля / A very long starship name ".repeat(8);
+            await globalThis.wizard.render();
+            await globalThis.fixture.set('[name="filter"]', "Очень длинное");
+          });
+          for (const width of [1100, 600]) {
+            await page.setViewportSize({ width, height: 950 });
+            for (const theme of ["dark", "light"]) {
+              const contained = await page.evaluate((theme) => {
+                globalThis.document.querySelector("main.application").setAttribute("data-sheet-theme", theme);
+                const row = globalThis.fixture.root.querySelector('[data-candidate-row][data-uuid="Actor.enemy"]');
+                const button = row.querySelector("button");
+                const filters = globalThis.fixture.root.querySelector(".tsc-wizard-filters");
+                return (
+                  !row.hidden &&
+                  row.scrollWidth <= row.clientWidth + 1 &&
+                  filters.scrollWidth <= filters.clientWidth + 1 &&
+                  button.getBoundingClientRect().right <= row.getBoundingClientRect().right + 1
+                );
+              }, theme);
+              result.checks.push({ name: `long-candidate-contained-${width}-${theme}`, pass: contained });
+            }
+          }
+          result.passed = result.checks.every((check) => check.pass);
+        }
+        if (folder === "action-controls") {
+          const descriptionButton = page.locator('[data-kind="HUD"] .tsc-action-name').first();
+          const before = await page.evaluate(() => globalThis.actionControlExecutions.length);
+          await descriptionButton.focus();
+          await descriptionButton.press("Enter");
+          await page.locator("dialog[open]").waitFor();
+          const noExecution = await page.evaluate((n) => globalThis.actionControlExecutions.length === n, before);
+          result.checks.push({ name: "keyboard-description-only", pass: noExecution });
+          await page.locator("dialog[open] [data-close]").click();
+          await page.waitForFunction(() => !globalThis.document.querySelector("dialog"));
+          const warning = page.locator('[data-kind="HUD"] .tsc-action-warning').first();
+          await warning.focus();
+          await warning.press("Enter");
+          const tooltip = await page.evaluate(() => globalThis.actionTooltip.includes("Warning text"));
+          result.checks.push({ name: "keyboard-warning-tooltip", pass: tooltip });
+          const cost = page.locator('[data-kind="HUD"] .tsc-action-cost').first();
+          await cost.focus();
+          await cost.press("Space");
+          const oneExecution = await page.evaluate((n) => globalThis.actionControlExecutions.length === n + 1, before);
+          result.checks.push({ name: "keyboard-cost-executes-once", pass: oneExecution });
+          const focusVisible = await cost.evaluate((el) => globalThis.getComputedStyle(el).outlineStyle !== "none");
+          result.checks.push({ name: "cost-keyboard-focus-visible", pass: focusVisible });
+          result.passed = result.checks.every((check) => check.pass);
+          await page.locator('[data-kind="HUD"]').screenshot({ path: path.join(out, folder, name.replace(/\.html$/, ".png")) });
+        }
         if (folder === "builder-history" && name.startsWith("builder-")) {
           const select = page.locator('select[name="size"]');
           await select.focus();

@@ -8,6 +8,7 @@ import { Content, actionsForStation } from "../content/loader.mjs";
 import { allStarships, readStarship, statusOf } from "../starship/starship-state.mjs";
 import { gradeIndex } from "../engine/advancement.mjs";
 import { previewAction, runAction, COST_ICON } from "./action-runner.mjs";
+import { actionCostLabel } from "./action-controls.mjs";
 import { activeStarshipCombat, combatantForActor } from "../combat/tsc-state.mjs";
 import { actionLabel } from "../actions/action-engine.mjs";
 import { ct, ctPlain } from "../content/content-i18n.mjs";
@@ -66,6 +67,7 @@ export function buildHudContext(index = 0, list = findHelmedStations()) {
       id: a.id,
       name: actionLabel(a),
       icon: COST_ICON(a.cost),
+      costLabel: actionCostLabel(a.cost),
       traits: traitsText(a.traits),
       enabled: p.enabled,
       reasons: p.reasons.join(" · "),

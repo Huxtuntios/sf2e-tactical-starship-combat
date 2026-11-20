@@ -126,15 +126,19 @@ async function resolveOnce(user, payload, eventId) {
   });
   if (message) {
     const patch = { [`flags.${MODULE_ID}.nativeAttackReceipt`]: { eventId, userId: user.id, status: "resolved" } };
-    if (res.summary?.pendingDamage) {
+    const bound = res.summary?.boundDamage ?? null;
+    if (res.summary?.pendingDamage || bound) {
       patch[`flags.${MODULE_ID}.attackCard`] = {
         native: true,
         status: "resolved",
         createdBy: user.id,
         request: req,
+        // Stable across a system reroll (the message id changes): the damage lock and target receipt key on it.
+        applicationId: eventId,
         ship: { name: dry.ctx.ship.name },
         weapon: { name: dry.ctx.weapon?.name ?? "" },
-        result: { pendingDamage: res.summary.pendingDamage }
+        boundDamage: bound,
+        result: { pendingDamage: res.summary?.pendingDamage ?? null }
       };
     }
     try {
