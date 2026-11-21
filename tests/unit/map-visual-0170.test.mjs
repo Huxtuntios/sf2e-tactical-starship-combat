@@ -324,8 +324,12 @@ test("visual permissions and unidentified contact privacy remain enforced", () =
   s.objects[0].mapTransform = { rotation: 90, baseDirection: "up" };
   s.objects[0].detection.party = "observed";
   const unknown = viewFor(s)[0];
-  assert.equal(unknown.mapTransform, undefined);
-  assert.equal(unknown.art, undefined);
+  assert.deepEqual(unknown.mapTransform, s.objects[0].mapTransform);
+  assert.equal(unknown.art, s.objects[0].art);
+  s.objects[0].detection.party = "hidden";
+  const hidden = viewFor(s)[0];
+  assert.equal(hidden.mapTransform, undefined);
+  assert.equal(hidden.art, undefined);
 });
 test("templates contain distinct controls and escape custom image paths", () => {
   const h = Handlebars.create();

@@ -11,7 +11,7 @@
  */
 import { MODULE_ID, FLAGS } from "../constants.mjs";
 
-const PROJECTION_KEYS = ["key", "zone", "type", "span", "name", "heading", "detection", "tscPrivateProjection"];
+const PROJECTION_KEYS = ["key", "zone", "type", "objectType", "span", "name", "heading", "art", "detection", "tscPrivateProjection"];
 
 const belowLimited = (doc, user) => typeof doc.testUserPermission === "function" && !doc.testUserPermission(user, "LIMITED");
 const brief = (d) => ({ id: d.id, name: d.name });
@@ -47,7 +47,14 @@ export function privacyProbe({ user = game.user, combats = game.combats?.content
       if (o?.tscPrivateProjection !== true) continue;
       projections++;
       const extra = Object.keys(o).filter((k) => !PROJECTION_KEYS.includes(k));
-      if (extra.length || o.type !== "contact" || o.name !== "Contact" || o.detection?.party !== "observed" || o.actorUuid || o.art)
+      if (
+        extra.length ||
+        o.type !== "contact" ||
+        o.name !== "Contact" ||
+        !["hidden", "observed"].includes(o.detection?.party) ||
+        o.actorUuid ||
+        (o.detection.party === "hidden" && (o.art || o.heading))
+      )
         findings.push({ code: "projection-leaks-fields", combatId: combat.id, key: o.key, extra });
     }
   }

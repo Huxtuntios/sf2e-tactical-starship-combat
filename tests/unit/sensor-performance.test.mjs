@@ -169,6 +169,7 @@ test("production context prunes actors when known contacts become unknown or per
   installFoundryMock();
   game.user.isGM = false;
   const actor = makeShip({ id: "visible-enemy", name: "Enemy", role: "npc" });
+  actor.flags["sf2e-tactical-starship-combat"].starship.size = "large";
   let allowed = true;
   actor.testUserPermission = () => allowed;
   const combat = makeStarshipCombat({
@@ -184,6 +185,10 @@ test("production context prunes actors when known contacts become unknown or per
   assert.equal(app.actorCache.entries.size, 0);
   assert.equal(denied.detail.vitals, null);
   assert.equal(denied.detail.canOpen, false);
+  const deniedObject = denied.zones.flatMap((zone) => zone.objects)[0];
+  assert.equal(deniedObject.art, actor.img);
+  assert.deepEqual([deniedObject.hp, deniedObject.sp, deniedObject.status], [null, null, null]);
+  assert.ok(denied.detail.rows.some((row) => row.k === game.i18n.localize("SF2eTSC.ui.size") && row.v === "large"));
   allowed = true;
   await app._prepareContext({ parts: ["zones", "detail"] });
   assert.equal(app.actorCache.entries.size, 1);
@@ -192,6 +197,107 @@ test("production context prunes actors when known contacts become unknown or per
   assert.equal(app.actorCache.entries.size, 0);
   assert.equal(app.actorCache.active.size, 0);
   assert.ok(!JSON.stringify(unknown).includes(actor.uuid));
+});
+
+for (const [level, label, heading, art, size] of [
+  ["identified", "Enemy", "left", "ships/foreign.webp", "large"],
+  ["observed", "Contact", "left", "ships/foreign.webp", null],
+  ["hidden", "Contact", null, "", null],
+  ["undetected", null, null, "", null]
+]) {
+  test(`production context: foreign ${level} exposes only its detection presentation`, async (t) => {
+    installFoundryMock();
+    game.user.isGM = false;
+    const actor = makeShip({ id: "foreign", name: "Enemy", role: "npc", hp: 73, sp: 41, extra: { status: "destroyed" } });
+    actor.testUserPermission = () => true;
+    actor.system.traits = { size: { value: "large" } };
+    makeStarshipCombat({
+      objects: [
+        {
+          key: "foreign-contact",
+          actorUuid: actor.uuid,
+          name: actor.name,
+          type: "starship",
+          zone: 3,
+          heading: "left",
+          detection: { party: level }
+        }
+      ]
+    });
+    const app = new SensorMapApplication();
+    t.after(() => app._cleanup());
+    app.selected = "foreign-contact";
+    let reads = 0,
+      stats = 0;
+    app.actorCache = new MapActorCache({
+      read: () => {
+        reads++;
+        return readStarship(actor);
+      },
+      stats: () => {
+        stats++;
+        return computeShipStats(actor);
+      }
+    });
+    const context = await app._prepareContext({ parts: ["zones", "detail"] });
+    const objects = context.zones.flatMap((zone) => zone.objects);
+    if (level === "undetected") {
+      assert.deepEqual(objects, []);
+      assert.equal(context.detail, null);
+      return;
+    }
+    const object = objects[0];
+    assert.equal(object.label, label);
+    assert.equal(object.heading, heading);
+    assert.equal(object.art, art);
+    if (level === "hidden") assert.equal(object.icon, "○");
+    assert.equal(object.status, null);
+    assert.equal(object.statusLabel, null);
+    assert.equal(object.hp, null);
+    assert.equal(object.sp, null);
+    assert.equal(object.hpPct, null);
+    assert.equal(object.spPct, null);
+    assert.equal(context.detail.canOpen, false);
+    assert.equal(context.detail.vitals, null);
+    assert.equal(context.detail.gm, null);
+    const rows = [
+      { k: "Zone", v: 3 },
+      { k: "Type", v: "Starship" }
+    ];
+    if (heading) rows.push({ k: "Heading", v: "Left" });
+    if (size) rows.push({ k: "Size", v: size });
+    assert.deepEqual(context.detail.rows, rows);
+    assert.deepEqual([reads, stats], [0, 0]);
+  });
+}
+
+test("production context: own ship retains full details while foreign identification downgrades clear them", async (t) => {
+  installFoundryMock();
+  game.user.isGM = false;
+  const actor = makeShip({ id: "own", name: "Own ship", owners: [game.user.id], hp: 73, sp: 41 });
+  actor.system.traits = { size: { value: "large" } };
+  const combat = makeStarshipCombat({
+    objects: [{ key: "ship", actorUuid: actor.uuid, name: actor.name, zone: 2, detection: { party: "identified" } }]
+  });
+  const object = combat.flags["sf2e-tactical-starship-combat"].tsc.objects[0];
+  const app = new SensorMapApplication();
+  t.after(() => app._cleanup());
+  app.selected = "ship";
+  const own = await app._prepareContext({ parts: ["zones", "detail"] });
+  assert.equal(own.zones[1].objects[0].hp, "73/73");
+  assert.equal(own.detail.canOpen, true);
+  assert.equal(own.detail.vitals.hp, 73);
+  assert.ok(own.detail.rows.some((row) => row.k === "AC"));
+  actor.flags["sf2e-tactical-starship-combat"].starship.role = "npc";
+  app.invalidateActorCache(actor);
+  for (const level of ["identified", "observed", "hidden", "undetected"]) {
+    object.detection.party = level;
+    const context = await app._prepareContext({ parts: ["zones", "detail"] });
+    assert.ok(!JSON.stringify(context).includes("73/73"));
+    assert.ok(!context.detail || (!context.detail.canOpen && context.detail.vitals === null));
+    assert.ok(!context.detail?.rows.some((row) => ["AC", "Hull Points", "Shield Points", "Status"].includes(row.k)));
+    if (level === "undetected") assert.equal(context.detail, null);
+  }
 });
 
 test("pending resolutions coalesce; invalidation, pruning and close reject obsolete results", async () => {

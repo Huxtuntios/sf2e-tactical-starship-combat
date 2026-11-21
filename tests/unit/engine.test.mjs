@@ -156,7 +156,7 @@ test("detection: Seek Starships and contacts", () => {
   assert.equal(resolveSeek("undetected", DEGREE.SUCCESS), "hidden");
   assert.equal(resolveSeek("hidden", DEGREE.SUCCESS), "observed");
   assert.equal(resolveSeek("hidden", DEGREE.FAILURE), "hidden");
-  assert.equal(detectionTargetability("hidden"), "flat-check");
+  assert.equal(detectionTargetability("hidden"), "ok");
   assert.equal(contactName(0, "greek"), "Contact Alpha");
   assert.equal(contactName(1, "numeric"), "Contact 02");
   assert.equal(contactName(1, "naval"), "Contact Bravo");
@@ -247,6 +247,37 @@ test("stacking: same type bonuses do not stack, penalties take worst, untyped st
     2
   );
 });
+test("sensor detection views expose category, image and size only at the approved levels", () => {
+  const actor = { img: "ships/actual.webp", system: { traits: { size: { value: "lg" } } } };
+  const object = { key: "enemy", actorUuid: "Actor.enemy", type: "starship", name: "Secret model", zone: 3, heading: "left" };
+  for (const level of ["undetected", "hidden", "observed", "identified"]) {
+    const state = { objects: [{ ...object, detection: { party: level } }] };
+    const view = viewFor(state, { showUnknown: false, resolve: () => actor });
+    if (level === "undetected") {
+      assert.equal(view.length, 0);
+      continue;
+    }
+    const shown = view[0];
+    assert.ok(shown, `${level} must remain visible regardless of showUnknown`);
+    assert.equal(shown.category, "starship");
+    assert.equal(shown.fullDetails, false);
+    assert.equal(shown.label, level === "identified" ? "Secret model" : "Contact");
+    assert.equal(shown.heading, level === "hidden" ? null : "left");
+    assert.equal(shown.art, level === "hidden" ? undefined : "ships/actual.webp");
+    assert.equal(shown.size, level === "identified" ? "lg" : undefined);
+    assert.equal(shown.actorUuid, level === "identified" ? "Actor.enemy" : undefined);
+    if (level === "hidden") assert.equal(shown.icon, "○");
+    assert.equal(viewFor(state, { ownKeys: ["enemy"] })[0].fullDetails, true);
+    assert.equal(viewFor(state, { isGM: true })[0].fullDetails, true);
+  }
+  for (const type of ["hazard", "custom", "planet"]) {
+    assert.equal(
+      viewFor({ objects: [{ ...object, type, detection: { party: "hidden" } }] })[0].category,
+      type === "hazard" ? "hazard" : "custom"
+    );
+  }
+});
+
 test("sensor ops: add, move, heading, resize, persistence-safe normalize", () => {
   let s = defaultSensorState({ enabled: true });
   assert.equal(s.zones, 12);
@@ -265,6 +296,15 @@ test("sensor ops: add, move, heading, resize, persistence-safe normalize", () =>
   assert.equal(normalizeSensorState({ zones: 999 }).zones, 50);
   assert.equal(normalizeSensorState({ zones: 1 }).zones, 3);
 });
+test("identified starship size comes from module metadata when vehicle traits omit size", () => {
+  const actor = { flags: { "sf2e-tactical-starship-combat": { starship: { size: "huge", ac: 27 } } }, system: { traits: {} } };
+  const s = { objects: [{ key: "ship", type: "starship", zone: 2, name: "Ship", detection: { party: "identified" } }] };
+  const shown = viewFor(s, { resolve: () => actor })[0];
+  assert.equal(shown.size, "huge");
+  assert.equal(shown.fullDetails, false);
+  assert.equal(shown.ac, undefined);
+});
+
 test("sensor view: players do not see undetected objects or hidden identity", () => {
   let s = defaultSensorState({ enabled: true });
   s = addObject(s, { key: "me", name: "USS Horizon", zone: 2, alwaysVisible: true });
@@ -278,14 +318,11 @@ test("sensor view: players do not see undetected objects or hidden identity", ()
     player.find((o) => o.key === "e2"),
     undefined
   );
-  assert.equal(player.find((o) => o.key === "e3").label, "?");
+  assert.equal(player.find((o) => o.key === "e3").label, "Contact");
   assert.equal(viewFor(s, { isGM: true }).find((o) => o.key === "e2").label, "Secret Mine");
   s = setDetection(s, "e1", "party", "identified");
   assert.equal(viewFor(s, { ownKeys: ["me"] }).find((o) => o.key === "e1").label, "Pirate Frigate");
-  assert.equal(
-    viewFor(s, { ownKeys: ["me"], showUnknown: false }).find((o) => o.key === "e3"),
-    undefined
-  );
+  assert.equal(viewFor(s, { ownKeys: ["me"], showUnknown: false }).find((o) => o.key === "e3").label, "Contact");
 });
 
 import { parseHazardEffect } from "../../scripts/engine/hazard-rules.mjs";

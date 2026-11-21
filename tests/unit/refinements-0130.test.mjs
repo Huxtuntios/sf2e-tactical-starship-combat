@@ -29,7 +29,7 @@ test("0.13 per-ship detection and object artwork round-trip; unsafe art and unsu
   assert.deepEqual(normalizePreset(preset), preset);
   assert.equal(normalizeDetection("unnoticed"), "observed");
 });
-test("0.13 object type edits cannot turn contacts into actors; players see the type only after identification", () => {
+test("object type edits cannot turn contacts into actors; unidentified players see the generic category", () => {
   const state = {
     zones: 12,
     objects: [
@@ -43,7 +43,8 @@ test("0.13 object type edits cannot turn contacts into actors; players see the t
   assert.equal(applySensorOp(state, { op: "type", key: "moon", type: "starship" }), state);
   assert.equal(applySensorOp(state, { op: "type", key: "ship", type: "beacon" }), state);
   assert.equal(sanitizeSensorPayload({ isGM: false }, state, { op: "type", key: "moon", type: "debris" }), null);
-  assert.equal(viewFor(edited)[0].type, "contact");
+  assert.equal(viewFor(edited)[0].category, "custom");
+  assert.equal(viewFor(edited)[0].label, "Contact");
   const known = applySensorOp(edited, { op: "detect", key: "moon", level: "identified" });
   assert.equal(viewFor(known)[0].type, "beacon");
 });

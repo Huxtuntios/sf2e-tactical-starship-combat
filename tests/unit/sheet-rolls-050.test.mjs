@@ -157,18 +157,24 @@ test("MAP choice (0.6.0): manual only, default 1st attack, disabled MAP gives 0"
   assert.equal(mods.map.mapPenaltyForChoice("2", { ...ms, enabled: false }).penalty, 0);
 });
 
-test("sheet attack off-turn: no action/reaction spent, hidden targets not offered, damage deferred and applied once by the GM", async () => {
+test("sheet attack off-turn: no action/reaction spent, hidden targets offered anonymously, damage deferred and applied once by the GM", async () => {
   const s = await scenario();
   s.combat.turn = 2; // Raider's turn: not Ava's
   const { messageId, targets } = await sheetDeclare(s, "2");
-  assert.deepEqual(targets, [s.raider.uuid], "hidden Ghost is never offered");
+  assert.deepEqual(targets, [s.ghost.uuid, s.raider.uuid], "hidden contact is available");
   const c0 = cardOf(messageId);
+  const ghost = c0.targets.find((target) => target.key === s.ghost.uuid);
+  assert.equal(ghost.available, true);
+  assert.equal(ghost.reason, null);
+  assert.equal(ghost.known, false);
+  assert.equal(ghost.label, null, "anonymous label uses the Contact fallback");
+  assert.doesNotMatch(game.messages.get(messageId).content, /Ghost/);
   assert.equal(c0.map.current, -8);
   assert.equal(c0.map.manual, true);
-  await assert.rejects(
-    () => mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.ghost.uuid } }),
-    "hidden target refused"
-  );
+  const unavailable = mods.tsc.getTsc(s.combat);
+  unavailable.objects.find((object) => object.key === s.ghost.uuid).detection = { party: "undetected" };
+  await s.combat.update({ [`flags.${M}.tsc`]: unavailable });
+  await assert.rejects(() => mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.ghost.uuid } }), /undetected/i);
   dice(20, 4);
   await mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.raider.uuid } });
   const c1 = cardOf(messageId);

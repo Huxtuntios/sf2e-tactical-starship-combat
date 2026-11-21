@@ -155,6 +155,8 @@
       "areaExclude": "Exclude from the area",
       "areaExcludeHint": "Checked starships are not affected. Your side is checked by default; starships outside the area are never hit.",
       "areaFriendly": "own side",
+      "areaUndetected": "Undetected targets in the area",
+      "areaUndetectedHint": "GM: select the undetected starships affected by this area attack. Unchecked targets are not affected; this does not reveal or identify them.",
       "gmTools": "GM tools",
       "vitals": "Hull and shield points",
       "maxHull": "Max Hull",

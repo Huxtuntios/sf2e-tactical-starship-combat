@@ -39,7 +39,7 @@ function starship(id, name = "Enemy ship", role = "npc", extra = {}) {
 }
 const text = (combat) => JSON.stringify(combat.flags);
 
-test("world hazard: undetected and hidden stay only in the private store", async () => {
+test("world hazard: undetected stays private; hidden publishes anonymous category without art or heading", async () => {
   const combat = setup();
   const h = hazard("h1");
   const r = await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 4, detection: "undetected" });
@@ -50,19 +50,51 @@ test("world hazard: undetected and hidden stay only in the private store", async
   const h2 = hazard("h2", "Other");
   await addSensorContact(combat, { source: "world", uuid: h2.uuid, zone: 5, detection: "hidden" });
   assert.notEqual(privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid).actorUuid, h2.uuid);
-  assert.equal(privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid).detection.party, "hidden");
-  assert.deepEqual(getTsc(combat).objects, []);
-  assert.equal(text(combat).includes("Secret hazard"), false);
+  const hidden = privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid);
+  assert.equal(hidden.detection.party, "hidden");
+  assert.deepEqual(getTsc(combat).objects, [
+    {
+      key: hidden.key,
+      zone: 5,
+      type: "contact",
+      objectType: "hazard",
+      span: 1,
+      name: "Contact",
+      heading: null,
+      detection: { party: "hidden" },
+      tscPrivateProjection: true
+    }
+  ]);
+  assert.equal(Object.hasOwn(getTsc(combat).objects[0], "art"), false);
+  for (const secret of [h.name, h.uuid, h2.name, h2.uuid, r.actorUuid, hidden.actorUuid])
+    assert.equal(text(combat).includes(secret), false);
 });
 
-test("observed publishes an anonymous marker only; identified can be selected directly", async () => {
+test("observed publishes anonymous category and approved art; identified can be selected directly", async () => {
   const combat = setup();
   const h = hazard("h1");
   await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 4, detection: "observed" });
   const marker = getTsc(combat).objects[0];
-  assert.deepEqual(Object.keys(marker).sort(), ["detection", "heading", "key", "name", "span", "tscPrivateProjection", "type", "zone"]);
+  assert.deepEqual(Object.keys(marker).sort(), [
+    "art",
+    "detection",
+    "heading",
+    "key",
+    "name",
+    "objectType",
+    "span",
+    "tscPrivateProjection",
+    "type",
+    "zone"
+  ]);
   assert.equal(marker.name, "Contact");
-  for (const secret of ["Secret hazard", h.uuid, h.img]) assert.equal(text(combat).includes(secret), false);
+  assert.equal(marker.type, "contact");
+  assert.equal(marker.objectType, "hazard");
+  assert.equal(marker.art, h.img);
+  assert.equal(marker.heading, null);
+  assert.equal(marker.zone, 4);
+  for (const secret of ["Secret hazard", h.uuid, privateContacts(combat.id)[0].actorUuid])
+    assert.equal(text(combat).includes(secret), false);
   // раскрытие переводит объект в публичный и очищает приватную запись
   const key = privateContacts(combat.id)[0].key;
   const instanceUuid = privateContacts(combat.id)[0].actorUuid;
@@ -94,7 +126,13 @@ test("world Starship Actors use private NPC contacts and identified public Playe
   const privateShipUuid = privateContacts(combat.id)[0].actorUuid;
   assert.notEqual(privateShipUuid, npcShip.uuid);
   assert.equal(fromUuidSync(privateShipUuid).flags[MODULE].tacticalCopyOf, npcShip.uuid);
-  assert.deepEqual(getTsc(combat).objects, []);
+  const [marker] = getTsc(combat).objects;
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(marker.name, "Contact");
+  assert.equal(marker.objectType, "starship");
+  assert.equal(marker.heading, null);
+  assert.equal(Object.hasOwn(marker, "art"), false);
+  for (const secret of [npcShip.name, npcShip.uuid, privateShipUuid]) assert.equal(text(combat).includes(secret), false);
   assert.equal(
     (combat.combatants ?? []).some((c) => c.actorId === fromUuidSync(privateShipUuid).id),
     false
@@ -108,7 +146,7 @@ test("world Starship Actors use private NPC contacts and identified public Playe
     zone: 2,
     detection: "identified"
   });
-  const publicShipUuid = getTsc(combat).objects[0].actorUuid;
+  const publicShipUuid = getTsc(combat).objects.find((object) => object.detection.party === "identified").actorUuid;
   assert.notEqual(publicShipUuid, playerShip.uuid);
   assert.equal(
     (combat.combatants ?? []).some((c) => c.actorId === fromUuidSync(publicShipUuid).id),
@@ -142,7 +180,20 @@ test("repeated private NPC placements stay independent, reveal gets initiative, 
   assert.equal(first.ownership.default, 0);
   assert.equal(second.ownership.default, 0);
   assert.equal(combat.combatants.size, 0);
-  assert.deepEqual(getTsc(combat).objects, []);
+  assert.deepEqual(getTsc(combat).objects, [
+    {
+      key: two.key,
+      zone: 5,
+      type: "contact",
+      objectType: "hazard",
+      span: 1,
+      name: "Contact",
+      heading: null,
+      detection: { party: "hidden" },
+      tscPrivateProjection: true
+    }
+  ]);
+  for (const secret of [source.name, source.uuid, first.uuid, second.uuid]) assert.equal(text(combat).includes(secret), false);
 
   await first.update({ "system.attributes.hp.value": 6 });
   assert.equal(second.system.attributes.hp.value, 18);

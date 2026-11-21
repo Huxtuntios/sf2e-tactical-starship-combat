@@ -28,9 +28,8 @@ export const TARGET_REASON_ERRORS = Object.freeze({
  * @param {number} p.range          maximum range in zones
  * @param {number|null} [p.rangeIncrement]  zones per increment (max 6 increments)
  * @param {boolean} [p.allowSelf]
- * @param {boolean} [p.enforceDetection]   player ships: hidden/undetected objects can't be targeted
- * @param {boolean} [p.override]           GM override: range and detection are not enforced
- * @param {boolean} [p.soft]               warn mode: range / detection problems stay available and come back as `warning`
+ * @param {boolean} [p.override]           GM override: range is not enforced
+ * @param {boolean} [p.soft]               warn mode: range problems stay available and come back as `warning`
  * @param {(key:string)=>boolean} [p.isDestroyed]
  */
 export function evaluateTarget({
@@ -40,7 +39,6 @@ export function evaluateTarget({
   range,
   rangeIncrement = null,
   allowSelf = false,
-  enforceDetection = true,
   override = false,
   soft = false,
   isDestroyed = () => false
@@ -52,15 +50,12 @@ export function evaluateTarget({
   const cls = classifyRange(me.zone, obj.zone, range ?? 99);
   const out = { ...base, distance: cls.distance, inRange: cls.inRange };
   if ((obj.key === shipKey || (obj.privateContact && obj.actorUuid === shipKey)) && !allowSelf) return { ...out, reason: "self" };
-  if (obj.privateContact && (obj.pendingReveal || obj.detection?.party !== "observed"))
+  if (obj.privateContact && (obj.pendingReveal || !["hidden", "observed"].includes(obj.detection?.party)))
     return { ...out, reason: obj.detection?.party === "hidden" ? "hidden" : "undetected" };
-  if (obj.type !== "starship" && !(obj.type === "contact" && obj.tscPrivateProjection === true)) return { ...out, reason: "notStarship" };
+  if (obj.type !== "starship" && !(obj.type === "contact" && obj.tscPrivateProjection === true && obj.objectType === "starship"))
+    return { ...out, reason: "notStarship" };
   if (isDestroyed(obj.key)) return { ...out, reason: "destroyed" };
-  if (enforceDetection && !override && obj.key !== shipKey) {
-    const tg = detectionTargetability(level);
-    if (tg === "no") return softOr(out, "undetected", soft);
-    if (tg === "flat-check") return softOr(out, "hidden", soft);
-  }
+  if (obj.key !== shipKey && !obj.alwaysVisible && detectionTargetability(level) === "no") return { ...out, reason: "undetected" };
   if (!override) {
     if (!cls.inRange) return softOr(out, "outOfRange", soft);
     if (rangeIncrement && Math.ceil(cls.distance / rangeIncrement) > 6) return softOr(out, "tooFar", soft);
@@ -68,7 +63,7 @@ export function evaluateTarget({
   return { ...out, available: true };
 }
 
-/** Range / detection problems: blocked in strict mode, an available target with a `warning` in warn mode. */
+/** Range problems: blocked in strict mode, an available target with a `warning` in warn mode. */
 const softOr = (out, reason, soft) => (soft ? { ...out, available: true, warning: reason } : { ...out, reason });
 
 // Private identities are joined only in a GM-local view, never in the persisted Combat state.
@@ -79,8 +74,8 @@ export function targetingState(tsc, shipUuid, contacts = []) {
     return contact?.type === "starship" &&
       contact.actorUuid &&
       !contact.pendingReveal &&
-      contact.detection?.party === "observed" &&
-      obj.detection?.party === "observed" &&
+      ["hidden", "observed"].includes(contact.detection?.party) &&
+      obj.detection?.party === contact.detection.party &&
       contact.zone === obj.zone
       ? { ...contact, designation: obj.designation ?? "Contact" }
       : obj;
@@ -105,12 +100,11 @@ export function evaluateTargets(p) {
 }
 
 /**
- * May a player (non-GM) even learn that this candidate exists? Players never see hidden/undetected objects
- * or objects the GM hid from the map; the GM gets those in a whispered diagnostic instead.
+ * Players see hidden, observed and identified targets, but not undetected or manually hidden objects.
  */
 export function visibleToPlayers(obj, shipKey) {
   if (obj.hidden) return false;
   if (obj.alwaysVisible || obj.key === shipKey) return true;
   const level = effectiveDetection(obj, [shipKey]);
-  return level === "observed" || level === "identified";
+  return ["hidden", "observed", "identified"].includes(level);
 }
