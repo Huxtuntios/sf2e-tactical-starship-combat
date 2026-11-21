@@ -148,28 +148,49 @@ export async function addPrivateContact(combat, actor, zone) {
     return existing ? "moved" : "added";
   });
 }
-// Публикуется только анонимный маркер наблюдаемого контакта. Hidden и Unnoticed
-// остаются исключительно в закрытом журнале, независимо от настройки старой карты.
+function contactProjection(contact, actor = null) {
+  if (!["hidden", "observed"].includes(contact.detection.party)) return null;
+  const observed = contact.detection.party === "observed";
+  return {
+    key: contact.key,
+    zone: contact.zone,
+    type: "contact",
+    objectType: contact.type === "custom" ? objectType(contact.objectType) : contact.type,
+    span: 1,
+    name: "Contact",
+    heading: observed ? contact.heading : null,
+    ...(observed ? { art: safeImagePath(contact.art || actor?.img) } : {}),
+    detection: { party: contact.detection.party },
+    tscPrivateProjection: true
+  };
+}
 async function saveProjection(combat, contact, remove = false) {
   const state = getTsc(combat);
   const matches = state.objects.filter((o) => o.key === contact.key);
   if (matches.length > 1 || matches.some((o) => o.tscPrivateProjection !== true)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   const objects = state.objects.filter((o) => o.key !== contact.key);
-  if (!remove && contact.detection.party === "observed") {
-    objects.push({
-      key: contact.key,
-      zone: contact.zone,
-      type: "contact",
-      span: 1,
-      name: "Contact",
-      heading: null,
-      detection: { party: "observed" },
-      tscPrivateProjection: true
-    });
+  if (!remove) {
+    const actor = contact.actorUuid ? await fromUuidSafe(contact.actorUuid) : null;
+    const projection = contactProjection(contact, actor);
+    if (projection) {
+      const index = state.objects.findIndex((o) => o.key === contact.key);
+      objects.splice(index < 0 ? objects.length : index, 0, projection);
+    }
   }
   requireGM();
   await saveTsc(combat, { ...state, objects });
   requireGM();
+}
+
+export async function syncPrivateProjections(combat) {
+  requireGM();
+  return serialize(`sensor:${combat.id}`, async () => {
+    for (const contact of privateContacts(combat.id)) {
+      if (contact.pendingReveal) continue;
+      requireGM();
+      await saveProjection(combat, contact);
+    }
+  });
 }
 
 const REVEAL_STAGES = ["intent", "map", "combatant", "actor", "consistent"];
@@ -342,19 +363,20 @@ async function beginReveal(combat, contact, actor) {
   assertRevealActor(combat, contact, actor);
   if (actor) assertHiddenActor(actor, combat);
   const state = getTsc(combat);
-  const projection =
-    contact.detection.party === "observed"
-      ? {
-          key: contact.key,
-          zone: contact.zone,
-          type: "contact",
-          span: 1,
-          name: "Contact",
-          heading: null,
-          detection: { party: "observed" },
-          tscPrivateProjection: true
-        }
-      : null;
+  const projection = state.objects.find((o) => o.key === contact.key && o.tscPrivateProjection) ?? null;
+  const expectedProjection = contactProjection(contact, actor);
+  if (
+    projection &&
+    (!expectedProjection ||
+      Object.keys(projection).some((key) => !Object.hasOwn(expectedProjection, key)) ||
+      ["key", "zone", "type", "span", "name", "detection", "tscPrivateProjection"].some(
+        (key) => !same(projection[key], expectedProjection[key])
+      ) ||
+      (projection.objectType !== undefined && projection.objectType !== expectedProjection.objectType) ||
+      (projection.heading !== null && projection.heading !== expectedProjection.heading) ||
+      (projection.art !== undefined && (contact.detection.party === "hidden" || safeImagePath(projection.art) !== projection.art)))
+  )
+    revealError("conflicting anonymous projection");
   const next = actor
     ? dropActorOnMap({ ...state, objects: [] }, actor, contact.zone, { publicActor: true }).state
     : addObject(

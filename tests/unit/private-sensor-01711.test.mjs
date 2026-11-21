@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat, MockActor } from "../helpers/foundry-mock.mjs";
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "../../scripts/sensor/private-contacts.mjs";
+import * as privateSensor from "../../scripts/sensor/private-contacts.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { viewFor } from "../../scripts/engine/sensor-ops.mjs";
 import { applySensorOp } from "../../scripts/sensor/map-model.mjs";
@@ -52,8 +53,83 @@ async function targetingScenario() {
 }
 function assertNoIdentity(s, value) {
   const text = JSON.stringify(value);
-  for (const secret of [s.ship.uuid, s.ship.name, s.ship.img]) assert.equal(text.includes(secret), false, secret);
+  for (const secret of [s.ship.uuid, s.ship.name]) assert.equal(text.includes(secret), false, secret);
 }
+
+test("ordinary targeting allows every detected state but never undetected overrides", () => {
+  const tsc = { objects: [{ key: "attacker", type: "starship", zone: 2 }] };
+  for (const level of ["undetected", "hidden", "observed", "identified"]) {
+    const obj = { key: "target", type: "starship", zone: 3, detection: { party: level } };
+    for (const options of [{}, { override: true }, { soft: true }, { enforceDetection: false }])
+      assert.equal(evaluateTarget({ tsc, shipKey: "attacker", obj, range: 3, ...options }).available, level !== "undetected");
+  }
+  for (const objectType of ["starship", "hazard", "custom"])
+    assert.equal(
+      evaluateTarget({
+        tsc,
+        shipKey: "attacker",
+        range: 3,
+        obj: { key: "private-target", type: "contact", objectType, tscPrivateProjection: true, zone: 3, detection: { party: "hidden" } }
+      }).available,
+      objectType === "starship"
+    );
+});
+
+test("existing private detection projections refresh without changing contacts or rewriting an unchanged map", async () => {
+  assert.equal(typeof privateSensor.syncPrivateProjections, "function");
+  const s = await targetingScenario();
+  const hidden = await addPrivateCustom(s.combat, "Hidden anomaly", 4);
+  await changePrivateContact(s.combat, hidden, "detect", "hidden");
+  const before = structuredClone(game.journal.contents[0].flags);
+  const objects = s.combat.flags["sf2e-tactical-starship-combat"].tsc.objects;
+  const observed = objects.find((o) => o.key === s.key);
+  delete observed.objectType;
+  delete observed.art;
+  observed.heading = null;
+  s.combat.flags["sf2e-tactical-starship-combat"].tsc.objects = objects.filter((o) => o.key !== hidden);
+  await privateSensor.syncPrivateProjections(s.combat);
+  assert.deepEqual(game.journal.contents[0].flags, before);
+  assert.equal(getTsc(s.combat).objects.find((o) => o.key === s.key).art, s.ship.img);
+  assert.equal(getTsc(s.combat).objects.find((o) => o.key === hidden).detection.party, "hidden");
+  const writes = globalThis.__writes.length;
+  await privateSensor.syncPrivateProjections(s.combat);
+  assert.equal(globalThis.__writes.length, writes);
+  game.user = s.user;
+  await assert.rejects(privateSensor.syncPrivateProjections(s.combat));
+});
+
+test("private hidden and observed projections publish only the approved visual fields", async () => {
+  const s = await targetingScenario();
+  for (const level of ["hidden", "observed"]) {
+    await changePrivateContact(s.combat, s.key, "detect", level);
+    const projection = getTsc(s.combat).objects.find((o) => o.key === s.key);
+    assert.ok(projection, `${level} must publish a position`);
+    assert.equal(projection.objectType, "starship");
+    assert.equal(projection.detection.party, level);
+    assert.equal(projection.heading, level === "hidden" ? null : "right");
+    assert.equal(projection.art, level === "hidden" ? undefined : s.ship.img);
+    assert.equal(JSON.stringify(projection).includes(s.ship.uuid), false);
+    assert.equal(JSON.stringify(projection).includes(s.ship.name), false);
+    for (const user of [s.user, s.gm]) assert.ok(await previewNativeAttack({ user, payload: s.payload }));
+  }
+  await changePrivateContact(s.combat, s.key, "detect", "undetected");
+  assert.equal(
+    getTsc(s.combat).objects.some((o) => o.key === s.key),
+    false
+  );
+});
+
+test("hidden starship attack uses ordinary AC resolution without identifying the contact", async () => {
+  const s = await targetingScenario();
+  await changePrivateContact(s.combat, s.key, "detect", "hidden");
+  dice(20);
+  const attack = await executeNativeAttack({ user: s.user, payload: s.payload });
+  assert.ok(attack.messageId);
+  assert.equal(privateContacts(s.combat.id)[0].detection.party, "hidden");
+  const declaration = await declareAttack({ user: s.user, payload: s.payload });
+  const card = game.messages.get(declaration.messageId).flags["sf2e-tactical-starship-combat"].attackCard;
+  assert.equal(card.targets.find((o) => o.key === s.key)?.available, true);
+});
 
 test("observed anonymous projection is selectable before identification", async () => {
   const s = await targetingScenario();
@@ -210,6 +286,171 @@ test("GM-whisper private sheet attack keeps its bound damage controls", async ()
   await resolveAttackCard({ user: s.gm, payload: { messageId: declaration.messageId, targetKey: s.key, skipDialog: true } });
   assert.ok(game.messages.get(declaration.messageId).flags["sf2e-tactical-starship-combat"].attackCard.result.pendingDamage);
 });
+for (const choice of ["include", "exclude", "cancel"]) {
+  test(`Area Fire ${choice}s an undetected private ship only through the GM dialog`, async () => {
+    const s = await targetingScenario();
+    await changePrivateContact(s.combat, s.key, "detect", "undetected");
+    Object.assign(s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0], {
+      traits: ["area (burst 1 zone)"],
+      range: 3,
+      die: "1d6",
+      damageType: "fire"
+    });
+    let prompted = 0;
+    foundry.applications.api.DialogV2.prompt = async (options) => {
+      prompted++;
+      assert.ok(options.content.includes(s.ship.name));
+      return choice === "cancel" ? null : choice === "include" ? [s.key] : [];
+    };
+    const before = structuredClone(s.ship.flags);
+    dice(6, 1);
+    const result = await executeAction({
+      ...s.payload,
+      actionId: "area-fire",
+      user: s.user,
+      options: { ...s.payload.options, areaOrigin: 3, areaIncludeKeys: [s.key] }
+    });
+    assert.equal(prompted, 1);
+    assert.equal(result.cancelled === true, choice === "cancel");
+    if (choice === "include")
+      assert.ok(
+        s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value < before["sf2e-tactical-starship-combat"].starship.sp.value
+      );
+    else assert.deepEqual(s.ship.flags, before);
+    assert.equal(privateContacts(s.combat.id)[0].detection.party, "undetected");
+    assert.equal(
+      getTsc(s.combat).objects.some((o) => o.key === s.key),
+      false
+    );
+  });
+}
+
+test("area exclusion UI offers anonymous hidden and observed private starships", async () => {
+  const s = await targetingScenario();
+  const { runAction } = await import("../../scripts/ui/action-runner.mjs");
+  for (const level of ["hidden", "observed"]) {
+    await changePrivateContact(s.combat, s.key, "detect", level);
+    game.user = s.user;
+    let displayed = "";
+    foundry.applications.api.DialogV2.prompt = async (options) => {
+      displayed = options.content;
+      return null;
+    };
+    await runAction(
+      { id: "area-fire", builtin: "area-fire" },
+      {
+        ship: s.attacker,
+        crew: s.crew,
+        station: s.attacker.flags["sf2e-tactical-starship-combat"].starship.stations[0]
+      }
+    );
+    assert.match(displayed, /name="areaExclude\.0"/);
+    assert.match(displayed, /Contact/);
+    assertNoIdentity(s, displayed);
+    game.user = s.gm;
+  }
+});
+
+test("Area Fire automatically resolves hidden private ships without publishing their Actor identity", async () => {
+  const s = await targetingScenario();
+  await changePrivateContact(s.combat, s.key, "detect", "hidden");
+  Object.assign(s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0], {
+    traits: ["area (burst 1 zone)"],
+    range: 3,
+    die: "1d6",
+    damageType: "fire"
+  });
+  const before = s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value;
+  dice(6, 1);
+  await executeAction({ ...s.payload, actionId: "area-fire", user: s.user, options: { ...s.payload.options, areaOrigin: 3 } });
+  assert.ok(s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value < before);
+  assert.equal(privateContacts(s.combat.id)[0].detection.party, "hidden");
+  for (const message of game.messages.contents.filter((m) => !m.whisper.length)) assertNoIdentity(s, message);
+});
+
+for (const actionId of ["area-fire", "auto-fire"]) {
+  test(`${actionId} requires GM selection for public undetected ships too`, async () => {
+    const s = await targetingScenario();
+    await changePrivateContact(s.combat, s.key, "reveal");
+    const target = s.combat.flags["sf2e-tactical-starship-combat"].tsc.objects.find((o) => o.actorUuid === s.ship.uuid);
+    target.detection.party = "undetected";
+    Object.assign(s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0], {
+      traits: ["area (burst 1 zone)"],
+      range: 3,
+      die: "1d6",
+      damageType: "fire"
+    });
+    if (actionId === "auto-fire") s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0].traits.push("automatic");
+    for (const include of [false, true]) {
+      let prompts = 0;
+      foundry.applications.api.DialogV2.prompt = async () => {
+        prompts++;
+        return include ? [target.key] : [];
+      };
+      const before = s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value;
+      dice(6, 1);
+      await executeAction({ ...s.payload, actionId, user: s.user, options: { ...s.payload.options, areaOrigin: 3 } });
+      assert.equal(prompts, 1);
+      assert.equal(s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value < before, include);
+      assert.equal(getTsc(s.combat).objects.find((o) => o.key === target.key).detection.party, "undetected");
+    }
+  });
+}
+
+test("undetected area choice is revalidated after the GM dialog before any damage", async () => {
+  const s = await targetingScenario();
+  await changePrivateContact(s.combat, s.key, "detect", "undetected");
+  Object.assign(s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0], {
+    traits: ["area (burst 1 zone)"],
+    range: 3,
+    die: "1d6",
+    damageType: "fire"
+  });
+  foundry.applications.api.DialogV2.prompt = async () => {
+    await changePrivateContact(s.combat, s.key, "move", 9);
+    return [s.key];
+  };
+  const before = structuredClone(s.ship.flags);
+  await assert.rejects(
+    executeAction({ ...s.payload, actionId: "area-fire", user: s.user, options: { ...s.payload.options, areaOrigin: 3 } }),
+    /stale|changed/i
+  );
+  assert.deepEqual(s.ship.flags, before);
+  assert.equal(game.messages.size, 0);
+});
+
+test("a target entering the area during the GM dialog invalidates the attack before damage", async () => {
+  const s = await targetingScenario();
+  await changePrivateContact(s.combat, s.key, "detect", "undetected");
+  Object.assign(s.attacker.flags["sf2e-tactical-starship-combat"].starship.weapons[0], {
+    traits: ["area (burst 1 zone)"],
+    range: 3,
+    die: "1d6",
+    damageType: "fire"
+  });
+  const incoming = makeShip({ id: "incoming", role: "npc" });
+  s.combat.flags["sf2e-tactical-starship-combat"].tsc.objects.push({
+    key: incoming.uuid,
+    actorUuid: incoming.uuid,
+    type: "starship",
+    zone: 9,
+    detection: { party: "observed" }
+  });
+  foundry.applications.api.DialogV2.prompt = async () => {
+    const state = getTsc(s.combat);
+    state.objects.find((o) => o.key === incoming.uuid).zone = 3;
+    await s.combat.update({ "flags.sf2e-tactical-starship-combat.tsc": state });
+    return [s.key];
+  };
+  const before = structuredClone([s.ship.flags, incoming.flags]);
+  await assert.rejects(
+    executeAction({ ...s.payload, actionId: "area-fire", user: s.user, options: { ...s.payload.options, areaOrigin: 3 } }),
+    /stale|changed/i
+  );
+  assert.deepEqual([s.ship.flags, incoming.flags], before);
+  assert.equal(game.messages.size, 0);
+});
+
 test("Area Fire does not consume the GM-only targeting identity overlay", async () => {
   const s = await targetingScenario();
   const result = await executeAction({
@@ -244,8 +485,8 @@ test("Scan Target uses the existing private reveal path only after identificatio
   assert.equal(viewFor(getTsc(s.combat)).find((o) => o.key === s.ship.uuid)?.known, true);
 });
 
-test("private targets are revalidated after selection and never bypass hidden restrictions", async () => {
-  for (const level of ["hidden", "undetected"]) {
+test("private undetected targets are revalidated and cannot use a direct-target override", async () => {
+  for (const level of ["undetected"]) {
     const s = await targetingScenario();
     await changePrivateContact(s.combat, s.key, "detect", level);
     for (const user of [s.user, s.gm])
@@ -282,15 +523,18 @@ function setup() {
   const ctx = installFoundryMock();
   return { ctx, combat: makeStarshipCombat(), ship: makeShip({ id: "secret", name: "Secret Dreadnought", role: "npc" }) };
 }
-test("intermediate detection projects only anonymous position; move, hide, reveal and remove", async () => {
+test("intermediate detection projects approved anonymous metadata; move, hide, reveal and remove", async () => {
   const { combat, ship } = setup();
   await addPrivateContact(combat, ship, 4);
   const { key } = privateContacts(combat.id)[0];
   await changePrivateContact(combat, key, "detect", "hidden");
-  assert.equal(getTsc(combat).objects.length, 0);
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(getTsc(combat).objects[0].art, undefined);
+  assert.equal(getTsc(combat).objects[0].heading, null);
   await changePrivateContact(combat, key, "detect", "observed");
   const text = JSON.stringify(combat.flags);
-  for (const secret of [ship.name, ship.uuid, ship.img]) assert.equal(text.includes(secret), false);
+  for (const secret of [ship.name, ship.uuid]) assert.equal(text.includes(secret), false);
+  assert.equal(getTsc(combat).objects[0].art, ship.img);
   assert.equal(viewFor(getTsc(combat))[0].known, false);
   await changePrivateContact(combat, key, "move", 6);
   assert.equal(getTsc(combat).objects[0].zone, 6);

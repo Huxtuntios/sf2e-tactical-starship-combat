@@ -123,7 +123,7 @@ test("0.11.0 simple mode never resolves documents or destroys stored art", () =>
   assert.equal(s.objects[0].art, obj.art);
 });
 
-test("0.11.0 unidentified and hidden contacts never expose or resolve artwork", () => {
+test("sensor view permits observed artwork but never resolves unknown actor identity", () => {
   for (const level of ["undetected", "hidden", "observed", "identified"]) {
     const s = state();
     s.objects[0].detection.party = level;
@@ -140,7 +140,7 @@ test("0.11.0 unidentified and hidden contacts never expose or resolve artwork", 
     });
     if (level !== "identified") {
       assert.equal(image, "");
-      assert.equal(o.art, undefined);
+      assert.equal(o.art, level === "observed" ? obj.art : undefined);
       assert.equal(o.actorUuid, undefined);
       assert.equal(lookups, 0);
     } else {

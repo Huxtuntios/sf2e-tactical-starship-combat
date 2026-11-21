@@ -257,10 +257,10 @@ async function promptOptions(action, { ship, crew, station, target }) {
       const mySide = side(data.role);
       const rows = [];
       for (const o of tsc.objects) {
-        if (o.type !== "starship" || o.key === ship.uuid) continue;
+        if ((o.type !== "starship" && !(o.tscPrivateProjection && o.objectType === "starship")) || o.key === ship.uuid) continue;
         const level = game.user.isGM ? "identified" : effectiveDetection(o, own);
         if (level === "undetected") continue;
-        const a = fromUuidSync(o.actorUuid ?? o.key);
+        const a = o.tscPrivateProjection ? null : fromUuidSync(o.actorUuid ?? o.key);
         const label = level === "identified" ? o.name : (o.designation ?? T("SF2eTSC.detection.contact"));
         const friendly = a ? side(readStarship(a).role) === mySide : false;
         const i = areaKeys.push(o.key) - 1;

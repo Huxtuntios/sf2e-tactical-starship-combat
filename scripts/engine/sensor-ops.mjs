@@ -1,4 +1,4 @@
-import { DATA_VERSION, DETECTION_LEVELS, ZONE_LIMITS } from "../constants.mjs";
+import { MODULE_ID, DATA_VERSION, DETECTION_LEVELS, ZONE_LIMITS } from "../constants.mjs";
 import { contactName } from "./detection.mjs";
 import { moveAlongHeading, clampZone } from "./heading.mjs";
 
@@ -95,50 +95,41 @@ export function effectiveDetection(obj, observerKeys = ["party"]) {
  * Redacted view of the sensor map for a viewer. GM sees everything. Players never receive hidden identity.
  * @returns {object[]} display objects { key, zone, heading, label, icon, level, known, hidden, type }
  */
-export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], showUnknown = true } = {}) {
+export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], resolve = () => null } = {}) {
   const out = [];
   for (const o of state.objects) {
+    const type = o.objectType ?? o.type;
+    const category = ["starship", "hazard"].includes(type) ? type : "custom";
     if (isGM) {
-      out.push({ ...o, label: o.name, level: "identified", known: true, visible: !o.hidden });
+      out.push({ ...o, category, fullDetails: true, label: o.name, level: "identified", known: true, visible: !o.hidden });
       continue;
     }
     if (o.hidden && !ownKeys.includes(o.key)) continue;
-    if (ownKeys.includes(o.key) || o.alwaysVisible) {
-      out.push({ ...o, label: o.name, level: "identified", known: true, visible: true });
+    if (ownKeys.includes(o.key)) {
+      out.push({ ...o, category, fullDetails: true, label: o.name, level: "identified", known: true, visible: true });
       continue;
     }
-    const level = effectiveDetection(o, observerKeys);
+    const level = o.alwaysVisible ? "identified" : effectiveDetection(o, observerKeys);
     if (level === "undetected") continue;
-    if (level === "hidden") {
-      if (showUnknown)
-        out.push({
-          key: o.key,
-          type: "unknown",
-          zone: o.zone,
-          heading: null,
-          label: "?",
-          level,
-          known: false,
-          visible: true,
-          icon: null,
-          span: o.span
-        });
-      continue;
-    }
+    const hidden = level === "hidden";
     const known = level === "identified";
+    const actor = !hidden && !o.tscPrivateProjection ? resolve(o.actorUuid ?? o.key) : null;
     out.push({
       key: o.key,
-      type: known ? o.type : "contact",
+      type,
+      category,
+      fullDetails: false,
       zone: o.zone,
-      heading: o.heading,
+      heading: hidden ? null : o.heading,
       label: known ? o.name : (o.designation ?? "Contact"),
       level,
       known,
       visible: true,
-      icon: known ? o.icon : null,
-      art: known ? o.art : undefined,
+      icon: hidden ? "○" : known ? o.icon : null,
+      art: hidden ? undefined : o.art || actor?.img,
+      size: known ? (o.size ?? actor?.flags?.[MODULE_ID]?.starship?.size ?? actor?.system?.traits?.size?.value) : undefined,
       actorUuid: known ? o.actorUuid : undefined,
-      mapTransform: known ? o.mapTransform : undefined,
+      mapTransform: hidden ? undefined : o.mapTransform,
       autoMirrorOverride: known
         ? o.autoMirrorOverride === true || o.autoMirrorOverride === false
           ? o.autoMirrorOverride

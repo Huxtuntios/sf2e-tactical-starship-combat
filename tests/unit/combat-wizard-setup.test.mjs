@@ -392,9 +392,21 @@ for (const kind of ["npc", "hazard"]) {
       assert.equal(actor.testUserPermission(game.users.get("p1"), "LIMITED"), false);
       assert.equal(game.journal.contents[0].testUserPermission(game.users.get("p1"), "LIMITED"), false);
       const publicText = JSON.stringify({ flags: combat.flags, entries: combatantData(combat), socket: globalThis.__socket });
-      for (const secret of [source.name, source.img, source.uuid, actor.name, actor.img, actor.uuid])
+      for (const secret of [source.name, source.uuid, actor.name, actor.uuid])
         assert.equal(publicText.includes(secret), false, `public leak: ${secret}`);
-      assert.equal(getTsc(combat).objects.length, detection === "observed" ? 1 : 0);
+      if (detection !== "observed")
+        for (const art of [source.img, actor.img]) assert.equal(publicText.includes(art), false, `unapproved art: ${art}`);
+      assert.equal(getTsc(combat).objects.length, detection === "undetected" ? 0 : 1);
+      if (detection !== "undetected") {
+        const [marker] = getTsc(combat).objects;
+        assert.equal(marker.type, "contact");
+        assert.equal(marker.objectType, kind === "npc" ? "starship" : "hazard");
+        assert.equal(marker.name, "Contact");
+        assert.equal(marker.zone, 5);
+        assert.equal(marker.heading, detection === "observed" && kind === "npc" ? "left" : null);
+        if (detection === "observed") assert.equal(marker.art, actor.img);
+        else assert.equal(Object.hasOwn(marker, "art"), false);
+      }
       const [entry] = combat.combatants.contents;
       assert.ok(entry);
       assert.equal(entry.actorId, actor.id);
@@ -433,7 +445,7 @@ for (const detection of ["observed", "hidden", "undetected"]) {
 }
 
 for (const detection of ["observed", "hidden", "undetected"]) {
-  test(`explicit ${detection} custom object retains private art/type through Reveal`, async () => {
+  test(`explicit ${detection} custom object publishes only approved details before Reveal`, async () => {
     await setup();
     const combat = await startStarshipCombat({
       objects: [{ name: "Secret moon", type: "planet", art: "secret/moon.webp", detection, zone: 6 }]
@@ -442,8 +454,19 @@ for (const detection of ["observed", "hidden", "undetected"]) {
     assert.equal(contact.objectType, "planet");
     assert.equal(contact.art, "secret/moon.webp");
     const publicText = JSON.stringify(combat.flags);
-    for (const secret of ["Secret moon", "secret/moon.webp", "planet"]) assert.equal(publicText.includes(secret), false);
-    assert.equal(getTsc(combat).objects.length, detection === "observed" ? 1 : 0);
+    assert.equal(publicText.includes("Secret moon"), false);
+    assert.equal(publicText.includes("secret/moon.webp"), detection === "observed");
+    assert.equal(getTsc(combat).objects.length, detection === "undetected" ? 0 : 1);
+    if (detection !== "undetected") {
+      const [marker] = getTsc(combat).objects;
+      assert.equal(marker.type, "contact");
+      assert.equal(marker.objectType, "planet");
+      assert.equal(marker.name, "Contact");
+      assert.equal(marker.zone, 6);
+      assert.equal(marker.heading, null);
+      if (detection === "observed") assert.equal(marker.art, "secret/moon.webp");
+      else assert.equal(Object.hasOwn(marker, "art"), false);
+    }
     assert.equal(combat.combatants.size, 0);
     await changePrivateContact(combat, contact.key, "reveal");
     assert.equal(privateContacts(combat.id).length, 0);

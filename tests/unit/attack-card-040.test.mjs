@@ -92,7 +92,13 @@ test("declaration card: weapon, range, MAP and targets computed from state, noth
   );
   const keys = c.targets.map((t) => t.key);
   assert.ok(keys.includes(s.raider.uuid));
-  assert.ok(!keys.includes(s.ghost.uuid) && !keys.includes(s.shade.uuid), "players never see hidden/undetected objects");
+  assert.ok(keys.includes(s.ghost.uuid), "hidden contacts are offered anonymously");
+  assert.ok(!keys.includes(s.shade.uuid), "undetected objects are not offered");
+  const ghost = c.targets.find((t) => t.key === s.ghost.uuid);
+  assert.equal(ghost.available, true);
+  assert.equal(ghost.reason, null);
+  assert.equal(ghost.known, false);
+  assert.equal(ghost.label, null, "anonymous label uses the Contact fallback");
   const raider = c.targets.find((t) => t.key === s.raider.uuid);
   assert.equal(raider.available, true);
   assert.equal(raider.distance, 2);
@@ -102,17 +108,17 @@ test("declaration card: weapon, range, MAP and targets computed from state, noth
   assert.equal(far.available, false);
   assert.equal(far.reason, "outOfRange");
   assert.equal(far.label, "Contact Beta", "unidentified contact keeps its designation, not its name");
-  assert.deepEqual(res.targets, [s.raider.uuid]);
+  assert.deepEqual(res.targets, [s.ghost.uuid, s.raider.uuid]);
   // nothing spent / recorded / rolled
   assert.equal(globalThis.__writes.length, writesBefore, "no actor/combat writes");
   assert.deepEqual(tscOf(s.combat).budget ?? {}, {});
   assert.deepEqual(tscOf(s.combat).attacks, {});
   assert.equal(game.messages.contents.filter((m) => m.rolls?.length).length, 0, "no roll message");
-  // GM diagnostics are whispered and list the hidden objects with reasons
+  // GM diagnostics are whispered and list unavailable objects with reasons
   const diag = game.messages.contents.find((m) => m.flags[M]?.attackDiag);
   assert.ok(diag.whisper.includes("gm") && !diag.whisper.includes("p1"));
   const reasons = Object.fromEntries(diag.flags[M].attackDiag.rows.map((r) => [r.name, r.reason]));
-  assert.equal(reasons.Ghost, "hidden");
+  assert.equal(Object.hasOwn(reasons, "Ghost"), false, "available hidden contact needs no diagnostic refusal");
   assert.equal(reasons.Shade, "undetected");
   assert.doesNotMatch(game.messages.get(res.messageId).content, /Ghost|Shade/);
 });
@@ -225,8 +231,8 @@ test("target state changes after the card was posted: re-validated right before 
     () => mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.raider.uuid } }),
     /out of range/i
   );
-  // never-listed hidden target picked via a forged request
-  await assert.rejects(() => mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.ghost.uuid } }), /hidden/i);
+  // never-listed undetected target picked via a forged request
+  await assert.rejects(() => mods.card.resolveAttackCard({ user: s.p1, payload: { messageId, targetKey: s.shade.uuid } }), /undetected/i);
 });
 
 test("a card stays valid across turns (no turn gate); other players can't resolve someone else's card; a card from another combat is voided", async () => {

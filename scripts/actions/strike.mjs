@@ -1,7 +1,10 @@
 import { publicLabel } from "../chat/attack-card/model.mjs";
 import { damagePartsFromRoll, rollTypedDamage, typedDamageFormula } from "../rolls/typed-damage.mjs";
 import { DEGREE } from "../constants.mjs";
-import { findObject } from "../engine/sensor-ops.mjs";
+import { effectiveDetection, findObject } from "../engine/sensor-ops.mjs";
+import { targetingState } from "../engine/target-rules.mjs";
+import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
+import { privateContacts } from "../sensor/private-contacts.mjs";
 import { classifyRange, calculateZoneDistance, rangePenalty } from "../engine/range.mjs";
 import { isAttackFromBehind } from "../engine/heading.mjs";
 import { calculateAreaZones, parseAreaTrait, areaTargets } from "../engine/areas.mjs";
@@ -12,7 +15,7 @@ import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { basicSaveMultiplier } from "./dice.mjs";
 import { stationOf } from "../starship/starship-state.mjs";
 import { Content } from "../content/loader.mjs";
-import { T, moduleSetting } from "../utils/foundry.mjs";
+import { T, moduleSetting, escapeHtml, isActiveGM } from "../utils/foundry.mjs";
 import { Reactions } from "./reactions.mjs";
 import { log } from "../utils/logging.mjs";
 import { ct } from "../content/content-i18n.mjs";
@@ -447,12 +450,24 @@ async function applyTargetStationRider(ctx, target, dmg, degree) {
   if (degree === DEGREE.CRITICAL_SUCCESS) ctx.reports.push(T("SF2eTSC.chat.stunned1", { name: target.actor.name }));
 }
 
+function areaContactObjects(tsc, shipUuid, contacts) {
+  const state = targetingState(tsc, shipUuid, contacts);
+  return [
+    ...state.objects.filter((o) => !o.tscPrivateProjection),
+    ...contacts.filter(
+      (o) => !o.pendingReveal && o.actorUuid !== shipUuid && !state.objects.some((p) => p.key === o.key || p.actorUuid === o.actorUuid)
+    )
+  ];
+}
+
 /** Area Fire / Auto-Fire: damage once, each starship in the area makes a basic Reflex save vs the crew's class DC. */
 export async function resolveAreaFire(ctx, kind) {
   const weapon = resolveWeapon(ctx);
   if (!weapon) throw new Error(T("SF2eTSC.errors.noWeapon"));
   ctx.weapon = weapon;
-  const me = findObject(ctx.tsc, ctx.shipUuid);
+  const contacts = privateContacts(ctx.combat.id);
+  const objects = areaContactObjects(ctx.tsc, ctx.shipUuid, contacts);
+  const me = objects.find((o) => o.key === ctx.shipUuid);
   const areaTrait = (weapon.traits ?? []).map((t) => parseAreaTrait(t, null)).find(Boolean);
   const defaultSize = moduleSetting("areaWeaponZones") || Math.max(1, Math.floor((weapon.range ?? 2) / 2));
   let area;
@@ -463,7 +478,55 @@ export async function resolveAreaFire(ctx, kind) {
   if (!ctx.options.gmOverride && classifyRange(me.zone, origin, weapon.range).inRange === false) ctx.rule("outOfRange");
   const zones = calculateAreaZones({ ...area, border: ctx.options.areaOrigin ?? origin }, me.zone, me.heading, ctx.tsc.zones);
   ctx.areaZones = zones;
-  const { hit: targets, excluded } = areaTargets(ctx.tsc.objects, zones, ctx.shipUuid, ctx.options.areaExcludeKeys);
+  const { hit: candidates, excluded } = areaTargets(objects, zones, ctx.shipUuid, ctx.options.areaExcludeKeys);
+  const undetected = candidates.filter((o) => !o.alwaysVisible && effectiveDetection(o, [ctx.shipUuid]) === "undetected");
+  let included = [];
+  if (undetected.length) {
+    if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    included = await foundry.applications.api.DialogV2.prompt({
+      classes: ["sf2e-tsc"],
+      window: { title: T("SF2eTSC.ui.areaUndetected") },
+      content: `<p>${escapeHtml(T("SF2eTSC.ui.areaUndetectedHint"))}</p><fieldset>${undetected
+        .map(
+          (o, i) =>
+            `<label class="tsc-check"><input type="checkbox" name="areaInclude.${i}"> ${escapeHtml(o.name)} (${escapeHtml(T("SF2eTSC.ui.zone"))} ${o.zone})</label>`
+        )
+        .join("")}</fieldset>`,
+      ok: {
+        label: T("SF2eTSC.ui.execute"),
+        callback: (_event, button) =>
+          undetected.filter((_o, i) => button.form.elements.namedItem(`areaInclude.${i}`)?.checked).map((o) => o.key)
+      },
+      rejectClose: false
+    });
+    if (included === null) {
+      ctx.cancelled = true;
+      return;
+    }
+    if (!isActiveGM() || activeStarshipCombat()?.id !== ctx.combat.id) throw new Error(T("SF2eTSC.attackCard.stale"));
+    const fresh = areaContactObjects(getTsc(ctx.combat), ctx.shipUuid, privateContacts(ctx.combat.id));
+    const freshCandidates = areaTargets(fresh, zones, ctx.shipUuid, ctx.options.areaExcludeKeys).hit;
+    if (
+      freshCandidates.length !== candidates.length ||
+      !fresh.some((p) => p.key === me.key && p.zone === me.zone && p.heading === me.heading) ||
+      candidates.some(
+        (o) =>
+          !freshCandidates.some(
+            (p) =>
+              p.key === o.key &&
+              p.zone === o.zone &&
+              p.actorUuid === o.actorUuid &&
+              effectiveDetection(p, [ctx.shipUuid]) === effectiveDetection(o, [ctx.shipUuid])
+          )
+      )
+    )
+      throw new Error(T("SF2eTSC.attackCard.stale"));
+  }
+  const targets = candidates.filter((o) => !undetected.includes(o) || included.includes(o.key));
+  if (me.privateContact || targets.some((o) => o.privateContact)) {
+    ctx.privateAction = true;
+    ctx.draft.privateAction = true;
+  }
   if (excluded.length) ctx.lines.push({ label: T("SF2eTSC.chat.areaExcluded"), value: String(excluded.length) });
   if (!targets.length) {
     ctx.reports.push(T("SF2eTSC.chat.noTargetsInArea", { zones: zones.join(", ") }));
@@ -477,7 +540,7 @@ export async function resolveAreaFire(ctx, kind) {
     value: `${T(`SF2eTSC.areaTypes.${area.type}`)} ${area.value} — ${T("SF2eTSC.ui.zone")} ${zones.join(", ")}`
   });
   for (const o of targets) {
-    const entry = await ctx.draft.ship(o.key);
+    const entry = await ctx.draft.ship(o.actorUuid ?? o.key);
     if (entry.data.destroyed) continue;
     const lockOn = effectModifiers(effectsAgainst(entry.data.effects, ctx.shipUuid), "reflex-against-area").reduce(
       (a, m) => a + m.value,
@@ -489,6 +552,7 @@ export async function resolveAreaFire(ctx, kind) {
       dc: baseDC,
       label: `${entry.actor.name}: ${T("SF2eTSC.ui.reflex")}`,
       actor: entry.actor,
+      secret: !!ctx.privateAction,
       extraModifiers: lockOn ? [{ slug: "tsc-lock-on", label: modLabel("lockOn"), type: "circumstance", value: lockOn }] : [],
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
@@ -501,7 +565,7 @@ export async function resolveAreaFire(ctx, kind) {
     const mult = basicSaveMultiplier(res.degree);
     const amount = Math.floor(total * mult);
     if (amount > 0) {
-      const dmg = await applyDamageInDraft(ctx.draft, o.key, {
+      const dmg = await applyDamageInDraft(ctx.draft, o.actorUuid ?? o.key, {
         amount,
         damageType: weapon.damageType,
         traits,

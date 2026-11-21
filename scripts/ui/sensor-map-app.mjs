@@ -17,7 +17,7 @@ import { Content } from "../content/loader.mjs";
 import { openApps, refreshApps } from "./base-app.mjs";
 import { releaseMapBackground } from "./map-background.mjs";
 import { request } from "../socket.mjs";
-import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
+import { T, fromUuidSafe, fromUuidSync_, isActiveGM } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { wireSensorMapDragDrop } from "./sensor-drop-ui.mjs";
 import { SensorContactEditor } from "./sensor-contact-editor.mjs";
@@ -199,7 +199,7 @@ export class SensorMapApplication extends TscApp {
     }
     const permissions = this._mapPermissions;
     const own = permissions.own;
-    const view = viewFor(tsc, { isGM, observerKeys: own, ownKeys: own, showUnknown: moduleSetting("showUnknownContacts") });
+    const view = viewFor(tsc, { isGM, observerKeys: own, ownKeys: own, resolve: fromUuidSync_ });
     this.actorCache.setVisible(view, game.user);
     const resolved = new Map();
     if (includes("zones") || includes("detail")) {
@@ -259,17 +259,15 @@ export class SensorMapApplication extends TscApp {
 
   #decorate(o, targetTsc, combat, resolved, appearance, arrows) {
     const entry = o.known ? resolved.get(o.actorUuid ?? o.key) : null;
-    const actor = o.type === "starship" ? entry?.actor : null;
-    let status = "operational",
+    const actor = o.fullDetails && o.type === "starship" ? entry?.actor : null;
+    let status = o.fullDetails ? "operational" : null,
       hp = null,
       sp = null;
     const d = actor ? this.actorCache.data(entry) : null;
     if (d) {
       status = statusOf(d);
-      if (game.user.isGM || o.known) {
-        hp = `${d.hp.value}/${d.hp.max}`;
-        sp = `${d.sp.value}/${d.sp.max}`;
-      }
+      hp = `${d.hp.value}/${d.hp.max}`;
+      sp = `${d.sp.value}/${d.sp.max}`;
     }
     const arrowKey = o.arrowAppearance ? JSON.stringify(o.arrowAppearance) : "";
     if (!arrows.has(arrowKey)) arrows.set(arrowKey, resolveArrowAppearance(appearance, o.arrowAppearance));
@@ -281,7 +279,7 @@ export class SensorMapApplication extends TscApp {
       key: o.key,
       label: displayDesignation(o.label),
       icon: o.icon ?? ICONS[o.type] ?? "◆",
-      art: o.known && appearance.mode !== "simple" ? safeImagePath(o.art) || this.actorCache.artwork(entry) : "",
+      art: appearance.mode !== "simple" ? safeImagePath(o.art) || (o.known ? this.actorCache.artwork(entry) : "") : "",
       type: o.type,
       heading: o.heading,
       arrow: ["left", "right"].includes(o.heading) && arrowAppearance.arrowMode !== "none" ? (o.heading === "left" ? "←" : "→") : "",
@@ -296,7 +294,7 @@ export class SensorMapApplication extends TscApp {
       transform,
 
       status,
-      statusLabel: T(`SF2eTSC.status.${status}`),
+      statusLabel: status ? T(`SF2eTSC.status.${status}`) : null,
       hp,
       sp,
       hpPct: hpPct(hp),
@@ -313,7 +311,7 @@ export class SensorMapApplication extends TscApp {
   #detail(sel, tsc, isGM, resolved, movable) {
     const obj = findObject(tsc, sel.key);
     const entry = sel.known ? resolved.get(sel.actorUuid ?? sel.key) : null;
-    const actor = sel.type === "starship" ? (entry?.actor ?? null) : null;
+    const actor = sel.fullDetails && sel.type === "starship" ? (entry?.actor ?? null) : null;
     const d = actor ? this.actorCache.data(entry) : null;
     if (obj?.privateContact) {
       return {
@@ -338,9 +336,10 @@ export class SensorMapApplication extends TscApp {
     const mine = obj.mineRef && isGM ? obj.mineRef : null;
     const stats = d ? this.actorCache.stats(entry) : null;
     const rows = [{ k: T("SF2eTSC.ui.zone"), v: sel.zone }];
-    if (sel.known) rows.push({ k: T("SF2eTSC.ui.type"), v: T(`SF2eTSC.objectTypes.${sel.type}`) });
+    rows.push({ k: T("SF2eTSC.ui.type"), v: T(`SF2eTSC.objectTypes.${sel.fullDetails ? sel.type : sel.category}`) });
     if (sel.heading) rows.push({ k: T("SF2eTSC.ui.heading"), v: T(`SF2eTSC.heading.${sel.heading}`) });
-    if (d && (isGM || sel.known))
+    if (!sel.fullDetails && sel.known && sel.size) rows.push({ k: T("SF2eTSC.ui.size"), v: sel.size });
+    if (d)
       rows.push(
         { k: T("SF2eTSC.ui.level"), v: d.level },
         { k: T("SF2eTSC.ui.hullPoints"), v: `${d.hp.value}/${d.hp.max}` },
@@ -379,7 +378,8 @@ export class SensorMapApplication extends TscApp {
       mine,
       isMine: !!obj.mineRef,
       hazardDisabled: !!hs?.disabled,
-      canOpen: !!(actor ?? hazardActor) && (isGM || (actor ?? hazardActor).testUserPermission?.(game.user, "OBSERVER")),
+      canOpen:
+        !!sel.fullDetails && !!(actor ?? hazardActor) && (isGM || (actor ?? hazardActor).testUserPermission?.(game.user, "OBSERVER")),
       level: sel.level,
       detection: isGM
         ? DETECTION_LEVELS.map((l) => ({ id: l, label: T(`SF2eTSC.detection.${l}`), active: (obj.detection?.party ?? "undetected") === l }))

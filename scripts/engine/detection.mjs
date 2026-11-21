@@ -1,8 +1,8 @@
 import { DETECTION_LEVELS, DEGREE, GREEK, NAVAL } from "../constants.mjs";
 
-/** Only observed / identified objects can be targeted normally; hidden needs a flat check, undetected can't be targeted. */
+/** Flat checks for hidden targets remain a manual GM decision. */
 export function detectionTargetability(level) {
-  return level === "observed" || level === "identified" ? "ok" : level === "hidden" ? "flat-check" : "no";
+  return ["hidden", "observed", "identified"].includes(level) ? "ok" : "no";
 }
 /** Result of Seek Starships against a single target (rules text, Tech Core p.182). */
 export function resolveSeek(current, degree) {

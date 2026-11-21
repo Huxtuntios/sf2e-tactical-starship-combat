@@ -120,7 +120,7 @@ const MODULE='sf2e-tactical-starship-combat';
 const actors=Array.from({length:12},(_,i)=>({id:'actor-'+i,uuid:'Actor.actor-'+i,type:'vehicle',name:'Ship '+i,
   flags:{[MODULE]:{starship:{isStarship:true,dataVersion:20,role:'npc',level:3,sp:{value:20,max:30}}}},
   system:{attributes:{hp:{value:50,max:100}}},testUserPermission:()=>true}));
-const state={enabled:true,zones:12,objects:Array.from({length:360},(_,i)=>({key:'object-'+i,actorUuid:actors[i%12].uuid,type:'starship',name:'Object '+i,zone:i%12+1,heading:'right'})),log:[],appearance:{background:'giant.png',blur:0}};
+const state={enabled:true,zones:12,objects:Array.from({length:360},(_,i)=>({key:'object-'+i,actorUuid:actors[i%12].uuid,type:'starship',name:'Object '+i,zone:i%12+1,heading:'right',detection:{party:'observed'}})),log:[],appearance:{background:'giant.png',blur:0}};
 const combat={id:'combat',round:1,flags:{[MODULE]:{tsc:state}},combatants:[]};
 let savedUiState={};
 const settings={get:(module,key)=>key==='starshipSheetTheme'?'dark':key==='uiState'?savedUiState:key==='showUnknownContacts'?true:undefined,set:async(module,key,value)=>{if(key==='uiState')savedUiState=value;}};
@@ -213,6 +213,53 @@ Targeting.end();
 const lastBlob=blobs.at(-1);
 app.close();
 check('close-releases-layer-and-cache',revoked.includes(lastBlob)&&app.actorCache.entries.size===0&&app.actorCache.active.size===0&&openApps(SensorMapApplication).length===0&&hookHandlers.size===0&&layer.style.backgroundImage==='none');
+const savedObjects=state.objects,savedAppearance=state.appearance,savedActorImage=actors[1].img;
+actors[1].img='ordinary.png';actors[1].system.traits={size:{value:'large'}};
+state.appearance={background:'',mode:'art'};
+state.objects=[{key:'foreign-display',actorUuid:actors[1].uuid,type:'starship',name:'Identified enemy',zone:3,heading:'left',detection:{party:'identified'}}];
+const displayApp=new SensorMapApplication();
+displayApp.actorCache=new MapActorCache({read:actor=>{metrics.read++;return readStarship(actor);},stats:actor=>{metrics.stats++;return computeShipStats(actor);}});
+displayApp.selected='foreign-display';
+await displayApp.render({parts:['zones','detail']});
+let displayButton=displayApp.element.querySelector('[data-object-key="foreign-display"]');
+check('gm-foreign-full-details-unchanged',displayButton.title.includes('50/100')&&displayButton.classList.contains('st-operational')&&!!displayButton.querySelector('.tsc-obj-bars')&&!!displayApp.element.querySelector('[data-action="openSheet"]')&&!!displayApp.element.querySelector('.tsc-vitals-edit')&&!!displayApp.element.querySelector('[data-gm-ship="status"]'));
+const fullRead=metrics.read,fullStats=metrics.stats;
+game.user={id:'display-player',isGM:false,role:1};
+const displayPermission=actors[1].testUserPermission;
+actors[1].testUserPermission=()=>false;
+for(const level of ['identified','observed','hidden','undetected']){
+  state.objects[0].detection.party=level;
+  await displayApp.render({parts:['zones','detail']});
+  displayButton=displayApp.element.querySelector('[data-object-key="foreign-display"]');
+  const detail=displayApp.element.querySelector('[data-application-part="detail"]');
+  if(level==='identified')check('denied-observer-identified-photo-size-without-cache',displayApp.actorCache.entries.size===0&&displayButton.querySelector('.tsc-object-art')?.getAttribute('src')==='ordinary.png'&&detail.textContent.includes('large'));
+  if(level==='undetected'){
+    check('foreign-undetected-absent-and-selection-cleared',!displayButton&&!detail.querySelector('h3'));
+    continue;
+  }
+  const label=level==='identified'?'Identified enemy':'Contact';
+  check('foreign-'+level+'-label-category',displayButton.querySelector('.tsc-obj-name').textContent===label&&detail.textContent.includes('SF2eTSC.objectTypes.starship'));
+  check('foreign-'+level+'-no-stats-status-bars-open-vitals',!Array.from(displayButton.classList).some(name=>name.startsWith('st-'))&&!displayButton.title.includes('SF2eTSC.status.')&&!displayButton.getAttribute('aria-label').includes('SF2eTSC.status.')&&!displayButton.title.includes('50/100')&&!displayButton.querySelector('.tsc-obj-bars')&&!detail.querySelector('[data-action="openSheet"],.tsc-vitals-edit,[data-gm-ship]')&&!detail.textContent.includes('SF2eTSC.ui.ac')&&!detail.textContent.includes('SF2eTSC.ui.status')&&!detail.textContent.includes('50/100'));
+  check('foreign-'+level+'-art-heading',level==='hidden'?(!displayButton.querySelector('img,.tsc-obj-arrow')&&displayButton.querySelector('.tsc-obj-icon').textContent==='○'&&!detail.textContent.includes('SF2eTSC.ui.heading')):(displayButton.querySelector('.tsc-object-art')?.getAttribute('src')==='ordinary.png'&&!!displayButton.querySelector('.tsc-obj-arrow')&&detail.textContent.includes('SF2eTSC.heading.left')));
+  check('foreign-'+level+'-identified-size-only',detail.textContent.includes('SF2eTSC.ui.size')===(level==='identified')&&(!detail.textContent.includes('SF2eTSC.ui.size')||detail.textContent.includes('large')));
+}
+check('foreign-display-never-reads-stats',metrics.read===fullRead&&metrics.stats===fullStats);
+state.objects[0].detection.party='observed';state.appearance.mode='simple';
+await displayApp.render({parts:['zones','detail']});
+check('simple-mode-preserved-for-observed',!displayApp.element.querySelector('.tsc-object-art')&&!!displayApp.element.querySelector('.tsc-obj-arrow'));
+state.appearance.mode='art';
+for(const [type,category] of [['hazard','hazard'],['planet','custom']]){
+  state.objects=[{key:'foreign-category',type,name:'Hidden category',zone:4,heading:'right',detection:{party:'hidden'}}];displayApp.selected='foreign-category';
+  await displayApp.render({parts:['zones','detail']});
+  check('foreign-hidden-'+type+'-category',displayApp.element.querySelector('[data-application-part="detail"]').textContent.includes('SF2eTSC.objectTypes.'+category)&&displayApp.element.querySelector('.tsc-obj-icon').textContent==='○');
+}
+const savedRole=actors[0].flags[MODULE].starship.role;
+actors[0].flags[MODULE].starship.role='player';
+state.objects=[{key:actors[0].uuid,actorUuid:actors[0].uuid,type:'starship',name:'Own ship',zone:2,heading:'right',detection:{party:'undetected'}}];displayApp.selected=actors[0].uuid;
+displayApp.invalidateActorCache(actors[0]);await displayApp.render({parts:['zones','detail']});
+check('own-ship-full-details-unchanged',displayApp.element.querySelector('[data-object-key]').title.includes('8/100')&&!!displayApp.element.querySelector('.tsc-obj-bars')&&!!displayApp.element.querySelector('[data-action="openSheet"]')&&!!displayApp.element.querySelector('.tsc-vitals-edit')&&displayApp.element.querySelector('[data-application-part="detail"]').textContent.includes('SF2eTSC.ui.ac'));
+actors[0].flags[MODULE].starship.role=savedRole;actors[1].img=savedActorImage;actors[1].testUserPermission=displayPermission;delete actors[1].system.traits;
+state.objects=savedObjects;state.appearance=savedAppearance;game.user={id:'gm',role:4,isGM:true};displayApp.close();
 const notifications=[];
 ui.notifications.info=message=>notifications.push(message);
 ui.notifications.warn=message=>notifications.push(message);
@@ -260,7 +307,7 @@ const store=game.journal.contents[0], privateKey='private-target', sourceKey='pr
 const contact={key:privateKey,actorUuid:actors[1].uuid,name:'Protected target',type:'starship',zone:3,heading:'left',detection:{party:'observed'},privateContact:true};
 const source={...contact,key:sourceKey,actorUuid:actors[2].uuid,name:'Private attacker',zone:2,detection:{party:'hidden'}};
 store.flags[MODULE].privateSensor.contacts=[contact,source];
-const projection={key:privateKey,type:'contact',zone:3,name:'Contact',heading:null,detection:{party:'observed'},tscPrivateProjection:true};
+const projection={key:privateKey,type:'contact',objectType:'starship',zone:3,name:'Contact',heading:'left',art:'ordinary.png',detection:{party:'observed'},tscPrivateProjection:true};
 combat.flags[MODULE].tsc.objects=[{key:actors[0].uuid,actorUuid:actors[0].uuid,type:'starship',zone:2,name:'Player ship',alwaysVisible:true},projection];
 const targetApp=new SensorMapApplication();
 let picked=null;
@@ -275,8 +322,14 @@ game.user=player;picked=null;begin(actors[0].uuid);await targetApp.render({parts
 const playerButton=clickTarget();
 check('player-picks-anonymous-contact',picked===privateKey&&playerButton.textContent.includes('Contact'));
 check('player-dom-no-private-identity',!targetApp.element.textContent.includes('Protected target')&&!targetApp.element.innerHTML.includes(actors[1].uuid)&&!targetApp.element.querySelector('[data-object-key="'+sourceKey+'"]'));
-contact.detection.party='hidden';combat.flags[MODULE].tsc.objects.pop();game.user=gm;picked=null;begin(actors[0].uuid);await targetApp.render({parts:['zones']});clickTarget();
-check('hidden-private-contact-remains-unselectable',picked===null&&Targeting.current!==null);
+targetApp.selected=privateKey;await targetApp.render({parts:['zones','detail']});
+check('player-private-observed-art-heading-category',targetApp.element.querySelector('[data-object-key="'+privateKey+'"] .tsc-object-art')?.getAttribute('src')==='ordinary.png'&&!!targetApp.element.querySelector('[data-object-key="'+privateKey+'"] .tsc-obj-arrow')&&targetApp.element.querySelector('[data-application-part="detail"]').textContent.includes('SF2eTSC.objectTypes.starship')&&!targetApp.element.querySelector('[data-action="openSheet"],.tsc-vitals-edit'));
+contact.detection.party='hidden';projection.detection.party='hidden';projection.heading=null;projection.art='';game.user=gm;picked=null;begin(actors[0].uuid);await targetApp.render({parts:['zones']});clickTarget();
+check('gm-picks-hidden-private-contact',picked===privateKey&&Targeting.current===null);
+game.user=player;picked=null;begin(actors[0].uuid);await targetApp.render({parts:['zones','detail']});const hiddenButton=clickTarget();
+check('player-picks-hidden-private-contact',picked===privateKey&&Targeting.current===null&&hiddenButton.querySelector('.tsc-obj-icon').textContent==='○'&&!hiddenButton.querySelector('img,.tsc-obj-arrow,.tsc-obj-bars')&&!hiddenButton.title.includes('SF2eTSC.status.')&&targetApp.element.querySelector('[data-application-part="detail"]').textContent.includes('SF2eTSC.objectTypes.starship'));
+contact.detection.party='undetected';combat.flags[MODULE].tsc.objects.pop();game.user=gm;picked=null;begin(actors[0].uuid);await targetApp.render({parts:['zones']});clickTarget();
+check('undetected-private-contact-remains-unselectable',picked===null&&Targeting.current!==null);
 Targeting.end();targetApp.close();
 document.querySelector('#result').textContent=JSON.stringify({checks,metrics,passed:checks.every(x=>x.pass)});
 }catch(error){document.querySelector('#result').textContent=JSON.stringify({checks,passed:false,error:error.stack});}
