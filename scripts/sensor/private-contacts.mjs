@@ -1,7 +1,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
-import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
+import { getTsc, saveTsc, mutateTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
 import { safeImagePath } from "./appearance.mjs";
@@ -165,20 +165,20 @@ function contactProjection(contact, actor = null) {
   };
 }
 async function saveProjection(combat, contact, remove = false) {
-  const state = getTsc(combat);
-  const matches = state.objects.filter((o) => o.key === contact.key);
-  if (matches.length > 1 || matches.some((o) => o.tscPrivateProjection !== true)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-  const objects = state.objects.filter((o) => o.key !== contact.key);
-  if (!remove) {
-    const actor = contact.actorUuid ? await fromUuidSafe(contact.actorUuid) : null;
-    const projection = contactProjection(contact, actor);
+  const actor = !remove && contact.actorUuid ? await fromUuidSafe(contact.actorUuid) : null;
+  requireGM();
+  await mutateTsc(combat, (state) => {
+    requireGM();
+    const matches = state.objects.filter((o) => o.key === contact.key);
+    if (matches.length > 1 || matches.some((o) => o.tscPrivateProjection !== true)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    const objects = state.objects.filter((o) => o.key !== contact.key);
+    const projection = remove ? null : contactProjection(contact, actor);
     if (projection) {
       const index = state.objects.findIndex((o) => o.key === contact.key);
       objects.splice(index < 0 ? objects.length : index, 0, projection);
     }
-  }
-  requireGM();
-  await saveTsc(combat, { ...state, objects });
+    return { ...state, objects };
+  });
   requireGM();
 }
 

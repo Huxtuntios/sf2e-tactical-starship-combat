@@ -16,7 +16,7 @@ import { rollSpec, basicSaveMultiplier } from "./dice.mjs";
 import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
 import { turnIndexOf, combatantForActor } from "../combat/tsc-state.mjs";
 import { ct } from "../content/content-i18n.mjs";
-import { changePrivateContact } from "../sensor/private-contacts.mjs";
+import { changePrivateContact, privateContacts } from "../sensor/private-contacts.mjs";
 
 const modelKeyOf = (data) => data.sourceId ?? data.name ?? "unknown";
 
@@ -241,18 +241,25 @@ export async function resolveSeekBuiltin(ctx, rollResult) {
   const observer = ctx.shipUuid;
   const range = ctx.stats.sensorRange;
   const style = moduleSetting("contactDesignation");
+  const contacts = tsc.objects.some((o) => o.tscPrivateProjection) ? privateContacts(ctx.combat.id) : [];
   for (const o of [...tsc.objects]) {
     if (o.key === me.key) continue;
-    if (calculateZoneDistance(me.zone, o.zone) > range) continue;
-    const current = effectiveDetection(o, [observer]);
+    const target = o.tscPrivateProjection
+      ? contacts.find((contact) => contact.key === o.key && !contact.pendingReveal && contact.zone === o.zone)
+      : o;
+    if (!target || calculateZoneDistance(me.zone, target.zone) > range) continue;
+    const current = effectiveDetection(target, [observer]);
     if (current === "observed" || current === "identified") continue;
-    const dcValue = await seekTargetDC(o);
+    const dcValue = await seekTargetDC(target);
     const degree = degreeOfSuccess(rollResult.total, dcValue, rollResult.natural);
     const next = resolveSeek(current, degree);
     if (next !== current) {
-      // the party shares sensor data: the GM detail panel and every player view read "party"
-      ctx.draft.tsc = setDetection(setDetection(ctx.draft.tsc, o.key, observer, next), o.key, "party", next);
-      if (next === "observed" && !o.designation) ctx.draft.tsc = assignDesignation(ctx.draft.tsc, o.key, style);
+      if (o.tscPrivateProjection) await changePrivateContact(ctx.combat, o.key, "detect", next);
+      else {
+        // the party shares sensor data: the GM detail panel and every player view read "party"
+        ctx.draft.tsc = setDetection(setDetection(ctx.draft.tsc, o.key, observer, next), o.key, "party", next);
+        if (next === "observed" && !o.designation) ctx.draft.tsc = assignDesignation(ctx.draft.tsc, o.key, style);
+      }
       ctx.reports.push(`${T("SF2eTSC.chat.contactUpdated")}: ${T("SF2eTSC.ui.zone")} ${o.zone} → ${T(`SF2eTSC.detection.${next}`)}`);
     }
   }
