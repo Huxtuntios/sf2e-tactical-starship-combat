@@ -31,7 +31,17 @@ export async function postSimpleCard({ actor, title, body, whisperGM = false }) 
 }
 
 /** Card for a station / starship action. `lines` = [{label,value}] */
-export async function postActionCard({ actor, action, crewName, stationName, degreeLabel, lines = [], reports = [], manual = [] }) {
+export async function postActionCard({
+  actor,
+  action,
+  crewName,
+  stationName,
+  degreeLabel,
+  lines = [],
+  reports = [],
+  manual = [],
+  whisperGM = false
+}) {
   const head = `<header><h3>${escapeHtml(actor.name)}</h3><span>${escapeHtml(game.i18n.has(`SF2eTSC.actions.${action.id}`) ? T(`SF2eTSC.actions.${action.id}`) : ct(action.name))}${stationName ? ` — ${escapeHtml(ct(stationName))}` : ""}</span></header>`;
   const meta = crewName ? row(T("SF2eTSC.chat.crew"), escapeHtml(crewName)) : "";
   const deg = degreeLabel ? `<div class="tsc-degree">${escapeHtml(degreeLabel)}</div>` : "";
@@ -41,7 +51,7 @@ export async function postActionCard({ actor, action, crewName, stationName, deg
   const man = manual.length
     ? `<div class="tsc-manual"><strong>${T("SF2eTSC.chat.manualResolve")}</strong>${manual.map((m) => `<p>${rich(m)}</p>`).join("")}</div>`
     : "";
-  return post({ actor, content: wrap("action", `${head}${meta}${deg}<div class="tsc-body">${body}</div>${man}`) });
+  return post({ actor, whisperGM, content: wrap("action", `${head}${meta}${deg}<div class="tsc-body">${body}</div>${man}`) });
 }
 
 /** Card describing structured damage output (mirrors the damage engine result). */

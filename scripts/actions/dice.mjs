@@ -1,4 +1,5 @@
 import { scaledDiceCount } from "../engine/advancement.mjs";
+import { secretVisibility } from "../starship/stats.mjs";
 
 /** Evaluate a data-driven dice spec: { count|"rank"|"missiles", faces, bonus, scaling:{from,step}, flat, bonusFromCheck }. */
 export function buildFormula(spec, ctx) {
@@ -22,7 +23,7 @@ export async function rollSpec(spec, ctx, flavor) {
   const formula = buildFormula(spec, ctx);
   if (/^\d+$/.test(formula)) return { total: Number(formula), formula };
   const roll = await new Roll(formula).evaluate();
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor });
+  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor }, secretVisibility(ctx.privateAction));
   return { total: roll.total, formula, roll };
 }
 

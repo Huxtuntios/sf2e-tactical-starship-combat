@@ -4,6 +4,7 @@ import { computeStarshipDamagePacket } from "../engine/damage-packet.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { postDamageCard } from "../chat/chat-cards.mjs";
 import { Initiative } from "../combat/initiative.mjs";
+import { privateContacts } from "../sensor/private-contacts.mjs";
 
 /** StarshipDamageEngine (Foundry layer): applies the pure damage computation to a draft and queues chat/events. */
 export async function applyDamageInDraft(
@@ -26,6 +27,8 @@ export async function applyDamageInDraft(
   draft.auditReason = source || attackLine || damageType;
   const entry = await draft.ship(shipUuid);
   const d = entry.data;
+  const privateTarget = !!draft.combat && privateContacts(draft.combat.id).some((contact) => contact.actorUuid === shipUuid);
+  if (privateTarget) draft.privateAction = true;
   // module IWR (ship editor) + the actor's own system IWR (sf2e attributes), all normalised to system damage slugs
   const sysAttr = entry.actor?.system?.attributes ?? {};
   const immunities = [
@@ -88,6 +91,6 @@ export async function applyDamageInDraft(
     if (draft.combat) draft.afterCommit(() => Initiative.enterCompromised(draft.combat, actor));
   }
   if (result.destroyed) draft.event(HOOK_EVENTS.destroyed, actor);
-  if (!silent) draft.afterCommit(() => postDamageCard({ actor, source, result, attackLine, undoRef }));
+  if (!silent && !privateTarget) draft.afterCommit(() => postDamageCard({ actor, source, result, attackLine, undoRef }));
   return result;
 }

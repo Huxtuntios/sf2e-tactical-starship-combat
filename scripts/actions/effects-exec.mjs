@@ -16,6 +16,7 @@ import { rollSpec, basicSaveMultiplier } from "./dice.mjs";
 import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
 import { turnIndexOf, combatantForActor } from "../combat/tsc-state.mjs";
 import { ct } from "../content/content-i18n.mjs";
+import { changePrivateContact } from "../sensor/private-contacts.mjs";
 
 const modelKeyOf = (data) => data.sourceId ?? data.name ?? "unknown";
 
@@ -127,6 +128,7 @@ const EXEC = {
           dc,
           label: `${targetActor.name}: ${fx.save.type}`,
           actor: targetActor,
+          secret: !!ctx.privateAction,
           skipDialog: ctx.options.skipDialog,
           messageMode: ctx.options.messageMode,
           modifierOnly: computeShipStats(targetActor)[fx.save.type]
@@ -186,6 +188,7 @@ const EXEC = {
   async identify(fx, ctx) {
     if (!ctx.target) throw new Error(T("SF2eTSC.errors.needTarget"));
     const t = ctx.target;
+    if (t.obj?.privateContact) await changePrivateContact(ctx.combat, t.key, "reveal");
     const k = ctx.draft.tsc.knowledge[t.modelKey] ?? { model: false, stations: [] };
     k.model = true;
     const ids = t.data.stations.map((s) => s.id);
@@ -195,8 +198,10 @@ const EXEC = {
       if (unknown.length) k.stations = [...k.stations, unknown[Math.floor(Math.random() * unknown.length)]];
     }
     ctx.draft.tsc.knowledge[t.modelKey] = k;
-    ctx.draft.tsc = setDetection(ctx.draft.tsc, t.key, ctx.shipUuid, "identified");
-    ctx.draft.tsc = setDetection(ctx.draft.tsc, t.key, "party", "identified");
+    if (!t.obj?.privateContact) {
+      ctx.draft.tsc = setDetection(ctx.draft.tsc, t.key, ctx.shipUuid, "identified");
+      ctx.draft.tsc = setDetection(ctx.draft.tsc, t.key, "party", "identified");
+    }
     ctx.reports.push(T("SF2eTSC.chat.identified", { name: t.actor.name }));
     ctx.draft.event(HOOK_EVENTS.targetIdentified, ctx.ship, t.actor);
   },

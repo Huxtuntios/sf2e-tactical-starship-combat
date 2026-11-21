@@ -4,7 +4,7 @@ import { damagePartsFromRoll, rollTypedDamage, typedDamageFormula } from "../../
  * All writes happen here, on the GM, through the socket handlers registered in client.mjs.
  */
 import { MODULE_ID } from "../../constants.mjs";
-import { executeAction, sanitizeActionRequest, targetRuleInput } from "../../actions/action-engine.mjs";
+import { executeAction, sanitizeActionRequest, targetRuleInput, publicActionResult } from "../../actions/action-engine.mjs";
 import { computeAttackModifiers, knownAttackBonus } from "../../actions/strike.mjs";
 import { evaluateTargets, visibleToPlayers } from "../../engine/target-rules.mjs";
 import { findObject } from "../../engine/sensor-ops.mjs";
@@ -62,7 +62,7 @@ export async function declareAttack({ user, payload }) {
       playerVisible: visibleToPlayers(obj, ctx.shipUuid),
       ...publicLabel(obj, ctx.shipUuid)
     };
-    if (ev.available) {
+    if (ev.available && !obj.privateContact) {
       const actor = fromUuidSync_(out.actorUuid);
       if (actor && isStarship(actor)) {
         try {
@@ -119,7 +119,7 @@ export async function declareAttack({ user, payload }) {
     result: null,
     error: null
   };
-  const publicCard = ctx.data.role === "player" || attackerPublic.label != null;
+  const publicCard = !me?.privateContact && (ctx.data.role === "player" || attackerPublic.label != null);
   const speaker = ctx.crew ? ChatMessage.getSpeaker({ actor: ctx.crew }) : ChatMessage.getSpeaker({ actor: ctx.ship });
   if (!publicCard || !attackerPublic.known) speaker.alias = attackerPublic.label ?? T("SF2eTSC.attackCard.unknownAttacker");
   const gmIds = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
@@ -217,11 +217,38 @@ export async function resolveAttackCard({ user, payload }) {
     }
     const tsc = combat ? getTsc(game.combats.get(combat.id)) : null;
     const tobj = tsc ? findObject(tsc, targetKey) : null;
-    const tl = tobj ? publicLabel(tobj, card.ship.uuid) : { label: res.summary?.targetName };
+    const safeSummary = publicActionResult(res).summary;
+    const tl = tobj ? publicLabel(tobj, card.ship.uuid) : { label: safeSummary?.targetName };
+    const gmOnly = message.whisper?.length && message.whisper.every((id) => game.users.get(id)?.isGM);
+    if (
+      res.summary?.privateAction &&
+      !gmOnly &&
+      (card.action.builtin === "spell-attack" || res.summary.pendingDamage || res.summary.boundDamage)
+    ) {
+      const privateCard = {
+        ...card,
+        status: "resolved",
+        applicationId: message.id,
+        result: res.summary,
+        boundDamage: res.summary.boundDamage,
+        error: null
+      };
+      await ChatMessage.create({
+        whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+        speaker: message.speaker,
+        content: renderAttackCard({ flags: { [MODULE_ID]: { [CARD_FLAG]: privateCard } } }),
+        flags: { [MODULE_ID]: { card: true, [CARD_FLAG]: privateCard } }
+      });
+    }
     await updateCard(message, {
       status: "resolved",
       error: null,
-      result: { ...res.summary, targetKey, targetLabel: tl.known ? (tobj?.name ?? res.summary?.targetName) : tl.label, resolvedBy: user.id }
+      result: {
+        ...(gmOnly ? res.summary : safeSummary),
+        targetKey,
+        targetLabel: tl.known ? (tobj?.name ?? res.summary?.targetName) : (tl.label ?? "Contact"),
+        resolvedBy: user.id
+      }
     });
     return { ok: true, degree: res.degree };
   } finally {
@@ -302,7 +329,10 @@ export async function applyAttackCardDamage({ user, payload }) {
     const amount = parts.reduce((sum, part) => sum + part.amount, 0);
     const target = await fromUuidSafe(pd.targetUuid);
     if (!target || !isStarship(target)) throw new Error(T("SF2eTSC.errors.needTarget"));
-    const draft = new Draft(activeStarshipCombat() ?? null);
+    const combat = activeStarshipCombat();
+    if (pd.privateCombatId && combat?.id !== pd.privateCombatId) throw new Error(T("SF2eTSC.attackCard.stale"));
+    const draft = new Draft(combat ?? null);
+    if (pd.privateCombatId) draft.privateAction = true;
     const entry = await draft.ship(pd.targetUuid);
     const strikeId = `chat:${appId}`;
     if (entry.data.appliedStrikeReceipts != null && !Array.isArray(entry.data.appliedStrikeReceipts))
@@ -364,7 +394,7 @@ export async function applyAttackCardDamage({ user, payload }) {
         appliedBy: user.id
       }
     });
-    return { ok: true, result: d };
+    return draft.privateAction ? { ok: true } : { ok: true, result: d };
   } finally {
     damaging.delete(appId);
   }

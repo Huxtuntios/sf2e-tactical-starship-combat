@@ -51,8 +51,10 @@ export function evaluateTarget({
   if (!me) return { ...base, reason: "notPlaced" };
   const cls = classifyRange(me.zone, obj.zone, range ?? 99);
   const out = { ...base, distance: cls.distance, inRange: cls.inRange };
-  if (obj.key === shipKey && !allowSelf) return { ...out, reason: "self" };
-  if (obj.type !== "starship") return { ...out, reason: "notStarship" };
+  if ((obj.key === shipKey || (obj.privateContact && obj.actorUuid === shipKey)) && !allowSelf) return { ...out, reason: "self" };
+  if (obj.privateContact && (obj.pendingReveal || obj.detection?.party !== "observed"))
+    return { ...out, reason: obj.detection?.party === "hidden" ? "hidden" : "undetected" };
+  if (obj.type !== "starship" && !(obj.type === "contact" && obj.tscPrivateProjection === true)) return { ...out, reason: "notStarship" };
   if (isDestroyed(obj.key)) return { ...out, reason: "destroyed" };
   if (enforceDetection && !override && obj.key !== shipKey) {
     const tg = detectionTargetability(level);
@@ -68,6 +70,31 @@ export function evaluateTarget({
 
 /** Range / detection problems: blocked in strict mode, an available target with a `warning` in warn mode. */
 const softOr = (out, reason, soft) => (soft ? { ...out, available: true, warning: reason } : { ...out, reason });
+
+// Private identities are joined only in a GM-local view, never in the persisted Combat state.
+export function targetingState(tsc, shipUuid, contacts = []) {
+  const objects = tsc.objects.map((obj) => {
+    if (!obj.tscPrivateProjection) return obj;
+    const contact = contacts.find((c) => c.key === obj.key);
+    return contact?.type === "starship" &&
+      contact.actorUuid &&
+      !contact.pendingReveal &&
+      contact.detection?.party === "observed" &&
+      obj.detection?.party === "observed" &&
+      contact.zone === obj.zone
+      ? { ...contact, designation: obj.designation ?? "Contact" }
+      : obj;
+  });
+  if (!objects.some((obj) => obj.key === shipUuid)) {
+    const source = contacts.find((obj) => obj.actorUuid === shipUuid && obj.type === "starship" && !obj.pendingReveal);
+    if (source) {
+      const index = objects.findIndex((obj) => obj.key === source.key);
+      if (index >= 0) objects.splice(index, 1);
+      objects.push({ ...source, key: shipUuid });
+    }
+  }
+  return { ...tsc, objects };
+}
 
 /** All candidate objects (every sensor object except the attacker), nearest first. */
 export function evaluateTargets(p) {

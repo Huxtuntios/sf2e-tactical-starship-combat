@@ -8,7 +8,8 @@ import { mapStateFor } from "../combat/attack-tracker.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { isFrequencyAvailable, recordUse, frequencyKey } from "../engine/frequency.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
-import { evaluateTarget, TARGET_REASON_ERRORS } from "../engine/target-rules.mjs";
+import { evaluateTarget, targetingState, TARGET_REASON_ERRORS } from "../engine/target-rules.mjs";
+import { privateContacts } from "../sensor/private-contacts.mjs";
 import { Draft } from "./draft.mjs";
 import { buildNpcAction, slugifyName } from "./npc-inline.mjs";
 import { bindNpcStrikeTemplate } from "./npc-rows.mjs";
@@ -87,6 +88,7 @@ async function resolveTarget(ctx) {
   if (!key) fail("needTarget");
   const obj = findObject(ctx.tsc, key);
   if (!obj) fail("targetNotFound");
+  if (obj.tscPrivateProjection) fail("badTarget");
   const ev = evaluateTarget({ ...targetRuleInput(ctx), obj });
   if (!ev.available) fail(TARGET_REASON_ERRORS[ev.reason] ?? "badTarget");
   if (ev.warning) ctx.rule(TARGET_REASON_ERRORS[ev.warning] ?? "badTarget");
@@ -148,6 +150,7 @@ async function runCheck(ctx) {
       dc,
       label: `${ctx.target.actor.name}: ${T(`SF2eTSC.ui.${c.save}`)}`,
       actor: ctx.target.actor,
+      secret: !!ctx.privateAction,
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
       modifierOnly: computeShipStats(ctx.target.actor)[c.save]
@@ -186,7 +189,7 @@ async function runCheck(ctx) {
     label: `${actionLabel(ctx.action)} (${game.i18n.has(`SF2eTSC.skills.${String(skill).toLowerCase()}`) ? T(`SF2eTSC.skills.${String(skill).toLowerCase()}`) : skill})`,
     actor: roller,
     extraModifiers: boost,
-    secret: !!c.secret,
+    secret: !!c.secret || !!ctx.privateAction,
     modifierOnly: fallbackMod,
     skipDialog: ctx.options.skipDialog,
     messageMode: ctx.options.messageMode,
@@ -233,6 +236,7 @@ export async function executeAction(params) {
 /** Structured result used by attack result cards (no Foundry objects). */
 function attackSummaryOf(ctx) {
   return {
+    privateAction: !!ctx.privateAction,
     degree: ctx.degree,
     degreeLabel: ctx.degreeLabel,
     lines: ctx.lines,
@@ -328,7 +332,9 @@ async function executeActionNow(params) {
     suppressActionCard: false,
     strikeId: params.strikeId ?? foundry.utils.randomID(20),
     get tsc() {
-      return draft.tsc;
+      return draft.tsc && combat && action.targeting?.type === "starship"
+        ? targetingState(draft.tsc, shipUuid, privateContacts(combat.id))
+        : draft.tsc;
     },
     stats: computeShipStats(ship),
     station: null,
@@ -388,6 +394,8 @@ async function executeActionNow(params) {
   )
     ctx.weapon = resolveWeapon(ctx);
   ctx.target = params.dryRun && !params.validateTarget ? null : await resolveTarget(ctx);
+  ctx.privateAction = !!(ctx.target?.obj?.privateContact || findObject(ctx.tsc, shipUuid)?.privateContact);
+  if (ctx.privateAction) draft.privateAction = true;
   const failed = evaluateRequirements(action, ctx, strictRules);
   if (failed.length) rule("requirementFailed", { reqs: failed.map((k) => T(`SF2eTSC.requirements.${k}`)).join(", ") });
 
@@ -469,7 +477,8 @@ async function executeActionNow(params) {
         degreeLabel: ctx.degreeLabel,
         lines: ctx.lines,
         reports: ctx.reports,
-        manual: ctx.manual
+        manual: ctx.manual,
+        whisperGM: !!ctx.privateAction
       })
     );
   const reactionResult = action.cost === "reaction" ? reactionResultFor(ctx) : {};
@@ -542,8 +551,19 @@ export function sanitizeActionRequest(payload, user) {
   return { shipUuid: str(p.shipUuid), actionId: str(p.actionId), crewUuid: str(p.crewUuid), stationId: str(p.stationId), options };
 }
 
+export function publicActionResult(result) {
+  if (!result.summary?.privateAction) return result;
+  return {
+    ok: result.ok,
+    cancelled: result.cancelled,
+    degree: result.degree,
+    reports: [],
+    summary: { degree: result.degree, targetName: "Contact" }
+  };
+}
+
 export function registerActionHandlers() {
-  registerHandler("executeAction", ({ user, payload }) =>
-    executeAction({ ...sanitizeActionRequest(payload, user), user, userId: user.id })
+  registerHandler("executeAction", async ({ user, payload }) =>
+    publicActionResult(await executeAction({ ...sanitizeActionRequest(payload, user), user, userId: user.id }))
   );
 }

@@ -167,7 +167,7 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
   } else if (spell) statistic = bestSpellStatistic(ctx.crew);
   else statistic = buildCrewAttack(ctx.crew, weapon);
   const attacker = findObject(ctx.tsc, ctx.shipUuid);
-  const secretAttack = ctx.data.role !== "player" && (!attacker || !publicLabel(attacker, "party").known);
+  const secretAttack = !!ctx.privateAction || (ctx.data.role !== "player" && (!attacker || !publicLabel(attacker, "party").known));
   const res = await rollNativeCheck({
     secret: secretAttack,
     statistic: ctx.options.npcStrike ? npcStatistic(ctx, weapon) : statistic,
@@ -292,7 +292,7 @@ export function damageFormula(ctx, weapon, crit) {
 }
 async function rollDamage(ctx, formula, flavor) {
   const roll = await new Roll(formula).evaluate();
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor });
+  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: ctx.ship }), flavor }, secretVisibility(ctx.privateAction));
   return roll.total;
 }
 
@@ -330,6 +330,7 @@ export async function resolveStrike(ctx) {
       traits: traitsL,
       targetUuid: target.uuid,
       targetKey: target.key,
+      ...(ctx.privateAction ? { privateCombatId: ctx.combat.id } : {}),
       source: weapon.name
     };
     if (res.degree >= DEGREE.SUCCESS) {
@@ -347,7 +348,7 @@ export async function resolveStrike(ctx) {
   // Keep the same formula and application order, but use the system's typed damage roll for chat.
   const formula = damageFormula(ctx, weapon, crit);
   const flavor = `${ct(weapon.name)}: ${T("SF2eTSC.chat.damage")}`;
-  const secret = ctx.data.role !== "player" && (!me || !publicLabel(me, "party").known);
+  const secret = !!ctx.privateAction || (ctx.data.role !== "player" && (!me || !publicLabel(me, "party").known));
   const DamageRoll = globalThis.CONFIG?.Dice?.rolls?.find((Ctor) => Ctor.name === "DamageRoll");
   const damageType = weapon.damageType ?? "untyped";
   const formulas = weapon.npc

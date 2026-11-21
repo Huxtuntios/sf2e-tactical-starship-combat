@@ -357,8 +357,12 @@ export class MockRoll {
     this._evaluated = true;
     return this;
   }
-  async toMessage(data = {}) {
-    return MockChatMessage.create({ ...data, rolls: [this], content: String(this.total) });
+  async toMessage(data = {}, options = {}) {
+    const whisper =
+      options.messageMode === "gm" || options.rollMode === "gmroll"
+        ? MockChatMessage.getWhisperRecipients("GM").map((user) => user.id)
+        : (data.whisper ?? []);
+    return MockChatMessage.create({ ...data, whisper, rolls: [this], content: String(this.total) });
   }
 }
 /** Test double for SF2e typed instance pools. Not a replacement for system integration tests. */

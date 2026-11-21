@@ -36,7 +36,7 @@ export class Draft {
   }
   log(text, type = "info", data = {}) {
     if (type === "action") this.auditActionReason = text;
-    if (!this.tsc) return;
+    if (!this.tsc || this.privateAction) return;
     this.tsc.log = [...this.tsc.log, { t: Date.now(), round: this.combat?.round ?? 0, text, type, data }].slice(-80);
   }
   async commit() {
@@ -70,6 +70,7 @@ export class Draft {
           writeStarship(actor, data, {
             expected: snapshot(before),
             ...writeOptions,
+            announce: this.privateAction ? false : writeOptions?.announce,
             hullPatch: data.hp,
             reason,
             undoable: undoable && !!this.auditReason
