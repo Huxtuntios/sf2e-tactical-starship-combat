@@ -728,6 +728,10 @@
         "name": "Sensor map size",
         "hint": "Number of zones (3–50). Default 12."
       },
+      "reuseWorldActorsOnSensorMap": {
+        "name": "Reuse world Actors on the Sensor Map",
+        "hint": "Use existing world Actors without creating copies. Repeated Actors Directory drops move the existing contact. Disable to create independent copies on the Sensor Map and in the Actors Directory for each placement. Compendium imports still create world copies."
+      },
       "autoOpenSensorMap": {
         "name": "Auto-open the sensor map (this client)",
         "hint": "Open the sensor map when tactical starship combat starts."
@@ -1598,6 +1602,7 @@
       "unsupportedActor": "Only starship and hazard Actors are supported.",
       "duplicateActors": "Multiple records for this Actor already exist; resolve duplicates first.",
       "disclosureRequired": "Confirm disclosure to players before adding this object.",
+      "privateContact": "This Actor is a private contact. Use the Sensor Map controls to move or reveal the existing contact.",
       "disclosureTitle": "Place a visible object?",
       "disclosure": "The new object will be visible to all players: its name, Actor reference and zone may be accessible in combat data. Do not use this method for hidden ships or hazards. Continue?",
       "unchanged": "This Actor is already in the selected zone.",

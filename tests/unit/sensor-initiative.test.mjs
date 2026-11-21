@@ -5,12 +5,19 @@ import Handlebars from "handlebars";
 import { installFoundryMock, makeShip, makeStarshipCombat, MockUser } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
-import { changePrivateContact, privateContacts } from "../../scripts/sensor/private-contacts.mjs";
+import { addPrivateContact, changePrivateContact, privateContacts } from "../../scripts/sensor/private-contacts.mjs";
+import { createSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
 
 function setup() {
   installFoundryMock();
   return makeStarshipCombat();
+}
+
+async function legacyPrivatePlacement(combat, source, zone) {
+  const actor = await createSensorActorInstance(source, combat, { privateContact: true });
+  await addPrivateContact(combat, actor, zone);
+  return { key: privateContacts(combat.id).find((entry) => entry.actorUuid === actor.uuid).key, actorUuid: actor.uuid };
 }
 
 function addInstance(combat, id, { role = "npc", detection = "identified", hidden = false, type = "starship" } = {}) {
@@ -213,7 +220,8 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
   assert.equal(combatants[0].img, actor.img);
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.equal(actor, source);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
   assert.equal(privateContacts(combat.id).length, 0);
   assert.equal(combat.flags[MODULE_ID].tsc.objects.filter((object) => object.actorUuid === actor.uuid).length, 1);
 });
@@ -221,12 +229,7 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
 test("legacy private initiative entries without combatId can be revealed in their owning Combat", async () => {
   const combat = setup();
   const source = makeShip({ id: "legacy-private-source", name: "Legacy interceptor", role: "npc" });
-  const placement = await addSensorContact(combat, {
-    source: "world",
-    uuid: source.uuid,
-    zone: 4,
-    detection: "undetected"
-  });
+  const placement = await legacyPrivatePlacement(combat, source, 4);
   const actor = fromUuidSync(placement.actorUuid);
   assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
   const original = combat.combatants.find((entry) => entry.actorId === actor.id);
@@ -246,12 +249,7 @@ test("legacy private initiative entries without combatId can be revealed in thei
 test("a failed legacy initiative update retains map publication and durable intent for recovery", async () => {
   const combat = setup();
   const source = makeShip({ id: "rollback-legacy-source", name: "Legacy ambusher", role: "npc" });
-  const placement = await addSensorContact(combat, {
-    source: "world",
-    uuid: source.uuid,
-    zone: 4,
-    detection: "undetected"
-  });
+  const placement = await legacyPrivatePlacement(combat, source, 4);
   const actor = fromUuidSync(placement.actorUuid);
   assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
   const original = combat.combatants.find((entry) => entry.actorId === actor.id);
@@ -289,12 +287,7 @@ test("a failed legacy initiative update retains map publication and durable inte
 test("repeated private add backfills combatId on a legacy entry without creating a duplicate", async () => {
   const combat = setup();
   const source = makeShip({ id: "repeat-legacy-source", name: "Legacy scout", role: "npc" });
-  const placement = await addSensorContact(combat, {
-    source: "world",
-    uuid: source.uuid,
-    zone: 3,
-    detection: "undetected"
-  });
+  const placement = await legacyPrivatePlacement(combat, source, 3);
   const actor = fromUuidSync(placement.actorUuid);
   assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
   const original = combat.combatants.find((entry) => entry.actorId === actor.id);
@@ -399,7 +392,8 @@ test("failed finalization keeps the same revealed initiative entry pending and c
   assert.equal(original.hidden, false);
   assert.equal(original.name, actor.name);
   assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.equal(actor, source);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
   assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 1);
   assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
   assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
@@ -408,7 +402,8 @@ test("failed finalization keeps the same revealed initiative entry pending and c
   assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
   assert.equal(original.id, combat.combatants.find((entry) => entry.actorId === actor.id).id);
   assert.equal(original.hidden, false);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.equal(actor, source);
+  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
 });
 
 test("uninstanced source Actors are not added, and non-GM requests are rejected", async () => {

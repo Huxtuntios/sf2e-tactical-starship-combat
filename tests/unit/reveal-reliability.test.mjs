@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat, MockActor } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
+import { createSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
 import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { addSensorObjectToInitiative, addAllNpcShipsToInitiative } from "../../scripts/sensor/initiative.mjs";
 import { registerSensorHandlers } from "../../scripts/sensor/map-handlers.mjs";
@@ -22,7 +23,7 @@ import {
 // Foundry document mocks only: server filtering, network ordering and live failover are not proven.
 const contactsPath = `flags.${MODULE_ID}.privateSensor.contacts`;
 const completedPath = `flags.${MODULE_ID}.privateSensor.completedReveals`;
-async function setup({ anonymous = true, custom = false, direct = false, hazard = false } = {}) {
+async function setup({ anonymous = true, custom = false, direct = false, hazard = false, reuseActor = false } = {}) {
   const ctx = installFoundryMock(),
     combat = makeStarshipCombat();
   const source = hazard
@@ -35,10 +36,14 @@ async function setup({ anonymous = true, custom = false, direct = false, hazard 
     actor = source;
     await addPrivateContact(combat, actor, 4);
     key = privateContacts(combat.id)[0].key;
+  } else if (reuseActor) {
+    const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 4, detection: "undetected" });
+    key = placement.key;
+    actor = source;
   } else {
-    const result = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 4, detection: "undetected" });
-    key = result.key;
-    actor = fromUuidSync(result.actorUuid);
+    actor = await createSensorActorInstance(source, combat, { privateContact: true });
+    await addPrivateContact(combat, actor, 4);
+    key = privateContacts(combat.id)[0].key;
   }
   await changePrivateContact(combat, key, "detect", "observed");
   if (anonymous && actor && !direct && !hazard) {
@@ -46,7 +51,7 @@ async function setup({ anonymous = true, custom = false, direct = false, hazard 
     const entry = combat.combatants.find((entry) => entry.actorId === actor.id);
     entry.initiative = 17;
   }
-  return { ctx, combat, source, actor, key, journal: game.journal.contents[0] };
+  return { ctx, combat, source, actor, key, reuseActor, journal: game.journal.contents[0] };
 }
 
 // Inject before-write rejection, applied-but-rejected acknowledgements, and authority loss
@@ -113,7 +118,7 @@ function assertFinished(env, originalId, originalActorCount) {
   if (actor) {
     assert.equal(game.actors.get(actor.id), actor);
     const entries = combat.combatants.filter((entry) => entry.actorId === actor.id);
-    if (originalId || (actor.flags[MODULE_ID]?.sensorContactInstance && actor.type !== "hazard")) {
+    if (originalId || ((env.reuseActor || actor.flags[MODULE_ID]?.sensorContactInstance) && actor.type !== "hazard")) {
       assert.equal(entries.length, 1);
       const [entry] = entries;
       if (originalId) {
@@ -131,6 +136,27 @@ function assertFinished(env, originalId, originalActorCount) {
   for (const secretField of ["pendingReveal", "completedReveals", '"reveal"', '"stage"', "sourceUuid"])
     assert.equal(publicText.includes(secretField), false);
   assert.deepEqual(globalThis.__socket, []);
+}
+
+for (const mode of ["before", "applied", "lostGM", "noop"]) {
+  for (const stage of ["publish", "disclose", "create", "finalize"]) {
+    test(`reused world Actor REVEAL ${stage}: ${mode} failure recovers without copies or Actor writes`, async () => {
+      const env = await setup({ anonymous: stage !== "create", reuseActor: true });
+      const before = env.actor.toObject();
+      const originalId = env.combat.combatants.contents[0]?.id;
+      const failure = inject(env, stage, mode);
+      await assert.rejects(changePrivateContact(env.combat, env.key, "reveal"));
+      failure.assertStopped();
+      failure.restore();
+      await changePrivateContact(env.combat, env.key, "reveal");
+      assertFinished(env, originalId, 1);
+      assert.deepEqual(env.actor.toObject(), before);
+      assert.deepEqual(
+        globalThis.__writes.filter((write) => write.doc.startsWith("Actor.")),
+        []
+      );
+    });
+  }
 }
 
 const stages = [
