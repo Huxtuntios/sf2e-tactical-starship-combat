@@ -11,6 +11,7 @@
  */
 import { npcStrikeAction, npcInlineAction, slugifyName } from "./npc-inline.mjs";
 import { gradeAtLeast } from "../engine/advancement.mjs";
+import { shipSkillValue } from "../starship/stats.mjs";
 
 export const STRIKE_KINDS = ["melee", "ranged"];
 const DICE = /\d+d\d+/i;
@@ -107,7 +108,14 @@ export function stationActionName(n) {
  * @returns Array<{ id, action|null, station|null, source, issues: [], name }>
  *   source: catalog | strike | ability | station-ability | bound-strike ; action=null ⇒ cannot be shown/run, see issues.
  */
-export function collectNpcActions(data = {}, catalog) {
+export function collectNpcActions(
+  data = {},
+  catalog,
+  hasStatistic = (slug) =>
+    slug === "perception"
+      ? data.perception != null && data.perception !== "" && Number.isFinite(Number(data.perception))
+      : shipSkillValue(data.skills, slug) !== null
+) {
   const entries = [];
   const seen = new Set();
   const stations = Array.isArray(data.stations) ? data.stations.filter((s) => s && typeof s === "object") : [];
@@ -180,6 +188,18 @@ export function collectNpcActions(data = {}, catalog) {
           )
         )
           continue;
+        const check = a.check;
+        if (check && check.kind !== "none") {
+          const skills =
+            check.kind === "targetSave"
+              ? [check.dcSkill]
+              : check.kind === "perception"
+                ? ["perception"]
+                : check.skillsByStation
+                  ? (check.skillsByStation[st.type] ?? [])
+                  : (check.skills ?? ["perception"]);
+          if (!skills.some((slug) => hasStatistic(slug, st))) continue;
+        }
         addKnown(a, st, `${a.id}:${st.id}`);
       }
     }

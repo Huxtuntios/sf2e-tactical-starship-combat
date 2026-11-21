@@ -1,6 +1,6 @@
 /** Contextual DCs belong to the station's current operator, not automatically to the pilot. */
 import { T } from "../utils/foundry.mjs";
-import { computeShipStats, shipStatistic } from "../starship/stats.mjs";
+import { computeShipStats, shipStatistic, shipSkillValue, skillSlug } from "../starship/stats.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 const numeric = (n) => (typeof n === "number" && Number.isFinite(n) && n > 0 ? n : null);
 export function contextDCs(crew, ship = null) {
@@ -8,8 +8,12 @@ export function contextDCs(crew, ship = null) {
   if (!crew && ship) {
     const data = readStarship(ship);
     if (data.role === "npc")
-      for (const [slug, mod] of Object.entries(data.skills ?? {}))
-        if (Number.isFinite(mod)) values[slug] = numeric(shipStatistic(ship, slug)?.dc?.value) ?? 10 + mod;
+      for (const name of Object.keys(data.skills ?? {})) {
+        const slug = skillSlug(name);
+        if (!slug) continue;
+        const mod = shipSkillValue(data.skills, slug);
+        if (mod !== null) values[slug] = numeric(shipStatistic(ship, slug)?.dc?.value) ?? 10 + mod;
+      }
   }
   for (const [slug, stat] of Object.entries(crew?.skills ?? {})) {
     const value = numeric(stat.dc?.value) ?? (Number.isFinite(stat.mod) ? 10 + stat.mod : null);

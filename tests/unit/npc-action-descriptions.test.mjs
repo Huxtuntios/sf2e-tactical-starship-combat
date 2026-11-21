@@ -263,6 +263,35 @@ for (const role of ["npc", "player"]) {
   });
 }
 
+for (const [stored, expected] of [
+  ["8", 18],
+  [{ base: "8" }, 18],
+  [{ mod: 8 }, 18],
+  [{ value: "8" }, 18],
+  [0, 10],
+  [-2, 8]
+]) {
+  test(`NPC contextual DC normalizes skill names and stored values: ${JSON.stringify(stored)}`, () => {
+    installFoundryMock();
+    const ship = makeShip({ role: "npc", extra: { skills: { " CompuTers ": stored } } });
+    const before = ship.toObject();
+    const values = contextDCs(null, ship);
+    assert.equal(values.computers, expected);
+    assert.equal(values[" CompuTers "], undefined);
+    assert.match(linkContextDCs("Will save against your Computers DC", { ship }), new RegExp(`@Check\\[will\\|dc:${expected}\\]`));
+    assert.deepEqual(ship.toObject(), before);
+  });
+}
+
+test("NPC contextual DC does not invent a value for malformed skill entries", () => {
+  installFoundryMock();
+  for (const stored of [null, "", "invalid", {}, { base: "invalid" }]) {
+    const ship = makeShip({ role: "npc", extra: { skills: { " Computers ": stored } } });
+    assert.equal(contextDCs(null, ship).computers, undefined);
+    assert.doesNotMatch(linkContextDCs("Will save against your Computers DC", { ship }), /@Check\[/);
+  }
+});
+
 test("NPC ship statistics do not replace an explicitly supplied operator", async () => {
   installFoundryMock();
   const ship = makeShip({ role: "npc", extra: { skills: { computers: 8 } } });

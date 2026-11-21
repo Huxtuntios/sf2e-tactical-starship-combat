@@ -12,6 +12,7 @@ import { strikeLine, traitsText } from "../../utils/labels.mjs";
 import { collectNpcActions, normalizeNpcStrike } from "../../actions/npc-rows.mjs";
 import { npcActionDescription } from "../../actions/npc-inline.mjs";
 import { linkContextDCs } from "../../rolls/context-dc.mjs";
+import { crewStatistic, shipModuleValue } from "../../starship/stats.mjs";
 import { escHTML, npcIssueText } from "./sheet-model.mjs";
 
 /** One NPC action button row (the action is already validated / bound). */
@@ -92,7 +93,10 @@ export function mine(st) {
 
 export function npcActionRows(data, actor, stations, warnings = []) {
   const rows = [];
-  for (const e of collectNpcActions(data, { actions: Content.actions.values(), get: (id) => Content.actions.get(id) })) {
+  for (const e of collectNpcActions(data, { actions: Content.actions.values(), get: (id) => Content.actions.get(id) }, (slug, station) => {
+    const crew = station?.helmedBy ? fromUuidSync_(station.helmedBy) : null;
+    return crew ? !!crewStatistic(crew, slug) : shipModuleValue(actor, slug) !== null;
+  })) {
     const msgs = e.issues.map((i) => npcIssueText(i, e.name, T));
     if (msgs.length) warnings.push(...msgs);
     if (!e.action) {

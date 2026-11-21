@@ -289,6 +289,123 @@ test("custom NPC empty stations expose station actions without inventing attacks
   assert.deepEqual(readStarship(npc).skills, {});
 });
 
+test("custom NPC fallback omits checks without supplied ship statistics", async () => {
+  await setup();
+  const npc = makeShip({ role: "npc", stations: stations(), extra: { sourceId: "custom-no-statistics", skills: {} } });
+  const before = npc.toObject();
+  const ctx = await buildSheetContext({ document: npc, isNpc: true, tab: "stations", tabs: ["stations"] });
+  assert.ok(!ctx.npcActions.some((a) => ["repair-station", "target-lock", "jump-start"].includes(a.id)));
+  assert.ok(ctx.npcActions.some((a) => a.id === "boost-thrusters"));
+  assert.ok(ctx.npcActions.some((a) => a.id === "generate-shields"));
+  assert.deepEqual(npc.toObject(), before);
+});
+
+for (const stored of [0, "8", { base: "8" }, { mod: 8 }, { value: 8 }]) {
+  test(`custom NPC fallback offers checks for a supplied skill: ${JSON.stringify(stored)}`, async () => {
+    await setup();
+    const npc = makeShip({
+      role: "npc",
+      stations: stations(),
+      extra: { sourceId: "custom-statistics", skills: { " Computers ": stored } }
+    });
+    const ctx = await buildSheetContext({ document: npc, isNpc: true, tab: "stations", tabs: ["stations"] });
+    assert.ok(ctx.stations.every((s) => s.actionList.some((a) => a.id === "repair-station")));
+    assert.ok(ctx.stations.find((s) => s.type === "scanners").actionList.some((a) => a.id === "target-lock"));
+    assert.ok(ctx.stations.find((s) => s.type === "scanners").actionList.some((a) => a.id === "jump-start"));
+    assert.ok(!ctx.stations.find((s) => s.type === "generator").actionList.some((a) => a.id === "jump-start"));
+  });
+}
+
+test("custom NPC fallback resolves the real operator of the matching station", async () => {
+  await setup();
+  const operator = makeCharacter({ id: "operator", name: "Operator" });
+  operator.skills = { computers: { mod: 15, dc: { value: 25 } } };
+  const selected = stations();
+  selected.find((s) => s.type === "scanners").helmedBy = operator.uuid;
+  const npc = makeShip({
+    role: "npc",
+    stations: selected,
+    crew: [{ actorUuid: operator.uuid, role: "crew", stationId: "scanners" }],
+    extra: { sourceId: "custom-operator", skills: {} }
+  });
+  const ctx = await buildSheetContext({ document: npc, isNpc: true, tab: "stations", tabs: ["stations"] });
+  assert.ok(ctx.stations.find((s) => s.type === "scanners").actionList.some((a) => a.id === "target-lock"));
+  assert.ok(ctx.stations.find((s) => s.type === "scanners").actionList.some((a) => a.id === "repair-station"));
+  assert.ok(ctx.stations.filter((s) => s.type !== "scanners").every((s) => !s.actionList.some((a) => a.id === "repair-station")));
+});
+
+test("custom NPC fallback does not substitute a missing operator or malformed skill", async () => {
+  await setup();
+  const selected = stations();
+  selected.find((s) => s.type === "scanners").helmedBy = "Actor.missing";
+  const npc = makeShip({
+    role: "npc",
+    stations: selected,
+    extra: { sourceId: "custom-invalid-statistics", skills: { computers: "invalid" } }
+  });
+  const ctx = await buildSheetContext({ document: npc, isNpc: true, tab: "stations", tabs: ["stations"] });
+  assert.ok(!ctx.npcActions.some((a) => ["repair-station", "target-lock"].includes(a.id)));
+});
+
+for (const actionId of ["repair-station", "target-lock"]) {
+  test(`NPC execution refuses missing skill before rolling or changing state: ${actionId}`, async () => {
+    await setup();
+    const npc = makeShip({
+      id: "npc",
+      role: "npc",
+      stations: [{ id: "scanner", type: "scanners", grade: "commercial", malfunctioning: actionId === "repair-station" }],
+      extra: { sourceId: "custom-no-check", skills: {} }
+    });
+    const target = makeShip({ id: "target", role: "npc" });
+    makeStarshipCombat({
+      objects: [
+        { key: npc.uuid, zone: 2, detection: { party: "identified" } },
+        { key: target.uuid, zone: 3, detection: { party: "identified" } }
+      ]
+    });
+    const before = [npc.toObject(), target.toObject()];
+    const writes = globalThis.__writes.length;
+    const messages = game.messages.size;
+    dice(20);
+    await assert.rejects(
+      () =>
+        executeAction({
+          userId: "gm",
+          shipUuid: npc.uuid,
+          stationId: "scanner",
+          actionId,
+          options: { targetKey: target.uuid, manualDC: 15, skipDialog: true }
+        }),
+      /skill|statistic/i
+    );
+    assert.deepEqual([npc.toObject(), target.toObject()], before);
+    assert.equal(globalThis.__writes.length, writes);
+    assert.equal(game.messages.size, messages);
+  });
+}
+
+test("NPC skill choice defaults to an existing alternative rather than a missing first skill", async () => {
+  await setup();
+  const npc = makeShip({
+    id: "npc",
+    role: "npc",
+    stations: [{ id: "generator", type: "generator", grade: "commercial", malfunctioning: true }],
+    extra: { sourceId: "custom-alternative", skills: { crafting: { base: 8 } } }
+  });
+  makeStarshipCombat({ objects: [{ key: npc.uuid, zone: 2 }] });
+  dice(20);
+  const result = await executeAction({
+    userId: "gm",
+    shipUuid: npc.uuid,
+    stationId: "generator",
+    actionId: "repair-station",
+    options: { manualDC: 15, skipDialog: true }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(game.messages.contents.find((m) => m.rolls.length)?.rolls[0].total, 28);
+  assert.equal(readStarship(npc).stations[0].malfunctioning, false);
+});
+
 test("Actor Directory custom NPC creation exposes uncrewed station actions", async () => {
   await setup();
   const { creationData } = await import("../../scripts/ui/actor-create.mjs");
@@ -324,7 +441,7 @@ test("custom NPC movement and shields execute without an operator", async () => 
 
 test("custom NPC gives every station its own repair actions", async () => {
   await setup();
-  const npc = makeShip({ role: "npc", stations: stations(), extra: { sourceId: "custom-repairs" } });
+  const npc = makeShip({ role: "npc", stations: stations(), extra: { sourceId: "custom-repairs", skills: { computers: 8, crafting: 8 } } });
   const ctx = await buildSheetContext({ document: npc, isNpc: true, tab: "stations", tabs: ["stations"] });
   assert.ok(ctx.stations.every((s) => s.actionList.some((a) => a.id === "repair-station")));
   assert.ok(

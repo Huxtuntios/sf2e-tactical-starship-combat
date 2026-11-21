@@ -233,7 +233,7 @@ export async function rollFlatCheck({ actor, dc, label }) {
 }
 
 const SHIP_SAVE_SLUGS = ["fortitude", "reflex", "will"];
-const skillSlug = (k) =>
+export const skillSlug = (k) =>
   String(k ?? "")
     .trim()
     .toLowerCase()

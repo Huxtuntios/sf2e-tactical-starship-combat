@@ -4,7 +4,7 @@ import { isFrequencyAvailable, frequencyKey } from "../engine/frequency.mjs";
 import { findObject, effectiveDetection } from "../engine/sensor-ops.mjs";
 import { observerKeys } from "../sensor/map-model.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
-import { computeShipStats } from "../starship/stats.mjs";
+import { computeShipStats, crewStatistic, shipModuleValue } from "../starship/stats.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { request } from "../socket.mjs";
 import { actionLabel } from "../actions/action-engine.mjs";
@@ -211,7 +211,9 @@ async function promptOptions(action, { ship, crew, station, target }) {
     fields.push(
       `<div class="form-group"><label>${T("SF2eTSC.ui.spellRank")}</label><select name="rank">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => `<option value="${n}">${n}</option>`).join("")}</select></div>`
     );
-  const skills = action.check?.skillsByStation ? (action.check.skillsByStation[station?.type] ?? []) : (action.check?.skills ?? []);
+  let skills = action.check?.skillsByStation ? (action.check.skillsByStation[station?.type] ?? []) : (action.check?.skills ?? []);
+  if (readStarship(ship).role === "npc")
+    skills = skills.filter((slug) => crewStatistic(crew ?? ship, slug) || (!crew && shipModuleValue(ship, slug) !== null));
   if (skills.length > 1)
     fields.push(
       `<div class="form-group"><label>${T("SF2eTSC.ui.skill")}</label><select name="skill">${skills.map((s) => `<option value="${s}">${skillLabel(s)}</option>`).join("")}</select></div>`
