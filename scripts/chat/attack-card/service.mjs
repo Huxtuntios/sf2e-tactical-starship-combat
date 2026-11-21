@@ -220,7 +220,11 @@ export async function resolveAttackCard({ user, payload }) {
     const safeSummary = publicActionResult(res).summary;
     const tl = tobj ? publicLabel(tobj, card.ship.uuid) : { label: safeSummary?.targetName };
     const gmOnly = message.whisper?.length && message.whisper.every((id) => game.users.get(id)?.isGM);
-    if (res.summary?.privateAction && !gmOnly && (res.summary.pendingDamage || res.summary.boundDamage)) {
+    if (
+      res.summary?.privateAction &&
+      !gmOnly &&
+      (card.action.builtin === "spell-attack" || res.summary.pendingDamage || res.summary.boundDamage)
+    ) {
       const privateCard = {
         ...card,
         status: "resolved",

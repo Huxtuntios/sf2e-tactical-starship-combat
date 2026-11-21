@@ -209,12 +209,14 @@ export class SensorMapApplication extends TscApp {
       // Async compendium loading may make previously missing sync permission lookups available next render.
       if (unresolved) this._mapPermissions = null;
     }
+    const t = Targeting.current;
+    const targetTsc = t ? targetingState(publicState, t.shipUuid, privateObjects) : null;
     const appearance = normalizeMapAppearance(tsc.appearance);
     const arrows = new Map([["", resolveArrowAppearance(appearance)]]);
     const zones = [];
     for (let z = 1; includes("zones") && z <= tsc.zones; z++) {
       const info = tsc.zoneInfo?.[z] ?? {};
-      const objs = view.filter((o) => o.zone === z).map((o) => this.#decorate(o, tsc, combat, resolved, appearance, arrows));
+      const objs = view.filter((o) => o.zone === z).map((o) => this.#decorate(o, targetTsc, combat, resolved, appearance, arrows));
       zones.push({
         zone: z,
         label: String(z).padStart(2, "0"),
@@ -229,7 +231,6 @@ export class SensorMapApplication extends TscApp {
       });
     }
     const sel = this.selected ? view.find((o) => o.key === this.selected) : null;
-    const t = Targeting.current;
     return {
       isGM,
       combat: { round: combat.round, turn: combat.combatant?.name ?? "—" },
@@ -237,7 +238,7 @@ export class SensorMapApplication extends TscApp {
       zones,
       targeting: t ? { label: t.label, range: t.range, hint: T("SF2eTSC.ui.pickTarget") } : null,
       detail: includes("detail") && sel ? this.#detail(sel, tsc, isGM, resolved, permissions.movable) : null,
-      preview: this.#preview(tsc),
+      preview: this.#preview(targetTsc ?? tsc),
       zoneOptions: [12, 15].concat(ZONE_LIMITS.default === 12 ? [] : []),
       detectionLevels: DETECTION_LEVELS.map((l) => ({ id: l, label: T(`SF2eTSC.detection.${l}`) })),
       log: tsc.log
@@ -256,7 +257,7 @@ export class SensorMapApplication extends TscApp {
     };
   }
 
-  #decorate(o, tsc, combat, resolved, appearance, arrows) {
+  #decorate(o, targetTsc, combat, resolved, appearance, arrows) {
     const entry = o.known ? resolved.get(o.actorUuid ?? o.key) : null;
     const actor = o.type === "starship" ? entry?.actor : null;
     let status = "operational",
@@ -274,8 +275,7 @@ export class SensorMapApplication extends TscApp {
     if (!arrows.has(arrowKey)) arrows.set(arrowKey, resolveArrowAppearance(appearance, o.arrowAppearance));
     const arrowAppearance = arrows.get(arrowKey);
     const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
-    const session = Targeting.current;
-    const cls = session ? Targeting.classify(targetingState(getTsc(combat), session.shipUuid, this._privateObjects), o) : null;
+    const cls = targetTsc ? Targeting.classify(targetTsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
     return {
       key: o.key,
@@ -432,7 +432,8 @@ export class SensorMapApplication extends TscApp {
     const span = this.element?.querySelector?.("[data-tsc-preview]");
     if (!span) return;
     const c = activeStarshipCombat();
-    const p = c ? this.#preview(getTsc(c)) : null;
+    const t = Targeting.current;
+    const p = c && t ? this.#preview(targetingState(getTsc(c), t.shipUuid, this._privateObjects)) : null;
     if (!p) {
       span.hidden = true;
       span.textContent = "";
@@ -447,7 +448,6 @@ export class SensorMapApplication extends TscApp {
   #preview(tsc) {
     const t = Targeting.current;
     if (!t || !this._hover) return null;
-    tsc = targetingState(getTsc(activeStarshipCombat()), t.shipUuid, this._privateObjects);
     const me = findObject(tsc, t.shipUuid),
       to = findObject(tsc, this._hover);
     if (!me || !to) return null;

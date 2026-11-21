@@ -113,6 +113,45 @@ test("declaration candidates and resolved public card omit private actor metadat
   assertNoIdentity(s, game.messages.get(declaration.messageId).flags);
   assertNoIdentity(s, getTsc(s.combat));
 });
+for (const scenario of [
+  { name: "private hit", roll: 20, privateTarget: true, gmOnly: false, copies: 1, damage: 8 },
+  { name: "private miss", roll: 1, privateTarget: true, gmOnly: false, copies: 1, damage: 0 },
+  { name: "GM-only private hit", roll: 20, privateTarget: true, gmOnly: true, copies: 0, damage: 8 },
+  { name: "public hit", roll: 20, privateTarget: false, gmOnly: false, copies: 0, damage: 8 }
+]) {
+  test(`Cosmic Cannon preserves a complete result for ${scenario.name}`, async () => {
+    const s = await targetingScenario();
+    s.attacker.flags["sf2e-tactical-starship-combat"].starship.stations[0].type = "magic-conduit";
+    if (!scenario.privateTarget) await changePrivateContact(s.combat, s.key, "reveal");
+    const targetKey = scenario.privateTarget ? s.key : s.ship.uuid;
+    const declaration = await declareAttack({ user: s.user, payload: { ...s.payload, actionId: "cosmic-cannon" } });
+    const publicMessage = game.messages.get(declaration.messageId);
+    if (scenario.gmOnly) await publicMessage.update({ whisper: [s.gm.id] });
+    const before = s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value;
+    dice(scenario.roll, 2, 2);
+    await resolveAttackCard({ user: s.user, payload: { messageId: declaration.messageId, targetKey, skipDialog: true } });
+    const copies = game.messages.contents.filter(
+      (message) => message.flags["sf2e-tactical-starship-combat"]?.attackCard?.applicationId === declaration.messageId
+    );
+    assert.equal(copies.length, scenario.copies);
+    const resultMessage = copies[0] ?? publicMessage;
+    const result = resultMessage.flags["sf2e-tactical-starship-combat"].attackCard.result;
+    assert.ok(Number.isFinite(result.attack.total));
+    assert.ok(Number.isFinite(result.attack.ac));
+    assert.equal(
+      result.damage.reduce((sum, damage) => sum + damage.shield, 0),
+      scenario.damage
+    );
+    assert.equal(before - s.ship.flags["sf2e-tactical-starship-combat"].starship.sp.value, scenario.damage);
+    if (scenario.privateTarget) {
+      assert.ok(resultMessage.whisper.length && resultMessage.whisper.every((id) => game.users.get(id)?.isGM));
+      for (const message of game.messages.contents.filter((m) => !m.whisper.length)) assertNoIdentity(s, message);
+      assertNoIdentity(s, getTsc(s.combat));
+      assert.equal(privateContacts(s.combat.id)[0].detection.party, "observed");
+    }
+  });
+}
+
 test("destroying a private target never publishes a history announcement", async () => {
   const s = await targetingScenario();
   await game.settings.set("sf2e-tactical-starship-combat", "chatAnnouncements", "important");
