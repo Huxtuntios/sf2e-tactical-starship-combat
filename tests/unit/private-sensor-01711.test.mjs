@@ -232,6 +232,99 @@ test("Seek advances hidden private contacts durably without breaking subsequent 
   assertNoIdentity(s, getTsc(s.combat));
 });
 
+for (const [op, value] of [
+  ["move", 9],
+  ["detect", "undetected"]
+]) {
+  test(`Seek rejects a later private contact's queued ${op} instead of revealing stale sensor data`, async () => {
+    const s = await targetingScenario();
+    await changePrivateContact(s.combat, s.key, "detect", "hidden");
+    const laterShip = makeShip({ id: "later-seek-target", role: "npc" });
+    await addPrivateContact(s.combat, laterShip, 4);
+    const later = privateContacts(s.combat.id).find((o) => o.key !== s.key);
+    await changePrivateContact(s.combat, later.key, "detect", "hidden");
+    s.attacker.flags["sf2e-tactical-starship-combat"].starship.stations[0].type = "scanners";
+    s.crew.skills = { computers: { mod: 30 } };
+    dice(20);
+    const original = globalThis.fromUuid;
+    const entered = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    let lookups = 0;
+    globalThis.fromUuid = async (uuid) => {
+      if (uuid === s.ship.uuid && ++lookups === 2) {
+        entered.resolve();
+        await release.promise;
+      }
+      return original(uuid);
+    };
+    try {
+      const seeking = executeAction({
+        ...s.payload,
+        actionId: "seek-starships",
+        user: s.user,
+        options: { skill: "computers", skipDialog: true }
+      });
+      const settled = seeking.then(
+        () => null,
+        (error) => error
+      );
+      await entered.promise;
+      const changing = changePrivateContact(s.combat, later.key, op, value);
+      release.resolve();
+      await changing;
+      const error = await settled;
+      const current = privateContacts(s.combat.id).find((o) => o.key === later.key);
+      assert.equal(current.zone, op === "move" ? 9 : 4);
+      assert.equal(current.detection.party, op === "move" ? "hidden" : "undetected");
+      const marker = getTsc(s.combat).objects.find((o) => o.key === later.key);
+      if (op === "move") {
+        assert.equal(marker.zone, 9);
+        assert.equal(marker.detection.party, "hidden");
+        assert.equal(marker.heading, null);
+        assert.equal(marker.art, undefined);
+      } else assert.equal(marker, undefined);
+      assert.ok(error);
+      assert.equal(error.message, game.i18n.localize("SF2eTSC.qol.undoConflict"));
+      assert.equal(privateContacts(s.combat.id).find((o) => o.key === s.key).detection.party, "observed");
+    } finally {
+      release.resolve();
+      globalThis.fromUuid = original;
+    }
+  });
+}
+
+test("private detection expectations are checked after earlier queued GM changes complete", async () => {
+  const s = await targetingScenario();
+  const later = await addPrivateCustom(s.combat, "Later hidden contact", 4);
+  await changePrivateContact(s.combat, later, "detect", "hidden");
+  const original = globalThis.fromUuid;
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  globalThis.fromUuid = async (uuid) => {
+    if (uuid === s.ship.uuid) {
+      entered.resolve();
+      await release.promise;
+    }
+    return original(uuid);
+  };
+  try {
+    const moving = changePrivateContact(s.combat, s.key, "move", 5);
+    await entered.promise;
+    const changing = changePrivateContact(s.combat, later, "move", 9);
+    const stale = changePrivateContact(s.combat, later, "detect", "observed", { expected: { zone: 4, detection: "hidden" } });
+    const finished = Promise.all([moving, changing, assert.rejects(stale, { message: game.i18n.localize("SF2eTSC.qol.undoConflict") })]);
+    release.resolve();
+    await finished;
+    const contact = privateContacts(s.combat.id).find((o) => o.key === later);
+    assert.equal(contact.zone, 9);
+    assert.equal(contact.detection.party, "hidden");
+    assert.equal(getTsc(s.combat).objects.find((o) => o.key === later).detection.party, "hidden");
+  } finally {
+    release.resolve();
+    globalThis.fromUuid = original;
+  }
+});
+
 test("Seek uses a hidden private ship's actual Stealth DC without publishing its identity", async () => {
   const s = await targetingScenario();
   await changePrivateContact(s.combat, s.key, "detect", "hidden");

@@ -592,7 +592,7 @@ export async function addPrivateCustom(combat, name, zone, appearance = {}) {
     return key;
   });
 }
-export async function changePrivateContact(combat, key, op, zone) {
+export async function changePrivateContact(combat, key, op, zone, { expected } = {}) {
   requireGM();
   return serialize(`sensor:${combat.id}`, async () => {
     requireGM();
@@ -612,6 +612,8 @@ export async function changePrivateContact(combat, key, op, zone) {
       await saveProjection(combat, { ...contact, zone });
       contact.zone = zone;
     } else if (op === "detect") {
+      if (expected && (contact.zone !== expected.zone || contact.detection.party !== expected.detection))
+        throw new Error(T("SF2eTSC.qol.undoConflict"));
       if (!["undetected", "hidden", "observed"].includes(zone)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
       if (contact.detection.party === zone) {
         await saveProjection(combat, contact);

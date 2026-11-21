@@ -254,7 +254,10 @@ export async function resolveSeekBuiltin(ctx, rollResult) {
     const degree = degreeOfSuccess(rollResult.total, dcValue, rollResult.natural);
     const next = resolveSeek(current, degree);
     if (next !== current) {
-      if (o.tscPrivateProjection) await changePrivateContact(ctx.combat, o.key, "detect", next);
+      if (o.tscPrivateProjection)
+        await changePrivateContact(ctx.combat, o.key, "detect", next, {
+          expected: { zone: target.zone, detection: target.detection.party }
+        });
       else {
         // the party shares sensor data: the GM detail panel and every player view read "party"
         ctx.draft.tsc = setDetection(setDetection(ctx.draft.tsc, o.key, observer, next), o.key, "party", next);
