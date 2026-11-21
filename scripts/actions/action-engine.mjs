@@ -17,7 +17,7 @@ import { readStarship } from "../starship/starship-state.mjs";
 import { evaluateRequirements } from "./requirements.mjs";
 import { executeEffects, resolveSeekBuiltin, modelKeyOf } from "./effects-exec.mjs";
 import { resolveStrike, resolveAreaFire, resolveSpellAttack, resolveWeapon } from "./strike.mjs";
-import { computeShipStats, shipDC, shipStatistic, crewStatistic, rollNativeCheck } from "../starship/stats.mjs";
+import { computeShipStats, shipDC, shipStatistic, shipModuleValue, crewStatistic, rollNativeCheck } from "../starship/stats.mjs";
 import { effectModifiers, stationEffects } from "../starship/effects.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat, combatantForActor, turnIndexOf } from "../combat/tsc-state.mjs";
@@ -107,8 +107,15 @@ async function resolveTarget(ctx) {
 function pickSkill(ctx) {
   const c = ctx.action.check;
   if (ctx.options.skill) return ctx.options.skill;
-  if (c.skillsByStation) return (c.skillsByStation[ctx.station?.type] ?? Object.values(c.skillsByStation)[0])[0];
-  return c.skills?.[0] ?? "perception";
+  const skills = c.skillsByStation
+    ? (c.skillsByStation[ctx.station?.type] ?? Object.values(c.skillsByStation)[0])
+    : (c.skills ?? ["perception"]);
+  if (ctx.data.role === "npc")
+    return (
+      skills.find((slug) => crewStatistic(ctx.crew ?? ctx.ship, slug) || (!ctx.crew && shipModuleValue(ctx.ship, slug) !== null)) ??
+      skills[0]
+    );
+  return skills[0];
 }
 function checkDC(ctx, spec) {
   switch (spec?.type) {
@@ -143,7 +150,9 @@ async function runCheck(ctx) {
   if (c.kind === "targetSave") {
     if (!ctx.target) fail("needTarget");
     const dcStat = crewStatistic(ctx.crew ?? ctx.ship, c.dcSkill);
-    const dc = dcStat?.dc?.value ?? 10 + ctx.level + 5;
+    const npcMod = ctx.data.role === "npc" && !ctx.crew ? shipModuleValue(ctx.ship, c.dcSkill) : null;
+    if (ctx.data.role === "npc" && !dcStat && npcMod === null) fail("noSkill", { skill: c.dcSkill });
+    const dc = dcStat?.dc?.value ?? (npcMod !== null ? 10 + npcMod : 10 + ctx.level + 5);
     const stat = shipStatistic(ctx.target.actor, c.save);
     const res = await rollNativeCheck({
       statistic: stat,
@@ -173,9 +182,12 @@ async function runCheck(ctx) {
     }
   }
   const roller = ctx.crew ?? ctx.ship;
-  let statistic = c.kind === "perception" ? roller.perception : crewStatistic(roller, skill);
+  const statistic = crewStatistic(roller, c.kind === "perception" ? "perception" : skill);
   let fallbackMod = 0;
-  if (!statistic && ctx.data.role !== "player")
+  if (!statistic && ctx.data.role === "npc") {
+    fallbackMod = ctx.crew ? null : shipModuleValue(ctx.ship, c.kind === "perception" ? "perception" : skill);
+    if (fallbackMod === null) fail("noSkill", { skill });
+  } else if (!statistic && ctx.data.role !== "player")
     fallbackMod = skill === "perception" ? ctx.stats.perception : (ctx.data.skills?.[skill] ?? 0);
   else if (!statistic) fail("noSkill", { skill });
   const boost = effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat), "station-check").map((m) => ({
@@ -288,7 +300,7 @@ async function executeActionNow(params) {
   const isGM = user.isGM;
   const gmOverride = isGM && !!options.gmOverride;
   const crew = crewUuid ? await fromUuidSafe(crewUuid) : null;
-  const hasCrewRole = data.role === "player" || (data.crew?.length ?? 0) > 0;
+  const hasCrewRole = data.role !== "npc" && (data.role === "player" || (data.crew?.length ?? 0) > 0);
 
   const strictRules = strictRulesFor(gmOverride);
   const warnings = [];
@@ -349,7 +361,9 @@ async function executeActionNow(params) {
   if (!action.npcOnly && action.station !== "npc") {
     ctx.station = crew
       ? (data.stations.find((s) => s.helmedBy === crewUuid) ?? null)
-      : (data.stations.find((s) => s.type === action.station) ?? null);
+      : data.role === "npc" && params.stationId
+        ? (data.stations.find((s) => s.id === params.stationId) ?? null)
+        : (data.stations.find((s) => s.type === action.station) ?? null);
     if (action.station !== "any") {
       if (!ctx.station || ctx.station.type !== action.station) {
         if (!gmOverride) rule("notHelming", { station: T(`SF2eTSC.stations.${action.station}`) });
@@ -489,7 +503,11 @@ async function executeActionNow(params) {
 /** Stations of an NPC ship whose statblock list contains the action (by name/slug). */
 export function npcOwnerStations(data, action) {
   const slug = slugifyName(action.name ?? action.slug);
-  return (data.stations ?? []).filter((s) => (s.actions ?? []).some((n) => slugifyName(n) === slug));
+  return (data.stations ?? []).filter((s) =>
+    (s.actions ?? []).some(
+      (n) => slugifyName(n) === slug || (action.id === "fortify-shield-points" && slugifyName(n) === "fortify-shields")
+    )
+  );
 }
 
 /**

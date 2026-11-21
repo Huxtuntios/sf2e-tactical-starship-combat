@@ -5,16 +5,25 @@ import { readStarship } from "../../starship/starship-state.mjs";
 import { previewAction, COST_ICON } from "../action-runner.mjs";
 import { actionCostLabel } from "../action-controls.mjs";
 import { actionLabel } from "../../actions/action-engine.mjs";
-import { T } from "../../utils/foundry.mjs";
+import { T, fromUuidSync_ } from "../../utils/foundry.mjs";
 import { checkLinksHTML } from "../../content/inline-checks.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
 import { strikeLine, traitsText } from "../../utils/labels.mjs";
 import { collectNpcActions, normalizeNpcStrike } from "../../actions/npc-rows.mjs";
+import { npcActionDescription } from "../../actions/npc-inline.mjs";
+import { linkContextDCs } from "../../rolls/context-dc.mjs";
+import { crewStatistic, shipModuleValue } from "../../starship/stats.mjs";
 import { escHTML, npcIssueText } from "./sheet-model.mjs";
 
 /** One NPC action button row (the action is already validated / bound). */
 export function npcRow(a, st, actor, msgs = []) {
   const p = previewAction(a, { ship: actor, crew: null, station: st });
+  const description = npcActionDescription(a, ct);
+  const crew = st?.helmedBy ? fromUuidSync_(st.helmedBy) : null;
+  const html = description
+    .split("\n\n")
+    .map((text) => `<p>${checkLinksHTML(linkContextDCs(text, { crew, ship: actor }))}</p>`)
+    .join("");
   if (a.passive)
     return {
       id: a.id,
@@ -25,7 +34,7 @@ export function npcRow(a, st, actor, msgs = []) {
       enabled: false,
       reasons: T("SF2eTSC.ui.passive"),
       text: ctPlain(a.text),
-      html: checkLinksHTML(ct(a.text)),
+      html,
       inline: true
     };
   const isStrike = a.builtin === "npc-strike";
@@ -42,7 +51,7 @@ export function npcRow(a, st, actor, msgs = []) {
     enabled: p.enabled || game.user.isGM,
     reasons: [...p.reasons, ...msgs].join(" · "),
     text,
-    html: isStrike ? (a.boundStrike ? checkLinksHTML(ct(a.text)) : "") : checkLinksHTML(ct(a.text)),
+    html: isStrike && !a.boundStrike ? `<p>${checkLinksHTML(strikeLine(a.strike))}</p>${a.detailText || a.familyText ? html : ""}` : html,
     inline: !!a.inline,
     warning: msgs.length > 0
   };
@@ -84,7 +93,10 @@ export function mine(st) {
 
 export function npcActionRows(data, actor, stations, warnings = []) {
   const rows = [];
-  for (const e of collectNpcActions(data, { actions: Content.actions.values(), get: (id) => Content.actions.get(id) })) {
+  for (const e of collectNpcActions(data, { actions: Content.actions.values(), get: (id) => Content.actions.get(id) }, (slug, station) => {
+    const crew = station?.helmedBy ? fromUuidSync_(station.helmedBy) : null;
+    return crew ? !!crewStatistic(crew, slug) : shipModuleValue(actor, slug) !== null;
+  })) {
     const msgs = e.issues.map((i) => npcIssueText(i, e.name, T));
     if (msgs.length) warnings.push(...msgs);
     if (!e.action) {

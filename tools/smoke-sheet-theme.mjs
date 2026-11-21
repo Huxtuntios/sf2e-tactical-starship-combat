@@ -41,7 +41,7 @@ for (const role of ["player", "npc"])
           { id: "pilot", name: "Пульт пилота", type: "pilot", grade: "tactical", malfunctioning: true },
           { id: "gunnery", name: "Орудийная станция", type: "gunnery", grade: "tactical" }
         ],
-        extra: { notes: "Заметки корабля — не меняются при выборе темы." }
+        extra: { notes: "Заметки корабля — не меняются при выборе темы.", sourceId: role === "npc" ? "custom-demo" : null }
       });
       actor.img = `${rootUrl}/assets/icons/starship.svg`;
       const sheet = { document: actor, isNpc: role === "npc", tab, tabs: ["overview", "stations", "equipment", "notes", "config"] };
@@ -54,6 +54,7 @@ let saved='${theme}',writes=0;globalThis.game={settings:{get:()=>saved,set:async
 const app=document.querySelector('#app');const sheet={element:app,tab:'${tab}'};wireSheetTheme(sheet);const checks=[];const check=(name,pass)=>checks.push({name,pass:!!pass});
 check('removed-ship-controls',!app.querySelector('[data-qol-toolbar],[data-qol-compact],[data-qol-search]'));
 check('ship-title-contrast',getComputedStyle(app.querySelector('.tsc-sheet-head h2')).color===getComputedStyle(app).getPropertyValue('--tsc-text').trim().replace('#172b45','rgb(23, 43, 69)').replace('#e3ecfa','rgb(227, 236, 250)'));
+if('${tab}'==='stations'){check('crew-controls-by-role',app.querySelectorAll('[data-action="claim"],[data-action="forceClaim"]').length===${role === "player" ? 4 : 0});check('stations-retained',app.querySelectorAll('[data-station-link]').length===2);check('malfunction-controls-retained',app.querySelectorAll('[data-action="toggleMalf"]').length===2);check('custom-station-actions',!!app.querySelector('[data-action="runAction"][data-action-id="boost-thrusters"]')&&!!app.querySelector('[data-action="runAction"][data-action-id="lock-on"]'));}
 if('${tab}'==='overview'){const cells=[...app.querySelectorAll('.tsc-stat-grid > div,.tsc-stat-grid > button')];check('centered-stats',cells.length>0&&cells.every(c=>getComputedStyle(c).textAlign==='center'&&getComputedStyle(c).alignItems==='center'));}
 if('${tab}'==='config'){const th=app.querySelector('th');check('table-header-contrast',!!th&&getComputedStyle(th).backgroundColor==='${theme === "light" ? "rgb(255, 255, 255)" : "rgb(22, 33, 51)"}'&&getComputedStyle(th).color==='${theme === "light" ? "rgb(23, 43, 69)" : "rgb(227, 236, 250)"}');}
 check('theme',app.dataset.sheetTheme==='${theme}');check('no-selector',!app.querySelector('[data-sheet-theme-select]'));

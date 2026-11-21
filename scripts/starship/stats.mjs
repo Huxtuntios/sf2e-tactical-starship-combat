@@ -1,6 +1,6 @@
 import { stackModifiers } from "../engine/stacking.mjs";
 import { effectModifiers, hasCondition } from "./effects.mjs";
-import { readStarship } from "./starship-state.mjs";
+import { isStarship, readStarship } from "./starship-state.mjs";
 import { Content } from "../content/loader.mjs";
 import { log } from "../utils/logging.mjs";
 import { DEGREE } from "../constants.mjs";
@@ -233,7 +233,7 @@ export async function rollFlatCheck({ actor, dc, label }) {
 }
 
 const SHIP_SAVE_SLUGS = ["fortitude", "reflex", "will"];
-const skillSlug = (k) =>
+export const skillSlug = (k) =>
   String(k ?? "")
     .trim()
     .toLowerCase()
@@ -300,6 +300,7 @@ export function shipStatistic(actor, slug) {
 /** Resolve a skill/perception Statistic of a crew member (or of an NPC ship). */
 export function crewStatistic(actor, skill) {
   if (!actor) return null;
+  if (isStarship(actor) && readStarship(actor).role === "npc") return shipStatistic(actor, skill);
   if (skill === "perception") return actor.perception ?? null;
   return actor.skills?.[skill] ?? actor.getStatistic?.(skill) ?? null;
 }

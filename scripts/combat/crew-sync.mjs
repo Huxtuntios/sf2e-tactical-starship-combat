@@ -50,11 +50,13 @@ export async function syncCrewCombatants(
   if (!game.user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
   combat = combat?.id ? game.combats.get(combat.id) : null;
   if (!combat) throw new Error(T("SF2eTSC.errors.combatMissing"));
-  const ships = (shipUuids ? shipUuids.map((u) => fromUuidSync_(u)).filter(Boolean) : participatingPlayerShips(combat)).map((s) => ({
-    uuid: s.uuid,
-    name: s.name,
-    crew: readStarship(s).crew
-  }));
+  const ships = (shipUuids ? shipUuids.map((u) => fromUuidSync_(u)) : participatingPlayerShips(combat))
+    .filter(isPlayerStarship)
+    .map((s) => ({
+      uuid: s.uuid,
+      name: s.name,
+      crew: readStarship(s).crew
+    }));
   const plan = planCrewCombatants({ ships, combatants: combatantViews(combat), resolve: resolveActor, scope, exclude, extra });
   if (plan.create.length) {
     const scene = combat.scene ?? canvas?.scene ?? null;
@@ -105,7 +107,7 @@ export function registerCrewSyncHooks() {
     syncCrewCombatants(combat, [ship.uuid]).catch((err) => log.error("crew sync failed", err));
   });
   Hooks.on(HOOK_EVENTS.stationClaimed, (ship) => {
-    if (!isActiveGM() || moduleSetting("crewInitiativeScope") !== "stationed") return;
+    if (!isActiveGM() || !isPlayerStarship(ship) || moduleSetting("crewInitiativeScope") !== "stationed") return;
     const combat = activeStarshipCombat();
     if (!combat || !findObject(getTsc(combat), ship.uuid)) return;
     syncCrewCombatants(combat, [ship.uuid]).catch((err) => log.error("crew sync failed", err));
