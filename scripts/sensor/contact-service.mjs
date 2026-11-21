@@ -156,6 +156,8 @@ async function applyDetection(combat, key, detection) {
 
 async function publishActorContact(combat, actor, zone, reuseActor = false) {
   return serialize(`sensor:${combat.id}`, async () => {
+    if (reuseActor && privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid))
+      throw new Error(T("SF2eTSC.mapDrop.privateContact"));
     const previous = getTsc(combat);
     const preserveIds = new Set([...(combat.combatants ?? [])].map((entry) => entry.id));
     const change = dropActorOnMap(previous, actor, zone, { publicActor: true, reuseActor });
