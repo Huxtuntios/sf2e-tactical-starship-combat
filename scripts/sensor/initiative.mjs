@@ -4,6 +4,7 @@ import { privateContacts, pendingPrivateReveals } from "./private-contacts.mjs";
 import {
   backfillPrivateSensorActorCombatant,
   privateSensorActorCombatant,
+  isWorldActor,
   SENSOR_CONTACT_COMBATANT_IMAGE,
   SENSOR_CONTACT_COMBATANT_NAME
 } from "./actor-instance.mjs";
@@ -48,14 +49,16 @@ function objectName(object) {
   return String(object?.name ?? object?.label ?? object?.key ?? T("SF2eTSC.initiative.unnamed"));
 }
 
-function independentForCombat(actor, combatId) {
+function independentForCombat(actor, combatId, record) {
+  if (record?.reuseActor === true) return isWorldActor(actor);
   const instance = sensorInstance(actor);
   if (instance) return instance.combatId === combatId && instance.privateContact !== true;
   const sourceUuid = actor?.flags?.[MODULE_ID]?.tacticalCopyOf;
   return typeof sourceUuid === "string" && sourceUuid.length > 0 && sourceUuid !== actor.uuid;
 }
 
-function independentPrivateActor(actor, combatId) {
+function independentPrivateActor(actor, combatId, record) {
+  if (record?.reuseActor === true) return isWorldActor(actor);
   const instance = sensorInstance(actor);
   return instance?.combatId === combatId && instance.privateContact === true;
 }
@@ -124,8 +127,8 @@ async function addActorLocked(combatId, input) {
   const existing = combatantForActor(combat, actor);
   if (existing) {
     if (isPrivate) {
-      if (privateSensorActorCombatant(combat, actor) !== existing) return skipped(name, "actorExposed");
-      await backfillPrivateSensorActorCombatant(combat, actor, existing);
+      if (privateSensorActorCombatant(combat, actor, currentRecord) !== existing) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, existing, currentRecord);
       return { status: "existing", item: { name, hidden: true } };
     }
     if (hidden && (!existing.hidden || existing.name !== displayName || existing.img !== SENSOR_CONTACT_COMBATANT_IMAGE))
@@ -133,7 +136,9 @@ async function addActorLocked(combatId, input) {
     return { status: "existing", item: { name, hidden } };
   }
 
-  const independent = isPrivate ? independentPrivateActor(actor, combat.id) : independentForCombat(actor, combat.id);
+  const independent = isPrivate
+    ? independentPrivateActor(actor, combat.id, currentRecord)
+    : independentForCombat(actor, combat.id, currentRecord);
   if (actor.pack || actor.isToken || !independent) return skipped(name, "noIndependentActor");
 
   // Re-resolve the map/private record and duplicate state immediately before writing.
@@ -146,15 +151,17 @@ async function addActorLocked(combatId, input) {
     hidden = hiddenOnTracker(currentRecord);
     displayName = trackerName(currentRecord, false);
   }
-  const currentIndependent = isPrivate ? independentPrivateActor(actor, combat.id) : independentForCombat(actor, combat.id);
+  const currentIndependent = isPrivate
+    ? independentPrivateActor(actor, combat.id, currentRecord)
+    : independentForCombat(actor, combat.id, currentRecord);
   if (!currentIndependent) return skipped(name, "noIndependentActor");
   if (!isStarship(actor) || readStarship(actor).role !== "npc") return skipped(name, "notNpcShip");
 
   const duplicate = combatantForActor(combat, actor);
   if (duplicate) {
     if (isPrivate) {
-      if (privateSensorActorCombatant(combat, actor) !== duplicate) return skipped(name, "actorExposed");
-      await backfillPrivateSensorActorCombatant(combat, actor, duplicate);
+      if (privateSensorActorCombatant(combat, actor, currentRecord) !== duplicate) return skipped(name, "actorExposed");
+      await backfillPrivateSensorActorCombatant(combat, actor, duplicate, currentRecord);
       return { status: "existing", item: { name, hidden: true } };
     }
     if (hidden && (!duplicate.hidden || duplicate.name !== displayName || duplicate.img !== SENSOR_CONTACT_COMBATANT_IMAGE))

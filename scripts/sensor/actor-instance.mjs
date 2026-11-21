@@ -3,11 +3,16 @@ import { createActorCopy, copyName } from "../combat/copies.mjs";
 import { hazardNeedsCombatant } from "../engine/hazard-rules.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
+import { getTsc } from "../combat/tsc-state.mjs";
 
 const NONE = 0;
 const instanceFlag = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
 export const SENSOR_CONTACT_COMBATANT_NAME = "Contact";
 export const SENSOR_CONTACT_COMBATANT_IMAGE = "icons/svg/mystery-man.svg";
+
+export function isWorldActor(actor) {
+  return actor?.documentName === "Actor" && !actor.pack && !actor.isToken && game.actors?.get(actor.id) === actor;
+}
 
 /** Create a persistent Actor document for one placement, retaining its template UUID. */
 export async function createSensorActorInstance(source, combat, { privateContact = false, createActor } = {}) {
@@ -30,8 +35,10 @@ export async function createSensorActorInstance(source, combat, { privateContact
 
 /** Add an initiative entry only when this Actor type normally takes its own turn. */
 export async function ensureSensorActorCombatant(combat, actor, { combatantId } = {}) {
-  const instance = instanceFlag(actor);
-  if (!instance || instance.privateContact || instance.combatId !== combat?.id) return null;
+  const objects = getTsc(combat).objects.filter((object) => object.actorUuid === actor?.uuid || object.key === actor?.uuid);
+  const reuseActor = objects.length === 1 && objects[0].reuseActor === true && isWorldActor(actor);
+  const instance = reuseActor ? null : instanceFlag(actor);
+  if (!reuseActor && (!instance || instance.privateContact || instance.combatId !== combat?.id)) return null;
   const needsTurn =
     (isStarship(actor) && readStarship(actor).role === "npc") || (actor.type === "hazard" && hazardNeedsCombatant(actor.system?.details));
   if (!needsTurn) return null;
@@ -56,7 +63,11 @@ export async function ensureSensorActorCombatant(combat, actor, { combatantId } 
         name: actor.name,
         img: actor.img,
         hidden: false,
-        flags: { [MODULE_ID]: { sensorContactInstance: { combatId: combat.id, actorUuid: actor.uuid } } }
+        flags: {
+          [MODULE_ID]: reuseActor
+            ? { sensorMapInitiative: { combatId: combat.id, contactDesignation: false } }
+            : { sensorContactInstance: { combatId: combat.id, actorUuid: actor.uuid } }
+        }
       }
     ],
     combatantId ? { keepId: true } : {}
@@ -66,9 +77,9 @@ export async function ensureSensorActorCombatant(combat, actor, { combatantId } 
 }
 
 /** Find the exact anonymous initiative entry that is safe to disclose with a private contact. */
-export function privateSensorActorCombatant(combat, actor) {
-  const instance = instanceFlag(actor);
-  if (!instance?.privateContact || instance.combatId !== combat?.id) return null;
+export function privateSensorActorCombatant(combat, actor, { reuseActor = false } = {}) {
+  const instance = reuseActor ? null : instanceFlag(actor);
+  if (reuseActor ? !isWorldActor(actor) : !instance?.privateContact || instance.combatId !== combat?.id) return null;
   const combatants = combat?.combatants?.contents ?? [...(combat?.combatants ?? [])];
   const matches = combatants.filter((combatant) => {
     const ref = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
@@ -76,7 +87,7 @@ export function privateSensorActorCombatant(combat, actor) {
       combatant.actorId === actor.id &&
       combatant.combat?.id === combat.id &&
       ref?.contactDesignation === true &&
-      (ref.combatId === combat.id || !Object.hasOwn(ref, "combatId"))
+      (ref.combatId === combat.id || (!reuseActor && !Object.hasOwn(ref, "combatId")))
     );
   });
   if (matches.length !== 1) return null;
@@ -86,8 +97,8 @@ export function privateSensorActorCombatant(combat, actor) {
     : null;
 }
 
-export async function backfillPrivateSensorActorCombatant(combat, actor, combatant) {
-  if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
+export async function backfillPrivateSensorActorCombatant(combat, actor, combatant, options = {}) {
+  if (privateSensorActorCombatant(combat, actor, options) !== combatant) throw new Error("invalidPrivateSensorCombatant");
   if (!isActiveGM()) throw new Error("Private Combatant update requires the active GM");
   await combatant.update({
     hidden: true,
@@ -97,8 +108,8 @@ export async function backfillPrivateSensorActorCombatant(combat, actor, combata
   });
 }
 
-export async function revealSensorActorCombatant(combat, actor, combatant) {
-  if (privateSensorActorCombatant(combat, actor) !== combatant) throw new Error("invalidPrivateSensorCombatant");
+export async function revealSensorActorCombatant(combat, actor, combatant, options = {}) {
+  if (privateSensorActorCombatant(combat, actor, options) !== combatant) throw new Error("invalidPrivateSensorCombatant");
   if (!isActiveGM()) throw new Error("Private Combatant update requires the active GM");
   await combatant.update({
     hidden: false,
@@ -132,14 +143,15 @@ export async function restorePrivateSensorActorCombatant(combat, actor, combatan
 }
 
 /** Remove only the initiative entry owned by this Sensor Map instance. */
-export async function deleteSensorActorCombatant(combat, actorUuid) {
+export async function deleteSensorActorCombatant(combat, actorUuid, { preserveIds = new Set() } = {}) {
   const combatants = [...(combat?.combatants ?? [])].filter((combatant) => {
     const instanceRef = combatant.flags?.[MODULE_ID]?.sensorContactInstance;
     const initiativeRef = combatant.flags?.[MODULE_ID]?.sensorMapInitiative;
     return (
-      (instanceRef?.combatId === combat?.id && instanceRef.actorUuid === actorUuid) ||
-      (initiativeRef?.combatId === combat?.id &&
-        (combatant.actor?.uuid === actorUuid || (!combatant.actor && actorUuid === `Actor.${combatant.actorId}`)))
+      !preserveIds.has(combatant.id) &&
+      ((instanceRef?.combatId === combat?.id && instanceRef.actorUuid === actorUuid) ||
+        (initiativeRef?.combatId === combat?.id &&
+          (combatant.actor?.uuid === actorUuid || (!combatant.actor && actorUuid === `Actor.${combatant.actorId}`))))
     );
   });
   if (combatants.length) {
@@ -151,11 +163,11 @@ export async function deleteSensorActorCombatant(combat, actorUuid) {
 }
 
 /** Remove only the combatant and Actor document owned by this Sensor Map instance. */
-export async function deleteSensorActorInstance(combat, actorUuid) {
+export async function deleteSensorActorInstance(combat, actorUuid, { deleteActor = true } = {}) {
   const actor = await fromUuidSafe(actorUuid);
   const instance = instanceFlag(actor);
   await deleteSensorActorCombatant(combat, actorUuid);
-  if (instance?.combatId === combat?.id && actor.documentName === "Actor" && !actor.pack && !actor.isToken) {
+  if (deleteActor && instance?.combatId === combat?.id && actor.documentName === "Actor" && !actor.pack && !actor.isToken) {
     if (!isActiveGM()) throw new Error("Sensor Actor deletion requires the active GM");
     await actor.delete();
     if (game.actors.get(actor.id)) throw new Error("couldNotDeleteSensorActorInstance");

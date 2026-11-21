@@ -7,7 +7,7 @@ import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { viewFor } from "../../scripts/engine/sensor-ops.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { sensorUpdate } from "../../scripts/sensor/map-handlers.mjs";
-import { deleteSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
+import { createSensorActorInstance, deleteSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
 import { addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
 import { T } from "../../scripts/utils/foundry.mjs";
 
@@ -79,7 +79,7 @@ test("non-GM and inactive GM cannot access or mutate private records", async () 
   assert.equal(privateContacts(combat.id)[0].zone, 3);
 });
 
-test("the actual drop listener creates independent private Actors without publishing source UUID", async () => {
+test("the actual drop listener reuses the original private Actor without creation or publishing its UUID", async () => {
   const { enemy, combat } = setup();
   const { wireSensorMapDragDrop } = await import("../../scripts/ui/sensor-drop-ui.mjs");
   const handlers = {};
@@ -97,12 +97,14 @@ test("the actual drop listener creates independent private Actors without publis
   await drop();
   assert.equal(calls, 0);
   const contacts = privateContacts(combat.id);
-  assert.equal(contacts.length, 2);
-  assert.notEqual(contacts[0].actorUuid, enemy.uuid);
-  assert.notEqual(contacts[0].actorUuid, contacts[1].actorUuid);
-  assert.equal(fromUuidSync(contacts[0].actorUuid).flags[MODULE_ID].tacticalCopyOf, enemy.uuid);
-  assert.equal(fromUuidSync(contacts[1].actorUuid).flags[MODULE_ID].tacticalCopyOf, enemy.uuid);
-  assert.equal(fromUuidSync(contacts[0].actorUuid).ownership.default, 0);
+  assert.equal(contacts.length, 1);
+  assert.equal(contacts[0].actorUuid, enemy.uuid);
+  assert.equal(game.actors.size, 1);
+  assert.equal(game.actors.get(enemy.id), enemy);
+  assert.deepEqual(
+    globalThis.__writes.filter((write) => write.doc.startsWith("Actor.")),
+    []
+  );
   assert.equal(combat.combatants.size, 0);
   assert.equal(JSON.stringify(combat.flags).includes(enemy.uuid), false);
   assert.deepEqual(globalThis.__socket, []);
@@ -135,13 +137,15 @@ test("failed reveal finalization retains durable intent and consistent public in
   assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
   assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
   const combatantId = combat.combatants.find((c) => c.actorId === instance.id).id;
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.equal(instance, enemy);
+  assert.equal(instance.flags[MODULE_ID].sensorContactInstance, undefined);
   await changePrivateContact(combat, obj.key, "reveal");
   assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 0);
   assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
   assert.equal(combat.combatants.find((c) => c.actorId === instance.id).id, combatantId);
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.equal(instance, enemy);
+  assert.equal(instance.flags[MODULE_ID].sensorContactInstance, undefined);
 });
 
 test("a newly exposed Actor is not published by the staged reveal", async () => {
@@ -208,11 +212,13 @@ test("resize with an empty private store permits shrink and growth", async () =>
 
 async function removalSetup() {
   const { enemy, combat } = setup();
-  const placement = await addSensorContact(combat, { source: "world", uuid: enemy.uuid, zone: 4, detection: "observed" });
-  const actor = fromUuidSync(placement.actorUuid);
-  await addSensorObjectToInitiative(combat.id, placement.key);
+  const actor = await createSensorActorInstance(enemy, combat, { privateContact: true });
+  await addPrivateContact(combat, actor, 4);
+  const { key } = privateContacts(combat.id)[0];
+  await changePrivateContact(combat, key, "detect", "observed");
+  await addSensorObjectToInitiative(combat.id, key);
   const entry = combat.combatants.find((c) => c.actorId === actor.id);
-  return { enemy, combat, actor, entry, key: placement.key, journal: game.journal.contents[0] };
+  return { enemy, combat, actor, entry, key, journal: game.journal.contents[0] };
 }
 
 for (const target of ["combatant", "actor", "journal", "projection"]) {

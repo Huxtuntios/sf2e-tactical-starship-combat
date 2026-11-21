@@ -10,6 +10,139 @@ import { MODULE_ID } from "../../scripts/constants.mjs";
 import { applySensorOp } from "../../scripts/sensor/map-model.mjs";
 
 const empty = () => defaultSensorState({ enabled: true, zones: 12 });
+
+test("Sensor Map world Actor reuse is a visible world setting enabled by default", async () => {
+  installFoundryMock();
+  const registrations = new Map();
+  game.settings.register = (module, key, config) => {
+    if (module === MODULE_ID) registrations.set(key, config);
+  };
+  const { registerSettings } = await import("../../scripts/settings.mjs");
+  registerSettings();
+  const option = registrations.get("reuseWorldActorsOnSensorMap");
+  assert.ok(option);
+  assert.equal(option.scope, "world");
+  assert.equal(option.config, true);
+  assert.equal(option.type, Boolean);
+  assert.equal(option.default, true);
+});
+
+for (const role of ["npc", "player"]) {
+  test(`copy mode creates independent public ${role} Actors even after the original was reused`, async () => {
+    installFoundryMock();
+    const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+    const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+    const actor = makeShip({ id: "mode-source", role });
+    const before = actor.toObject();
+    const combat = makeStarshipCombat();
+    const drop = () =>
+      sensorUpdate({
+        user: game.user,
+        payload: { combatId: combat.id, op: "dropActor", actorUuid: actor.uuid, zone: 3, publicActor: true }
+      });
+    await drop();
+    await game.settings.set(MODULE_ID, "reuseWorldActorsOnSensorMap", false);
+    await Promise.all([drop(), drop()]);
+    assert.equal(game.actors.size, 3);
+    const objects = getTsc(combat).objects;
+    assert.equal(objects.length, 3);
+    assert.equal(objects[0].actorUuid, actor.uuid);
+    assert.equal(new Set(objects.map((object) => object.actorUuid)).size, 3);
+    const copies = objects.slice(1).map((object) => fromUuidSync(object.actorUuid));
+    assert.equal(
+      copies.every((copy) => copy.flags[MODULE_ID].tacticalCopyOf === actor.uuid),
+      true
+    );
+    await copies[0].update({ "system.attributes.hp.value": 4 });
+    assert.equal(copies[1].system.attributes.hp.value, 30);
+    assert.deepEqual(actor.toObject(), before);
+    assert.equal(combat.combatants.size, role === "npc" ? 3 : 0);
+  });
+}
+
+for (const via of ["public-drop", "contact-editor"]) {
+  test(`${via} cleans up applied-but-rejected Combatant creation without deleting reused Actors or prior entries`, async () => {
+    installFoundryMock();
+    const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+    const { addSensorContact } = await import("../../scripts/sensor/contact-service.mjs");
+    const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+    const actor = makeShip({ id: "failed-original", role: "npc", owners: ["p1"] });
+    const other = makeShip({ id: "unrelated-original", role: "npc" });
+    const before = actor.toObject();
+    const combat = makeStarshipCombat();
+    const [prior] = await combat.createEmbeddedDocuments("Combatant", [
+      { actorId: other.id, initiative: 19, flags: { [MODULE_ID]: { sensorMapInitiative: { combatId: combat.id } } } }
+    ]);
+    const create = combat.createEmbeddedDocuments.bind(combat);
+    combat.createEmbeddedDocuments = async (...args) => {
+      await create(...args);
+      throw new Error("applied creation rejection");
+    };
+    const operation =
+      via === "public-drop"
+        ? () =>
+            sensorUpdate({
+              user: game.user,
+              payload: { combatId: combat.id, op: "dropActor", actorUuid: actor.uuid, zone: 2, publicActor: true }
+            })
+        : () => addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 2, detection: "identified" });
+    await assert.rejects(operation(), /applied creation rejection/);
+    assert.deepEqual(getTsc(combat).objects, []);
+    assert.equal(combat.combatants.size, 1);
+    assert.equal(combat.combatants.get(prior.id), prior);
+    assert.equal(game.actors.get(actor.id), actor);
+    assert.deepEqual(actor.toObject(), before);
+  });
+}
+
+test("public drop cannot bypass the private contact lifecycle for a reused world Actor", async () => {
+  installFoundryMock();
+  const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+  const { addSensorContact } = await import("../../scripts/sensor/contact-service.mjs");
+  const { privateContacts, changePrivateContact } = await import("../../scripts/sensor/private-contacts.mjs");
+  const { addSensorObjectToInitiative } = await import("../../scripts/sensor/initiative.mjs");
+  const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+  const actor = makeShip({ id: "private-original", role: "npc" });
+  const combat = makeStarshipCombat();
+  const placement = await addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 3, detection: "hidden" });
+  await addSensorObjectToInitiative(combat.id, placement.key);
+  const before = getTsc(combat);
+  await assert.rejects(
+    sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "dropActor", actorUuid: actor.uuid, zone: 5, publicActor: true } })
+  );
+  assert.deepEqual(getTsc(combat), before);
+  assert.equal(privateContacts(combat.id).length, 1);
+  await changePrivateContact(combat, placement.key, "reveal");
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(getTsc(combat).objects[0].actorUuid, actor.uuid);
+  assert.equal(combat.combatants.size, 1);
+});
+for (const role of ["npc", "player"]) {
+  test(`concurrent public world ${role} drops reuse the original UUID and never create an Actor`, async () => {
+    installFoundryMock();
+    const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+    const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+    const actor = makeShip({ id: "original-drop", role });
+    const before = actor.toObject();
+    const combat = makeStarshipCombat();
+    const drop = (zone) =>
+      sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "dropActor", actorUuid: actor.uuid, zone, publicActor: true } });
+    await Promise.all([drop(2), drop(2)]);
+    assert.equal(game.actors.size, 1);
+    assert.deepEqual(
+      globalThis.__writes.filter((write) => write.doc.startsWith("Actor.")),
+      []
+    );
+    assert.equal(getTsc(combat).objects.length, 1);
+    assert.equal(getTsc(combat).objects[0].actorUuid, "Actor.original-drop");
+    assert.equal(combat.combatants.size, role === "npc" ? 1 : 0);
+    assert.equal(await drop(4), "moved");
+    assert.equal(getTsc(combat).objects[0].zone, 4);
+    assert.deepEqual(actor.toObject(), before);
+    await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: actor.uuid } });
+    assert.equal(game.actors.get(actor.id), actor);
+  });
+}
 for (const failure of ["reject", "silentVeto", "mapReject"]) {
   test(`public instance removal retains a retryable map reference after ${failure}`, async () => {
     installFoundryMock();
@@ -18,9 +151,12 @@ for (const failure of ["reject", "silentVeto", "mapReject"]) {
     const source = makeShip({ id: "remove-source", role: "npc" });
     const combat = makeStarshipCombat();
     const user = game.users.get("gm");
-    await sensorUpdate({ user, payload: { combatId: combat.id, op: "dropActor", actorUuid: source.uuid, zone: 2, publicActor: true } });
+    const { createSensorActorInstance, ensureSensorActorCombatant } = await import("../../scripts/sensor/actor-instance.mjs");
+    const { mutateTsc } = await import("../../scripts/combat/tsc-state.mjs");
+    const actor = await createSensorActorInstance(source, combat);
+    await mutateTsc(combat, (state) => dropActorOnMap(state, actor, 2, { publicActor: true }).state);
+    await ensureSensorActorCombatant(combat, actor);
     const object = getTsc(combat).objects[0];
-    const actor = fromUuidSync(object.actorUuid);
     const remove = () => sensorUpdate({ user, payload: { combatId: combat.id, op: "remove", key: object.key } });
     const doc = failure === "mapReject" ? combat : actor;
     const method = failure === "mapReject" ? "update" : "delete";
@@ -44,6 +180,31 @@ for (const failure of ["reject", "silentVeto", "mapReject"]) {
     assert.equal(game.actors.get(source.id), source);
   });
 }
+test("world Actor drop preserves an existing linked-token Combatant and manual initiative", async () => {
+  installFoundryMock();
+  const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
+  const actor = makeShip({ id: "linked-original", role: "npc" });
+  const combat = makeStarshipCombat();
+  const [entry] = await combat.createEmbeddedDocuments("Combatant", [
+    { actorId: actor.id, tokenId: "linked-token", initiative: 19, name: "Manual name" }
+  ]);
+  const before = actor.toObject();
+  await sensorUpdate({
+    user: game.user,
+    payload: { combatId: combat.id, op: "dropActor", actorUuid: actor.uuid, zone: 2, publicActor: true }
+  });
+  assert.equal(game.actors.size, 1);
+  assert.equal(combat.combatants.size, 1);
+  assert.equal(combat.combatants.contents[0], entry);
+  assert.equal(entry.tokenId, "linked-token");
+  assert.equal(entry.initiative, 19);
+  assert.equal(entry.name, "Manual name");
+  assert.deepEqual(actor.toObject(), before);
+  await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: actor.uuid } });
+  assert.equal(game.actors.get(actor.id), actor);
+  assert.equal(combat.combatants.contents[0], entry);
+});
+
 test("initial GM heading is explicit, validated and cannot overwrite a later course", () => {
   const s = { ...empty(), objects: [{ key: "ship", type: "starship", zone: 2, heading: null }] };
   assert.equal(applySensorOp(s, { op: "setHeading", key: "ship", heading: "up" }), s);
@@ -121,7 +282,7 @@ test("duplicate drop moves the existing record without resetting settings; rejec
   const duplicate = { ...s, objects: [...s.objects, { ...s.objects[0] }] };
   assert.throws(() => dropActorOnMap(duplicate, actor, 2), /duplicateActors/);
 });
-test("GM-authoritative drop validates sender, UUID and zone; each accepted placement gets an independent Actor", async () => {
+test("GM-authoritative drop validates sender, UUID and zone; repeated placement references the same Actor", async () => {
   installFoundryMock();
   const { registerSensorHandlers } = await import("../../scripts/sensor/map-handlers.mjs");
   const { dispatchSocketMessage } = await import("../../scripts/socket.mjs");
@@ -160,31 +321,20 @@ test("GM-authoritative drop validates sender, UUID and zone; each accepted place
   );
   await Promise.all([send("one", "gm", { name: "Fake", type: "hazard" }), send("two", "gm", {})]);
   const t = getTsc(combat);
-  assert.equal(t.objects.length, 2);
-  assert.deepEqual(
-    t.objects.map((o) => o.name),
-    ["Actual #1", "Actual #2"]
-  );
-  assert.equal(
-    t.objects.every((o) => o.type === "starship"),
-    true
-  );
-  const [first, second] = t.objects.map((o) => fromUuidSync(o.actorUuid));
-  assert.notEqual(first.uuid, ship.uuid);
-  assert.notEqual(first.uuid, second.uuid);
-  assert.equal(first.flags[MODULE_ID].tacticalCopyOf, ship.uuid);
-  assert.equal(second.flags[MODULE_ID].tacticalCopyOf, ship.uuid);
-  assert.equal(combat.combatants.filter((c) => c.actorId === first.id || c.actorId === second.id).length, 2);
-  await first.update({ "system.attributes.hp.value": 4 });
-  assert.equal(second.system.attributes.hp.value, 30);
-  assert.equal(ship.system.attributes.hp.value, 30);
-  const firstItem = first.items.contents[0];
-  const secondItem = second.items.contents[0];
-  firstItem.system.charges.value = 0;
-  assert.equal(secondItem.system.charges.value, 2);
-  assert.equal(ship.items.get("weapon").system.charges.value, 2);
+  assert.equal(t.objects.length, 1);
+  assert.equal(t.objects[0].name, "Actual");
+  assert.equal(t.objects[0].type, "starship");
+  assert.equal(t.objects[0].actorUuid, ship.uuid);
+  assert.equal(game.actors.size, 1);
+  assert.equal(combat.combatants.filter((c) => c.actorId === ship.id).length, 1);
+  const reused = fromUuidSync(t.objects[0].actorUuid);
+  assert.equal(reused, ship);
+  await ship.update({ "system.attributes.hp.value": 4 });
+  assert.equal(reused.system.attributes.hp.value, 4);
+  ship.items.get("weapon").system.charges.value = 0;
+  assert.equal(reused.items.get("weapon").system.charges.value, 0);
   assert.equal(responses.find((r) => r.requestId === "one").result, "added");
-  assert.equal(responses.find((r) => r.requestId === "two").result, "added");
+  assert.equal(responses.find((r) => r.requestId === "two").result, "unchanged");
 });
 test("dropping an Actor already on the public map moves its existing record without copying", async () => {
   installFoundryMock();

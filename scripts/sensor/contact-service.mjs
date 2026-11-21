@@ -13,13 +13,19 @@
  * поведение с несколькими клиентами Foundry не проверено.
  */
 import { MODULE_ID, DETECTION_LEVELS } from "../constants.mjs";
-import { isActiveGM, T, fromUuidSafe, fromUuidSync_ } from "../utils/foundry.mjs";
+import { isActiveGM, T, fromUuidSafe, fromUuidSync_, moduleSetting } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "./private-contacts.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { createActorCopy } from "../combat/copies.mjs";
-import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
+import {
+  createSensorActorInstance,
+  deleteSensorActorInstance,
+  deleteSensorActorCombatant,
+  ensureSensorActorCombatant,
+  isWorldActor
+} from "./actor-instance.mjs";
 import { MINE_FLAG } from "./mine-contact.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 
@@ -148,14 +154,16 @@ async function applyDetection(combat, key, detection) {
   else await changePrivateContact(combat, key, "detect", detection);
 }
 
-async function publishActorContact(combat, actor, zone) {
+async function publishActorContact(combat, actor, zone, reuseActor = false) {
   return serialize(`sensor:${combat.id}`, async () => {
     const previous = getTsc(combat);
-    const change = dropActorOnMap(previous, actor, zone, { publicActor: true });
+    const preserveIds = new Set([...(combat.combatants ?? [])].map((entry) => entry.id));
+    const change = dropActorOnMap(previous, actor, zone, { publicActor: true, reuseActor });
     await saveTsc(combat, change.state);
     try {
       await ensureSensorActorCombatant(combat, actor);
     } catch (error) {
+      await deleteSensorActorCombatant(combat, actor.uuid, { preserveIds });
       await saveTsc(combat, previous);
       throw error;
     }
@@ -168,46 +176,57 @@ async function publishActorContact(combat, actor, zone) {
  * Возвращает { key?, actorUuid?, result }.
  */
 export async function addSensorContact(combat, spec, deps = {}) {
-  if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
-  validateSpec(combat, spec);
-  if (spec.source === "custom") {
-    const key = await addPrivateCustom(combat, spec.name, spec.zone);
-    await applyDetection(combat, key, spec.detection);
-    return { key, actorUuid: null, result: "added" };
-  }
-  const source = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
-  if (
-    !source ||
-    source.documentName !== "Actor" ||
-    source.uuid !== spec.uuid ||
-    !isContactActor(source) ||
-    (spec.source === "compendium" ? !source.pack : source.pack || source.isToken)
-  )
-    throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
-  const visible = actorVisibleToPlayers(source);
-  if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
-  if (visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
-  const actor = await createSensorActorInstance(source, combat, {
-    privateContact: !visible,
-    createActor: deps.createActor
-  });
-  try {
-    // Actor с доступом игроков нельзя разместить в состоянии, которое скроет его на карте.
-    if (visible) {
-      const result = await publishActorContact(combat, actor, spec.zone);
-      return { key: actor.uuid, actorUuid: actor.uuid, result };
+  return serialize(`sensor-contact:${combat.id}`, async () => {
+    if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
+    validateSpec(combat, spec);
+    if (spec.source === "custom") {
+      const key = await addPrivateCustom(combat, spec.name, spec.zone);
+      await applyDetection(combat, key, spec.detection);
+      return { key, actorUuid: null, result: "added" };
     }
-    const result = await addPrivateContact(combat, actor, spec.zone);
-    const contact = privateContacts(combat.id).find((o) => o.actorUuid === actor.uuid);
-    if (contact) await applyDetection(combat, contact.key, spec.detection);
-    return { key: contact?.key ?? actor.uuid, actorUuid: actor.uuid, result };
-  } catch (err) {
-    const referenced =
-      privateContacts(combat.id).some((o) => o.actorUuid === actor.uuid) ||
-      getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
-    if (!referenced) await deleteSensorActorInstance(combat, actor.uuid);
-    throw err;
-  }
+    const source = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
+    const worldSource = spec.source === "world";
+    const reuseActor = worldSource && moduleSetting("reuseWorldActorsOnSensorMap");
+    if (
+      !source ||
+      source.documentName !== "Actor" ||
+      source.uuid !== spec.uuid ||
+      !isContactActor(source) ||
+      (worldSource ? !isWorldActor(source) : !source.pack)
+    )
+      throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
+    const existing = reuseActor && privateContacts(combat.id).find((o) => o.actorUuid === source.uuid);
+    if (existing?.pendingReveal) throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
+    if (reuseActor && getTsc(combat).objects.some((o) => o.actorUuid === source.uuid || o.key === source.uuid)) {
+      const result = await publishActorContact(combat, source, spec.zone, true);
+      return { key: source.uuid, actorUuid: source.uuid, result };
+    }
+    const visible = actorVisibleToPlayers(source);
+    if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+    if (visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+    const actor = reuseActor
+      ? source
+      : await createSensorActorInstance(source, combat, {
+          privateContact: !visible,
+          createActor: deps.createActor
+        });
+    try {
+      if (visible) {
+        const result = await publishActorContact(combat, actor, spec.zone, reuseActor);
+        return { key: actor.uuid, actorUuid: actor.uuid, result };
+      }
+      const result = await addPrivateContact(combat, actor, spec.zone, { reuseActor });
+      const contact = privateContacts(combat.id).find((o) => o.actorUuid === actor.uuid);
+      if (contact && !existing) await applyDetection(combat, contact.key, spec.detection);
+      return { key: contact?.key ?? actor.uuid, actorUuid: actor.uuid, result };
+    } catch (err) {
+      const referenced =
+        privateContacts(combat.id).some((o) => o.actorUuid === actor.uuid) ||
+        getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
+      if (!reuseActor && !referenced) await deleteSensorActorInstance(combat, actor.uuid);
+      throw err;
+    }
+  });
 }
 
 /** Абсолютное перемещение приватного контакта в выбранную зону (в дополнение к ◀ ▶ и перетаскиванию). */

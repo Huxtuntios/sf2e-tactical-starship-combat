@@ -15,7 +15,7 @@ export function sensorDragData(event) {
 }
 
 /** Новые записи становятся общедоступными только после явного подтверждения ведущего. */
-export function dropActorOnMap(state, actor, zone, { publicActor = false } = {}) {
+export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseActor = false } = {}) {
   if (!actor || actor.documentName !== "Actor" || typeof actor.uuid !== "string" || !actor.uuid || !actor.name)
     throw new Error("invalidActor");
   if (!Number.isInteger(zone) || zone < 1 || zone > state.zones) throw new Error("invalidZone");
@@ -35,6 +35,7 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false } = {})
   const object = {
     key: actor.uuid,
     actorUuid: actor.uuid,
+    ...(reuseActor ? { reuseActor: true } : {}),
     type: ship ? "starship" : "hazard",
     name: actor.name,
     zone,

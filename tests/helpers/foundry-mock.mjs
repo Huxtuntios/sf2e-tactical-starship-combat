@@ -395,6 +395,7 @@ const SETTING_DEFAULTS = {
   autoFireConeZones: 0,
   automaticHelming: true,
   sensorMapSize: 12,
+  reuseWorldActorsOnSensorMap: true,
   sensorOrientation: "horizontal",
   showUnknownContacts: true,
   contactDesignation: "greek",

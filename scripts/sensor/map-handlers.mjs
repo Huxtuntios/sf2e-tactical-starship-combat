@@ -8,7 +8,13 @@ import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs
 import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
-import { createSensorActorInstance, deleteSensorActorInstance, ensureSensorActorCombatant } from "./actor-instance.mjs";
+import {
+  createSensorActorInstance,
+  deleteSensorActorInstance,
+  deleteSensorActorCombatant,
+  ensureSensorActorCombatant,
+  isWorldActor
+} from "./actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
 import { pendingPrivateReveals, privateContacts } from "./private-contacts.mjs";
 
@@ -61,7 +67,10 @@ export async function sensorUpdate({ user, payload: raw }) {
       const actor = await fromUuidSafe(payload.actorUuid);
       if (!actor || actor.uuid !== payload.actorUuid || actor.documentName !== "Actor") throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
       const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
-      if (getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid)) {
+      const reuseActor = isWorldActor(actor) && moduleSetting("reuseWorldActorsOnSensorMap");
+      if (reuseActor && privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid))
+        throw new Error(T("SF2eTSC.mapDrop.privateContact"));
+      if (reuseActor && getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid)) {
         let result;
         try {
           await mutateTsc(combat, (state) => {
@@ -75,26 +84,29 @@ export async function sensorUpdate({ user, payload: raw }) {
         }
         return result;
       }
+      if (!reuseActor && payload.publicActor !== true) throw new Error(T("SF2eTSC.mapDrop.disclosureRequired"));
       try {
         dropActorOnMap(getTsc(combat), actor, payload.zone, { publicActor: payload.publicActor === true });
       } catch (error) {
         if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
         throw error;
       }
-      const instance = await createSensorActorInstance(actor, combat);
+      const instance = reuseActor ? actor : await createSensorActorInstance(actor, combat);
       const previous = getTsc(combat);
+      const preserveIds = new Set([...(combat.combatants ?? [])].map((entry) => entry.id));
       let result;
       try {
         await mutateTsc(combat, (state) => {
-          const change = dropActorOnMap(state, instance, payload.zone, { publicActor: payload.publicActor === true });
+          const change = dropActorOnMap(state, instance, payload.zone, { publicActor: payload.publicActor === true, reuseActor });
           result = change.result;
           return change.state;
         });
         await ensureSensorActorCombatant(combat, instance);
       } catch (error) {
+        if (reuseActor) await deleteSensorActorCombatant(combat, instance.uuid, { preserveIds });
         if (getTsc(combat).objects.some((o) => o.actorUuid === instance.uuid || o.key === instance.uuid))
           await mutateTsc(combat, () => previous);
-        await deleteSensorActorInstance(combat, instance.uuid);
+        if (!reuseActor) await deleteSensorActorInstance(combat, instance.uuid);
         if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
         throw error;
       }
@@ -125,7 +137,7 @@ export async function sensorUpdate({ user, payload: raw }) {
     const designation = moduleSetting("contactDesignation");
     const before = ["move", "shift"].includes(payload.op) ? findObject(getTsc(combat), payload.key)?.zone : null;
     const removing = payload.op === "remove" ? findObject(getTsc(combat), payload.key) : null;
-    if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid);
+    if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
     await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
     // Remember the art orientation on the Actor itself so future placements and copies inherit it.

@@ -14,7 +14,8 @@ import {
   privateSensorActorCombatant,
   revealSensorActorCombatant,
   SENSOR_CONTACT_COMBATANT_NAME,
-  SENSOR_CONTACT_COMBATANT_IMAGE
+  SENSOR_CONTACT_COMBATANT_IMAGE,
+  isWorldActor
 } from "./actor-instance.mjs";
 
 // Отдельный JournalEntry без родительской папки и наследуемых прав; в Combat сохраняется только проекция карты.
@@ -87,7 +88,7 @@ async function ensureStore(combatId) {
 function validZone(combat, zone) {
   return Number.isInteger(zone) && zone >= 1 && zone <= getTsc(combat).zones;
 }
-function assertHiddenActor(actor, combat) {
+function assertHiddenActor(actor, combat, options = {}) {
   if (
     !actor ||
     actor.documentName !== "Actor" ||
@@ -100,21 +101,22 @@ function assertHiddenActor(actor, combat) {
   if (typeof actor.testUserPermission !== "function" || !Array.isArray(game.users?.contents))
     throw new Error(T("SF2eTSC.privateMap.invalidActor"));
   const actorCombatants = [...(combat.combatants ?? [])].filter((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id);
-  const privateInitiative = privateSensorActorCombatant(combat, actor);
+  const privateInitiative = privateSensorActorCombatant(combat, actor, options);
   if (
     game.users.contents.some((u) => !u.isGM && actor.testUserPermission(u, "LIMITED")) ||
     (actorCombatants.length > 0 && (actorCombatants.length !== 1 || actorCombatants[0] !== privateInitiative))
   )
     throw new Error(T("SF2eTSC.privateMap.actorExposed"));
 }
-export async function addPrivateContact(combat, actor, zone) {
+export async function addPrivateContact(combat, actor, zone, { reuseActor = false } = {}) {
   requireGM();
   return serialize(`sensor:${combat.id}`, async () => {
     requireGM();
     if (!validZone(combat, zone)) throw new Error(T("SF2eTSC.mapDrop.invalidZone"));
     const pending = privateContacts(combat.id).find((contact) => contact.actorUuid === actor?.uuid);
     if (pending) assertNotPending(pending);
-    assertHiddenActor(actor, combat);
+    if (reuseActor && !isWorldActor(actor)) throw new Error(T("SF2eTSC.privateMap.invalidActor"));
+    assertHiddenActor(actor, combat, pending ?? { reuseActor });
     const pub = getTsc(combat).objects.filter((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
     if (pub.length) throw new Error(T("SF2eTSC.privateMap.alreadyPublic"));
     const doc = await ensureStore(combat.id);
@@ -134,6 +136,7 @@ export async function addPrivateContact(combat, actor, zone) {
       contacts.push({
         key,
         actorUuid: actor.uuid,
+        ...(reuseActor ? { reuseActor: true } : {}),
         name: actor.name,
         type: actor.type === "hazard" ? "hazard" : "starship",
         zone,
@@ -219,6 +222,8 @@ function validIntent(intent, combatId, contact) {
     intent.actorUuid === contact.actorUuid &&
     (typeof intent.actorUuid === "string" || intent.actorUuid === null) &&
     typeof intent.turnRequired === "boolean" &&
+    (intent.reuseActor === undefined || intent.reuseActor === true) &&
+    (intent.reuseActor !== true || (contact.reuseActor === true && intent.instance === null)) &&
     REVEAL_STAGES.includes(intent.stage) &&
     intent.object?.key === (contact.actorUuid ?? contact.key) &&
     intent.object?.detection?.party === "identified" &&
@@ -261,7 +266,7 @@ function assertRevealActor(combat, contact, actor, intent) {
     Object.entries(actor.ownership ?? {}).some(([id, level]) => Number(level) > 0 && (id === "default" || !game.users.get(id)?.isGM))
   )
     revealError("Actor permissions now expose the private contact");
-  const instance = instanceOf(actor);
+  const instance = contact.reuseActor === true ? null : instanceOf(actor);
   if (intent) {
     if (
       !same(instance ? { combatId: instance.combatId, sourceUuid: instance.sourceUuid } : null, intent.instance) ||
@@ -272,7 +277,7 @@ function assertRevealActor(combat, contact, actor, intent) {
       actor.type !== intent.actorType ||
       intent.turnRequired !==
         Boolean(
-          instance &&
+          (instance || intent.reuseActor === true) &&
           ((isStarship(actor) && readStarship(actor).role === "npc") ||
             (actor.type === "hazard" && hazardNeedsCombatant(actor.system?.details)))
         )
@@ -326,7 +331,11 @@ function inspectRevealCombatant(combat, actor, intent) {
     (ref && ref.combatId !== combat.id && Object.hasOwn(ref, "combatId")) ||
     flags.compromisedEntry ||
     flags.starshipMine ||
-    (expected.mode === "anonymous" ? !ref || instance : !instance || ref)
+    (expected.mode === "anonymous"
+      ? !ref || instance
+      : intent.reuseActor === true
+        ? instance || !ref || ref.combatId !== combat.id || ref.contactDesignation !== false
+        : !instance || ref)
   )
     revealError("Combatant identity, initiative or module ownership conflicts");
   const revealed =
@@ -361,7 +370,7 @@ async function writeRevealStage(combat, key, intent, stage) {
 }
 async function beginReveal(combat, contact, actor) {
   assertRevealActor(combat, contact, actor);
-  if (actor) assertHiddenActor(actor, combat);
+  if (actor) assertHiddenActor(actor, combat, contact);
   const state = getTsc(combat);
   const projection = state.objects.find((o) => o.key === contact.key && o.tscPrivateProjection) ?? null;
   const expectedProjection = contactProjection(contact, actor);
@@ -378,7 +387,7 @@ async function beginReveal(combat, contact, actor) {
   )
     revealError("conflicting anonymous projection");
   const next = actor
-    ? dropActorOnMap({ ...state, objects: [] }, actor, contact.zone, { publicActor: true }).state
+    ? dropActorOnMap({ ...state, objects: [] }, actor, contact.zone, { publicActor: true, reuseActor: contact.reuseActor === true }).state
     : addObject(
         { ...state, objects: [] },
         {
@@ -391,10 +400,10 @@ async function beginReveal(combat, contact, actor) {
           detection: { party: "identified" }
         }
       );
-  const anonymous = actor ? privateSensorActorCombatant(combat, actor) : null;
-  const instance = instanceOf(actor);
+  const anonymous = actor ? privateSensorActorCombatant(combat, actor, contact) : null;
+  const instance = contact.reuseActor === true ? null : instanceOf(actor);
   const needsTurn =
-    instance &&
+    (instance || contact.reuseActor === true) &&
     ((isStarship(actor) && readStarship(actor).role === "npc") || (actor.type === "hazard" && hazardNeedsCombatant(actor.system?.details)));
   const intent = {
     schema: 1,
@@ -403,6 +412,7 @@ async function beginReveal(combat, contact, actor) {
     actorUuid: contact.actorUuid,
     stage: "intent",
     instance: instance ? { combatId: instance.combatId, sourceUuid: instance.sourceUuid } : null,
+    ...(contact.reuseActor === true ? { reuseActor: true } : {}),
     copyOf: actor?.flags?.[MODULE_ID]?.tacticalCopyOf ?? null,
     actorName: actor?.name ?? null,
     actorImage: actor?.img ?? null,
@@ -465,7 +475,7 @@ async function finishReveal(combat, contact, actor, initialIntent) {
   intent = await writeRevealStage(combat, contact.key, intent, "map");
   actual = inspect();
   if (!actual.tracker.revealed && actual.tracker.entry) {
-    await revealSensorActorCombatant(combat, actor, actual.tracker.entry);
+    await revealSensorActorCombatant(combat, actor, actual.tracker.entry, contact);
     actual = inspect();
     if (!actual.tracker.revealed) revealError("Combatant disclosure did not persist");
   }
@@ -629,7 +639,7 @@ export async function changePrivateContact(combat, key, op, zone, { expected } =
     } else if (op === "remove") {
       await saveProjection(combat, contact, true);
       requireGM();
-      if (contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid);
+      if (contact.actorUuid) await deleteSensorActorInstance(combat, contact.actorUuid, { deleteActor: contact.reuseActor !== true });
       requireGM();
       contacts.splice(contacts.indexOf(contact), 1);
     } else throw new Error(T("SF2eTSC.privateMap.invalidStore"));
