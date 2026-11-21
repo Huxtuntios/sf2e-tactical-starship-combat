@@ -10,6 +10,7 @@
  * Pure module (no Foundry globals); source data is never modified.
  */
 import { npcStrikeAction, npcInlineAction, slugifyName } from "./npc-inline.mjs";
+import { gradeAtLeast } from "../engine/advancement.mjs";
 
 export const STRIKE_KINDS = ["melee", "ranged"];
 const DICE = /\d+d\d+/i;
@@ -113,11 +114,18 @@ export function collectNpcActions(data = {}, catalog) {
   const strikes = Array.isArray(data.strikes) ? data.strikes : [];
   const abilities = Array.isArray(data.npcActions) ? data.npcActions : [];
   const catActions = [...(catalog?.actions ?? [])];
-  const findKnown = (name) => catActions.find((a) => a.slug === slugifyName(name) || lower(a.name) === name.toLowerCase()) ?? null;
-  const add = (e) => {
-    if (seen.has(e.id)) return;
-    seen.add(e.id);
-    entries.push({ issues: [], ...e });
+  const findKnown = (name) =>
+    (lower(name) === "fortify shields" ? catalog?.get?.("fortify-shield-points") : null) ??
+    catActions.find((a) => a.slug === slugifyName(name) || lower(a.name) === name.toLowerCase()) ??
+    null;
+  const add = (e, key = e.id) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    const own =
+      e.action &&
+      abilities.find((a) => slugifyName(a?.name) === slugifyName(e.action.name) || findKnown(a?.name ?? "")?.id === e.action.id);
+    const action = own && e.action ? { ...e.action, detailText: own.text, familyText: own.familyText ?? e.action.familyText } : e.action;
+    entries.push({ issues: [], ...e, action });
   };
 
   const addStrike = (raw, station, index) => {
@@ -146,13 +154,35 @@ export function collectNpcActions(data = {}, catalog) {
       });
     return add({ id: template.id, name: template.name, action: b.action, station, source: "bound-strike", issues: [] });
   };
-  const addKnown = (a, station) =>
+  const addKnown = (a, station, key = a.id) =>
     a.builtin === "npc-strike" && !a.strike
       ? addTemplate(a, station)
-      : add({ id: a.id, name: a.name, action: a, station, source: "catalog" });
+      : add({ id: a.id, name: a.name, action: a, station, source: "catalog" }, key);
   const strikeIndex = (name) => strikes.findIndex((s) => lower(s?.name) === name.toLowerCase());
 
+  const customNpc = data.role === "npc" && String(data.sourceId ?? "").startsWith("custom-");
   stations.forEach((st) => {
+    if (customNpc && !st.actions?.length) {
+      for (const a of catActions) {
+        if (a.npcOnly || (a.station !== st.type && a.station !== "any")) continue;
+        if (!gradeAtLeast(st.grade, a.minGrade ?? "commercial")) continue;
+        if (["strike", "area-fire", "auto-fire", "spell-attack"].includes(a.builtin)) continue;
+        if (
+          ["boost-battle-station", "deploy-drone", "retrieve-drone", "drone-block", "repair-hull-drone", "deploy-starship-mine"].includes(
+            a.id
+          )
+        )
+          continue;
+        if (
+          a.requiresDroneType &&
+          !(Array.isArray(data.drones) ? data.drones : []).some(
+            (d) => d?.tscVersion === 1 && d.stationId === st.id && d.ref === a.requiresDroneType && d.deployed === true
+          )
+        )
+          continue;
+        addKnown(a, st, `${a.id}:${st.id}`);
+      }
+    }
     (Array.isArray(st.actions) ? st.actions : []).forEach((raw) => {
       const name = stationActionName(raw);
       if (!name) {

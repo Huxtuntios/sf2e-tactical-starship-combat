@@ -42,6 +42,31 @@ export function npcStrikeAction(strike) {
   };
 }
 
+export function npcActionDescription(action, translate = (text) => text) {
+  let text = translate(action.text ?? "");
+  const family = action.familyText ?? "";
+  const saves = [
+    ...new Set(
+      [...family.matchAll(/\b(basic\s+)?(Fortitude|Reflex|Will) save\b/gi)].map((m) => `${m[2].toLowerCase()}${m[1] ? "|basic" : ""}`)
+    )
+  ];
+  const dcs = [...new Set([...(action.text ?? "").matchAll(/\bDC\s+(\d+)\b/g)].map((m) => m[1]))];
+  if (
+    saves.length === 1 &&
+    dcs.length === 1 &&
+    !text.includes("@Check[") &&
+    !/\b(?:Fortitude|Reflex|Will) save\b/i.test(action.text ?? "")
+  ) {
+    const [save, basic] = saves[0].split("|");
+    text = text.replace(
+      new RegExp(`(?:DC|КС)\\s+${dcs[0]}\\b`),
+      (label) => `@Check[${save}|dc:${dcs[0]}${basic ? "|basic" : ""}]{${label}}`
+    );
+  }
+  const detail = action.detailText && action.detailText !== action.text ? translate(action.detailText) : "";
+  return [text, detail, translate(family)].filter(Boolean).join("\n\n");
+}
+
 export function npcInlineAction(name, own, station = null) {
   const cost = own ? COST_FROM[own.cost] : 1;
   return {
@@ -55,6 +80,7 @@ export function npcInlineAction(name, own, station = null) {
     passive: own?.cost === "passive",
     traits: own?.traits ?? [],
     text: own?.text ?? name,
+    familyText: own?.familyText ?? "",
     frequency: parseFrequency(own?.text),
     effects: [{ type: "manual", text: own?.text ?? name }]
   };

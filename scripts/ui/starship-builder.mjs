@@ -172,7 +172,7 @@ export class StarshipBuilder extends TscApp {
       const crew = Object.entries(f.crew ?? {})
         .filter(([, v]) => v)
         .map(([k]) => k.replace(/__DOT__/g, "."));
-      for (const uuid of crew) await Crew.add(actor.uuid, uuid, "crew");
+      if (f.kind === "player") for (const uuid of crew) await Crew.add(actor.uuid, uuid, "crew");
       notifyInfo("SF2eTSC.builder.created", { name: actor.name });
       actor.sheet.render(true);
     } catch (err) {

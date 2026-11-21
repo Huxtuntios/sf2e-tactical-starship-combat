@@ -47,7 +47,10 @@ async function prepareCombatRoster(config) {
       };
     })
   };
-  input.enemies = (config.enemies ?? []).map((s) => (typeof s === "string" ? { uuid: s } : s));
+  input.enemies = (config.enemies ?? []).map((s) => ({
+    ...(typeof s === "string" ? { uuid: s } : s),
+    stationAssignments: []
+  }));
   input.hazards = (config.hazards ?? []).map((s) => (typeof s === "string" ? { uuid: s } : s));
   const cfg = normalizePreset({ ...input, zones: config.zones ?? moduleSetting("sensorMapSize") });
   for (const entry of [...input.playerShips, ...input.enemies, ...input.hazards]) {

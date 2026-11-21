@@ -176,6 +176,7 @@ export async function buildSheetContext(sheet) {
     role: roleOf(game.user, actor),
     stations,
     crew: crewRows,
+    crewControls: data.role !== "npc" || data.crew.length > 0,
     weapons: data.weapons.map((w) => ({
       ...w,
       weaponInfo: weaponSummary(w),

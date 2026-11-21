@@ -173,7 +173,7 @@ async function runCheck(ctx) {
     }
   }
   const roller = ctx.crew ?? ctx.ship;
-  let statistic = c.kind === "perception" ? roller.perception : crewStatistic(roller, skill);
+  const statistic = crewStatistic(roller, c.kind === "perception" ? "perception" : skill);
   let fallbackMod = 0;
   if (!statistic && ctx.data.role !== "player")
     fallbackMod = skill === "perception" ? ctx.stats.perception : (ctx.data.skills?.[skill] ?? 0);
@@ -288,7 +288,7 @@ async function executeActionNow(params) {
   const isGM = user.isGM;
   const gmOverride = isGM && !!options.gmOverride;
   const crew = crewUuid ? await fromUuidSafe(crewUuid) : null;
-  const hasCrewRole = data.role === "player" || (data.crew?.length ?? 0) > 0;
+  const hasCrewRole = data.role !== "npc" && (data.role === "player" || (data.crew?.length ?? 0) > 0);
 
   const strictRules = strictRulesFor(gmOverride);
   const warnings = [];
@@ -349,7 +349,9 @@ async function executeActionNow(params) {
   if (!action.npcOnly && action.station !== "npc") {
     ctx.station = crew
       ? (data.stations.find((s) => s.helmedBy === crewUuid) ?? null)
-      : (data.stations.find((s) => s.type === action.station) ?? null);
+      : data.role === "npc" && params.stationId
+        ? (data.stations.find((s) => s.id === params.stationId) ?? null)
+        : (data.stations.find((s) => s.type === action.station) ?? null);
     if (action.station !== "any") {
       if (!ctx.station || ctx.station.type !== action.station) {
         if (!gmOverride) rule("notHelming", { station: T(`SF2eTSC.stations.${action.station}`) });
@@ -489,7 +491,11 @@ async function executeActionNow(params) {
 /** Stations of an NPC ship whose statblock list contains the action (by name/slug). */
 export function npcOwnerStations(data, action) {
   const slug = slugifyName(action.name ?? action.slug);
-  return (data.stations ?? []).filter((s) => (s.actions ?? []).some((n) => slugifyName(n) === slug));
+  return (data.stations ?? []).filter((s) =>
+    (s.actions ?? []).some(
+      (n) => slugifyName(n) === slug || (action.id === "fortify-shield-points" && slugifyName(n) === "fortify-shields")
+    )
+  );
 }
 
 /**

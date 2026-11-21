@@ -4,7 +4,7 @@ import { setActionSheetContext } from "./action-sheet-theme.mjs";
 import { modulePackId } from "../utils/system.mjs";
 import { Content } from "../content/loader.mjs";
 import { buildActionItemData } from "../content/action-docs.mjs";
-import { buildNpcAction } from "../actions/npc-inline.mjs";
+import { buildNpcAction, slugifyName } from "../actions/npc-inline.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 
 export function actionCostLabel(cost) {
@@ -25,8 +25,17 @@ export async function showActionDescription(event, target) {
   event.preventDefault();
   event.stopPropagation();
   const id = target.dataset.actionId;
+  const ship = this?.document ?? (await fromUuidSafe(target.dataset.shipUuid));
+  const shipData = ship ? readStarship(ship) : null;
+  const action = Content.actions.get(id) ?? (shipData ? buildNpcAction(shipData, id) : null);
+  const shipSpecific =
+    shipData?.role === "npc" &&
+    shipData.npcActions?.some(
+      (a) =>
+        slugifyName(a.name) === slugifyName(action?.name) || (id === "fortify-shield-points" && slugifyName(a.name) === "fortify-shields")
+    );
   const pack = game.packs.get(modulePackId("starship-actions"));
-  if (pack) {
+  if (pack && !shipSpecific) {
     const index = await pack.getIndex({ fields: [`flags.${MODULE_ID}.packAction`, "folder"] });
     const matches = index.filter((row) => row.flags?.[MODULE_ID]?.packAction?.actionId === id);
     const language = game.i18n.lang?.startsWith("ru") ? "Русский" : "English";
@@ -40,12 +49,11 @@ export async function showActionDescription(event, target) {
       const item = await pack.getDocument(row._id);
       setActionSheetContext(item.sheet, {
         crew: await fromUuidSafe(target.dataset.crewUuid),
-        ship: this?.document ?? (await fromUuidSafe(target.dataset.shipUuid))
+        ship
       });
       return item.sheet.render(true);
     }
   }
-  const action = Content.actions.get(id) ?? (this?.document ? buildNpcAction(readStarship(this.document), id) : null);
   const data = buildActionItemData(action ?? { id, name: target.textContent.trim() });
   data._id = foundry.utils.randomID();
   data.name = target.textContent.trim();
@@ -55,5 +63,5 @@ export async function showActionDescription(event, target) {
     data.system.actions.value = null;
   }
   // Ship-specific NPC abilities have no catalogue Item; viewing must not create world documents.
-  return new CONFIG.Item.documentClass(data).sheet.render(true);
+  return new CONFIG.Item.documentClass(data).sheet.render(true, { editable: false });
 }

@@ -83,10 +83,12 @@
           {{#if malfunctioning}}<span class="tsc-pill bad">⚠ {{localize "SF2eTSC.ui.malfunctioning"}}</span>{{/if}}
           {{> tscOccupant occupant size="md"}}</header>
         <div class="tsc-btn-row">
+          {{#if @root.crewControls}}
           {{#unless occupied}}<button type="button" data-action="claim" data-station-id="{{id}}"><i class="fa-solid fa-hand"></i> {{localize "SF2eTSC.crew.claim"}}</button>{{/unless}}
           {{#if occupied}}{{#if claimedByMe}}<button type="button" data-action="unhelm" data-station-id="{{id}}" data-crew-uuid="{{helmedBy}}">{{localize "SF2eTSC.crew.release"}}</button>{{/if}}{{/if}}
-          {{#if @root.isGM}}<button type="button" data-action="forceClaim" data-station-id="{{id}}" data-crew-uuid="">{{localize "SF2eTSC.crew.forceHelm"}}</button>{{#if occupied}}<button type="button" data-action="unhelm" data-station-id="{{id}}" data-crew-uuid="{{helmedBy}}">{{localize "SF2eTSC.crew.unhelm"}}</button>{{/if}}
-            <button type="button" data-action="toggleMalf" data-station-id="{{id}}" data-value="{{malfunctioning}}">{{#if malfunctioning}}{{localize "SF2eTSC.ui.clearMalfunction"}}{{else}}{{localize "SF2eTSC.ui.setMalfunction"}}{{/if}}</button>{{/if}}
+          {{#if @root.isGM}}<button type="button" data-action="forceClaim" data-station-id="{{id}}" data-crew-uuid="">{{localize "SF2eTSC.crew.forceHelm"}}</button>{{#if occupied}}<button type="button" data-action="unhelm" data-station-id="{{id}}" data-crew-uuid="{{helmedBy}}">{{localize "SF2eTSC.crew.unhelm"}}</button>{{/if}}{{/if}}
+          {{/if}}
+          {{#if @root.isGM}}<button type="button" data-action="toggleMalf" data-station-id="{{id}}" data-value="{{malfunctioning}}">{{#if malfunctioning}}{{localize "SF2eTSC.ui.clearMalfunction"}}{{else}}{{localize "SF2eTSC.ui.setMalfunction"}}{{/if}}</button>{{/if}}
           {{#if canConfig}}
             <select data-station-field="grade" data-station-id="{{id}}" aria-label="{{localize 'SF2eTSC.ui.grade'}}">{{#each ../catalog.grades}}<option value="{{id}}" {{#if (eq id ../grade)}}selected{{/if}}>{{name}}</option>{{/each}}</select>
             <button type="button" class="danger" data-action="removeStation" data-station-id="{{id}}"><i class="fa-solid fa-trash"></i></button>{{/if}}
