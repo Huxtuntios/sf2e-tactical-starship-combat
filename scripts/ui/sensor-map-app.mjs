@@ -8,6 +8,7 @@ import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } f
 import { ZONE_LIMITS, HEADINGS, STATUS_STATES } from "../constants.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
 import { Targeting } from "./targeting.mjs";
+import { targetingState } from "../engine/target-rules.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { viewFor, findObject } from "../engine/sensor-ops.mjs";
 import { readStarship, statusOf } from "../starship/starship-state.mjs";
@@ -273,7 +274,8 @@ export class SensorMapApplication extends TscApp {
     if (!arrows.has(arrowKey)) arrows.set(arrowKey, resolveArrowAppearance(appearance, o.arrowAppearance));
     const arrowAppearance = arrows.get(arrowKey);
     const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
-    const cls = Targeting.current && !o.privateContact ? Targeting.classify(tsc, o) : null;
+    const session = Targeting.current;
+    const cls = session ? Targeting.classify(targetingState(getTsc(combat), session.shipUuid, this._privateObjects), o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
     return {
       key: o.key,
@@ -445,6 +447,7 @@ export class SensorMapApplication extends TscApp {
   #preview(tsc) {
     const t = Targeting.current;
     if (!t || !this._hover) return null;
+    tsc = targetingState(getTsc(activeStarshipCombat()), t.shipUuid, this._privateObjects);
     const me = findObject(tsc, t.shipUuid),
       to = findObject(tsc, this._hover);
     if (!me || !to) return null;
@@ -532,8 +535,8 @@ export class SensorMapApplication extends TscApp {
   /* ---------------------------------------------------------------- actions */
   static #select(event, target) {
     const key = target.dataset.objectKey;
-    if (Targeting.current && this._privateObjects?.some((o) => o.key === key)) return;
-    if (Targeting.current) return Targeting.pick(key, getTsc(activeStarshipCombat()));
+    if (Targeting.current)
+      return Targeting.pick(key, targetingState(getTsc(activeStarshipCombat()), Targeting.current.shipUuid, this._privateObjects));
     this.selected = this.selected === key ? null : key;
     this.render({ parts: sensorPartsFor("select") });
   }
