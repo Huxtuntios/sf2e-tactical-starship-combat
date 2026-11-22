@@ -11,6 +11,8 @@ import {
 import { addPrivateContact, addPrivateCustom, changePrivateContact, privateContacts } from "../sensor/private-contacts.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { advanceEffects } from "../starship/effect-timing.mjs";
+import { removeManualEffect } from "../starship/application-service.mjs";
+import { combatShipUuids, persistentIntervalForShip, processPersistentDamage } from "../starship/persistent-damage.mjs";
 import { MODULE_ID, FLAGS, HOOK_EVENTS } from "../constants.mjs";
 import { defaultSensorState, addObject } from "../engine/sensor-ops.mjs";
 import { activeStarshipCombat, getTsc, saveTsc, isStarshipCombat, mutateTsc } from "./tsc-state.mjs";
@@ -525,7 +527,8 @@ export async function setStarshipCombatEnabled(combat, enabled) {
 }
 
 /** Per-turn processing (active GM only). */
-async function onTurnChange(combat) {
+export async function onTurnChange(combat) {
+  if (!isActiveGM()) return;
   const state = foundry.utils.deepClone(getTsc(combat));
   const cb = combat.combatant;
   // Turn-index corrections (e.g. after a compromised ship is inserted before the current combatant) also fire
@@ -536,41 +539,46 @@ async function onTurnChange(combat) {
   state.lastEffectTurn = { id: cb?.id ?? null, round: combat.round, turn: combat.turn };
   state.lastTurnKey = key;
   // expire effects / timed malfunctions / repair lockouts
-  for (const o of state.objects) {
-    if (o.type !== "starship") continue;
-    const ship = await fromUuidSafe(o.actorUuid ?? o.key);
+  for (const uuid of combatShipUuids(combat)) {
+    const ship = await fromUuidSafe(uuid);
     if (!ship || !isStarship(ship)) continue;
     const data = readStarship(ship);
     const expired = pruneExpired(data.effects, combat, previous);
-    const { keep, reminders } = advanceEffects(expired.keep, combat, previous);
-    let changed = expired.removed.length > 0 || reminders.length > 0;
-    for (const effect of reminders) {
+    const advanced = advanceEffects(expired.keep, combat, previous);
+    const removed = [...expired.removed, ...advanced.removed];
+    for (const effect of removed.filter((e) => e.manual)) await removeManualEffect(ship.uuid, effect.id);
+    const removedIds = new Set(removed.map((e) => e.id));
+    const reminderIds = new Set(advanced.reminders.map((e) => e.id));
+    const reminderEffects = new Map(advanced.keep.filter((e) => reminderIds.has(e.id)).map((e) => [e.id, e]));
+    await patchStarship(
+      ship,
+      (d) => {
+        d.effects = d.effects
+          .filter((e) => !removedIds.has(e.id))
+          .map((e) =>
+            reminderEffects.has(e.id)
+              ? { ...e, timing: { ...e.timing, lastReminderRound: reminderEffects.get(e.id).timing.lastReminderRound } }
+              : e
+          );
+        for (const st of d.stations) {
+          if (cb?.actor && st.malfunctionUntilTurnOf === cb.actor.uuid) {
+            st.malfunctioning = false;
+            st.malfunctionUntilTurnOf = null;
+          }
+          if (cb?.actor && st.repairLockedUntilTurnOf === cb.actor.uuid) st.repairLockedUntilTurnOf = null;
+        }
+      },
+      { reason: T("SF2eTSC.qol.turnTiming"), undoable: false }
+    );
+    const intervalKey = persistentIntervalForShip(combat, ship.uuid, previous);
+    if (intervalKey) await processPersistentDamage(ship.uuid, { combat, intervalKey });
+    for (const effect of advanced.reminders) {
       const esc = foundry.utils.escapeHTML;
       await ChatMessage.create({
         whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
         content: `<p>${esc(ship.name)}: ${esc(T("SF2eTSC.qol.sustainReminder"))} — ${esc(ct(effect.label))}</p>`
       });
     }
-    for (const st of data.stations) {
-      if (cb?.actor && st.malfunctionUntilTurnOf === cb.actor.uuid) {
-        st.malfunctioning = false;
-        st.malfunctionUntilTurnOf = null;
-        changed = true;
-      }
-      if (cb?.actor && st.repairLockedUntilTurnOf === cb.actor.uuid) {
-        st.repairLockedUntilTurnOf = null;
-        changed = true;
-      }
-    }
-    if (changed)
-      await patchStarship(
-        ship,
-        (d) => {
-          d.effects = keep;
-          d.stations = data.stations;
-        },
-        { reason: T("SF2eTSC.qol.turnTiming"), undoable: false }
-      );
   }
   await saveTsc(combat, state);
   await HazardEngine.processResets(combat);
@@ -618,16 +626,18 @@ export function closeTacticalApps() {
   }, 50);
 }
 /** Reset combat-only ship state (temporary effects, malfunctions, headings) after the encounter ends. */
-async function cleanupEndedCombat(combat) {
-  const tsc = getTsc(combat);
-  for (const o of tsc.objects ?? []) {
-    if (o.type !== "starship") continue;
-    const ship = await fromUuidSafe(o.actorUuid ?? o.key);
+export async function cleanupEndedCombat(combat) {
+  if (!isActiveGM()) return;
+  const combatBound = (effect) => effect.timing?.combatId === combat.id || (!effect.manual && !!effect.expire);
+  for (const uuid of combatShipUuids(combat)) {
+    const ship = await fromUuidSafe(uuid);
     if (!ship || !isStarship(ship)) continue;
+    for (const effect of readStarship(ship).effects.filter((e) => e.manual && combatBound(e)))
+      await removeManualEffect(ship.uuid, effect.id);
     await patchStarship(ship, (d) => {
-      d.effects = [];
+      d.effects = d.effects.filter((e) => !combatBound(e));
       for (const st of d.stations) {
-        st.malfunctioning = false;
+        if (st.malfunctionUntilTurnOf) st.malfunctioning = false;
         st.malfunctionUntilTurnOf = null;
         st.repairLockedUntilTurnOf = null;
       }

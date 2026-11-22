@@ -1,10 +1,12 @@
 import { MODULE_ID } from "../constants.mjs";
-import { request } from "../socket.mjs";
-import { T, moduleActive, fromUuidSync_ } from "../utils/foundry.mjs";
+import { request, registerHandler } from "../socket.mjs";
+import { T, moduleActive, fromUuidSync_, fromUuidSafe } from "../utils/foundry.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
+import { wirePersistentDamage, applyPersistentDamage } from "../starship/persistent-damage.mjs";
 import { can } from "../crew/permissions.mjs";
 import {
   registerToolbeltDamageService,
+  applyToolbeltDamage,
   CHAT_DAMAGE_FLAG,
   damageApplicationKey,
   damageReceiptKey,
@@ -26,6 +28,7 @@ export function hasDamageReceipt(message, actor, index) {
 
 /** Захват события нужен до обработчика Toolbelt: исходная applyDamage не должна списать ОЗ второй раз. */
 export function wireToolbeltDamage(message, root, { send = request, selected = selectedTokens, resolve = fromUuidSync_ } = {}) {
+  if (message.flags?.[MODULE_ID]?.persistentDamage) return wirePersistentDamage(message, root, { send });
   if (root.dataset.tscDamageWired) return null;
   root.dataset.tscDamageWired = "1";
   const targetsFor = (row) => (row.dataset.targetUuid ? [resolve(row.dataset.targetUuid)].filter(Boolean) : selected());
@@ -186,6 +189,14 @@ function wireCardUndo(root, { send = request, resolve = fromUuidSync_ } = {}) {
 
 export function registerToolbeltDamage() {
   registerToolbeltDamageService();
+  registerHandler("toolbeltDamage", async (context) => {
+    const flag = game.messages.get(context.payload.messageId)?.flags?.[MODULE_ID]?.persistentDamage;
+    if (!flag) return applyToolbeltDamage(context);
+    if (!context.user?.isGM) throw new Error(T("SF2eTSC.persistent.errors.gmOnly"));
+    const target = await fromUuidSafe(context.payload.targetUuid);
+    if ((target?.actor ?? target)?.uuid !== flag.shipUuid) throw new Error(T("SF2eTSC.persistent.errors.invalidRecipient"));
+    return applyPersistentDamage(flag.shipUuid, flag.receiptId);
+  });
   if (!moduleActive("pf2e-toolbelt")) return;
   const sweep = () => {
     for (const [root, entry] of roots)

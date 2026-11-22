@@ -1,0 +1,28 @@
+<section class="tsc-effect-manager-body">
+  <div class="tsc-btn-row"><button type="button" data-action="add"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "SF2eTSC.effects.add"}}</button><button type="button" data-action="process" {{#unless canProcess}}disabled{{/unless}}>{{localize "SF2eTSC.effects.process"}}</button></div>
+  <p class="hint">{{localize "SF2eTSC.effects.processHint"}}</p>
+  <p role="alert">{{error}}</p>
+  {{#each receipts}}
+  <div class="tsc-effect-packet"><span>{{statusLabel}} · {{label}} · {{amount}}</span><button type="button" data-action="apply" data-receipt-id="{{id}}" {{#unless canApply}}disabled{{/unless}}>{{localize "SF2eTSC.persistent.apply"}}</button></div>
+  {{/each}}
+  <div class="tsc-effect-applications">
+    {{#each effects}}
+    <article class="tsc-effect-application" data-effect-id="{{id}}">
+      <header><strong>{{label}}{{#if details}} · {{details}}{{/if}}</strong><span>{{statusLabel}}</span></header>
+      <p>{{summary}}</p>
+      {{#if caption}}<p class="hint">{{caption}}</p>{{/if}}
+      {{#if ignoreImmunities}}<p class="hint">{{localize "SF2eTSC.effects.ignoreImmunities"}}</p>{{/if}}
+      {{#if foreignSource}}<p class="hint">{{localize "SF2eTSC.effects.copiedSourceHint"}}</p>{{/if}}
+      {{#if persistent}}<p>{{persistent}}</p>{{/if}}
+      {{#if shipRecipient}}<p>{{localize "SF2eTSC.effects.targets.entire"}} — {{#if shipRecovered}}{{localize "SF2eTSC.effects.status.recovered"}}{{else}}{{statusLabel}}{{/if}}</p>{{/if}}
+      {{#each recipients}}<div class="tsc-effect-recipient"><span>{{label}} · {{statusLabel}} <small>{{itemId}}</small></span>{{#if canRecover}}<button type="button" data-action="recover" data-effect-id="{{effectId}}" data-actor-uuid="{{actorUuid}}">{{localize "SF2eTSC.persistent.recover"}}</button>{{/if}}</div>{{/each}}
+      {{#each rejected}}<p class="tsc-effect-error">{{label}} — {{error}}</p>{{/each}}
+      <div class="tsc-btn-row">
+        {{#if canRecoverShip}}<button type="button" data-action="recover" data-effect-id="{{id}}">{{localize "SF2eTSC.persistent.recover"}} — {{localize "SF2eTSC.effects.targets.ship"}}</button>{{/if}}
+        <button type="button" data-action="timing" data-effect-id="{{id}}">{{localize "SF2eTSC.qol.effectTiming"}}</button>
+        <button type="button" data-action="remove" data-effect-id="{{id}}">{{localize "SF2eTSC.ui.remove"}}</button>
+      </div>
+    </article>
+    {{else}}<p class="hint">{{localize "SF2eTSC.effects.empty"}}</p>{{/each}}
+  </div>
+</section>

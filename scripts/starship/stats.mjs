@@ -1,5 +1,6 @@
 import { stackModifiers } from "../engine/stacking.mjs";
-import { effectModifiers, hasCondition } from "./effects.mjs";
+import { effectModifiers, hasCondition, stationEffects, offGuardAgainst } from "./effects.mjs";
+import { manualModifierSlug } from "./native-effect-adapter.mjs";
 import { isStarship, readStarship } from "./starship-state.mjs";
 import { Content } from "../content/loader.mjs";
 import { log } from "../utils/logging.mjs";
@@ -35,53 +36,167 @@ export function pilotingDC(data) {
   const st = data.stations.find((s) => s.type === "pilot" && s.helmedBy);
   if (!st) return null;
   const crew = fromUuidSync(st.helmedBy);
+  const dc = crew?.skills?.piloting?.dc?.value;
+  if (Number.isFinite(dc)) return dc;
   const m = crew?.skills?.piloting?.mod ?? crew?.skills?.piloting?.check?.mod;
   return Number.isFinite(m) ? 10 + m : null;
 }
 
-/** Effective combat statistics of a starship including helmed bonuses, effects and conditions. */
-export function computeShipStats(actor) {
-  const data = readStarship(actor);
+// Broad native selectors already belong to the primary statistic; aliases add only explicit modifiers.
+function explicitEffectModifiers(effects, selector, context) {
+  return effects.flatMap((effect) => {
+    if (!effect.manual) return effectModifiers([effect], selector, context);
+    const slugs = (effect.modifiers ?? []).flatMap((m, index) =>
+      m.selector === selector ? [m.slug ?? manualModifierSlug(effect.id, index)] : []
+    );
+    return slugs.length ? effectModifiers([effect], selector, context).filter((m) => slugs.includes(m.slug)) : [];
+  });
+}
+
+export function shipModifiers(actor, selector, context = {}) {
+  const data = context.data ?? readStarship(actor);
+  const fx = data.effects ?? [];
+  const scope = { actor, statistic: ["ac", "area-dc"].includes(selector) ? "dc" : "check", ...context, selector };
+  const legacy = fx.filter((e) => !e.manual);
+  const helm = helmedBonuses(data);
+  const out = (helm[selector] ?? []).map((m, i) => ({ ...m, slug: `tsc-helm-${selector}-${i}` }));
+  const inoperable =
+    data.inoperable || data.compromised > 0 || hasCondition(fx, "inoperable", scope) || hasCondition(fx, "compromised", scope);
+  if (
+    (data.inoperable || data.compromised > 0 || hasCondition(legacy, "inoperable", scope) || hasCondition(legacy, "compromised", scope)) &&
+    ["ac", "perception", "reflex"].includes(selector)
+  )
+    out.push({ slug: "tsc-inoperable", ...mod("status", -4, L("mods.inoperable", "Inoperable")) });
+  if ((data.offKilter || hasCondition(legacy, "off-kilter", scope)) && ["attack", "reflex", "area-dc"].includes(selector))
+    out.push({ slug: "tsc-off-kilter", ...mod("circumstance", -2, L("mods.offKilter", "Off-Kilter")) });
+  if (
+    selector === "ac" &&
+    (inoperable ||
+      context.offGuard ||
+      (context.againstUuid ? offGuardAgainst(legacy, context.againstUuid, scope) : hasCondition(legacy, "off-guard", scope)))
+  )
+    out.push({ slug: "tsc-off-guard", ...mod("circumstance", -2, L("mods.offGuard", "Off-Guard")) });
+  out.push(
+    ...(selector === "station-check"
+      ? explicitEffectModifiers(stationEffects(fx, context.stationId, context.combat, scope), selector, scope)
+      : effectModifiers(fx, selector, scope))
+  );
+  if (context.againstUuid && selector === "ac") out.push(...explicitEffectModifiers(fx, "ac-against-strikes", scope));
+  if (context.againstUuid && selector === "reflex" && context.area) out.push(...explicitEffectModifiers(fx, "reflex-against-area", scope));
+  if (context.stationId && context.includeStationCheck)
+    out.push(...explicitEffectModifiers(stationEffects(fx, context.stationId, context.combat, scope), "station-check", scope));
+  out.push(
+    ...(data.customModifiers ?? []).filter((m) => m.selector === selector).map((m, i) => ({ ...m, slug: `tsc-custom-${selector}-${i}` }))
+  );
+  return out;
+}
+
+export function modifierTotal(modifiers, options = new Set()) {
+  const Native = globalThis.game?.pf2e?.StatisticModifier;
+  if (!Native) return stackModifiers(modifiers);
+  const result = new Native(
+    "starship",
+    modifiers.map((m, i) =>
+      typeof m.clone === "function"
+        ? m.clone()
+        : newModifier({
+            slug: m.slug ?? `tsc-modifier-${i}`,
+            label: m.label ?? m.slug ?? L("mods.starship", "Starship"),
+            modifier: m.value,
+            type: m.type ?? "untyped"
+          })
+    ),
+    options
+  );
+  return {
+    total: result.totalModifier,
+    applied: result.modifiers.filter((m) => m.enabled).map((m) => ({ slug: m.slug, label: m.label, type: m.type, value: m.modifier }))
+  };
+}
+
+export function shipAC(actor, context = {}) {
+  const data = context.data ?? readStarship(actor);
+  const base = Math.max(data.ac, pilotingDC(data) ?? 0);
+  const native = actor.armorClass?.dc ?? actor.armorClass ?? actor.getStatistic?.("ac")?.dc;
+  const components = shipModifiers(actor, "ac", context);
+  const pilotStation = data.stations.find((station) => station.type === "pilot" && station.helmedBy);
+  const pilot = pilotStation ? fromUuidSync(pilotStation.helmedBy)?.skills?.piloting?.dc : null;
+  if (pilot?.modifiers && pilot.value >= data.ac) {
+    const donor = pilot.modifiers.map((modifier) => {
+      const copy = modifier.clone?.() ?? { ...modifier };
+      if (!copy.slug?.startsWith("tsc-")) copy.slug = `tsc-pilot-${copy.slug}`;
+      return copy;
+    });
+    const source = actor._source?.system?.attributes?.ac?.value;
+    const adjustment = native?.modifiers ? -(Number.isFinite(source) ? source : native.value) + 10 : 0;
+    const result = modifierTotal(
+      [
+        ...(native?.modifiers ?? []),
+        ...donor,
+        { slug: "tsc-ac-base-adjust", type: "untyped", value: adjustment },
+        ...components.filter((component) => !donor.some((modifier) => modifier.slug === component.slug))
+      ],
+      new Set([...(native?.options ?? []), ...(pilot.options ?? [])])
+    );
+    return { value: 10 + result.total, base, applied: result.applied };
+  }
+  if (native?.modifiers) {
+    const nativeMods = native.modifiers;
+    const source = actor._source?.system?.attributes?.ac?.value;
+    const adjustment = base - (Number.isFinite(source) ? source : native.value);
+    const result = modifierTotal(
+      [...nativeMods, { slug: "tsc-ac-base-adjust", type: "untyped", value: adjustment }, ...components],
+      native.options
+    );
+    return { value: 10 + result.total, base, applied: result.applied };
+  }
+  const Ctor = statisticCtor(actor);
+  if (Ctor) {
+    const stat = new Ctor(actor, {
+      slug: "starship-ac",
+      label: L("ui.ac", "AC"),
+      domains: ["all", "dex-based", "ac"],
+      modifiers: [{ slug: "tsc-ac-base", type: "untyped", value: base - 10 }, ...components].map((m) =>
+        newModifier({ ...m, modifier: m.value, label: m.label ?? m.slug })
+      ),
+      dc: { domains: ["ac"] }
+    });
+    return { value: stat.dc.value, base, applied: components };
+  }
+  const result = modifierTotal(components);
+  return { value: base + result.total, base, applied: result.applied };
+}
+
+export function computeShipStats(actor, context = {}) {
+  const data = context.data ?? readStarship(actor);
   const helm = helmedBonuses(data);
   const fx = data.effects ?? [];
-  const inop = data.inoperable || data.compromised > 0;
-  const penalties = (sel) =>
-    inop && ["ac", "perception", "reflex"].includes(sel) ? [mod("status", -4, L("mods.inoperable", "Inoperable"))] : [];
-  const offKilter = data.offKilter || hasCondition(fx, "off-kilter");
-  const kilter = (sel) =>
-    offKilter && ["attack", "reflex", "area-dc"].includes(sel) ? [mod("circumstance", -2, L("mods.offKilter", "Off-Kilter"))] : [];
-  const total = (sel, base, extra = []) =>
-    stackModifiers([
-      ...extra,
-      ...penalties(sel),
-      ...kilter(sel),
-      ...effectModifiers(fx, sel),
-      ...(data.customModifiers ?? []).filter((m) => m.selector === sel)
-    ]);
-  const piloting = pilotingDC(data);
-  const acBase = Math.max(data.ac, piloting ?? 0);
-  const ac = total("ac", acBase, helm.ac);
-  const fort = total("fortitude", data.fort, helm.fortitude);
-  const ref = total("reflex", data.reflex, helm.reflex);
-  const will = total("will", data.will, helm.will);
-  const per = total("perception", data.perception, []);
-  const speed = total("speed", data.speed, []);
-  const atk = total("attack", 0, []);
-  const area = total("area-dc", 0, []);
+  const scope = { ...context, selector: "ac" };
+  const inoperable = !!(
+    data.inoperable ||
+    data.compromised > 0 ||
+    hasCondition(fx, "inoperable", scope) ||
+    hasCondition(fx, "compromised", scope)
+  );
+  const ac = shipAC(actor, context);
+  const total = (selector) => modifierTotal(shipModifiers(actor, selector, context));
+  const fort = total("fortitude"),
+    ref = total("reflex"),
+    will = total("will");
   return {
-    ac: acBase + ac.total,
-    pilotingDC: piloting,
-    fortitude: data.fort + fort.total,
-    reflex: data.reflex + ref.total,
-    will: data.will + will.total,
-    perception: data.perception + per.total,
-    speed: Math.max(0, data.speed + speed.total),
+    ac: ac.value,
+    pilotingDC: pilotingDC(data),
+    fortitude: shipModuleValue(actor, "fortitude", context),
+    reflex: shipModuleValue(actor, "reflex", context),
+    will: shipModuleValue(actor, "will", context),
+    perception: shipModuleValue(actor, "perception", context),
+    speed: Math.max(0, data.speed + total("speed").total),
     sensorRange: data.sensorRange + helm.sensorRange,
-    attackModifier: atk.total,
-    areaDCModifier: area.total,
-    offGuard: hasCondition(fx, "off-guard") || inop,
-    offKilter,
-    inoperable: inop,
+    attackModifier: total("attack").total,
+    areaDCModifier: total("area-dc").total,
+    offGuard: hasCondition(fx, "off-guard", scope) || inoperable,
+    offKilter: !!(data.offKilter || hasCondition(fx, "off-kilter", { ...context, selector: "attack" })),
+    inoperable,
     breakdown: { ac: ac.applied, fortitude: fort.applied, reflex: ref.applied, will: will.applied }
   };
 }
@@ -247,10 +362,20 @@ export function shipSkillValue(skills, slug) {
   }
   return null;
 }
-/** Module-owned value of a ship statistic: saves/perception include module effects; skills are statblock finals. */
-export function shipModuleValue(actor, slug) {
-  if (slug === "perception" || SHIP_SAVE_SLUGS.includes(slug)) return computeShipStats(actor)[slug] ?? 0;
-  return shipSkillValue(readStarship(actor).skills, slug);
+function shipStoredValue(actor, slug, context = {}) {
+  const data = context.data ?? readStarship(actor);
+  return slug === "perception"
+    ? data.perception
+    : SHIP_SAVE_SLUGS.includes(slug)
+      ? data[slug === "fortitude" ? "fort" : slug]
+      : shipSkillValue(data.skills, slug);
+}
+export function shipModuleValue(actor, slug, context = {}) {
+  const base = shipStoredValue(actor, slug, context);
+  if (base == null) return null;
+  const statistic = shipStatistic(actor, slug, context);
+  if (context.statistic === "dc" && Number.isFinite(statistic?.dc?.value)) return statistic.dc.value - 10;
+  return statistic?.check?.mod ?? statistic?.mod ?? base + modifierTotal(shipModifiers(actor, slug, context)).total;
 }
 /** Value stored in the actor's own system data (before system effects), used to compute the module delta. */
 function nativeSourceBase(actor, slug) {
@@ -260,41 +385,64 @@ function nativeSourceBase(actor, slug) {
   return Number.isFinite(v) ? v : null;
 }
 
-/**
- * The one adapter for ship saves / Perception / skills.
- *  - NPC actors (native sf2e statistics): the native Statistic is used, so sf2e item effects / rule elements stay
- *    applied; only the delta between the module value and the *source* value is added (0.4.x compared against the
- *    final native modifier and thereby cancelled every system effect on the NPC actor).
- *  - Vehicles (no native save/skill statistics): a Statistic is built from the module value.
- * Returns null when the ship has no such statistic (no fake checks).
- */
-export function shipStatistic(actor, slug) {
+// Native source bases and typed modifiers stay separate so system effects retain native stacking.
+export function shipStatistic(actor, slug, context = {}) {
   const isSave = SHIP_SAVE_SLUGS.includes(slug),
     isSkill = !isSave && slug !== "perception";
-  const value = shipModuleValue(actor, slug);
+  const value = shipStoredValue(actor, slug, context);
   if (value == null) return null;
   const native = slug === "perception" ? actor.perception : isSave ? actor.saves?.[slug] : actor.skills?.[slug];
   const Ctor = statisticCtor(actor);
+  const components = shipModifiers(actor, slug, { ...context, includeStationCheck: false });
+  const modifiers = components.map((m, i) =>
+    newModifier({ slug: m.slug ?? `tsc-${slug}-${i}`, label: m.label ?? m.slug ?? slug, modifier: m.value, type: m.type ?? "untyped" })
+  );
+  const checkModifiers = context.includeStationCheck
+    ? shipModifiers(actor, "station-check", { ...context, includeStationCheck: false })
+    : [];
+  const check = {
+    modifiers: checkModifiers.map((m, i) =>
+      newModifier({ slug: m.slug ?? `tsc-station-${i}`, label: m.label ?? m.slug, modifier: m.value, type: m.type ?? "untyped" })
+    )
+  };
+  const domains = isSave ? [slug, "saving-throw", "all"] : isSkill ? [slug, "skill-check", "all"] : [slug, "perception", "all"];
+  if (slug === "reflex") domains.push("dex-based");
   if (native && actor.type === "npc") {
     const base = nativeSourceBase(actor, slug);
     const delta = value - (base ?? native.mod ?? 0);
-    return delta
-      ? native.clone({
-          modifiers: [newModifier({ slug: "tsc-ship-adjust", label: L("mods.starship", "Starship"), modifier: delta, type: "untyped" })]
-        })
+    if (delta)
+      modifiers.unshift(newModifier({ slug: "tsc-ship-adjust", label: L("mods.starship", "Starship"), modifier: delta, type: "untyped" }));
+    return modifiers.length || checkModifiers.length || domains.some((d) => !native.domains?.includes(d))
+      ? native.clone({ domains, modifiers, check })
       : native;
   }
   if (!Ctor) return null;
   const label = isSkill ? L(`skills.${slug}`, slug) : L(`ui.${slug}`, slug.charAt(0).toUpperCase() + slug.slice(1));
-  const domains = isSave ? [slug, "saving-throw", "all"] : isSkill ? [slug, "skill-check", "all"] : [slug, "perception", "all"];
-  const type = isSave ? "saving-throw" : isSkill ? "skill-check" : "perception-check";
   return new Ctor(actor, {
     slug,
     label,
     domains,
-    modifiers: [newModifier({ slug: "base", label: L("mods.starship", "Starship"), modifier: value, type: "untyped" })],
-    check: { type }
+    modifiers: [newModifier({ slug: "base", label: L("mods.starship", "Starship"), modifier: value, type: "untyped" }), ...modifiers],
+    check: { ...check, type: isSave ? "saving-throw" : isSkill ? "skill-check" : "perception-check" }
   });
+}
+
+export function stationStatistic(crew, ship, slug, context = {}) {
+  if (!crew || (isStarship(crew) && readStarship(crew).role === "npc"))
+    return shipStatistic(crew ?? ship, slug, { ...context, includeStationCheck: true });
+  const native = crewStatistic(crew, slug);
+  if (!native) return null;
+  const components = shipModifiers(ship, slug, { ...context, includeStationCheck: false });
+  const boost = explicitEffectModifiers(
+    stationEffects((context.data ?? readStarship(ship)).effects, context.stationId, context.combat, context),
+    "station-check",
+    { ...context, selector: slug, statistic: "check" }
+  );
+  const convert = (m, i) =>
+    newModifier({ slug: m.slug ?? `tsc-station-${i}`, label: m.label ?? m.slug ?? slug, modifier: m.value, type: m.type ?? "untyped" });
+  return components.length || boost.length
+    ? native.clone({ modifiers: components.map(convert), check: { modifiers: boost.map(convert) } })
+    : native;
 }
 
 /** Resolve a skill/perception Statistic of a crew member (or of an NPC ship). */
@@ -311,6 +459,18 @@ export function crewClassDC(actor) {
     actor?.getStatistic?.("class")?.dc?.value ??
     10 + (actor?.level ?? 1) + 4
   );
+}
+export function shipAreaDC(crew, ship, context = {}) {
+  const source = crew ?? (readStarship(ship).role === "npc" ? ship : null);
+  const native = source?.classDC ?? source?.getStatistic?.("class-dc") ?? source?.getStatistic?.("class");
+  const modifiers = shipModifiers(ship, "area-dc", { ...context, statistic: "dc" });
+  if (native?.clone)
+    return native.clone({
+      modifiers: modifiers.map((m, i) =>
+        newModifier({ slug: m.slug ?? `tsc-area-${i}`, label: m.label ?? m.slug, modifier: m.value, type: m.type ?? "untyped" })
+      )
+    }).dc.value;
+  return crewClassDC(source) + modifierTotal(modifiers).total;
 }
 export function bestSpellStatistic(actor) {
   const entry = actor?.spellcasting?.contents?.find((e) => e.statistic) ?? actor?.spellcasting?.find?.((e) => e.statistic);

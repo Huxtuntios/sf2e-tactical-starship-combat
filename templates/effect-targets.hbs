@@ -1,0 +1,29 @@
+<section class="tsc-effect-target-body">
+  <h3>{{caption}}</h3>
+  <p class="hint">{{localize "SF2eTSC.effects.targetHint"}}</p>
+  {{#if ignoreImmunities}}<p class="hint">{{localize "SF2eTSC.effects.ignoreImmunities"}} — {{localize "SF2eTSC.effects.immunityHint"}}</p>{{/if}}
+  <div class="tsc-effect-target-groups">
+    <fieldset><legend>{{localize "SF2eTSC.effects.targets.ship"}}</legend>
+      <div class="tsc-effect-choice"><input type="checkbox" id="{{uid}}-entire" name="entire" checked><label for="{{uid}}-entire">{{localize "SF2eTSC.effects.targets.entire"}}</label></div>
+    </fieldset>
+    {{#each groups}}
+    <fieldset><legend>{{label}}</legend>
+      {{#if isWeapons}}
+      <div class="tsc-effect-choice"><input type="checkbox" id="{{@root.uid}}-weapon-attacks" name="weaponAttacks" {{#unless @root.hasWeapons}}disabled{{/unless}}><label for="{{@root.uid}}-weapon-attacks">{{localize "SF2eTSC.effects.targets.weaponAttacks"}}</label></div>
+      <p class="hint">{{localize "SF2eTSC.effects.errors.unsupportedWeaponDefenses"}}</p>
+      {{/if}}
+      {{#if isCrew}}
+      <div class="tsc-effect-choice"><input type="checkbox" id="{{@root.uid}}-all-crew" name="allCrew" {{#unless @root.hasCrew}}disabled{{/unless}}><label for="{{@root.uid}}-all-crew">{{localize "SF2eTSC.effects.targets.allCrew"}}</label></div>
+      {{/if}}
+      {{#each choices}}<div class="tsc-effect-choice"><input type="checkbox" id="{{id}}" name="{{../name}}" value="{{value}}"><label for="{{id}}">{{label}}</label></div>{{/each}}
+      {{#unless choices.length}}<p class="hint">{{localize "SF2eTSC.effects.noScopeTargets"}}</p>{{/unless}}
+    </fieldset>
+    {{/each}}
+  </div>
+  <footer class="tsc-effect-target-footer">
+    <strong>{{localize "SF2eTSC.effects.summary"}}</strong>
+    <output data-target-summary aria-live="polite">{{summary}}</output>
+    <p data-effect-error role="alert" tabindex="-1"></p>
+    <div class="tsc-btn-row"><button type="submit">{{localize "SF2eTSC.effects.apply"}}</button><button type="button" data-action="cancel">{{localize "SF2eTSC.attackCard.cancel"}}</button></div>
+  </footer>
+</section>

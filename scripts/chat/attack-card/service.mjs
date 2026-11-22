@@ -68,6 +68,7 @@ export async function declareAttack({ user, payload }) {
         try {
           const pre = computeAttackModifiers(ctx, weapon, { key: obj.key, actor, data: readStarship(actor) });
           out.ac = pre.ac;
+          out.effectiveAttackBonus = pre.effectiveAttackBonus;
           out.baseAC = pre.baseAC;
           out.acMods = pre.acMods.map((m) => ({ label: m.label, value: m.value }));
           out.behind = pre.behind;
@@ -373,6 +374,8 @@ export async function applyAttackCardDamage({ user, payload }) {
       amount,
       parts,
       damageType: pd.damageType,
+      persistentParts: pd.persistentParts,
+      persistentSource: { label: pd.source, strikeId, shipUuid: card.request?.shipUuid ?? null },
       strikeResistance: rx.resistance ?? 0,
       traits,
       criticalHit: !!pd.crit,

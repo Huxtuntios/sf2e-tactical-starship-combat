@@ -2042,6 +2042,82 @@ a.tsc-damage {
   border-radius: 4px;
 }
 
+.sf2e-tsc :is(.tsc-effect-target-body, .tsc-effect-manager-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-block-size: 0;
+  block-size: 100%;
+}
+.sf2e-tsc :is(.tsc-effect-target-groups, .tsc-effect-applications) {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+}
+.sf2e-tsc :is(.tsc-effect-target-groups, .tsc-effect-config) fieldset {
+  margin-block: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--tsc-line);
+}
+.sf2e-tsc .tsc-effect-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sf2e-tsc .tsc-effect-choice label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.sf2e-tsc .tsc-effect-choice input[type="checkbox"] {
+  flex: 0 0 auto;
+  accent-color: var(--tsc-accent);
+}
+.sf2e-tsc :is(.tsc-effect-config, .tsc-effect-target-body) :is(input, select, button):focus-visible {
+  outline: 2px solid var(--tsc-accent);
+  outline-offset: 2px;
+}
+.sf2e-tsc .tsc-effect-target-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.sf2e-tsc :is(.tsc-effect-target-footer output, .tsc-effect-application p) {
+  overflow-wrap: anywhere;
+}
+.sf2e-tsc .tsc-effect-application {
+  padding: 0.5rem;
+  margin-block-end: 0.5rem;
+  border: 1px solid var(--tsc-line);
+  border-radius: 0.4rem;
+}
+.sf2e-tsc :is(.tsc-effect-application header, .tsc-effect-packet, .tsc-effect-recipient) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.sf2e-tsc :is(.tsc-effect-application, .tsc-effect-packet, .tsc-effect-recipient) :is(strong, span) {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.sf2e-tsc .tsc-effect-application p {
+  margin-block: 0.35rem;
+}
+.sf2e-tsc :is(.tsc-effect-manager-body, .tsc-effect-target-body) button {
+  min-block-size: 2.75rem;
+  white-space: normal;
+}
+.sf2e-tsc .tsc-effect-target-groups [hidden],
+.sf2e-tsc .tsc-effect-config [hidden] {
+  display: none;
+}
+
 /* Client themes: explicit heading and table colors override the system sheet skin. */
 .sf2e-tsc[data-sheet-theme] :is(h1, h2, h3, h4, h5, h6) {
   color: var(--tsc-text);

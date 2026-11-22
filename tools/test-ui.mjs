@@ -26,7 +26,8 @@ const fixtures = [
   ["smoke-native-attack.mjs", "native-attack"],
   ["smoke-chat-card-layout.mjs", "chat-card-layout"],
   ["smoke-action-controls.mjs", "action-controls"],
-  ["smoke-description-links.mjs", "description-links"]
+  ["smoke-description-links.mjs", "description-links"],
+  ["smoke-effects.mjs", "effects"]
 ];
 for (const [tool, folder] of fixtures) {
   const result = spawnSync(process.execPath, [path.join(root, "tools", tool), path.join(out, folder)], { cwd: root, stdio: "inherit" });
@@ -138,6 +139,52 @@ try {
               result.checks.push({ name: `long-candidate-contained-${width}-${theme}`, pass: contained });
             }
           }
+          result.passed = result.checks.every((check) => check.pass);
+        }
+        if (folder === "effects") {
+          const before = await page.evaluate(() => globalThis.effectFixture.requests.length);
+          const add = page.locator('[data-action="add"]').first();
+          await add.focus();
+          await add.press("Enter");
+          await page.locator("dialog[open]").waitFor();
+          await page.locator('dialog select[name="kind"]').selectOption("bonus");
+          await page.locator('dialog input[name="label"]').fill("Long effect label / Очень длинное название эффекта ".repeat(3));
+          await page.evaluate(() => {
+            globalThis.effectFixture.ship.flags["sf2e-tactical-starship-combat"].starship.stations[0].name =
+              "Long station / Очень длинное название станции ".repeat(5);
+          });
+          await page.locator('dialog button[type="submit"]').focus();
+          await page.locator('dialog button[type="submit"]').press("Enter");
+          const target = page.locator("form.tsc-effect-targets");
+          await target.waitFor();
+          const entire = target.locator('[name="entire"]');
+          result.checks.push({
+            name: "keyboard-target-focus",
+            pass: await entire.evaluate(
+              (input) => globalThis.document.activeElement === input && globalThis.getComputedStyle(input).outlineStyle !== "none"
+            )
+          });
+          await entire.press("Space");
+          result.checks.push({ name: "keyboard-uncheck-entire", pass: !(await entire.isChecked()) });
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            result.checks.push({
+              name: `long-label-contained-${width}`,
+              pass: await target.evaluate(
+                (form) =>
+                  form.scrollWidth <= form.clientWidth + 1 &&
+                  form.querySelector(".tsc-effect-target-groups").scrollWidth <=
+                    form.querySelector(".tsc-effect-target-groups").clientWidth + 1
+              )
+            });
+          }
+          await target.locator('[data-action="cancel"]').focus();
+          await target.locator('[data-action="cancel"]').press("Enter");
+          await target.waitFor({ state: "detached" });
+          result.checks.push({
+            name: "keyboard-cancel-no-application",
+            pass: await page.evaluate((count) => globalThis.effectFixture.requests.length === count, before)
+          });
           result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "action-controls") {

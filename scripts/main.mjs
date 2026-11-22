@@ -1,6 +1,8 @@
 import { registerModuleThemeHooks } from "./ui/sheet/sheet-theme.mjs";
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
+import { registerApplicationService } from "./starship/application-service.mjs";
+import { registerPersistentDamageService } from "./starship/persistent-damage.mjs";
 import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
 import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
 import { registerToolbeltDamage } from "./integrations/toolbelt-damage.mjs";
@@ -120,6 +122,8 @@ Hooks.once("ready", async () => {
     registerReactionHandlers,
     registerShipHandlers,
     registerEffectHandlers,
+    registerApplicationService,
+    registerPersistentDamageService,
     registerSensorHandlers
   ])
     fn();

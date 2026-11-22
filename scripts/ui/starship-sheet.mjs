@@ -1,5 +1,6 @@
 import { restoreUiState } from "./client-ui.mjs";
 import { editEffect } from "./effect-editor.mjs";
+import { openEffectManager } from "./effect-manager.mjs";
 import { openHistory } from "./history-app.mjs";
 import { request } from "../socket.mjs";
 /**
@@ -94,6 +95,9 @@ export class StarshipSheet extends LiveMixin(HandlebarsApplicationMixin(foundry.
       describeAction: guard(showActionDescription),
       actionWarning: showActionWarning,
       removeEffect: guard(A.removeEffect),
+      manageEffects: function () {
+        return openEffectManager(this.document);
+      },
       openHolodock: A.holodock,
       openHistory: function () {
         openHistory(this.document.uuid);

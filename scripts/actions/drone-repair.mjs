@@ -3,7 +3,7 @@ import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { patchStarship, readStarship } from "../starship/starship-state.mjs";
-import { effectModifiers, stationEffects } from "../starship/effects.mjs";
+import { stationStatistic, shipModifiers } from "../starship/stats.mjs";
 import { snapshot, equalState, recordChange, combatGuard } from "../history/history.mjs";
 import { resolveHullRestored } from "../engine/compromised.mjs";
 import { Initiative } from "../combat/initiative.mjs";
@@ -11,6 +11,7 @@ import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { Draft } from "./draft.mjs";
 import { postActionCard } from "../chat/chat-cards.mjs";
 import { log } from "../utils/logging.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
 
 const tiers = [
   { dc: 15, bonus: 0, rank: 0 },
@@ -35,8 +36,10 @@ export async function executeDroneRepair({ user, ship, crewUuid, stationId, opti
     if (!user.isGM && (!can(user, ship, "operateStation") || !crew.testUserPermission?.(user, "OWNER"))) throw invalid();
     const stations = data.stations.filter((s) => s?.id === stationId);
     const station = stations.length === 1 ? stations[0] : null;
-    if (!station || station.type !== "drone-console" || station.helmedBy !== crewUuid || station.malfunctioning || data.destroyed)
-      throw invalid();
+    const malfunctioning = effectiveEffectStates(data, { actor: ship, actionId: action.id }).stations.find(
+      (s) => s.id === stationId
+    )?.malfunctioning;
+    if (!station || station.type !== "drone-console" || station.helmedBy !== crewUuid || malfunctioning || data.destroyed) throw invalid();
     const drones = Array.isArray(data.drones) ? data.drones : [];
     if (
       !drones.some(
@@ -77,22 +80,21 @@ export async function executeDroneRepair({ user, ship, crewUuid, stationId, opti
       const stat = crew.skills?.crafting ?? crew.getStatistic?.("crafting");
       if (typeof stat?.check?.roll !== "function") throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
       if (tier.rank && (!Number.isInteger(stat.rank) || stat.rank < tier.rank)) throw new Error(T("SF2eTSC.droneRepair.invalidTier"));
-      const boost = effectModifiers(stationEffects(data.effects, stationId, combat), "station-check");
-      let statistic = stat;
-      if (boost.length) {
-        if (typeof stat.clone !== "function" || typeof game.pf2e?.Modifier !== "function")
-          throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
-        try {
-          statistic = stat.clone({
-            modifiers: boost.map(
-              (m) => new game.pf2e.Modifier({ slug: `tsc-${m.slug}`, label: m.label ?? m.slug, modifier: m.value, type: m.type })
-            )
-          });
-        } catch (err) {
-          throw new Error(T("SF2eTSC.droneRepair.nativeMissing"), { cause: err });
-        }
-        if (typeof statistic?.check?.roll !== "function") throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
+      const boost = shipModifiers(ship, "crafting", {
+        data,
+        stationId,
+        actionId: action.id,
+        combat,
+        statistic: "check",
+        includeStationCheck: true
+      });
+      let statistic;
+      try {
+        statistic = stationStatistic(crew, ship, "crafting", { data, stationId, actionId: action.id, combat, statistic: "check" });
+      } catch (err) {
+        throw new Error(T("SF2eTSC.droneRepair.nativeMissing"), { cause: err });
       }
+      if (typeof statistic?.check?.roll !== "function") throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
       before = structuredClone(data);
       writeOptions.expected = snapshot(before);
       writeOptions.expectedCombat = combatGuard(combat);
