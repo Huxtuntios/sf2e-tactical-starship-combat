@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 — 2026-11-22
+
+Correct weapon-specific crew proficiency for player starship attacks. Compatibility declarations, the module ID, pack names and document IDs are unchanged; no world migration is required.
+
+- Player starship weapon attacks use the character currently operating that weapon's station. The system resolves that character's applicable proficiency from the ship weapon's category, group, equivalent base weapon and special proficiency definitions, instead of falling back to martial or Trained when a category is missing. Character Dexterity and native applicable bonuses remain in the actual d20 modifier; ship tracking, station modifiers and MAP stack separately. No handheld weapon's complete attack statistic is copied.
+- Changing proficiency, weapon configuration or the station operator affects the next attack, including requests created before the reassignment. Unoccupied assigned stations do not borrow another character; NPC statblock attacks retain their existing resolution.
+- Native conditional options and modifier adjustments are preserved without disabling weapon-dependent Rule Elements or applying adjustments twice. Deferred damage remains separate and unchanged. Native attack rolls carry distinct identifiers so identical dice results cannot make a reroll inherit another attack's receipt.
+
 ## 1.3.0 — 2026-11-19
 
 Native reroll support for module chat rolls. The module ID, pack names and document IDs are unchanged and no world migration is required.
