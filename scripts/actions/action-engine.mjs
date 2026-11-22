@@ -265,7 +265,8 @@ function attackSummaryOf(ctx) {
 }
 
 async function executeActionNow(params) {
-  const { userId, shipUuid, crewUuid = null, options = {}, draft: parent = null } = params;
+  const { userId, shipUuid, options = {}, draft: parent = null } = params;
+  let crewUuid = params.crewUuid ?? null;
   const user = params.user ?? game.users.get(userId) ?? null;
   if (!user) fail("noPermission");
   const ship = await fromUuidSafe(shipUuid);
@@ -299,6 +300,19 @@ async function executeActionNow(params) {
   const data = entry.data;
   const isGM = user.isGM;
   const gmOverride = isGM && !!options.gmOverride;
+  let weaponStation = null;
+  if (action.builtin === "strike" && data.role !== "npc") {
+    const requestedStation = data.stations.find((s) => s.id === params.stationId) ?? data.stations.find((s) => s.helmedBy === crewUuid);
+    const weapon = resolveWeapon({ data, station: requestedStation, options });
+    if (weapon) {
+      weaponStation =
+        data.stations.find((s) => s.weaponId === weapon.id) ??
+        data.stations.find((s) => s.id === weapon.stationId) ??
+        requestedStation ??
+        null;
+      if (weaponStation) crewUuid = weaponStation.helmedBy ?? null;
+    }
+  }
   const crew = crewUuid ? await fromUuidSafe(crewUuid) : null;
   const hasCrewRole = data.role !== "npc" && (data.role === "player" || (data.crew?.length ?? 0) > 0);
 
@@ -359,11 +373,13 @@ async function executeActionNow(params) {
 
   // --- station & helm
   if (!action.npcOnly && action.station !== "npc") {
-    ctx.station = crew
-      ? (data.stations.find((s) => s.helmedBy === crewUuid) ?? null)
-      : data.role === "npc" && params.stationId
-        ? (data.stations.find((s) => s.id === params.stationId) ?? null)
-        : (data.stations.find((s) => s.type === action.station) ?? null);
+    ctx.station =
+      weaponStation ??
+      (crew
+        ? (data.stations.find((s) => s.helmedBy === crewUuid) ?? null)
+        : data.role === "npc" && params.stationId
+          ? (data.stations.find((s) => s.id === params.stationId) ?? null)
+          : (data.stations.find((s) => s.type === action.station) ?? null));
     if (action.station !== "any") {
       if (!ctx.station || ctx.station.type !== action.station) {
         if (!gmOverride) rule("notHelming", { station: T(`SF2eTSC.stations.${action.station}`) });

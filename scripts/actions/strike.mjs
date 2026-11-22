@@ -20,6 +20,7 @@ import { Reactions } from "./reactions.mjs";
 import { log } from "../utils/logging.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { manualModifiersFor } from "./manual-modifiers.mjs";
+import { buildWeaponItemData } from "../content/weapon-docs.mjs";
 
 const DEGREE_LABEL = (d) => T(`SF2eTSC.degree.${["criticalFailure", "failure", "success", "criticalSuccess"][d]}`);
 
@@ -254,22 +255,100 @@ function npcStatistic(ctx, weapon) {
 function buildCrewAttack(crew, weapon) {
   const Ctor = crew?.skills?.acrobatics?.constructor ?? crew?.perception?.constructor;
   if (!Ctor) return null;
-  const category = weapon.category ?? "martial";
-  const rank = crew.system?.proficiencies?.attacks?.[category]?.rank ?? crew.system?.proficiencies?.attacks?.martial?.rank ?? 1;
-  try {
-    return new Ctor(crew, {
-      slug: "starship-strike",
-      label: ct(weapon.name),
-      attribute: "dex",
-      rank,
-      domains: ["attack", "attack-roll", "ranged-attack-roll", "dex-attack-roll", "starship-strike"],
-      modifiers: [],
-      check: { type: "attack-roll" }
-    });
-  } catch (err) {
-    log.warn("crew attack statistic failed", err);
-    return null;
-  }
+  const ItemCtor = globalThis.CONFIG?.Item?.documentClass;
+  if (!ItemCtor || typeof crew.prepareStrike !== "function") throw new Error(T("SF2eTSC.attackCard.nativeRollNotCompleted"));
+  const source = buildWeaponItemData(weapon, { systemKeys: new Set(Object.keys(CONFIG.PF2E.weaponTraits)) });
+  source.system.category = weapon.category ?? source.system.category;
+  source.system.group = weapon.group ?? null;
+  source.system.baseItem = weapon.baseItem ?? null;
+  // Native preparation needs a ranged marker; all zone distance/range penalties remain module-owned.
+  source.system.range = 1;
+  const item = new ItemCtor(source, { parent: crew });
+  // prepareStrike is an internal system API: use only this transient ship weapon, never a handheld Strike.
+  const strike = crew.prepareStrike(item, { handsReallyFree: crew.handsReallyFree });
+  const rankOption = strike.options.find((option) => /^item:proficiency:rank:[0-4]$/.test(option));
+  if (!rankOption) throw new Error(T("SF2eTSC.attackCard.nativeRollNotCompleted"));
+  const domains = [...new Set([...strike.domains, "check", "dex-attack-roll", "starship-strike", "starship-strike-attack-roll"])];
+  const rollOptions = [
+    ...crew.getRollOptions(domains),
+    ...crew.getSelfRollOptions("origin"),
+    ...strike.options,
+    ...item.getRollOptions("item"),
+    "starship",
+    "starship-strike"
+  ];
+  const nativeAdjustments = new Set(strike.domains.flatMap((d) => crew.synthetics.modifierAdjustments[d] ?? []));
+  const addedAdjustments = [...new Set(domains.flatMap((d) => crew.synthetics.modifierAdjustments[d] ?? []))].filter(
+    (a) => !nativeAdjustments.has(a)
+  );
+  // Native Strength selection can disable Dexterity before the ship's Dexterity-only check.
+  const modifiers = strike.modifiers
+    .filter((m) => m.type !== "ability" || m.ability === "dex")
+    .map((m) =>
+      m.clone({
+        ...(m.type === "ability" ? { ignored: false, enabled: true } : {}),
+        adjustments: [...m.adjustments, ...addedAdjustments.filter((a) => a.slug === null || a.slug === m.slug)]
+      })
+    );
+  const stationModifiers = domains
+    .filter((d) => !strike.domains.includes(d))
+    .flatMap((d) =>
+      (crew.synthetics.modifiers[d] ?? []).flatMap(
+        (factory) => factory({ injectables: { weapon: item }, resolvables: { weapon: item }, test: new Set(rollOptions) }) ?? []
+      )
+    );
+  return preparedCrewAttack(crew, ct(weapon.name), domains, rollOptions, modifiers, stationModifiers);
+}
+
+function preparedCrewAttack(crew, label, domains, rollOptions, modifiers, extraModifiers = []) {
+  const { Check, CheckModifier } = game.pf2e;
+  const adjustments = [...new Set(domains.flatMap((domain) => crew.synthetics.modifierAdjustments[domain] ?? []))];
+  const extras = extraModifiers.map((m) => m.clone({ adjustments: adjustments.filter((a) => a.slug === null || a.slug === m.slug) }));
+  const prepared = new CheckModifier("starship-strike", { modifiers }, extras, new Set(rollOptions));
+  return {
+    clone: ({ modifiers: added = [] }) => preparedCrewAttack(crew, label, domains, rollOptions, modifiers, [...extraModifiers, ...added]),
+    check: {
+      mod: prepared.totalModifier,
+      roll: async (options) => {
+        const test = new Set([
+          ...rollOptions,
+          ...(options.extraRollOptions ?? []),
+          "check:statistic:starship-strike",
+          "check:type:attack-roll"
+        ]);
+        for (const rule of crew.rules.filter((r) => !r.ignored)) rule.beforeRoll?.(domains, test);
+        const twice = domains.flatMap((d) => crew.synthetics.rollTwice[d] ?? []).filter((r) => r.predicate?.test(test) ?? true);
+        const higher = twice.some((r) => r.keep === "higher"),
+          lower = twice.some((r) => r.keep === "lower");
+        const context = {
+          actor: crew,
+          identifier: foundry.utils.randomID(20),
+          token: crew.getActiveTokens(true, true).shift() ?? null,
+          type: "attack-roll",
+          action: "strike",
+          domains,
+          options: test,
+          dc: options.dc,
+          title: options.label ?? label,
+          skipDialog: options.skipDialog,
+          messageMode: options.messageMode,
+          createMessage: options.createMessage,
+          notes: domains.flatMap((d) => (crew.synthetics.rollNotes[d] ?? []).map((n) => n.clone())),
+          rollTwice: higher === lower ? false : higher ? "keep-higher" : "keep-lower",
+          substitutions: domains
+            .flatMap((d) => foundry.utils.deepClone(crew.synthetics.rollSubstitutions[d] ?? []))
+            .filter((r) => r.predicate?.test(test) ?? true),
+          dosAdjustments: domains.flatMap((d) => crew.synthetics.degreeOfSuccessAdjustments[d] ?? [])
+        };
+        const check = new CheckModifier("starship-strike", { modifiers }, extras, test);
+        const roll = await Check.roll(check, context, options.event, options.callback);
+        if (roll)
+          for (const rule of crew.rules.filter((r) => !r.ignored))
+            await rule.afterRoll?.({ roll, check, context, domains, rollOptions: test });
+        return roll;
+      }
+    }
+  };
 }
 
 export function damageFormula(ctx, weapon, crit) {

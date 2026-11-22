@@ -135,6 +135,33 @@ test("SF2e-style native check callback preserves the real system message", async
     }
   }
   s.crew.skills = { acrobatics: new NativeStatistic() };
+  s.crew.prepareStrike = () => ({ options: ["item:proficiency:rank:1"], domains: [], modifiers: [] });
+  s.crew.getRollOptions = () => [];
+  s.crew.getSelfRollOptions = () => [];
+  s.crew.getActiveTokens = () => [];
+  s.crew.rules = [];
+  Object.assign(s.crew.synthetics, {
+    modifiers: {},
+    modifierAdjustments: {},
+    rollNotes: {},
+    rollTwice: {},
+    rollSubstitutions: {},
+    degreeOfSuccessAdjustments: {}
+  });
+  game.pf2e.CheckModifier = class {
+    constructor() {
+      this.totalModifier = 5;
+    }
+  };
+  game.pf2e.Check = { roll: (_check, options, _event, callback) => s.crew.skills.acrobatics.check.roll({ ...options, callback }) };
+  CONFIG.Item = {
+    documentClass: class {
+      getRollOptions() {
+        return [];
+      }
+    }
+  };
+  CONFIG.PF2E = { weaponTraits: {} };
   dice(16);
   const result = await executeNativeAttack({ user: s.user, payload: s.payload });
   assert.equal(passed.createMessage, true);
@@ -225,6 +252,33 @@ test("failure after a system message is posted never falls back to a second atta
     }
   }
   s.crew.skills = { acrobatics: new NativeStatistic() };
+  s.crew.prepareStrike = () => ({ options: ["item:proficiency:rank:1"], domains: [], modifiers: [] });
+  s.crew.getRollOptions = () => [];
+  s.crew.getSelfRollOptions = () => [];
+  s.crew.getActiveTokens = () => [];
+  s.crew.rules = [];
+  Object.assign(s.crew.synthetics, {
+    modifiers: {},
+    modifierAdjustments: {},
+    rollNotes: {},
+    rollTwice: {},
+    rollSubstitutions: {},
+    degreeOfSuccessAdjustments: {}
+  });
+  game.pf2e.CheckModifier = class {
+    constructor() {
+      this.totalModifier = 5;
+    }
+  };
+  game.pf2e.Check = { roll: (_check, options, _event, callback) => s.crew.skills.acrobatics.check.roll({ ...options, callback }) };
+  CONFIG.Item = {
+    documentClass: class {
+      getRollOptions() {
+        return [];
+      }
+    }
+  };
+  CONFIG.PF2E = { weaponTraits: {} };
   dice(4, 19);
   await assert.rejects(() => executeNativeAttack({ user: s.user, payload: s.payload }), /post-roll failure/);
   await assert.rejects(() => executeNativeAttack({ user: s.user, payload: s.payload }), /post-roll failure/);
@@ -295,6 +349,33 @@ test("native failure or cancellation before callback does not auto-reroll", asyn
       }
     }
     s.crew.skills = { acrobatics: new NativeStatistic() };
+    s.crew.prepareStrike = () => ({ options: ["item:proficiency:rank:1"], domains: [], modifiers: [] });
+    s.crew.getRollOptions = () => [];
+    s.crew.getSelfRollOptions = () => [];
+    s.crew.getActiveTokens = () => [];
+    s.crew.rules = [];
+    Object.assign(s.crew.synthetics, {
+      modifiers: {},
+      modifierAdjustments: {},
+      rollNotes: {},
+      rollTwice: {},
+      rollSubstitutions: {},
+      degreeOfSuccessAdjustments: {}
+    });
+    game.pf2e.CheckModifier = class {
+      constructor() {
+        this.totalModifier = 5;
+      }
+    };
+    game.pf2e.Check = { roll: (_check, options, _event, callback) => s.crew.skills.acrobatics.check.roll({ ...options, callback }) };
+    CONFIG.Item = {
+      documentClass: class {
+        getRollOptions() {
+          return [];
+        }
+      }
+    };
+    CONFIG.PF2E = { weaponTraits: {} };
     dice(20);
     if (kind === "throw") await assert.rejects(() => executeNativeAttack({ user: s.user, payload: s.payload }));
     else {
