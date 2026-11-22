@@ -4,8 +4,7 @@ import { loadStarship, readStarship, patchStarship, isStarship } from "./starshi
 import { actionsForStation, Content } from "../content/loader.mjs";
 import { gradeIndex } from "../engine/advancement.mjs";
 import { collectNpcActions } from "../actions/npc-rows.mjs";
-import { effectModifiers } from "./effects.mjs";
-import { crewStatistic, shipModuleValue } from "./stats.mjs";
+import { crewStatistic, shipModuleValue, shipModifiers } from "./stats.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { safeDiceFormula } from "../content/inline-dice.mjs";
 import { sanitizeTiming } from "./effect-timing.mjs";
@@ -15,6 +14,7 @@ import {
   getConditionOptions,
   deriveConditionModifiers,
   nativeModifierSelectors,
+  manualModifierSlug,
   createNativeEffect,
   removeNativeEffect
 } from "./native-effect-adapter.mjs";
@@ -155,6 +155,7 @@ function modifierTargetContexts(actor, catalog) {
         ...context,
         selector: "attack",
         statistic: "check",
+        includeStationCheck: true,
         ability: definition.builtin !== "spell-attack" && definition.strike?.kind !== "melee" ? "dex" : undefined
       });
     if (["area-fire", "auto-fire"].includes(definition.builtin)) contexts.push({ ...context, selector: "area-dc", statistic: "dc" });
@@ -175,6 +176,7 @@ function modifierTargetContexts(actor, catalog) {
         stationId: station?.id,
         actionId,
         weaponId: weapon.id,
+        includeStationCheck: selector === "attack",
         ability: selector === "attack" ? "dex" : undefined
       });
   }
@@ -367,13 +369,15 @@ function validateInput(input, actor, catalog) {
     }
     if (!targets.allCrew && !targets.crew.length) {
       const contexts = modifierTargetContexts(actor, catalog);
-      for (const modifier of record.modifiers)
+      for (const modifier of record.modifiers) {
+        const data = { ...readStarship(actor), effects: [{ ...record, status: "active", modifiers: [modifier] }], customModifiers: [] };
         if (
-          !contexts.some(
-            (context) => effectModifiers([{ ...record, status: "active", modifiers: [modifier] }], context.selector, context).length
+          !contexts.some((context) =>
+            shipModifiers(actor, context.selector, { ...context, data }).some((entry) => entry.slug === manualModifierSlug(record.id, 0))
           )
         )
           throw error("invalidModifier", modifier.selector);
+      }
     }
     record.ignoreImmunities = false;
   }

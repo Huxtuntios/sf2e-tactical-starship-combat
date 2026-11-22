@@ -6,6 +6,7 @@ import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { effectModifiers } from "../../scripts/starship/effects.mjs";
 import { sheetAttackRows } from "../../scripts/rolls/ship-rolls.mjs";
+import { shipModifiers } from "../../scripts/starship/stats.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { registerEffectHandlers } from "../../scripts/starship/effect-service.mjs";
 const service = await import("../../scripts/starship/application-service.mjs").catch(() => ({}));
@@ -245,6 +246,83 @@ test("compatible numeric target unions preserve ship, action, weapon and crew re
   );
   assert.equal(crew.nativeTargets.length, 1);
   assert.equal(pc.items.get(crew.nativeTargets[0].itemId).system.rules[0].value, 2);
+});
+test("individual Strike accepts station-check bonuses through the actual attack modifier pipeline", async () => {
+  const { ship, gunner } = await setup();
+  const config = input({
+    kind: "bonus",
+    statistic: "check",
+    modifiers: [{ selector: "station-check", value: 2, type: "status" }],
+    targets: { entire: false, actions: [{ stationId: "gun", actionId: "strike" }] }
+  });
+  const context = { stationId: "gun", actionId: "strike", weaponId: "laser", statistic: "check", includeStationCheck: true };
+  const saved = { ...config, id: "manual-op-1", manual: true, status: "active" };
+  const data = { ...readStarship(ship), effects: [saved] };
+  assert.equal(shipModifiers(ship, "attack", { ...context, data }).find((modifier) => modifier.slug === "tsc-manual-op-1-0")?.value, 2);
+  const result = await service.applyManualEffect(ship.uuid, config);
+  assert.equal(shipModifiers(ship, "attack", context).find((modifier) => modifier.slug === `tsc-${result.applicationId}-0`)?.value, 2);
+  assert.equal(
+    shipModifiers(ship, "attack", { ...context, actionId: "spell-attack" }).some(
+      (modifier) => modifier.slug === `tsc-${result.applicationId}-0`
+    ),
+    false
+  );
+  assert.equal(
+    shipModifiers(ship, "area-dc", { ...context, statistic: "dc", includeStationCheck: false }).some(
+      (modifier) => modifier.slug === `tsc-${result.applicationId}-0`
+    ),
+    false
+  );
+  assert.equal(gunner.items.size, 0);
+});
+test("NPC Strike station-check target unions apply once and do not leak to another station", async () => {
+  await setup();
+  const ship = nativeActor(
+    makeShip({
+      id: "npc-station-bonus",
+      role: "npc",
+      name: "NPC Ship",
+      stations: [
+        { id: "gun", type: "gunnery", grade: "commercial", actions: ["Laser"] },
+        { id: "other", type: "gunnery", grade: "commercial", actions: ["Plasma"] }
+      ],
+      extra: {
+        strikes: [
+          { name: "Laser", kind: "ranged", attack: 10, damage: "1d6 fire", traits: [] },
+          { name: "Plasma", kind: "ranged", attack: 10, damage: "1d6 fire", traits: [] }
+        ]
+      }
+    })
+  );
+  const result = await service.applyManualEffect(
+    ship.uuid,
+    input({
+      kind: "bonus",
+      statistic: "check",
+      modifiers: [{ selector: "station-check", value: 2, type: "status" }],
+      targets: { entire: false, stations: ["gun"], actions: [{ stationId: "gun", actionId: "npc-strike:laser" }] }
+    })
+  );
+  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+12");
+  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:plasma").bonusText, "+10");
+  await service.removeManualEffect(ship.uuid, result.applicationId);
+  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+10");
+});
+test("unrelated existing attack modifiers cannot make an incompatible candidate valid", async () => {
+  const { ship } = await setup();
+  await service.applyManualEffect(
+    ship.uuid,
+    input({ operationId: "existing", kind: "bonus", modifiers: [{ selector: "attack", value: 3, type: "status" }] })
+  );
+  const before = structuredClone(readStarship(ship));
+  await assert.rejects(
+    service.applyManualEffect(
+      ship.uuid,
+      input({ kind: "bonus", modifiers: [{ selector: "ac", value: 2, type: "status" }], targets: { entire: false, weapons: ["laser"] } })
+    ),
+    effectError("invalidModifier")
+  );
+  assert.deepEqual(readStarship(ship), before);
 });
 test("duplicate operations cannot double records/native Items and changed replay rejects", async () => {
   assert.equal(typeof service.applyManualEffect, "function");
