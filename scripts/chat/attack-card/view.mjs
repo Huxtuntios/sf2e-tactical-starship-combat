@@ -73,7 +73,7 @@ export function makeCardRenderer(labels = {}) {
       const sel = c.map.choice ?? "0";
       const base = Number.isFinite(c.bonus?.value) ? c.bonus.value : null;
       const btn = (v, k, p) =>
-        `<button type="button" class="tsc-map-btn${sel === v ? " active" : ""}" data-tsc-map-choice="${v}" aria-pressed="${sel === v}" title="${escapeHtml(T(k))}">${escapeHtml(T(k))} <strong>${escapeHtml(base != null ? fmt(base + p) : fmt(p))}</strong>${p ? ` <small>(${escapeHtml(fmt(p))})</small>` : ""}</button>`;
+        `<button type="button" class="tsc-map-btn${sel === v ? " active" : ""}" data-tsc-map-choice="${v}" data-tsc-map-penalty="${p}" aria-pressed="${sel === v}" title="${escapeHtml(T(k))}">${escapeHtml(T(k))} <strong>${escapeHtml(base != null ? fmt(base + p) : fmt(p))}</strong>${p ? ` <small>(${escapeHtml(fmt(p))})</small>` : ""}</button>`;
       dl.push(
         row(
           T("SF2eTSC.ui.map"),
@@ -87,7 +87,7 @@ export function makeCardRenderer(labels = {}) {
       const items = c.targets
         .map((t) =>
           t.available
-            ? `<li><button type="button" data-tsc-attack="resolve" data-target-key="${escapeHtml(t.key)}"><span>${targetName(t)}</span><span>${escapeHtml(T("SF2eTSC.attackCard.zoneDist", { zone: t.zone, distance: t.distance }))}${t.ac != null ? ` · ${escapeHtml(T("SF2eTSC.ui.ac"))} ${t.ac}` : ""}${t.behind ? " ⟲" : ""}${t.warning ? ` · <em class="tsc-warn">⚠ ${escapeHtml(REASON(t.warning))}</em>` : ""}</span></button></li>`
+            ? `<li><button type="button" data-tsc-attack="resolve" data-target-key="${escapeHtml(t.key)}"><span>${targetName(t)}</span><span>${t.effectiveAttackBonus != null ? `${escapeHtml(T("SF2eTSC.mods.attackBonus"))} <strong data-tsc-effective-bonus="${t.effectiveAttackBonus - (c.map?.current ?? 0)}">${escapeHtml(fmt(t.effectiveAttackBonus))}</strong> · ` : ""}${escapeHtml(T("SF2eTSC.attackCard.zoneDist", { zone: t.zone, distance: t.distance }))}${t.ac != null ? ` · ${escapeHtml(T("SF2eTSC.ui.ac"))} ${t.ac}` : ""}${t.behind ? " ⟲" : ""}${t.warning ? ` · <em class="tsc-warn">⚠ ${escapeHtml(REASON(t.warning))}</em>` : ""}</span></button></li>`
             : `<li class="tsc-ac-off">${targetName(t)} — ${escapeHtml(REASON(t.reason))}${t.distance != null ? ` (${escapeHtml(T("SF2eTSC.attackCard.zoneDist", { zone: t.zone, distance: t.distance }))})` : ""}</li>`
         )
         .join("");

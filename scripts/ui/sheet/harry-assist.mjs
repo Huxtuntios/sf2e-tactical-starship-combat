@@ -128,7 +128,7 @@ export async function prepareHarrySensors(ship, button) {
     }
     let stat = null;
     try {
-      stat = shipStatistic(await fromUuidSafe(target.uuid), "will");
+      stat = shipStatistic(await fromUuidSafe(target.uuid), "will", { againstUuid: ship.uuid, statistic: "check" });
     } catch {
       /* Manual fallback. */
     }

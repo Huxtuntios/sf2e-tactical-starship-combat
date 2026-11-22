@@ -87,6 +87,47 @@ test("одновременные сокетные запросы, права и 
   assert.equal(game.messages.size, messages);
   assert.equal(historyEntries(ship.uuid).length, historyCount);
 });
+for (const actionId of ["deploy-drone", "retrieve-drone", "drone-block"]) {
+  test(`manual malfunction blocks ${actionId} without changing drone state`, async () => {
+    installFoundryMock();
+    const content = await loadContentFromDisk();
+    content.drones = droneTypes;
+    const crew = makeCharacter({ id: "crew", name: "Crew", owners: ["p1"] });
+    crew.level = 8;
+    const ship = makeShip({
+      id: "ship",
+      owners: ["p1"],
+      stations: [{ id: "d", type: "drone-console", grade: "commercial", helmedBy: crew.uuid }],
+      crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "d" }],
+      effects: [
+        {
+          id: "m",
+          manual: true,
+          status: "active",
+          kind: "condition",
+          conditions: ["malfunctioning"],
+          targets: { entire: false, stations: ["d"] }
+        }
+      ],
+      extra: { drones: [{ id: "drone-1", ref: "repair-drone", stationId: "d", tscVersion: 1, deployed: actionId !== "deploy-drone" }] }
+    });
+    makeStarshipCombat();
+    const { executeAction } = await import("../../scripts/actions/action-engine.mjs");
+    const before = structuredClone(ship.flags["sf2e-tactical-starship-combat"].starship);
+    await assert.rejects(
+      executeAction({
+        user: game.users.get("p1"),
+        shipUuid: ship.uuid,
+        crewUuid: crew.uuid,
+        stationId: "d",
+        actionId,
+        options: { droneId: "drone-1" }
+      })
+    );
+    assert.deepEqual(ship.flags["sf2e-tactical-starship-combat"].starship, before);
+  });
+}
+
 test("оружие: тип и владение не выводятся из категории", () => {
   installFoundryMock();
   let result = weaponSummary({ id: "w", name: "W", die: "2d8", damageType: ["fire", "piercing"], category: "advanced", itemLevel: 3 });

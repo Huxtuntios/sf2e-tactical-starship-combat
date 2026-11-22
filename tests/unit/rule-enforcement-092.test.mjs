@@ -133,3 +133,56 @@ test("preview (warn mode): rule problems are warnings on an enabled button, 'no 
   assert.equal(strict.enabled, false);
   assert.deepEqual(strict.warnings, []);
 });
+
+test("manual malfunction blocks selected station action in preview and authoritative dry run", async () => {
+  const s = await scenario("strict");
+  s.aurora.flags[M].starship.effects.push({
+    id: "manual-malf",
+    manual: true,
+    status: "active",
+    kind: "condition",
+    slug: "malfunctioning",
+    conditions: ["malfunctioning"],
+    targets: { entire: false, stations: ["gunnery-1"] }
+  });
+  const action = (await import("../../scripts/content/loader.mjs")).Content.actions.get("strike");
+  const station = s.aurora.flags[M].starship.stations[0];
+  assert.equal(mods.runner.previewAction(action, { ship: s.aurora, crew: s.ava, station, combat: s.combat }).enabled, false);
+  await assert.rejects(
+    mods.engine.executeAction({
+      user: s.gm,
+      shipUuid: s.aurora.uuid,
+      actionId: "strike",
+      crewUuid: s.ava.uuid,
+      stationId: station.id,
+      dryRun: true,
+      options: {}
+    }),
+    /malfunction/i
+  );
+  assert.equal(station.malfunctioning, undefined);
+});
+
+test("manual inoperable satisfies repair prerequisite without persisting overlay", async () => {
+  const s = await scenario("strict");
+  s.aurora.flags[M].starship.effects.push({
+    id: "manual-inop",
+    manual: true,
+    status: "active",
+    kind: "condition",
+    slug: "inoperable",
+    conditions: ["inoperable"],
+    targets: { entire: true }
+  });
+  s.aurora.flags[M].starship.stations.push({ id: "generator-1", type: "generator", grade: "commercial", helmedBy: s.bob.uuid });
+  const result = await mods.engine.executeAction({
+    user: s.gm,
+    shipUuid: s.aurora.uuid,
+    actionId: "jump-start",
+    crewUuid: s.bob.uuid,
+    dryRun: true,
+    options: {}
+  });
+  assert.equal(result.ok, true);
+  assert.equal(s.aurora.flags[M].starship.inoperable, undefined);
+});

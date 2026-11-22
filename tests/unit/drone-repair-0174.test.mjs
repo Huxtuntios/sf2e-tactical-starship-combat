@@ -83,6 +83,21 @@ for (const [degree, expectedHp, expectedSp, diceValues] of [
   });
 }
 
+test("manual malfunction rejects drone repair before rolling or changing Hull", async () => {
+  const { ship, request, calls } = await setup();
+  ship.flags["sf2e-tactical-starship-combat"].starship.effects.push({
+    id: "manual-malf",
+    manual: true,
+    status: "active",
+    kind: "condition",
+    conditions: ["malfunctioning"],
+    targets: { entire: false, stations: ["console"] }
+  });
+  await assert.rejects(executeAction(request));
+  assert.equal(calls(), 0);
+  assert.equal(readStarship(ship).hp.value, 10);
+});
+
 test("Repair Hull tiers use exact DC and bonus only on a success", async () => {
   for (const [choice, rank, dc, bonus] of [
     [0, 2, 20, 10],
@@ -293,8 +308,9 @@ test("Repair Hull applies the station-scoped check modifier through the native s
     }
   };
   const original = f.crew.skills.crafting;
-  original.clone = ({ modifiers }) => {
-    seen.push(...modifiers);
+  original.clone = ({ modifiers, check }) => {
+    assert.equal(modifiers.length, 0, "station check modifiers must not alter the native DC");
+    seen.push(...check.modifiers);
     return original;
   };
   await patchStarship(

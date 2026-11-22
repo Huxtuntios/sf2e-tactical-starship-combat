@@ -10,6 +10,7 @@ import { postActionCard } from "../chat/chat-cards.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { log } from "../utils/logging.mjs";
 import { syncMineContactSafe } from "../sensor/mine-contact.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
 
 /** Команда проходит через общую очередь корабля; её состояние и история не зависят от устаревшего Draft. */
 export async function executeDroneMovement({ user, ship, crewUuid, stationId, options, action }) {
@@ -27,8 +28,10 @@ export async function executeDroneMovement({ user, ship, crewUuid, stationId, op
       const station = matches[0];
       if (matches.length !== 1 || !station || station.type !== "drone-console" || station.helmedBy !== crewUuid)
         throw new Error(T("SF2eTSC.errors.notHelming", { station: T("SF2eTSC.stations.drone-console") }));
-      if (station.malfunctioning || data.destroyed)
-        throw new Error(T(`SF2eTSC.errors.${station.malfunctioning ? "malfunctioning" : "shipDestroyed"}`));
+      const malfunctioning = effectiveEffectStates(data, { actor: ship, actionId: action.id }).stations.find(
+        (s) => s.id === stationId
+      )?.malfunctioning;
+      if (malfunctioning || data.destroyed) throw new Error(T(`SF2eTSC.errors.${malfunctioning ? "malfunctioning" : "shipDestroyed"}`));
       try {
         const updated =
           op === "mine"

@@ -127,7 +127,9 @@ test("NPC damage strings keep every component", async () => {
     { formula: "2d6+3", type: "piercing" },
     { formula: "1d6", type: "fire" }
   ]);
-  assert.deepEqual(mods.strike.npcDamageParts("1d4 persistent electricity"), [{ formula: "1d4", type: "electricity" }]);
+  assert.deepEqual(mods.strike.npcDamageParts("1d4 persistent electricity"), [
+    { formula: "1d4", type: "electricity", category: "persistent" }
+  ]);
   assert.deepEqual(mods.strike.npcDamageParts(""), [{ formula: "1d6", type: "untyped" }]);
 });
 

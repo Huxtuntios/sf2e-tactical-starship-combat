@@ -37,6 +37,20 @@ const input = (draft, ship, crew, extra = {}) => ({
   ...extra
 });
 
+test("manual station malfunction prevents Drone Block without consuming drone", async () => {
+  const { crew, ship } = await setup();
+  ship.flags["sf2e-tactical-starship-combat"].starship.effects.push({
+    id: "manual-malf",
+    manual: true,
+    status: "active",
+    kind: "condition",
+    conditions: ["malfunctioning"],
+    targets: { entire: false, stations: ["dc"] }
+  });
+  await assert.rejects(stageDroneBlock(input(new Draft(null), ship, crew)));
+  assert.equal(readStarship(ship).drones[0].deployed, true);
+});
+
 test("specific Strike consumes selected drone and combines resistance with ship IWR", async () => {
   const { crew, ship } = await setup();
   const draft = new Draft(null);

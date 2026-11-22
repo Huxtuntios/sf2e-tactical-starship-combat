@@ -1,5 +1,6 @@
 import { findObject, objectsInZone } from "../engine/sensor-ops.mjs";
 import { stationOf } from "../starship/starship-state.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
 
 /**
  * Requirement checks. Each returns { ok, soft?, key }. "soft" requirements are only enforced when the
@@ -17,11 +18,18 @@ export function checkRequirement(req, ctx) {
     case "hasShields":
       return { ok: data.sp.value > 0, key: "noShields" };
     case "inoperable":
-      return { ok: !!data.inoperable || data.compromised > 0, key: "notInoperable" };
+      return { ok: !!stats.inoperable, key: "notInoperable" };
     case "helmingAny":
       return { ok: !!station && req.stations.includes(station.type), key: "wrongStation" };
     case "helmingMalfunctioning":
-      return { ok: !!station && station.malfunctioning, key: "notMalfunctioning" };
+      return {
+        ok:
+          !!station &&
+          effectiveEffectStates(data, { actor: ctx.ship, actionId: ctx.action?.id }).stations.some(
+            (s) => s.id === station.id && s.malfunctioning
+          ),
+        key: "notMalfunctioning"
+      };
     case "npcFortify":
       return { ok: (data.fortify ?? 0) > 0, key: "noFortify" };
     case "weaponTrait": {

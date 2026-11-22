@@ -18,12 +18,22 @@ import { addSensorContact } from "./sensor/contact-service.mjs";
 import { syncMineContact } from "./sensor/mine-contact.mjs";
 import { privacyProbe } from "./sensor/privacy-probe.mjs";
 import { pendingPrivateReveals, recoverPrivateReveals } from "./sensor/private-contacts.mjs";
+import { applyManualEffect, removeManualEffect, getEffectTargetCatalog } from "./starship/application-service.mjs";
+import { processPersistentDamage, applyPersistentDamage, recoverPersistentDamage } from "./starship/persistent-damage.mjs";
+import { openEffectManager } from "./ui/effect-manager.mjs";
 
 /** game.modules.get("sf2e-tactical-starship-combat").api */
 export function buildApi() {
   return {
     version: game.modules.get(MODULE_ID)?.version ?? "0.1.0",
     events: HOOK_EVENTS,
+    applyManualEffect,
+    openEffectManager,
+    removeManualEffect,
+    getEffectTargetCatalog,
+    processPersistentDamage,
+    applyPersistentDamage,
+    recoverPersistentDamage,
     openSensorMap,
     openStarshipSheet,
     openNPCStarshipSheet,

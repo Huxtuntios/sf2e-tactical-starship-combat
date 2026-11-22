@@ -101,7 +101,7 @@ export async function guidedMineResolution({ ship, fresh, choice, excluded, reci
     try {
       const actor = await fromUuidSafe(row.uuid);
       if (!actor || actor.uuid !== row.uuid) throw new Error("actor unavailable");
-      statistic = shipStatistic(actor, "reflex");
+      statistic = shipStatistic(actor, "reflex", { againstUuid: ship.uuid, area: true, statistic: "check" });
       if (typeof statistic?.check?.roll !== "function") throw new Error("native save unavailable");
     } catch {
       row.status = "manualSave";

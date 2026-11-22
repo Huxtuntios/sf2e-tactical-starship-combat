@@ -1,21 +1,23 @@
 /** Contextual DCs belong to the station's current operator, not automatically to the pilot. */
 import { T } from "../utils/foundry.mjs";
-import { computeShipStats, shipStatistic, shipSkillValue, skillSlug } from "../starship/stats.mjs";
+import { shipModuleValue, shipStatistic, stationStatistic, skillSlug } from "../starship/stats.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 const numeric = (n) => (typeof n === "number" && Number.isFinite(n) && n > 0 ? n : null);
-export function contextDCs(crew, ship = null) {
+export function contextDCs(crew, ship = null, context = {}) {
   const values = {};
+  const scope = { ...context, statistic: "dc" };
   if (!crew && ship) {
     const data = readStarship(ship);
     if (data.role === "npc")
       for (const name of Object.keys(data.skills ?? {})) {
         const slug = skillSlug(name);
         if (!slug) continue;
-        const mod = shipSkillValue(data.skills, slug);
-        if (mod !== null) values[slug] = numeric(shipStatistic(ship, slug)?.dc?.value) ?? 10 + mod;
+        const mod = shipModuleValue(ship, slug, scope);
+        if (mod !== null) values[slug] = numeric(shipStatistic(ship, slug, scope)?.dc?.value) ?? 10 + mod;
       }
   }
-  for (const [slug, stat] of Object.entries(crew?.skills ?? {})) {
+  for (const [slug, original] of Object.entries(crew?.skills ?? {})) {
+    const stat = ship ? (stationStatistic(crew, ship, slug, scope) ?? original) : original;
     const value = numeric(stat.dc?.value) ?? (Number.isFinite(stat.mod) ? 10 + stat.mod : null);
     if (value !== null) values[slug] = value;
   }
@@ -25,8 +27,9 @@ export function contextDCs(crew, ship = null) {
   // Multiple spell traditions/entries may have different DCs: do not silently choose one.
   values.spell = spellDCs.length === 1 ? spellDCs[0] : null;
   if (ship) {
-    const fort = computeShipStats(ship).fortitude;
-    if (typeof fort === "number" && Number.isFinite(fort)) values.shipFortitude = 10 + fort;
+    const fort = shipModuleValue(ship, "fortitude", scope);
+    if (typeof fort === "number" && Number.isFinite(fort))
+      values.shipFortitude = numeric(shipStatistic(ship, "fortitude", scope)?.dc?.value) ?? 10 + fort;
   }
   for (const slug of ["mechanic", "solarian", "mystic", "technomancer", "witchwarper"]) {
     values[slug] = numeric(crew?.classDCs?.[slug]?.dc?.value) ?? numeric(crew?.getStatistic?.(slug)?.dc?.value);
@@ -44,8 +47,8 @@ const SOURCES = [
   ["shipFortitude", /your starship[’']s Fortitude DC|КС Стойкости вашего звездолёта/giu]
 ];
 /** Adds the actual DC, and a save link only where the clause explicitly calls for that save. */
-export function linkContextDCs(text, { crew = null, ship = null } = {}) {
-  const values = contextDCs(crew, ship);
+export function linkContextDCs(text, { crew = null, ship = null, ...context } = {}) {
+  const values = contextDCs(crew, ship, context);
   const protectedTokens = [];
   let result = String(text ?? "").replace(
     /@(?:Check|Damage|UUID|TscCondition)\[(?:[^[\]]|\[[^\]]*\])*\](?:\{[^}]*\})?|<[^>]*>/g,
@@ -78,8 +81,8 @@ export function linkContextDCs(text, { crew = null, ship = null } = {}) {
   }
   return result.replace(/\uE000(\d+)\uE001/g, (_, index) => protectedTokens[Number(index)]);
 }
-export function stationDCRows(crew) {
-  const values = contextDCs(crew);
+export function stationDCRows(crew, ship = null, context = {}) {
+  const values = contextDCs(crew, ship, context);
   const rows = Object.entries(values)
     .filter(([, value]) => value !== null)
     .map(([slug, value]) => ({

@@ -1,5 +1,6 @@
 <div class="tsc-tab-body">
   {{#if (eq tab "overview")}}
+    {{#if isGM}}<div class="tsc-btn-row"><button type="button" data-action="manageEffects"><i class="fa-solid fa-sliders" aria-hidden="true"></i> {{localize "SF2eTSC.effects.title"}}</button></div>{{/if}}
     {{#if effects.length}}
     <ul class="tsc-chips tsc-effect-list" aria-label="{{localize 'SF2eTSC.ui.activeEffects'}}">
       {{#each effects}}<li data-qol-row data-effect-link="{{id}}" title="{{text}}">

@@ -2,6 +2,7 @@
 {{#unless noCombat}}
     {{#if detail}}
       <h3>{{detail.label}}</h3>
+      {{#if @root.isGM}}{{#if detail.canManageEffects}}<button type="button" data-action="manageEffects" data-ship-uuid="{{detail.effectShipUuid}}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> {{localize "SF2eTSC.effects.title"}}</button>{{/if}}{{/if}}
       {{#if detail.privateContact}}
       <p>{{detail.detectionLabel}} — {{localize "SF2eTSC.ui.zone"}} {{detail.zone}}</p>
       {{#if detail.actorUuid}}<button type="button" data-action="privateOpen" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}

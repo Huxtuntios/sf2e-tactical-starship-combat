@@ -1,5 +1,6 @@
 import { registerHandler } from "../socket.mjs";
-import { loadStarship, patchStarship } from "./starship-state.mjs";
+import { loadStarship, readStarship, patchStarship } from "./starship-state.mjs";
+import { removeManualEffect } from "./application-service.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { sanitizeTiming } from "./effect-timing.mjs";
 import { T } from "../utils/foundry.mjs";
@@ -9,6 +10,10 @@ export function registerEffectHandlers() {
     if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
     const actor = await loadStarship(payload.shipUuid),
       combat = activeStarshipCombat();
+    if (payload.op === "complete" && readStarship(actor).effects.some((e) => e.id === payload.effectId && e.manual)) {
+      await removeManualEffect(actor.uuid, payload.effectId);
+      return true;
+    }
     await patchStarship(
       actor,
       (data) => {

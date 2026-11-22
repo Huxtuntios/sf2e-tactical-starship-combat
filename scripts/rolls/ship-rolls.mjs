@@ -10,7 +10,7 @@ import { rollTypedDamage, typedDamageFormula } from "./typed-damage.mjs";
  *  - nothing here spends, counts or blocks actions or reactions.
  */
 import { readStarship } from "../starship/starship-state.mjs";
-import { computeShipStats, shipStatistic, rollNativeCheck, shipSkillValue } from "../starship/stats.mjs";
+import { computeShipStats, shipStatistic, shipModuleValue, rollNativeCheck, shipSkillValue } from "../starship/stats.mjs";
 import { resolveWeapon, damageFormula, sheetAttackBonus } from "../actions/strike.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
@@ -60,18 +60,11 @@ function checkLabel(row) {
 }
 
 /** Rows for the sheet. The shown modifier is the final one of the native Statistic when available. */
-export function shipCheckRows(actor) {
+export function shipCheckRows(actor, context = {}) {
   const data = readStarship(actor),
-    stats = computeShipStats(actor);
+    stats = computeShipStats(actor, context);
   return shipCheckList(data, stats).map((r) => {
-    let mod = r.mod;
-    try {
-      const st = shipStatistic(actor, r.slug);
-      const m = st?.check?.mod ?? st?.mod;
-      if (Number.isFinite(m)) mod = m;
-    } catch {
-      /* keep module value */
-    }
+    const mod = shipModuleValue(actor, r.slug, context) ?? r.mod;
     return { ...r, mod, modText: signed(mod), label: checkLabel(r), kindLabel: T(`SF2eTSC.rolls.kind.${r.kind}`) };
   });
 }
@@ -117,14 +110,14 @@ export async function postPilotingSave(actor, save) {
 }
 
 /** Roll a ship check / save / skill. dc is optional; without it no degree is computed or shown. */
-export async function rollShipCheck(actor, slug, { dc = null, event = null } = {}) {
-  const row = shipCheckRows(actor).find((r) => r.slug === slug);
+export async function rollShipCheck(actor, slug, { dc = null, event = null, ...context } = {}) {
+  const row = shipCheckRows(actor, context).find((r) => r.slug === slug);
   if (!row) throw new Error(T("SF2eTSC.rolls.noSuchCheck", { slug: String(slug) }));
   const n = Number(dc);
   const dcv = dc !== null && dc !== "" && Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
   const label = T("SF2eTSC.rolls.checkLabel", { ship: actor.name, kind: row.kindLabel, name: row.label });
   return rollNativeCheck({
-    statistic: shipStatistic(actor, slug),
+    statistic: shipStatistic(actor, slug, context),
     dc: dcv,
     label,
     actor,
@@ -169,6 +162,8 @@ export function sheetAttackRows(actor) {
   for (const w of data.weapons ?? []) {
     const station = weaponStation(data, w);
     const ctx = {
+      ship: actor,
+      action: { id: "strike" },
       options: { weaponId: w.id },
       data,
       station,
@@ -179,7 +174,7 @@ export function sheetAttackRows(actor) {
     const weapon = resolveWeapon(ctx);
     if (!weapon) continue;
     const crew = station?.helmedBy ? fromUuidSync_(station.helmedBy) : null;
-    const bonus = crew ? sheetAttackBonus(crew, weapon) : null;
+    const bonus = crew ? sheetAttackBonus(crew, weapon, ctx) : null;
     rows.push({
       key: `w:${w.id}`,
       kind: "weapon",
@@ -208,10 +203,14 @@ export function sheetAttackRows(actor) {
   }
   (data.strikes ?? []).forEach((s, index) => {
     if (!s || typeof s !== "object" || !s.name) return;
-    const ctx = { options: { npcStrike: s }, data, stats };
+    const ctx = { ship: actor, options: { npcStrike: s }, data, stats, combat: activeStarshipCombat() };
     const weapon = resolveWeapon(ctx);
     const actionId = `npc-strike:${slugifyName(s.name)}`;
     const station = data.stations.find((st) => (st.actions ?? []).includes(s.name) || (st.actions ?? []).includes(actionId)) ?? null;
+    ctx.station = station;
+    ctx.stationRow = station ? stationRowFor(station) : null;
+    ctx.action = { id: actionId };
+    const bonus = sheetAttackBonus(null, weapon, ctx);
     rows.push({
       key: `s:${index}`,
       kind: "strike",
@@ -221,13 +220,18 @@ export function sheetAttackRows(actor) {
       crewUuid: null,
       crewName: null,
       name: ct(s.name),
-      bonusText: Number.isFinite(s.attack) ? signed(s.attack) : "—",
+      bonusText: bonus == null ? "—" : signed(bonus),
       typeLabel: T(s.kind === "melee" ? "SF2eTSC.rolls.melee" : "SF2eTSC.rolls.ranged"),
       rangeText: zonesText(`${weapon.range} zones`),
       traitsText: traitsText(s.traits),
-      damageText: (weapon.damageParts ?? []).map((p) => `${p.formula} ${damageTypeLabel(p.type)}`.trim()).join(" + "),
+      persistentParts: weapon.persistentParts ?? [],
+      damageText: [...(weapon.damageParts ?? []), ...(weapon.persistentParts ?? [])]
+        .map((p) =>
+          `${p.formula} ${p.category === "persistent" ? `${has("PF2E.ConditionTypePersistentShort") ? T("PF2E.ConditionTypePersistentShort") : "persistent"} ` : ""}${damageTypeLabel(p.type)}`.trim()
+        )
+        .join(" + "),
       ...mapLabels(s.traits),
-      attackButtons: attackButtons(Number.isFinite(s.attack) ? s.attack : null, s.traits),
+      attackButtons: attackButtons(bonus, s.traits),
       enabled: Number.isFinite(s.attack),
       reason: Number.isFinite(s.attack) ? "" : T("SF2eTSC.rolls.noAttackBonus")
     });

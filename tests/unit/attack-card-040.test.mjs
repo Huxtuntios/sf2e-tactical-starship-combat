@@ -68,6 +68,32 @@ const declare = (s, user = s.p1) =>
 const cardOf = (id) => game.messages.get(id).flags[M].attackCard;
 const tscOf = (c) => mods.tsc.getTsc(c);
 
+test("declaration retains the effective target-specific attack bonus", async () => {
+  const s = await scenario();
+  const { computeAttackModifiers } = await import("../../scripts/actions/strike.mjs");
+  const { Content } = await import("../../scripts/content/loader.mjs");
+  Content.actions.set("bonus-preview", {
+    id: "bonus-preview",
+    name: "Preview",
+    builtin: "npc-strike",
+    npcOnly: true,
+    station: "npc",
+    cost: 1,
+    targeting: { type: "starship", range: "weapon" },
+    strike: { name: "Preview", attack: 8, damage: "1d6 fire", range: 6, traits: [] }
+  });
+  const request = { shipUuid: s.aurora.uuid, actionId: "bonus-preview", options: {} };
+  const dry = await mods.engine.executeAction({ ...request, user: s.gm, dryRun: true });
+  const expected = computeAttackModifiers(dry.ctx, dry.ctx.weapon, {
+    key: s.raider.uuid,
+    actor: s.raider,
+    data: s.raider.flags[M].starship
+  }).effectiveAttackBonus;
+  assert.ok(Number.isFinite(expected));
+  const declared = await mods.card.declareAttack({ user: s.gm, payload: request });
+  assert.equal(cardOf(declared.messageId).targets.find((t) => t.key === s.raider.uuid).effectiveAttackBonus, expected);
+});
+
 beforeEach(() => {
   mods = mods ?? null;
 });
