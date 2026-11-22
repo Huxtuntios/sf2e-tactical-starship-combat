@@ -277,6 +277,38 @@ test("manual recovery requires actual applied damage and failure cannot reroll i
   assert.deepEqual(again, first);
   assert.equal(globalThis.__dice.length, 1);
 });
+test("ship recovery waits for the latest same-type packet before ending effects", async () => {
+  const { ship } = await setup();
+  const application = await add(ship, "1d2");
+  const first = await process(ship, "one");
+  await service.applyPersistentDamage(ship.uuid, first.id);
+  const next = await process(ship, "two");
+  const before = structuredClone(readStarship(ship));
+  dice(20);
+  await assert.rejects(service.recoverPersistentDamage(ship.uuid, application.applicationId), persistentError("applyFirst"));
+  assert.deepEqual(readStarship(ship), before);
+  assert.equal(globalThis.__recoveryContexts.length, 0);
+  const applied = await service.applyPersistentDamage(ship.uuid, next.id);
+  assert.equal(applied.result.originalDamage, next.components[0].amount);
+  assert.equal((await service.recoverPersistentDamage(ship.uuid, application.applicationId)).status, "recovered");
+});
+test("cached recovery failure cannot bypass the next same-type pending packet", async () => {
+  const { ship } = await setup();
+  const application = await add(ship, "1d2");
+  const first = await process(ship, "one");
+  await service.applyPersistentDamage(ship.uuid, first.id);
+  dice(1);
+  const failed = await service.recoverPersistentDamage(ship.uuid, application.applicationId);
+  assert.equal(failed.status, "active");
+  const next = await process(ship, "two");
+  await assert.rejects(service.recoverPersistentDamage(ship.uuid, application.applicationId), persistentError("applyFirst"));
+  assert.equal(globalThis.__recoveryContexts.length, 1);
+  await service.applyPersistentDamage(ship.uuid, next.id);
+  dice(20);
+  const recovered = await service.recoverPersistentDamage(ship.uuid, application.applicationId);
+  assert.equal(recovered.receiptId, next.id);
+  assert.equal(recovered.status, "recovered");
+});
 test("Toolbelt alternate positive apply routes same persistent receipt and custom repeat rejects", async () => {
   const { ship } = await setup();
   await add(ship);

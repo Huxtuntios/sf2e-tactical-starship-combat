@@ -3,6 +3,9 @@ import { MODULE_ID } from "../constants.mjs";
 import { loadStarship, readStarship, patchStarship, isStarship } from "./starship-state.mjs";
 import { actionsForStation, Content } from "../content/loader.mjs";
 import { gradeIndex } from "../engine/advancement.mjs";
+import { collectNpcActions } from "../actions/npc-rows.mjs";
+import { effectModifiers } from "./effects.mjs";
+import { crewStatistic, shipModuleValue } from "./stats.mjs";
 import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { safeDiceFormula } from "../content/inline-dice.mjs";
 import { sanitizeTiming } from "./effect-timing.mjs";
@@ -41,6 +44,13 @@ function enqueue(shipUuid, operation) {
   return task;
 }
 
+function npcActionsForShip(actor, data) {
+  return collectNpcActions(data, { actions: Content.actions.values(), get: (id) => Content.actions.get(id) }, (slug, station) => {
+    const member = station?.helmedBy ? globalThis.fromUuidSync?.(station.helmedBy) : null;
+    return member ? !!crewStatistic(member, slug) : shipModuleValue(actor, slug) !== null;
+  });
+}
+
 export function getEffectTargetCatalog(actor) {
   const data = readStarship(actor);
   const raw = actor.flags?.[MODULE_ID]?.starship ?? {};
@@ -55,12 +65,16 @@ export function getEffectTargetCatalog(actor) {
     const member = globalThis.fromUuidSync?.(uuid);
     return member && !isStarship(member) && ["character", "npc", "familiar"].includes(member.type) ? [{ uuid, label: member.name }] : [];
   });
+  const npcActions = data.role === "npc" ? npcActionsForShip(actor, data) : null;
   return {
     mechanics: [...EFFECT_MECHANICS],
     stations: data.stations.map((station) => ({
       id: station.id,
       label: station.name ?? Content.stations.get(station.type)?.name ?? station.id,
-      actions: actionsForStation(station.type, station.grade, gradeIndex, { data, station }).map((action) => ({
+      actions: (npcActions
+        ? npcActions.filter((entry) => entry.station?.id === station.id && entry.action).map((entry) => entry.action)
+        : actionsForStation(station.type, station.grade, gradeIndex, { data, station })
+      ).map((action) => ({
         id: action.id,
         label: action.name ?? action.id
       }))
@@ -100,6 +114,71 @@ function validateTargets(input, catalog) {
   if (targets.allCrew && !catalog.crew.length) throw error("noTargets");
   if (!shipSelection(targets) && !targets.allCrew && !targets.crew.length) throw error("noTargets");
   return targets;
+}
+
+function modifierTargetContexts(actor, catalog) {
+  const data = readStarship(actor);
+  const contexts = ["ac", "ac-against-strikes"].map((selector) => ({ actor, selector, statistic: "dc" }));
+  for (const selector of ["fortitude", "reflex", "reflex-against-area", "will", "perception", ...Object.keys(CONFIG.PF2E?.skills ?? {})]) {
+    if (shipModuleValue(actor, selector === "reflex-against-area" ? "reflex" : selector) === null) continue;
+    contexts.push(...["check", "dc"].map((statistic) => ({ actor, selector, statistic })));
+  }
+  const actions =
+    data.role === "npc"
+      ? npcActionsForShip(actor, data)
+      : catalog.stations.flatMap((station) =>
+          station.actions.map((action) => ({
+            station: data.stations.find((entry) => entry.id === station.id),
+            action: Content.actions.get(action.id)
+          }))
+        );
+  for (const { station, action: definition } of actions) {
+    if (!definition) continue;
+    const context = { actor, stationId: station?.id, actionId: definition.id };
+    const check = definition.check;
+    if (check && check.kind !== "none") {
+      const skills =
+        check.kind === "targetSave"
+          ? [check.dcSkill]
+          : check.kind === "perception"
+            ? ["perception"]
+            : check.skillsByStation
+              ? (check.skillsByStation[station?.type] ?? Object.values(check.skillsByStation)[0])
+              : (check.skills ?? ["perception"]);
+      for (const skill of skills) {
+        contexts.push({ ...context, selector: skill, skill, statistic: check.kind === "targetSave" ? "dc" : "check" });
+        if (check.kind !== "targetSave") contexts.push({ ...context, selector: "station-check", skill, statistic: "check" });
+      }
+    }
+    if (["strike", "npc-strike", "spell-attack"].includes(definition.builtin))
+      contexts.push({
+        ...context,
+        selector: "attack",
+        statistic: "check",
+        ability: definition.builtin !== "spell-attack" && definition.strike?.kind !== "melee" ? "dex" : undefined
+      });
+    if (["area-fire", "auto-fire"].includes(definition.builtin)) contexts.push({ ...context, selector: "area-dc", statistic: "dc" });
+  }
+  for (const weapon of catalog.weapons) {
+    const station =
+      data.stations.find((entry) => entry.weaponId === weapon.id) ??
+      data.stations.find((entry) => entry.id === data.weapons.find((entry) => entry.id === weapon.id)?.stationId);
+    for (const [selector, statistic, actionId] of [
+      ["attack", "check", "strike"],
+      ["area-dc", "dc", "area-fire"],
+      ["station-damage", "check", "strike"]
+    ])
+      contexts.push({
+        actor,
+        selector,
+        statistic,
+        stationId: station?.id,
+        actionId,
+        weaponId: weapon.id,
+        ability: selector === "attack" ? "dex" : undefined
+      });
+  }
+  return contexts;
 }
 
 function validateInput(input, actor, catalog) {
@@ -285,6 +364,16 @@ function validateInput(input, actor, catalog) {
         value: modifier.value,
         label: modifier.label ?? record.label
       });
+    }
+    if (!targets.allCrew && !targets.crew.length) {
+      const contexts = modifierTargetContexts(actor, catalog);
+      for (const modifier of record.modifiers)
+        if (
+          !contexts.some(
+            (context) => effectModifiers([{ ...record, status: "active", modifiers: [modifier] }], context.selector, context).length
+          )
+        )
+          throw error("invalidModifier", modifier.selector);
     }
     record.ignoreImmunities = false;
   }

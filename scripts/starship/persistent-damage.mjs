@@ -325,7 +325,11 @@ async function recoverAsGM({ user, payload }) {
     }
     if (!shipRecipient(effect)) throw error("invalidRecipient");
     const last = effect.shipPersistent?.lastAppliedReceiptId;
-    if (!last) throw error("applyFirst");
+    const latest = receipts(data)
+      .filter((receipt) => receipt.components.some((component) => component.type === effect.persistent.damageType))
+      .reduce((previous, receipt) => (!previous || receipt.sequence > previous.sequence ? receipt : previous), null);
+    if (!last || latest?.id !== last || latest.status !== "applied" || !latest.appliedApplicationIds?.includes(effect.id))
+      throw error("applyFirst");
     const sameType = data.effects.filter((e) => shipRecipient(e) && e.persistent.damageType === effect.persistent.damageType);
     if (sameType.some((e) => e.shipPersistent?.recovery?.receiptId === last))
       return clone(sameType.find((e) => e.shipPersistent?.recovery?.receiptId === last).shipPersistent.recovery);

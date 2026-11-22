@@ -5,6 +5,7 @@ import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effe
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { effectModifiers } from "../../scripts/starship/effects.mjs";
+import { sheetAttackRows } from "../../scripts/rolls/ship-rolls.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { registerEffectHandlers } from "../../scripts/starship/effect-service.mjs";
 const service = await import("../../scripts/starship/application-service.mjs").catch(() => ({}));
@@ -65,6 +66,63 @@ test("catalog uses installed actions and weapons and only crew registry/assignme
   assert.deepEqual(catalog.weapons, [{ id: "laser", label: "Laser" }]);
   assert.equal(catalog.weaponDefensesSupported, false);
 });
+test("NPC target catalog includes actual station Strikes, abilities and NPC-only actions", async () => {
+  await setup();
+  const ship = nativeActor(
+    makeShip({
+      id: "npc-catalog",
+      role: "npc",
+      name: "NPC Ship",
+      stations: [{ id: "gun", type: "gunnery", grade: "commercial", actions: ["Laser", "Sensor Burst", "Repair Self", "Broken"] }],
+      extra: {
+        strikes: [
+          { name: "Laser", kind: "ranged", attack: 10, damage: "1d6 fire", traits: [] },
+          { name: "Broken", kind: "ranged", attack: 10, damage: "", traits: [] }
+        ],
+        npcActions: [{ name: "Sensor Burst", cost: "one-action", text: "Manual ability" }]
+      }
+    })
+  );
+  const catalog = service.getEffectTargetCatalog(ship);
+  const actions = catalog.stations.find((station) => station.id === "gun").actions;
+  assert.deepEqual(
+    actions.map((action) => action.id),
+    ["npc-strike:laser", "inline:sensor-burst", "repair-self"]
+  );
+  assert.equal(actions.find((action) => action.id === "inline:sensor-burst").label, "Sensor Burst");
+  const applied = await service.applyManualEffect(
+    ship.uuid,
+    input({
+      kind: "bonus",
+      modifiers: [{ selector: "attack", value: 2, type: "status" }],
+      targets: { entire: false, actions: [{ stationId: "gun", actionId: "npc-strike:laser" }] }
+    })
+  );
+  assert.equal(applied.status, "applied");
+  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+12");
+  await service.removeManualEffect(ship.uuid, applied.applicationId);
+  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+10");
+});
+test("entire NPC ship attack modifiers still support valid Strikes without a station", async () => {
+  await setup();
+  const ship = nativeActor(
+    makeShip({
+      id: "unstationed-npc",
+      role: "npc",
+      name: "NPC Ship",
+      extra: { strikes: [{ name: "Ram", kind: "melee", attack: 10, damage: "1d6 bludgeoning", traits: [] }] }
+    })
+  );
+  const result = await service.applyManualEffect(
+    ship.uuid,
+    input({
+      kind: "bonus",
+      modifiers: [{ selector: "attack", value: 2, type: "status" }]
+    })
+  );
+  assert.equal(result.status, "applied");
+  assert.equal(sheetAttackRows(ship)[0].bonusText, "+12");
+});
 test("authenticated player cannot apply effects even with spoofed GM body", async () => {
   assert.equal(typeof service.registerApplicationService, "function");
   const { ship } = await setup();
@@ -106,6 +164,87 @@ test("empty, stale, incompatible and unsafe numeric/persistent targets reject be
     await assert.rejects(service.applyManualEffect(ship.uuid, input(extra)));
   assert.equal(readStarship(ship).effects.length, 0);
   assert.equal(globalThis.__writes.length, 0);
+});
+test("numeric modifiers reject scopes and statistic domains with no mechanical recipient before writes", async () => {
+  const { ship } = await setup();
+  for (const [selector, targets, statistic] of [
+    ["ac", { weapons: ["laser"] }, "both"],
+    ["ac", { stations: ["gun"] }, "both"],
+    ["ac", { actions: [{ stationId: "pilot", actionId: "evade" }] }, "both"],
+    ["attack", { mechanics: ["ac"] }, "both"],
+    ["reflex", { weapons: ["laser"] }, "both"],
+    ["piloting", { actions: [{ stationId: "gun", actionId: "strike" }] }, "both"],
+    ["piloting", { actions: [{ stationId: "pilot", actionId: "evade" }] }, "both"],
+    ["ac", { mechanics: ["ac"] }, "check"],
+    ["attack", { weapons: ["laser"] }, "dc"]
+  ]) {
+    await assert.rejects(
+      service.applyManualEffect(
+        ship.uuid,
+        input({
+          kind: "bonus",
+          statistic,
+          modifiers: [{ selector, value: 2, type: "status" }],
+          targets: { entire: false, ...targets }
+        })
+      ),
+      effectError("invalidModifier")
+    );
+    assert.equal(readStarship(ship).effects.length, 0);
+    assert.equal(globalThis.__writes.length, 0);
+  }
+});
+test("every numeric modifier needs a compatible target, not only one modifier in the application", async () => {
+  const { ship } = await setup();
+  await assert.rejects(
+    service.applyManualEffect(
+      ship.uuid,
+      input({
+        kind: "bonus",
+        modifiers: [
+          { selector: "attack", value: 2, type: "status" },
+          { selector: "ac", value: 2, type: "status" }
+        ],
+        targets: { entire: false, weapons: ["laser"] }
+      })
+    ),
+    effectError("invalidModifier")
+  );
+  assert.equal(readStarship(ship).effects.length, 0);
+  assert.equal(globalThis.__writes.length, 0);
+});
+test("compatible numeric target unions preserve ship, action, weapon and crew recipients", async () => {
+  const { ship, pc } = await setup();
+  ship.flags[MODULE_ID].starship.stations.find((station) => station.id === "pilot").grade = "tactical";
+  for (const [selector, targets, statistic, context] of [
+    ["ac", { mechanics: ["ac"], weapons: ["laser"] }, "dc", {}],
+    ["attack", { weapons: ["laser"] }, "check", { weaponId: "laser" }],
+    ["piloting", { actions: [{ stationId: "pilot", actionId: "juke" }] }, "check", { stationId: "pilot", actionId: "juke" }],
+    ["station-check", { stations: ["pilot"] }, "check", { stationId: "pilot", actionId: "juke", skill: "piloting" }]
+  ]) {
+    const result = await service.applyManualEffect(
+      ship.uuid,
+      input({
+        operationId: foundry.utils.randomID(),
+        kind: "bonus",
+        statistic,
+        modifiers: [{ selector, value: 2, type: "status" }],
+        targets: { entire: false, ...targets }
+      })
+    );
+    assert.equal(effectModifiers([result.record], selector, { actor: ship, statistic, ...context })[0].value, 2);
+  }
+  const crew = await service.applyManualEffect(
+    ship.uuid,
+    input({
+      operationId: "crew-union",
+      kind: "bonus",
+      modifiers: [{ selector: "ac", value: 2, type: "status" }],
+      targets: { entire: false, weapons: ["laser"], crew: [pc.uuid] }
+    })
+  );
+  assert.equal(crew.nativeTargets.length, 1);
+  assert.equal(pc.items.get(crew.nativeTargets[0].itemId).system.rules[0].value, 2);
 });
 test("duplicate operations cannot double records/native Items and changed replay rejects", async () => {
   assert.equal(typeof service.applyManualEffect, "function");
