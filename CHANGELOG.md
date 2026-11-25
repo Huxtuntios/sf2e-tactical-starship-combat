@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0 — 2026-11-25
+
+Integrated native-first build with unified GM-controlled starship effects and persistent damage. Module and pack/document IDs are unchanged; existing world data remains valid without a destructive migration.
+
+- Integrate scoped manual effects for entire ships, mechanics, stations, actions, weapons and native crew recipients, including idempotent operations, partial-result reporting and supported native condition Items.
+- Add persistent-damage staging, strongest same-type selection, durable receipts, explicit GM application and ordered ship/crew recovery through the existing single starship damage path.
+- Preserve native-first targeting, hazard statistics and saves, plasma multi-target attacks, Sensor Map range/detection/placement behavior, card outcomes and native condition management.
+- Add regression and EN/RU UI fixture coverage. Final live Foundry verification remains pending; no general Undo or change-history UI is restored.
+
 ## 1.3.1 — 2026-11-22
 
 Correct weapon-specific crew proficiency for player starship attacks. Compatibility declarations, the module ID, pack names and document IDs are unchanged; no world migration is required.

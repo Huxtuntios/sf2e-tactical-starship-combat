@@ -13,6 +13,8 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
+> **1.5.0 integrated build.** Unified scoped starship effects, native crew effects and persistent-damage receipts are included. Final live Foundry verification is still pending; local tests and browser fixtures are not live compatibility certification.
+
 ## Requirements
 
 | Requirement                               | Version / notes                                                                  |
@@ -50,7 +52,7 @@ Native positive damage buttons (full, half, double and triple damage) in ship ta
 
 Manual ×2/×3 scales damage but does **not** establish a critical hit. Critical-hit evidence uses the original stored roll's degree or an unambiguous native attack-damage outcome; a save/check critical success is not a critical hit. Missing or contradictory metadata stays noncritical. The ship's own critical save failure also warrants enhanced Compromised: existing target-bound save handling is unchanged; ambiguous Toolbelt applications require explicit GM damage rather than inference from ×2. Damage types, defenses and repeat-application receipts remain unchanged.
 
-Ordinary actors and native healing buttons retain their existing behavior. Toolbelt’s personal **Shield Block** is not a starship shield action: use the two ship controls instead. A generic row with a mixed ship/non-ship selection is blocked; use individual Toolbelt target rows or select ships separately. Unevaluated persistent damage, healing-only rolls and split splash messages are not supported by this bridge; apply those using the appropriate manual workflow. No persistent-damage condition is created automatically.
+Ordinary actors and native healing buttons retain their existing behavior. Toolbelt’s personal **Shield Block** is not a starship shield action: use the two ship controls instead. A generic row with a mixed ship/non-ship selection is blocked; use individual Toolbelt target rows or select ships separately. Persistent-damage cards use the module’s durable receipt controls rather than the generic positive-damage buttons. Unevaluated persistent dice, healing-only rolls and split splash messages still require the appropriate manual workflow; no persistent-damage condition is created automatically.
 
 Module attack cards keep their existing **Apply Damage** workflow. Newly generated attack-card damage rolls suppress duplicate native application buttons. Do not apply both paths from older chat cards created before this update. Reload the world after installing.
 
@@ -67,10 +69,10 @@ Current source review covered Toolbelt **3.60.0**; earlier notes covered **3.59.
 2. Enable **SF2e Tactical Starship Combat** in a Starfinder 2e world.
 3. Open **Guide / Руководство** in the compendiums or follow [Setup](#setup).
 
-The `latest` address works after a **regular, non-prerelease** GitHub release is published. To install a specific release, including a prerelease, use its `module.json` asset after it has been published:
+The `latest` address works after a **regular, non-prerelease** GitHub release is published. This preparation does not publish 1.5.0. After an authorized publication, a version-specific manifest can be installed with:
 
 ```text
-https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v1.0.0/module.json
+https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v1.5.0/module.json
 ```
 
 For manual installation, create `Data/modules/sf2e-tactical-starship-combat/` and extract **`module.zip`** into it. `module.json` must be directly inside that directory. GitHub's automatic **Source code** archives are development sources, not installable module packages.
@@ -96,9 +98,10 @@ The module ID remains `sf2e-tactical-starship-combat`; existing settings and fla
 - **Sensor Map appearance.** Combat-scoped custom text/accent colors, portraits or simple symbols, object art overrides and an optional background with opacity, desaturation and blur; the light/dark UI palette is client-local. Unknown contacts do not reveal identifying artwork.
 - **Local themes.** All module windows share the client-local Module UI Theme setting: Follow Foundry, Light or Dark. Existing light/dark selections are retained. Other clients remain independent.
 - **Soft effect timing.** Turn-start/end anchors, round durations, manually confirmed conditions and sustain reminders. Evade displays actions spent. Reminders do not spend actions or extend effects automatically.
-- **Change history and guarded undo.** Up to 80 GM-only records of module ship-state changes, pool deltas and reasons, with navigation to ships/stations/effects. Only a narrow, compatible subset can be undone; rolls, costs, chat and revealed information cannot.
+- **Unified effects and persistent damage.** GM-controlled effects can target the whole ship, mechanics, stations, actions, weapons or native crew. Persistent damage uses strongest same-type selection, durable receipts, explicit GM application and ordered recovery.
+- **Native-first state controls.** Operational/destroyed actions and the native Condition Manager remain available. There is no general Undo or change-history UI; only the narrow guarded Toolbelt per-application damage undo remains.
 - **Rule-text interactions.** Conditions can be sent to chat and dragged onto characters with their values. Damage links create native typed SF2e rolls without applying damage. Contextual DCs use the actual station operator where the rule identifies a statistic; missing or ambiguous DCs remain manual.
-- **Client memory.** Window dimensions and ship tabs are remembered locally. Catalog, upgrade and history searches remain available.
+- **Client memory.** Window dimensions and ship tabs are remembered locally. Catalog and upgrade searches remain available.
 - **Multiplayer authority.** State-changing requests are validated and written by the active GM. Players need the appropriate ship/station access; no socketlib dependency is required.
 
 ## Settings
@@ -133,8 +136,8 @@ Consult the API documentation before invoking state-changing methods.
 - A live Foundry v14 / SF2e multiplayer test is still required. Offline mocks are not proof of complete system compatibility.
 - Native system damage buttons bypass module Shield Points. Typed damage rolls do not apply damage automatically.
 - Non-strike NPC abilities and many upgrade effects require GM adjudication.
-- Undo is conservative, not an atomic multi-document rollback. A saved intent and Actor receipt allow guarded recovery after history-finalization failure; changed Actor/Combat state still blocks retry. Pending recovery evidence cannot be overwritten or evicted at the 80-record limit. HP/SP, damage and critical states are not undoable. Direct system/other-module edits can prevent undo.
-- Arbitrary effect conditions, removed turn anchors and unusual initiative skips may require GM correction.
+- Persistent damage is applied only through durable GM receipts; stale or recovered recipients and duplicate application are rejected. There is no general Undo or history UI.
+- Unsupported native conditions/mechanics, removed turn anchors and unusual initiative skips may require GM correction.
 - An active GM client is required for state-changing requests. No action/reaction economy is tracked.
 - Sensor Map contact privacy and live performance are unverified. Large backgrounds use a PNG display copy capped at 4096 pixels without changing the source; initial decoding and CORS/canvas fallback can still require the full image. Local 8100 × 11700 / 360-object fixtures are not live profiling.
 - Pending identification has an explicit GM recovery button; inspect document conflicts before retrying. Timeouts do not cancel a possibly completed GM operation.
