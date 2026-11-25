@@ -9,9 +9,15 @@ import { classifyRange, calculateZoneDistance, rangePenalty } from "../engine/ra
 import { isAttackFromBehind } from "../engine/heading.mjs";
 import { calculateAreaZones, parseAreaTrait, areaTargets } from "../engine/areas.mjs";
 import { stackModifiers } from "../engine/stacking.mjs";
-import { effectModifiers, stationEffects, effectsAgainst, consumedByStrike, offGuardAgainst } from "../starship/effects.mjs";
+import { effectModifiers, stationEffects, consumedByStrike } from "../starship/effects.mjs";
 import {
   computeShipStats,
+  shipAC,
+  shipModifiers,
+  modifierTotal,
+  shipStatistic,
+  shipModuleValue,
+  shipAreaDC,
   rollNativeCheck,
   crewClassDC,
   bestSpellStatistic,
@@ -41,14 +47,16 @@ export function resolveWeapon(ctx) {
   if (ctx.options.npcStrike) {
     const s = ctx.options.npcStrike;
     const parts = npcDamageParts(s.damage);
+    const split = splitNPCDamageParts(parts);
     return {
       id: s.name,
       name: s.name,
       npc: true,
       attack: s.attack,
-      formula: parts.map((p) => p.formula).join(" + "),
-      damageType: parts[0].type,
-      damageParts: parts,
+      formula: split.immediate.map((p) => p.formula).join(" + ") || "0",
+      damageType: split.immediate[0]?.type ?? parts[0].type,
+      damageParts: split.immediate,
+      persistentParts: split.persistent,
       traits: s.traits ?? [],
       group: s.group,
       type: s.type,
@@ -74,18 +82,24 @@ export function resolveWeapon(ctx) {
     damageType: stored.damageType ?? base.damageType ?? "untyped"
   };
 }
-const DAMAGE_PART = /(\d+d\d+(?:\s*[+-]\s*\d+)?)(?:\s+(?:persistent\s+)?([a-z]+))?/gi;
+const DAMAGE_PART = /(\d+d\d+(?:\s*[+-]\s*\d+)?)(?:\s+(persistent\s+)?([a-z]+))?/gi;
 const NOT_A_TYPE = new Set(["plus", "and", "damage"]);
 /** Damage components of a statblock damage string: [{formula, type}] (always at least one). */
 export function npcDamageParts(text) {
   const out = [];
   for (const m of String(text ?? "").matchAll(DAMAGE_PART)) {
-    const type = m[2] && !NOT_A_TYPE.has(m[2].toLowerCase()) ? m[2].toLowerCase() : null;
-    out.push({ formula: m[1].replace(/\s+/g, ""), type });
+    const type = m[3] && !NOT_A_TYPE.has(m[3].toLowerCase()) ? m[3].toLowerCase() : null;
+    out.push({ formula: m[1].replace(/\s+/g, ""), type, ...(m[2] ? { category: "persistent" } : {}) });
   }
   if (!out.length) out.push({ formula: "1d6", type: null });
   const first = out.find((p) => p.type)?.type ?? "untyped";
   return out.map((p, i) => ({ ...p, type: p.type ?? (i === 0 ? first : first) }));
+}
+export function splitNPCDamageParts(parts) {
+  return {
+    immediate: parts.filter((part) => part.category !== "persistent"),
+    persistent: parts.filter((part) => part.category === "persistent")
+  };
 }
 /**
  * Maximum range (zones) of an NPC Strike.
@@ -138,38 +152,65 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
   const incr = rangeIncrementOf(weapon.traits);
   const volley = (weapon.traits ?? []).map((t) => /volley (\d+)/.exec(String(t))).find(Boolean)?.[1];
   const rp = rangePenalty({ distance, rangeIncrement: incr, volley: volley ? Number(volley) : null });
-  const fx = ctx.data.effects;
+  const context = {
+    data: ctx.data,
+    stationId: ctx.station?.id ?? ctx.stationId,
+    actionId: ctx.action?.id ?? ctx.actionId,
+    weaponId: weapon.id,
+    ability: !weapon.traits?.includes("spell") && ctx.options?.npcStrike?.kind !== "melee" ? "dex" : undefined,
+    againstUuid: target.actor.uuid,
+    combat: ctx.combat,
+    statistic: "check",
+    includeStationCheck: true
+  };
   const mods = manualModifiersFor(ctx.manualModifiers, "attack");
   if (row?.tracking) mods.push({ slug: "tsc-tracking", label: modLabel("tracking"), type: "item", value: row.tracking });
-  for (const m of effectModifiers(stationEffects(fx, ctx.station?.id, ctx.combat), "station-check"))
-    mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
-  for (const m of effectModifiers(fx, "attack"))
-    mods.push({ slug: `tsc-${m.slug}`, label: effectLabel(m.slug, m.label), type: m.type, value: m.value });
-  if (ctx.stats.offKilter) mods.push({ slug: "tsc-off-kilter", label: modLabel("offKilter"), type: "circumstance", value: -2 });
-  for (const [i, m] of (ctx.data.customModifiers ?? []).filter((m) => m.selector === "attack").entries())
-    mods.push({ ...m, slug: `tsc-custom-attack-${i}` });
+  mods.push(
+    ...shipModifiers(ctx.ship, "attack", context).map((modifier) => ({
+      ...modifier,
+      slug: modifier.slug?.startsWith("tsc-") ? modifier.slug : `tsc-${modifier.slug}`
+    }))
+  );
+  if (
+    ctx.stats.offKilter &&
+    !mods.some((modifier) => modifier.type === "circumstance" && modifier.value === -2 && modifier.label === modLabel("offKilter"))
+  )
+    mods.push({ slug: "tsc-off-kilter", label: modLabel("offKilter"), type: "circumstance", value: -2 });
   for (const n of rp.notes) mods.push({ slug: `tsc-${n.key}`, label: modLabel(n.key), type: "untyped", value: n.value });
   if (mapPenalty) mods.push({ slug: "multiple-attack-penalty", label: T("SF2eTSC.ui.map"), type: "untyped", value: mapPenalty });
   const hazard = target.actor?.type === "hazard";
   const tstats = hazard ? { ac: targetArmorClass(target.actor), offGuard: false } : computeShipStats(target.actor);
-  const against = effectsAgainst(target.data.effects, ctx.shipUuid);
-  const acMods = [
-    ...effectModifiers(against, "ac-against-strikes").map((m) => ({ label: effectLabel(m.slug, m.label), type: m.type, value: m.value }))
-  ];
   const behind = isAttackFromBehind(me.zone, to.zone, to.heading ?? target.data.heading);
-  if (tstats.offGuard || behind || offGuardAgainst(target.data.effects, ctx.shipUuid))
-    acMods.push({ label: behind ? modLabel("behind") : modLabel("offGuard"), type: "circumstance", value: -2 });
+  const defense = hazard
+    ? { value: tstats.ac, applied: [] }
+    : shipAC(target.actor, { data: target.data, againstUuid: ctx.shipUuid, offGuard: behind, statistic: "dc" });
   const consumed = consumedByStrike(target.data.effects, ctx.shipUuid);
+  let effectiveAttackBonus = null;
+  try {
+    const statistic =
+      ctx.options?.npcStrike || weapon.npc
+        ? npcStatistic(ctx, weapon)
+        : ctx.action?.builtin === "spell-attack"
+          ? bestSpellStatistic(ctx.crew)
+          : buildCrewAttack(ctx.crew, weapon);
+    const prepared = statistic?.clone({
+      modifiers: mods.map((m) => new game.pf2e.Modifier({ slug: m.slug, label: m.label, modifier: m.value, type: m.type }))
+    });
+    effectiveAttackBonus = prepared?.check?.mod ?? prepared?.mod ?? (weapon.npc ? weapon.attack + modifierTotal(mods).total : null);
+  } catch (err) {
+    log.debug("attack bonus preview unavailable", err);
+  }
   return {
     mods,
-    acMods,
+    effectiveAttackBonus,
+    acMods: defense.applied,
     baseAC: tstats.ac,
-    ac: tstats.ac + stackModifiers(acMods).total,
+    ac: defense.value,
     distance,
     behind,
     tooFar: rp.tooFar,
     consumed,
-    total: stackModifiers(mods).total
+    total: modifierTotal(mods).total
   };
 }
 
@@ -204,7 +245,7 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
     ],
     skipDialog: ctx.options.skipDialog,
     messageMode: ctx.options.messageMode,
-    modifierOnly: base + stackModifiers(mods).total
+    modifierOnly: base + modifierTotal(mods).total
   });
   if (!res) return null;
   ctx.attackResult = {
@@ -231,18 +272,42 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
   };
 }
 /** Pre-roll attack bonus of the roller when the system exposes it reliably (crew Statistic / NPC statblock). */
-export function sheetAttackBonus(crew, weapon) {
-  if (weapon?.npc) return Number.isFinite(weapon.attack) ? weapon.attack : null;
+export function sheetAttackBonus(crew, weapon, ctx = null) {
+  if (weapon?.npc && !ctx) return Number.isFinite(weapon.attack) ? weapon.attack : null;
   try {
-    const st = buildCrewAttack(crew, weapon);
-    const v = st?.check?.mod ?? st?.mod;
-    return Number.isFinite(v) ? v : null;
+    const st = weapon?.npc ? npcStatistic(ctx, weapon) : buildCrewAttack(crew, weapon);
+    const modifiers = ctx
+      ? shipModifiers(ctx.ship, "attack", {
+          data: ctx.data,
+          stationId: ctx.station?.id,
+          actionId: ctx.action?.id,
+          weaponId: weapon.id,
+          ability: !weapon.traits?.includes("spell") && ctx.options?.npcStrike?.kind !== "melee" ? "dex" : undefined,
+          combat: ctx.combat,
+          statistic: "check",
+          includeStationCheck: true
+        })
+      : [];
+    if (ctx?.stationRow?.tracking)
+      modifiers.push({ slug: "tsc-tracking", label: modLabel("tracking"), type: "item", value: ctx.stationRow.tracking });
+    const prepared =
+      modifiers.length && st
+        ? st.clone({
+            modifiers: modifiers.map((m) => new game.pf2e.Modifier({ slug: m.slug, label: m.label, modifier: m.value, type: m.type }))
+          })
+        : st;
+    const value = prepared?.check?.mod ?? prepared?.mod ?? (weapon?.npc ? weapon.attack + modifierTotal(modifiers).total : null);
+    return Number.isFinite(value) ? value : null;
   } catch {
     return null;
   }
 }
 export function knownAttackBonus(ctx, weapon) {
-  if (ctx.options?.npcStrike || weapon?.npc) return Number.isFinite(weapon?.attack) ? { value: weapon.attack, source: "statblock" } : null;
+  if (ctx.options?.npcStrike || weapon?.npc) {
+    const native = npcStatistic(ctx, weapon);
+    const value = native?.check?.mod ?? native?.mod ?? weapon?.attack;
+    return Number.isFinite(value) ? { value, source: "statblock" } : null;
+  }
   try {
     const st = buildCrewAttack(ctx.crew, weapon);
     const v = st?.check?.mod ?? st?.mod;
@@ -255,18 +320,39 @@ function npcStatistic(ctx, weapon) {
   const Ctor = ctx.ship?.saves?.fortitude?.constructor ?? ctx.ship?.perception?.constructor;
   if (!Ctor) return null;
   try {
+    const native = ctx.ship.system?.actions?.find((s) => s.type === "strike" && s.item?.name === weapon.name);
+    const sourceBase = native?.item?._source?.system?.bonus?.value ?? weapon.attack ?? 0;
+    const modifiers = native?.modifiers?.map((m) => m.clone()) ?? [
+      new game.pf2e.Modifier({ slug: "base", label: T("SF2eTSC.mods.statblock"), modifier: sourceBase, type: "untyped" })
+    ];
+    if (native && weapon.attack !== sourceBase)
+      modifiers.push(
+        new game.pf2e.Modifier({
+          slug: "tsc-strike-base-adjust",
+          label: T("SF2eTSC.mods.statblock"),
+          modifier: weapon.attack - sourceBase,
+          type: "untyped"
+        })
+      );
+    const ranged = ctx.options.npcStrike?.kind !== "melee";
     return new Ctor(ctx.ship, {
       slug: "starship-strike",
       label: ct(weapon.name),
-      domains: ["attack", "attack-roll", "ranged-attack-roll"],
-      modifiers: [
-        new game.pf2e.Modifier({ slug: "base", label: T("SF2eTSC.mods.statblock"), modifier: weapon.attack ?? 0, type: "untyped" })
+      domains: [
+        "all",
+        "check",
+        "attack",
+        "attack-roll",
+        "strike-attack-roll",
+        ranged ? "ranged-attack-roll" : "melee-attack-roll",
+        ...(ranged ? ["dex-based", "dex-attack-roll"] : [])
       ],
-      check: { type: "attack-roll" }
+      modifiers,
+      check: { type: "attack-roll" },
+      rollOptions: native?.item?.getRollOptions?.("item") ?? []
     });
   } catch (err) {
-    log.warn("npc attack statistic failed", err);
-    return null;
+    throw new Error(T("SF2eTSC.attackCard.nativeRollNotCompleted"), { cause: err });
   }
 }
 function buildCrewAttack(crew, weapon) {
@@ -372,8 +458,16 @@ export function damageFormula(ctx, weapon, crit) {
   if (weapon.npc) return crit ? `(${weapon.formula})*2` : weapon.formula;
   const dice = ctx.stationRow?.damageDice ?? 1;
   const [n, faces] = String(weapon.die).split("d").map(Number);
+  const context = {
+    actor: ctx.ship,
+    selector: "station-damage",
+    stationId: ctx.station?.id,
+    actionId: ctx.action?.id,
+    weaponId: weapon.id,
+    statistic: "check"
+  };
   const damageMods = [
-    ...effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat), "station-damage"),
+    ...effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat, context), "station-damage", context),
     ...manualModifiersFor(ctx.manualModifiers, "damage")
   ];
   // Prefer SF2e's own stacking implementation; older/testing environments retain the existing module fallback.
@@ -431,6 +525,7 @@ export async function resolveStrike(ctx) {
       : null;
     ctx.boundDamage = {
       damageParts: weapon.npc ? weapon.damageParts : null,
+      persistentParts: weapon.persistentParts ?? [],
       formula: damageFormula(ctx, weapon, false),
       critFormula: damageFormula(ctx, weapon, true),
       damageType: weapon.damageType,
@@ -452,6 +547,18 @@ export async function resolveStrike(ctx) {
   }
   if (res.degree < DEGREE.SUCCESS) {
     ctx.reports.push(T("SF2eTSC.chat.miss"));
+    return;
+  }
+  const persistent = weapon.persistentParts?.length
+    ? {
+        targetUuid: target.uuid,
+        parts: weapon.persistentParts,
+        source: ct(weapon.name),
+        criticalHit: crit
+      }
+    : null;
+  if (weapon.npc && !weapon.damageParts.length) {
+    if (persistent) (ctx.pendingPersistentDamage ??= []).push(persistent);
     return;
   }
   // Keep the same formula and application order, but use the system's typed damage roll for chat.
@@ -489,6 +596,7 @@ export async function resolveStrike(ctx) {
     if (rx.manualDamage.protocolManual) ctx.reports.push(T("SF2eTSC.droneBlock.protocolManualResult", { resistance: rx.resistance ?? 0 }));
     return;
   }
+  if (persistent) (ctx.pendingPersistentDamage ??= []).push(persistent);
   const dmgTraits = traits.includes("bypassing") || rx.bypassHull ? [...traits, "bypassing"] : traits;
   if (rx.shieldAbsorb) {
     const sp = (await ctx.draft.ship(target.uuid)).data.sp.value;
@@ -639,7 +747,13 @@ export async function resolveAreaFire(ctx, kind) {
     return;
   }
   const traits = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
-  const baseDC = crewClassDC(ctx.crew) + (ctx.stats.areaDCModifier ?? 0);
+  const baseDC = shipAreaDC(ctx.crew, ctx.ship, {
+    data: ctx.data,
+    stationId: ctx.station?.id,
+    actionId: ctx.action?.id ?? kind,
+    weaponId: weapon.id,
+    combat: ctx.combat
+  });
   const total = await rollDamage(ctx, damageFormula(ctx, weapon, false), `${ct(weapon.name)}: ${T("SF2eTSC.chat.damage")}`);
   ctx.lines.push({
     label: T("SF2eTSC.chat.area"),
@@ -648,21 +762,18 @@ export async function resolveAreaFire(ctx, kind) {
   for (const o of targets) {
     const entry = await ctx.draft.target(o.actorUuid ?? o.key);
     if (entry.data.destroyed) continue;
-    const lockOn = effectModifiers(effectsAgainst(entry.data.effects, ctx.shipUuid), "reflex-against-area").reduce(
-      (a, m) => a + m.value,
-      0
-    );
-    const stat = targetStatistic(entry.actor, "reflex");
+    const context = { data: entry.data, againstUuid: ctx.shipUuid, area: true, statistic: "check" };
+    const hazard = entry.actor.type === "hazard";
+    const stat = hazard ? targetStatistic(entry.actor, "reflex") : shipStatistic(entry.actor, "reflex", context);
     const res = await rollNativeCheck({
       statistic: stat,
       dc: baseDC,
       label: `${entry.actor.name}: ${T("SF2eTSC.ui.reflex")}`,
       actor: entry.actor,
       secret: !!ctx.privateAction,
-      extraModifiers: lockOn ? [{ slug: "tsc-lock-on", label: modLabel("lockOn"), type: "circumstance", value: lockOn }] : [],
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
-      modifierOnly: targetSaveModifier(entry.actor, "reflex") + lockOn
+      modifierOnly: hazard ? targetSaveModifier(entry.actor, "reflex") : shipModuleValue(entry.actor, "reflex", context)
     });
     if (!res) {
       ctx.cancelled = true;

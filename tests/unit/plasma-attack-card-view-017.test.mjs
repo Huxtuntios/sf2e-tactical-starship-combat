@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { loadLang } from "../helpers/foundry-mock.mjs";
+import { installFoundryMock, loadLang } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { CARD_FLAG } from "../../scripts/chat/attack-card/model.mjs";
 import { makeCardRenderer } from "../../scripts/chat/attack-card/view.mjs";
@@ -141,4 +141,30 @@ test("plasma control and shape labels exist in both EN and RU", () => {
   for (const key of ["damage", "save"]) assert.equal(typeof ru[key], "string", `RU ${key}`);
   assert.equal(typeof en.shape.single, "string");
   assert.equal(typeof ru.shape.single, "string");
+});
+
+test("open plasma card exposes effective target bonuses and recalculates them for MAP", async () => {
+  const card = {
+    status: "open",
+    ship: { name: "Attacker" },
+    action: { name: "Strike", builtin: "strike" },
+    weapon: { name: "Plasma cannon", profile: { plasma: true, area: true, shape: { type: "burst", value: 1 }, save: null } },
+    range: {},
+    map: { current: -5, choice: "1", profile: { map1: -5, map2: -10 } },
+    targets: [{ key: "enemy", label: "Enemy", available: true, zone: 1, distance: 1, effectiveAttackBonus: 11 }]
+  };
+  const html = render(card);
+  assert.match(html, /data-tsc-effective-bonus="16">\+11</);
+  assert.match(html, /data-tsc-map-penalty="-10"/);
+
+  installFoundryMock();
+  const { setMapChoice } = await import("../../scripts/chat/attack-card/client.mjs");
+  const buttons = ["0", "1", "2"].map((choice, index) => ({
+    dataset: { tscMapChoice: choice, tscMapPenalty: String(-5 * index) },
+    classList: { toggle() {} },
+    setAttribute() {}
+  }));
+  const value = { dataset: { tscEffectiveBonus: "16" }, textContent: "+11" };
+  setMapChoice({ querySelectorAll: (selector) => (selector === "[data-tsc-map-choice]" ? buttons : [value]) }, "2");
+  assert.equal(value.textContent, "+6");
 });

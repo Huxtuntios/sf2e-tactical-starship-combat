@@ -17,10 +17,16 @@ import { registerCardRendering } from "../card.mjs";
 
 /** Mark the chosen MAP button (DOM only). */
 export function setMapChoice(card, choice) {
+  let penalty = 0;
   card?.querySelectorAll("[data-tsc-map-choice]").forEach((x) => {
     const on = x.dataset.tscMapChoice === choice;
     x.classList.toggle("active", on);
     x.setAttribute("aria-pressed", String(on));
+    if (on) penalty = Number(x.dataset.tscMapPenalty ?? 0);
+  });
+  card?.querySelectorAll("[data-tsc-effective-bonus]").forEach((value) => {
+    const bonus = Number(value.dataset.tscEffectiveBonus) + penalty;
+    value.textContent = bonus > 0 ? `+${bonus}` : String(bonus);
   });
 }
 

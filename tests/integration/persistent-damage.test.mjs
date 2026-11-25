@@ -165,7 +165,6 @@ const persistentError = (key) => (err) => {
   const localized = game.i18n.localize(`SF2eTSC.persistent.errors.${key}`);
   return err.message.startsWith(localized) || persistentErrorPatterns[key]?.test(err.message) === true;
 };
-const task7 = { skip: "Task 7 integrates effective-state damage and persistent Strike/card staging" };
 const task8 = { skip: "Task 8 integrates persistent combat timing and cleanup" };
 const task9 = { skip: "Task 9 routes persistent cards through Toolbelt" };
 
@@ -379,7 +378,7 @@ test("staging validates formula and immunity in exact Draft without immediate da
     ids
   );
 });
-test("manual compromised overlay never bakes untouched flags but actual damage transitions persist", task7, async () => {
+test("manual compromised overlay never bakes untouched flags but actual damage transitions persist", async () => {
   const { ship } = await setup();
   const state = await applyManualEffect(ship.uuid, { operationId: "comp", kind: "condition", slug: "compromised", conditionValue: 1 });
   const hit = new Draft(null);
@@ -790,7 +789,7 @@ test("combat lifecycle includes private ships, dedups public entries and expires
   assert.equal(readStarship(ship).effects.length, 1);
   assert.equal(readStarship(hidden).effects.length, 1);
 });
-test("damage-service deferred seam stages persistent parts with target receipt and separates instant damage", task7, async () => {
+test("damage-service deferred seam stages persistent parts with target receipt and separates instant damage", async () => {
   const { ship } = await setup();
   const draft = new Draft(null);
   const entry = await draft.ship(ship.uuid);
@@ -808,7 +807,7 @@ test("damage-service deferred seam stages persistent parts with target receipt a
   assert.deepEqual(readStarship(ship).appliedStrikeReceipts, ["chat:hit"]);
 });
 
-test("direct NPC persistent-only strike stages into the action Draft exactly once", task7, async () => {
+test("direct NPC persistent-only strike stages into the action Draft exactly once", async () => {
   const { ship } = await setup();
   const attacker = makeShip({ id: "attacker", role: "npc" });
   Content.actions.set("test-persistent-strike", {
@@ -850,7 +849,7 @@ test("direct NPC persistent-only strike stages into the action Draft exactly onc
   assert.equal(readStarship(ship).effects.length, 1);
 });
 
-test("deferred attack-card application stages persistent parts in its guarded damage receipt", task7, async () => {
+test("deferred attack-card application stages persistent parts in its guarded damage receipt", async () => {
   const { ship } = await setup();
   const message = await ChatMessage.create({
     flags: {

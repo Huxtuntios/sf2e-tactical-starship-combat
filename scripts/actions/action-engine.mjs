@@ -22,11 +22,14 @@ import {
   shipDC,
   shipModuleValue,
   crewStatistic,
+  stationStatistic,
+  shipStatistic,
   rollNativeCheck,
   targetStatistic,
   targetSaveModifier
 } from "../starship/stats.mjs";
-import { effectModifiers, stationEffects } from "../starship/effects.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
+import { stagePersistentDamage } from "../starship/persistent-damage.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat, combatantForActor, turnIndexOf } from "../combat/tsc-state.mjs";
 import { can } from "../crew/permissions.mjs";
@@ -140,7 +143,7 @@ function pickSkill(ctx) {
 }
 function targetDC(ctx, slug) {
   const actor = ctx.target.actor;
-  if (actor?.type !== "hazard") return shipDC(computeShipStats(actor), slug);
+  if (actor?.type !== "hazard") return shipDC(computeShipStats(actor, { againstUuid: ctx.shipUuid, statistic: "dc" }), slug);
   const modifier = slug === "perception" ? Number(actor.system?.attributes?.stealth?.value ?? 0) : targetSaveModifier(actor, slug);
   return 10 + modifier;
 }
@@ -172,13 +175,23 @@ function checkDC(ctx, spec) {
 async function runCheck(ctx) {
   const c = ctx.action.check;
   if (!c || c.kind === "none") return;
+  const context = {
+    data: ctx.data,
+    stationId: ctx.station?.id,
+    actionId: ctx.action.id,
+    weaponId: ctx.weapon?.id ?? ctx.options.weaponId,
+    againstUuid: ctx.target?.uuid,
+    combat: ctx.combat
+  };
   if (c.kind === "targetSave") {
     if (!ctx.target) fail("needTarget");
-    const dcStat = crewStatistic(ctx.crew ?? ctx.ship, c.dcSkill);
-    const npcMod = ctx.data.role === "npc" && !ctx.crew ? shipModuleValue(ctx.ship, c.dcSkill) : null;
+    const dcStat = stationStatistic(ctx.crew, ctx.ship, c.dcSkill, { ...context, statistic: "dc" });
+    const npcMod = ctx.data.role === "npc" && !ctx.crew ? shipModuleValue(ctx.ship, c.dcSkill, { ...context, statistic: "dc" }) : null;
     if (ctx.data.role === "npc" && !dcStat && npcMod === null) fail("noSkill", { skill: c.dcSkill });
     const dc = dcStat?.dc?.value ?? (npcMod !== null ? 10 + npcMod : 10 + ctx.level + 5);
-    const stat = targetStatistic(ctx.target.actor, c.save);
+    const hazard = ctx.target.actor.type === "hazard";
+    const targetContext = { data: ctx.target.data, againstUuid: ctx.shipUuid, statistic: "check" };
+    const stat = hazard ? targetStatistic(ctx.target.actor, c.save) : shipStatistic(ctx.target.actor, c.save, targetContext);
     const res = await rollNativeCheck({
       statistic: stat,
       dc,
@@ -187,7 +200,7 @@ async function runCheck(ctx) {
       secret: !!ctx.privateAction,
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
-      modifierOnly: targetSaveModifier(ctx.target.actor, c.save)
+      modifierOnly: hazard ? targetSaveModifier(ctx.target.actor, c.save) : shipModuleValue(ctx.target.actor, c.save, targetContext)
     });
     if (!res) {
       ctx.cancelled = true;
@@ -207,25 +220,28 @@ async function runCheck(ctx) {
     }
   }
   const roller = ctx.crew ?? ctx.ship;
-  const statistic = crewStatistic(roller, c.kind === "perception" ? "perception" : skill);
+  const statistic = stationStatistic(ctx.crew, ctx.ship, c.kind === "perception" ? "perception" : skill, {
+    ...context,
+    statistic: "check"
+  });
   let fallbackMod = 0;
   if (!statistic && ctx.data.role === "npc") {
-    fallbackMod = ctx.crew ? null : shipModuleValue(ctx.ship, c.kind === "perception" ? "perception" : skill);
+    fallbackMod = ctx.crew
+      ? null
+      : shipModuleValue(ctx.ship, c.kind === "perception" ? "perception" : skill, {
+          ...context,
+          statistic: "check",
+          includeStationCheck: true
+        });
     if (fallbackMod === null) fail("noSkill", { skill });
   } else if (!statistic && ctx.data.role !== "player")
     fallbackMod = skill === "perception" ? ctx.stats.perception : (ctx.data.skills?.[skill] ?? 0);
   else if (!statistic) fail("noSkill", { skill });
-  const boost = effectModifiers(stationEffects(ctx.data.effects, ctx.station?.id, ctx.combat), "station-check").map((m) => ({
-    label: m.slug,
-    type: m.type,
-    value: m.value
-  }));
   const res = await rollNativeCheck({
     statistic,
     dc: dc ?? (ctx.action.builtin === "seek" ? undefined : 0),
     label: `${actionLabel(ctx.action)} (${game.i18n.has(`SF2eTSC.skills.${String(skill).toLowerCase()}`) ? T(`SF2eTSC.skills.${String(skill).toLowerCase()}`) : skill})`,
     actor: roller,
-    extraModifiers: boost,
     secret: !!c.secret || !!ctx.privateAction,
     modifierOnly: fallbackMod,
     skipDialog: ctx.options.skipDialog,
@@ -402,6 +418,7 @@ async function executeActionNow(params) {
   if (!ctx.tsc) draft.tsc = (await import("../engine/sensor-ops.mjs")).defaultSensorState();
 
   // --- station & helm
+  const effective = effectiveEffectStates(data, { actor: ship, actionId: action.id });
   if (!action.npcOnly && action.station !== "npc") {
     ctx.station =
       weaponStation ??
@@ -418,11 +435,12 @@ async function executeActionNow(params) {
     if (ctx.station) ctx.stationRow = stationRowFor(ctx.station);
   } else if (action.npcOnly) {
     // NPC statblock action: the battle station(s) listing it. Shared actions (*) are blocked if ANY of them malfunctions.
-    const owners = npcOwnerStations(data, action);
+    const owners = npcOwnerStations(effective, action);
     ctx.station = owners[0] ?? null;
     if (owners.some((s) => s.malfunctioning) && !gmOverride) rule("malfunctioning");
   } else if (action.station === "generator") ctx.station = data.stations.find((s) => s.type === "generator") ?? null;
-  if (ctx.station?.malfunctioning && !REPAIR_IDS.includes(action.id) && !gmOverride) rule("malfunctioning");
+  const effectiveStation = effective.stations.find((station) => station.id === ctx.station?.id);
+  if (effectiveStation?.malfunctioning && !REPAIR_IDS.includes(action.id) && !gmOverride) rule("malfunctioning");
   if (action.id === "repair-station" && ctx.station?.repairLockedUntilTurnOf && !gmOverride) rule("repairLocked");
 
   // A Boost needs an actual ship station and a stable current-turn anchor. Never trust the target from the socket.
@@ -432,7 +450,7 @@ async function executeActionNow(params) {
       ctx.station.type !== "generator" ||
       !crew ||
       ctx.station.helmedBy !== crewUuid ||
-      ctx.station.malfunctioning ||
+      effectiveStation?.malfunctioning ||
       data.destroyed
     )
       fail("boostInvalidSource");
@@ -453,6 +471,13 @@ async function executeActionNow(params) {
     action.builtin === "npc-strike"
   )
     ctx.weapon = resolveWeapon(ctx);
+  ctx.stats = computeShipStats(ship, {
+    data,
+    stationId: ctx.station?.id,
+    actionId: action.id,
+    weaponId: ctx.weapon?.id,
+    selector: "station-check"
+  });
   ctx.targets = params.dryRun && !params.validateTarget ? [] : await resolveTargets(ctx);
   const plasmaSheetAttack =
     options.sheetRoll === true && ["strike", "npc-strike"].includes(action.builtin) && weaponProfileOf(ctx.weapon).plasma;
@@ -547,6 +572,7 @@ async function executeActionNow(params) {
       })
     );
   const reactionResult = action.cost === "reaction" ? reactionResultFor(ctx) : {};
+  for (const pending of ctx.pendingPersistentDamage ?? []) await stagePersistentDamage(draft, pending, { operationId: ctx.strikeId });
   if (!parent) await draft.commit();
   return { ok: true, degree: ctx.degree, reports: ctx.reports, reactionResult, summary: attackSummaryOf(ctx) };
 }

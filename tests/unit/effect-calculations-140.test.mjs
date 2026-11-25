@@ -144,7 +144,7 @@ function nativeActor(actor, { immune = [], unaffected = [] } = {}) {
 }
 
 const M = "sf2e-tactical-starship-combat";
-const task7 = { skip: "Task 7 integrates scoped Strike and persistent damage consumers" };
+const task11 = { skip: "Task 11 integrates scoped context-dc and sheet-roll consumers" };
 const effect = (selector, value, type = "status", targets = { entire: true }, id = "fx") => ({
   id,
   slug: id,
@@ -214,7 +214,7 @@ test("sheet skill row matches effective ship skill without a native constructor"
   const ship = setup([effect("computers", -2)]);
   assert.equal(shipCheckRows(ship).find((r) => r.slug === "computers").mod, 8);
 });
-test("global circumstance AC penalty and off-guard share one stack", task7, () => {
+test("global circumstance AC penalty and off-guard share one stack", () => {
   const ship = setup();
   const target = makeShip({
     id: "target",
@@ -223,14 +223,14 @@ test("global circumstance AC penalty and off-guard share one stack", task7, () =
   });
   assert.equal(preview(ship, target).ac, 17);
 });
-test("weapon-only bonus applies once to chosen attack and not unrelated check", task7, () => {
+test("weapon-only bonus applies once to chosen attack and not unrelated check", () => {
   const ship = setup([effect("attack", 2, "untyped", { entire: false, weapons: ["w1"] })]);
   const target = makeShip({ id: "target", name: "Target" });
   assert.equal(preview(ship, target).total, 2);
   assert.equal(preview(ship, target, "g", "strike", "w2").total, 0);
   assert.equal(shipModuleValue(ship, "computers"), 10);
 });
-test("entire-ship untyped native all modifier is not repeated as a station extension", task7, () => {
+test("entire-ship untyped native all modifier is not repeated as a station extension", () => {
   const ship = setup([effect("all", 2, "untyped")]);
   const target = makeShip({ id: "target", name: "Target" });
   assert.equal(preview(ship, target).total, 2);
@@ -255,7 +255,7 @@ test("manual off-kilter contributes one typed attack component", () => {
   assert.equal(result.total, -2);
   assert.equal(result.mods.filter((m) => m.type === "circumstance" && m.value === -2).length, 1);
 });
-test("manual clumsy reaches ranged native Dexterity domains but not melee or Computers", task7, () => {
+test("manual clumsy reaches ranged native Dexterity domains but not melee or Computers", () => {
   installNativeEffectsFixture();
   const ship = nativeActor(
     makeShip({
@@ -298,7 +298,7 @@ test("manual clumsy reaches ranged native Dexterity domains but not melee or Com
     0
   );
 });
-test("individual action scope requires the exact station/action pair", task7, () => {
+test("individual action scope requires the exact station/action pair", () => {
   const ship = setup([effect("attack", 2, "status", { entire: false, actions: [{ stationId: "g", actionId: "strike" }] })]);
   const target = makeShip({ id: "target", name: "Target" });
   assert.equal(preview(ship, target).total, 2);
@@ -450,7 +450,7 @@ test("station check bonus does not silently alter the operator skill DC", () => 
   assert.equal(stat.dc.value, 20);
   assert.equal(crew.skills.computers.check.mod, 10);
 });
-test("displayed source skill DC uses the same scoped native operator statistic", task7, () => {
+test("displayed source skill DC uses the same scoped native operator statistic", task11, () => {
   const ship = setup([effect("computers", -2)]);
   const crew = { type: "character", synthetics: {}, skills: {} };
   crew.skills.computers = new NativeStatistic(crew, { slug: "computers", modifiers: [{ slug: "base", modifier: 10, type: "untyped" }] });
@@ -470,25 +470,25 @@ test("targeted area Reflex modifiers keep individual types in the native stack",
   ]);
   assert.equal(shipModuleValue(ship, "reflex", { againstUuid: "Actor.source", area: true }), 5);
 });
-test("station damage forwards the exact action and weapon scope", task7, () => {
+test("station damage forwards the exact action and weapon scope", () => {
   const ship = setup([effect("station-damage", 2, "untyped", { entire: false, actions: [{ stationId: "g", actionId: "strike" }] })]);
   const ctx = { data: ship.flags[M].starship, station: { id: "g" }, action: { id: "strike" } };
   assert.equal(damageFormula(ctx, { id: "w1", die: "1d6" }, false), "1d6+2");
   ctx.action.id = "other";
   assert.equal(damageFormula(ctx, { id: "w1", die: "1d6" }, false), "1d6");
 });
-test("NPC weapon separates persistent components from immediate damage", task7, () => {
+test("NPC weapon separates persistent components from immediate damage", () => {
   setup();
   const weapon = resolveWeapon({ options: { npcStrike: { name: "Laser", attack: 10, damage: "2d6 fire plus 1d4 persistent fire" } } });
   assert.equal(weapon.formula, "2d6");
   assert.deepEqual(weapon.damageParts, [{ formula: "2d6", type: "fire" }]);
   assert.deepEqual(weapon.persistentParts, [{ formula: "1d4", type: "fire", category: "persistent" }]);
 });
-test("sheet NPC damage preview retains the separate persistent category", task7, () => {
+test("sheet NPC damage preview retains the separate persistent category", task11, () => {
   const ship = setup([], { strikes: [{ name: "Laser", attack: 10, damage: "1d6 fire plus 1d4 persistent electricity" }] });
   assert.match(sheetAttackRows(ship).find((r) => r.kind === "strike").damageText, /1d4 persistent/i);
 });
-test("NPC actual roll receives the same scoped attack modifiers as preview", task7, async () => {
+test("NPC actual roll receives the same scoped attack modifiers as preview", async () => {
   const ship = setup([effect("attack", 2, "untyped", { entire: false, weapons: ["Laser"] })]);
   ship.type = "npc";
   ship.perception = new NativeStatistic(ship, { slug: "perception", modifiers: [] });
@@ -519,7 +519,7 @@ test("NPC actual roll receives the same scoped attack modifiers as preview", tas
   );
   assert.equal(ctx.attackResult.total, 22);
 });
-test("NPC attack preview preserves native item modifiers and actual roll stacks typed penalties", task7, async () => {
+test("NPC attack preview preserves native item modifiers and actual roll stacks typed penalties", async () => {
   const ship = setup([effect("attack", -2)]);
   ship.type = "npc";
   ship.perception = new NativeStatistic(ship, { slug: "perception", modifiers: [] });
@@ -558,12 +558,32 @@ test("NPC attack preview preserves native item modifiers and actual roll stacks 
   };
   assert.equal(knownAttackBonus(ctx, resolveWeapon(ctx)).value, 9);
   assert.equal(computeAttackModifiers(ctx, resolveWeapon(ctx), ctx.target).effectiveAttackBonus, 8);
-  ship.flags[M].starship.strikes = [ctx.options.npcStrike];
-  assert.equal(sheetAttackRows(ship).find((r) => r.kind === "strike").bonusText, "+8");
   await resolveStrike(ctx);
   assert.equal(ctx.attackResult.total, 18);
 });
-test("NPC native construction failure does not silently roll a statblock fallback", task7, async () => {
+test("sheet NPC attack preview receives scoped native modifiers", task11, () => {
+  const ship = setup([effect("attack", -2)]);
+  ship.type = "npc";
+  ship.perception = new NativeStatistic(ship, { slug: "perception", modifiers: [] });
+  const nativeMod = (slug, modifier, type) => ({
+    slug,
+    modifier,
+    type,
+    clone() {
+      return { ...this };
+    }
+  });
+  ship.system.actions = [
+    {
+      type: "strike",
+      item: { name: "Laser", _source: { system: { bonus: { value: 10 } } } },
+      modifiers: [nativeMod("base", 10, "untyped"), nativeMod("native-status", -1, "status")]
+    }
+  ];
+  ship.flags[M].starship.strikes = [{ name: "Laser", attack: 10, damage: "1d6 fire" }];
+  assert.equal(sheetAttackRows(ship).find((r) => r.kind === "strike").bonusText, "+8");
+});
+test("NPC native construction failure does not silently roll a statblock fallback", async () => {
   const ship = setup();
   ship.type = "npc";
   ship.perception = {
@@ -593,7 +613,7 @@ test("NPC native construction failure does not silently roll a statblock fallbac
   };
   await assert.rejects(() => resolveStrike(ctx), /did not complete/i);
 });
-test("NPC persistent damage keeps its category", task7, () => {
+test("NPC persistent damage keeps its category", () => {
   assert.deepEqual(npcDamageParts("2d6 piercing plus 1d4 persistent electricity"), [
     { formula: "2d6", type: "piercing" },
     { formula: "1d4", type: "electricity", category: "persistent" }

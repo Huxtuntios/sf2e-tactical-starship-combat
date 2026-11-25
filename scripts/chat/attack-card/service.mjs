@@ -74,6 +74,7 @@ export async function declareAttack({ user, payload }) {
         try {
           const pre = computeAttackModifiers(ctx, weapon, { key: obj.key, actor, data: readStarship(actor) });
           out.ac = pre.ac;
+          out.effectiveAttackBonus = pre.effectiveAttackBonus;
           out.baseAC = pre.baseAC;
           out.acMods = pre.acMods.map((m) => ({ label: m.label, value: m.value }));
           out.behind = pre.behind;
@@ -471,11 +472,13 @@ async function applyPlasmaCardDamage({ message, card, pd, user }) {
       });
     } else {
       const d =
-        amount > 0
+        amount > 0 || pd.persistentParts?.length
           ? await applyDamageInDraft(draft, target.uuid, {
               amount,
               parts: adjustedParts,
               damageType: pd.damageType,
+              persistentParts: pd.persistentParts,
+              persistentSource: { label: pd.source, strikeId, shipUuid: card.request?.shipUuid ?? null },
               strikeResistance: rx.resistance ?? 0,
               traits,
               criticalHit: !!pd.crit || save?.degree === 0,
@@ -590,6 +593,8 @@ export async function applyAttackCardDamage({ user, payload }) {
       amount,
       parts,
       damageType: pd.damageType,
+      persistentParts: pd.persistentParts,
+      persistentSource: { label: pd.source, strikeId, shipUuid: card.request?.shipUuid ?? null },
       strikeResistance: rx.resistance ?? 0,
       traits,
       criticalHit: !!pd.crit,

@@ -7,6 +7,7 @@ import {
   makeCharacter,
   makeShip,
   makeStarshipCombat,
+  DamageRoll as MockDamageRoll,
   MockActor
 } from "../helpers/foundry-mock.mjs";
 
@@ -17,13 +18,14 @@ async function loadService() {
   return service;
 }
 
-async function scenario({ traits = ["area (burst 1 zone)"], save, name = "Plasma cannon", group = "plasma" } = {}) {
+async function scenario({ traits = ["area (burst 1 zone)"], save, name = "Plasma cannon", group = "plasma", persistentParts = null } = {}) {
   installFoundryMock();
   await loadContentFromDisk();
   await loadService();
   const crew = makeCharacter({ id: "gunner", name: "Gunner", owners: ["p1"] });
   const weapon = { id: "w1", name, group, die: "1d6", damageType: "fire", range: 6, traits };
   if (save !== undefined) weapon.save = save;
+  if (persistentParts) weapon.persistentParts = persistentParts;
   const ship = makeShip({
     id: "attacker",
     name: "Attacker",
@@ -324,4 +326,47 @@ test("non-plasma sheet attacks still refuse multiple targets before any roll", a
   await assert.rejects(() => resolve(s, messageId), /valid target/i);
   assert.deepEqual([state(s.first), state(s.second)], before);
   assert.equal(game.messages.contents.filter((message) => message.rolls?.length).length, 0);
+});
+
+test("plasma cards carry effective bonuses and stage persistent parts for every target", async () => {
+  const persistentParts = [{ formula: "1d4", type: "cold", category: "persistent" }];
+  const s = await scenario({ persistentParts });
+  class DamageRoll extends MockDamageRoll {
+    constructor(formula) {
+      super(formula);
+      const match = /(\d+)d(\d+)/.exec(formula);
+      this.expectedValue = (Number(match?.[1] ?? 0) * (Number(match?.[2] ?? 0) + 1)) / 2;
+    }
+  }
+  CONFIG.Dice = { rolls: [DamageRoll] };
+  CONFIG.PF2E = { damageTypes: { fire: "Fire", cold: "Cold" } };
+  game.pf2e.ConditionManager = { getCondition: (slug) => ({ slug }) };
+
+  const { messageId } = await declare(s);
+  const declaration = cardOf(messageId);
+  assert.ok(Object.hasOwn(declaration.targets[0], "effectiveAttackBonus"));
+  dice(19);
+  await resolve(s, messageId);
+  assert.deepEqual(cardOf(messageId).result.pendingDamage.persistentParts, persistentParts);
+  dice(6, 20, 1);
+  await service.rollAttackCardDamage({ user: s.p1, payload: { messageId } });
+  await service.rollAttackCardSaves({ user: s.p1, payload: { messageId } });
+  await service.applyAttackCardDamage({ user: s.gm, payload: { messageId } });
+
+  for (const target of [s.first, s.second]) {
+    const effects = state(target).effects.filter((effect) => effect.kind === "persistent-damage");
+    assert.equal(
+      effects.length,
+      1,
+      JSON.stringify({ target: target.uuid, effects: state(target).effects, results: cardOf(messageId).damageResults })
+    );
+    assert.equal(effects[0].persistent.formula, "1d4");
+    assert.equal(effects[0].persistent.damageType, "cold");
+    assert.equal(effects[0].operationId, `chat:${messageId}:${target.uuid}`);
+    assert.deepEqual(effects[0].source, { label: "Plasma cannon", strikeId: `chat:${messageId}:${target.uuid}`, shipUuid: s.ship.uuid });
+  }
+  assert.deepEqual(
+    cardOf(messageId).damageResults.map((result) => result.rolled),
+    [0, 12]
+  );
 });

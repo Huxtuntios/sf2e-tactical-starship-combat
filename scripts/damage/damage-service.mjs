@@ -5,6 +5,7 @@ import { STARSHIP_IMMUNITIES } from "../engine/validation.mjs";
 import { postDamageCard } from "../chat/chat-cards.mjs";
 import { Initiative } from "../combat/initiative.mjs";
 import { privateContacts } from "../sensor/private-contacts.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
 
 /** StarshipDamageEngine (Foundry layer): applies the pure damage computation to a draft and queues chat/events. */
 export async function applyDamageInDraft(
@@ -21,7 +22,9 @@ export async function applyDamageInDraft(
     source = null,
     attackLine = null,
     silent = false,
-    undoRef = null
+    undoRef = null,
+    persistentParts = null,
+    persistentSource = null
   }
 ) {
   draft.auditReason = source || attackLine || damageType;
@@ -44,6 +47,15 @@ export async function applyDamageInDraft(
       privateTarget
     });
   const d = entry.data;
+  if (persistentParts?.length) {
+    const { stagePersistentDamage } = await import("../starship/persistent-damage.mjs");
+    await stagePersistentDamage(draft, {
+      targetUuid: shipUuid,
+      parts: persistentParts,
+      source: persistentSource ?? { label: source, strikeId: d.appliedStrikeReceipts?.at(-1) },
+      criticalHit
+    });
+  }
   // module IWR (ship editor) + the actor's own system IWR (sf2e attributes), all normalised to system damage slugs
   const sysAttr = entry.actor?.system?.attributes ?? {};
   const immunities = [
@@ -62,16 +74,17 @@ export async function applyDamageInDraft(
     "all-damage": Math.max(0, strikeResistance)
   });
   const weaknesses = mergeMax(normalizeIwr(d.weaknesses), normalizeIwr(sysAttr.weaknesses));
+  const effective = effectiveEffectStates(d, { actor: entry.actor });
   const compute = parts ? computeStarshipDamagePacket : computeStarshipDamage;
   const result = compute({
     state: {
       hp: d.hp.value,
       sp: d.sp.value,
       isPlayer: d.role === "player",
-      compromised: d.compromised,
-      wrecked: d.wrecked,
-      inoperable: d.inoperable,
-      destroyed: d.destroyed,
+      compromised: effective.compromised,
+      wrecked: effective.wrecked,
+      inoperable: effective.inoperable,
+      destroyed: effective.destroyed,
       hardness: d.hardness ?? 0,
       immunities,
       resistances,
@@ -87,10 +100,10 @@ export async function applyDamageInDraft(
   const ns = result.newState;
   d.hp.value = ns.hp;
   d.sp.value = ns.sp;
-  d.compromised = ns.compromised;
-  d.wrecked = ns.wrecked;
-  d.inoperable = ns.inoperable;
-  d.destroyed = ns.destroyed;
+  if (ns.compromised !== effective.compromised) d.compromised = ns.compromised;
+  if (ns.wrecked !== effective.wrecked) d.wrecked = ns.wrecked;
+  if (ns.inoperable !== effective.inoperable || result.becameInoperable || result.compromisedIncrease > 0) d.inoperable = ns.inoperable;
+  if (ns.destroyed !== effective.destroyed) d.destroyed = ns.destroyed;
   if (result.stationsMalfunctioned) for (const st of d.stations) st.malfunctioning = true;
   const actor = entry.actor;
   draft.log(`${actor.name}: SP -${result.shieldDamage}, HP -${result.hullDamage}`, "damage", { shipUuid, ...result });
