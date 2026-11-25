@@ -6,7 +6,7 @@ import { dispatchSocketMessage, registerHandler, _trackPending } from "../../scr
 import { executeAction, registerActionHandlers } from "../../scripts/actions/action-engine.mjs";
 import { resolveAreaFire } from "../../scripts/actions/strike.mjs";
 import { executeEffects } from "../../scripts/actions/effects-exec.mjs";
-import { computeShipStats } from "../../scripts/starship/stats.mjs";
+import { computeShipStats, shipStatistic } from "../../scripts/starship/stats.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 
@@ -409,4 +409,59 @@ test("HUD and both station-item action paths preserve the initiating click optio
   assert.match(read("ui/station-hud.mjs"), /runHudAction\(this\.index,\s*target\.dataset\.actionId,\s*event\)/);
   assert.match(read("ui/sensor-map-app.mjs"), /runHudAction\(this\.dockIndex,\s*target\.dataset\.actionId,\s*event\)/);
   assert.match(read("crew/station-items.mjs"), /runStationItemLink\(a,\s*ev\)/);
+});
+
+class NativeConditionStatistic {
+  constructor(actor, data) {
+    this.actor = actor;
+    this.data = data;
+    this.domains = data.domains ?? [];
+    const synthetic = this.domains.flatMap((domain) =>
+      (actor.synthetics.modifiers?.[domain] ?? []).flatMap((factory) => {
+        const modifier = factory({ test: [] });
+        return modifier && !modifier.ignored && modifier.enabled !== false ? [modifier] : [];
+      })
+    );
+    this.mod = [...(data.modifiers ?? []), ...synthetic].reduce((total, modifier) => total + modifier.modifier, 0);
+    this.check = { mod: this.mod };
+  }
+
+  clone(data = {}) {
+    return new NativeConditionStatistic(this.actor, {
+      ...this.data,
+      ...data,
+      modifiers: [...(this.data.modifiers ?? []), ...(data.modifiers ?? [])]
+    });
+  }
+}
+
+test("native condition is counted once in ship checks and direct stats", () => {
+  installFoundryMock();
+  const npcShip = makeShip({ id: "native-condition-count", name: "Native Condition Count", role: "npc", extra: { reflex: 8 } });
+  npcShip.type = "npc";
+  npcShip._source = { system: { saves: { reflex: { value: 8 } } } };
+  const condition = {
+    id: "clumsy-item",
+    uuid: `${npcShip.uuid}.Item.clumsy-item`,
+    type: "condition",
+    slug: "clumsy",
+    active: true
+  };
+  npcShip.items.set(condition.id, condition);
+  npcShip.synthetics.modifiers = {
+    "dex-based": [() => ({ modifier: -4, type: "status", label: "Clumsy", slug: "clumsy", source: condition.uuid })]
+  };
+  npcShip.saves = {
+    reflex: new NativeConditionStatistic(npcShip, {
+      slug: "reflex",
+      domains: ["reflex", "dex-based"],
+      modifiers: [{ slug: "base", modifier: 8, type: "untyped" }]
+    })
+  };
+
+  const direct = computeShipStats(npcShip, { includeNativeConditions: true });
+  const statistic = shipStatistic(npcShip, "reflex", { includeNativeConditions: false });
+  assert.equal(direct.reflex, 4);
+  assert.equal(statistic.check.mod, 4);
+  assert.equal(direct.reflex, statistic.check.mod);
 });
