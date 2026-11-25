@@ -10,7 +10,7 @@ import {
   installFoundryMock
 } from "../helpers/foundry-mock.mjs";
 import { applyManualEffect, removeManualEffect, registerApplicationService } from "../../scripts/starship/application-service.mjs";
-import { readStarship } from "../../scripts/starship/starship-state.mjs";
+import { patchStarship, readStarship } from "../../scripts/starship/starship-state.mjs";
 import { Draft } from "../../scripts/actions/draft.mjs";
 import { applyDamageInDraft } from "../../scripts/damage/damage-service.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
@@ -165,7 +165,6 @@ const persistentError = (key) => (err) => {
   const localized = game.i18n.localize(`SF2eTSC.persistent.errors.${key}`);
   return err.message.startsWith(localized) || persistentErrorPatterns[key]?.test(err.message) === true;
 };
-const task8 = { skip: "Task 8 integrates persistent combat timing and cleanup" };
 const task9 = { skip: "Task 9 routes persistent cards through Toolbelt" };
 
 async function setup(extra = {}) {
@@ -693,11 +692,19 @@ test("combat interval chooses true own turn or round, never crew or compromised 
   assert.equal(service.persistentIntervalForShip(combat, ship.uuid, { id: own.id, round: 1, turn: 1 }), `combat:${combat.id}:round:1`);
   assert.equal(service.persistentIntervalForShip(combat, ship.uuid, { id: synthetic.id, round: 2, turn: 2 }), null);
 });
-test("combat cleanup removes timed manual native mirrors but retains indefinite and foreign Items", task8, async () => {
+test("combat cleanup removes timed manual native mirrors but retains indefinite and foreign Items", async () => {
   const { ship, pc } = await setup();
   const combat = makeStarshipCombat({ objects: [{ key: ship.uuid }] });
   const [crew] = await combat.createEmbeddedDocuments("Combatant", [{ actorId: pc.id, initiative: 20 }]);
-  await add(ship, "1d6", "fire", { targets: { entire: true, crew: [pc.uuid] } });
+  const persistent = await add(ship, "1d6", "fire", { targets: { entire: true, crew: [pc.uuid] } });
+  const receipt = await process(ship);
+  await applyManualEffect(ship.uuid, {
+    operationId: "indefinite-clean",
+    kind: "condition",
+    slug: "frightened",
+    conditionValue: 1,
+    targets: { entire: false, crew: [pc.uuid] }
+  });
   await applyManualEffect(ship.uuid, {
     operationId: "timed-clean",
     kind: "condition",
@@ -706,13 +713,31 @@ test("combat cleanup removes timed manual native mirrors but retains indefinite 
     targets: { entire: false, crew: [pc.uuid] },
     timing: { mode: "turn-end", combatantId: crew.id }
   });
+  await patchStarship(ship, (data) => {
+    data.effects.push(
+      { id: "legacy-timed", slug: "legacy-timed", label: "Legacy timed", modifiers: [], conditions: [], expire: { round: 1, turn: 0 } },
+      { id: "legacy-indefinite", slug: "legacy-indefinite", label: "Legacy indefinite", modifiers: [], conditions: [], expire: null }
+    );
+  });
   const [foreign] = await pc.createEmbeddedDocuments("Item", [{ type: "condition", name: "Foreign", system: { slug: "clumsy" } }]);
+  const timed = readStarship(ship).effects.find((effect) => effect.id === "manual-timed-clean");
+  const retainedItems = [...pc.items.values()]
+    .filter((item) => item.flags?.[MODULE_ID]?.applicationId !== timed?.id)
+    .map((item) => item.id);
   await combatService.cleanupEndedCombat(combat);
-  assert.equal(pc.items.size, 2);
+  assert.deepEqual(
+    [...pc.items.values()].map((item) => item.id),
+    retainedItems
+  );
   assert.equal(pc.items.has(foreign.id), true);
-  assert.equal(readStarship(ship).effects.length, 1);
+  assert.equal(pc.items.has(timed.nativeTargets[0].itemId), false);
+  assert.deepEqual(
+    readStarship(ship).effects.map((effect) => effect.id),
+    [persistent.applicationId, "manual-indefinite-clean", "legacy-indefinite"]
+  );
+  assert.deepEqual(readStarship(ship).persistentDamageReceipts, [receipt]);
 });
-test("true NPC ship tick occurs at own end only and backwards initiative cannot reroll", task8, async () => {
+test("true NPC ship tick occurs at own end only and backwards initiative cannot reroll", async () => {
   const { ship, pc } = await setup();
   const combat = makeStarshipCombat({ objects: [{ key: ship.uuid }] });
   const [crew, own] = await combat.createEmbeddedDocuments("Combatant", [
@@ -741,7 +766,7 @@ test("true NPC ship tick occurs at own end only and backwards initiative cannot 
     true
   );
 });
-test("combat lifecycle includes private ships, dedups public entries and expires exact native mirrors", task8, async () => {
+test("combat lifecycle includes private ships, dedups public entries and expires exact native mirrors", async () => {
   assert.equal(typeof combatService.onTurnChange, "function");
   assert.equal(typeof combatService.cleanupEndedCombat, "function");
   const { ship, pc } = await setup();

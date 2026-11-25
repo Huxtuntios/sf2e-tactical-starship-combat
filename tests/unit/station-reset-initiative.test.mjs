@@ -7,12 +7,14 @@ import { registerSettings } from "../../scripts/settings.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { registerCombatHooks, startStarshipCombat } from "../../scripts/combat/starship-combat.mjs";
+import { registerPersistentDamageService } from "../../scripts/starship/persistent-damage.mjs";
 
 const SETTING = "resetStationsOnInitiative";
 
 async function scenario({ reset = false } = {}) {
   const ctx = installFoundryMock();
   await loadContentFromDisk();
+  registerPersistentDamageService();
   ctx.settings.set(SETTING, reset);
   const pilot = makeCharacter({ id: "pilot", name: "Pilot" });
   const gunner = makeCharacter({ id: "gunner", name: "Gunner" });
