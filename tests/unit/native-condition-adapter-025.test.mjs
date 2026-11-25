@@ -70,6 +70,53 @@ test("native condition modifiers come from SF2e synthetics and keep typed values
   assert.deepEqual(adapter.nativeConditionModifiers(ship, "will"), []);
 });
 
+test("condition facade shares module condition options and derivation semantics", async () => {
+  await setup();
+  assert.equal(typeof adapter.deriveConditionModifiers, "function");
+  const offKilter = adapter.getConditionOptions().find((condition) => condition.slug === "off-kilter");
+  assert.equal(offKilter.nativeCrew, false);
+  assert.equal(offKilter.shipSupported, true);
+  assert.deepEqual(adapter.deriveConditionModifiers("off-kilter", null, { selector: "attack" }), [
+    {
+      selector: "attack",
+      type: "circumstance",
+      value: -2,
+      label: game.i18n.localize("SF2eTSC.mods.offKilter")
+    }
+  ]);
+  assert.deepEqual(adapter.deriveConditionModifiers("wrecked", 2, { selector: "ac" }), []);
+});
+
+test("condition facade applies shared selector aliases without duplicate stacking", async () => {
+  const ship = await setup();
+  const condition = addConditionSource(ship);
+  const factory = () => ({ modifier: -2, type: "status", label: "Clumsy", slug: "clumsy", source: condition.uuid });
+  ship.synthetics.modifiers = {
+    ac: [factory],
+    "dex-based": [factory],
+    reflex: [factory],
+    "saving-throw": [factory]
+  };
+  const expected = [{ selector: "ac-against-strikes", type: "status", value: -2, label: "Clumsy", slug: "clumsy" }];
+  assert.deepEqual(adapter.nativeConditionModifiers(ship, "ac-against-strikes"), expected);
+  assert.deepEqual(adapter.nativeConditionModifiers(ship, "reflex-against-area"), [
+    { selector: "reflex-against-area", type: "status", value: -2, label: "Clumsy", slug: "clumsy" }
+  ]);
+});
+
+test("native condition facade rejects persistent damage before native creation", async () => {
+  const ship = await setup();
+  game.pf2e.ConditionManager = {
+    conditionsSlugs: ["persistent-damage"],
+    getCondition(slug) {
+      return { name: slug, system: { rules: [], value: { isValued: false } } };
+    }
+  };
+  await assert.rejects(adapter.addNativeCondition(ship, "persistent-damage", 1), {
+    message: game.i18n.localize("SF2eTSC.effects.errors.invalidCondition")
+  });
+});
+
 test("non-condition native modifiers are not folded into module starship statistics", async () => {
   const ship = await setup();
   ship.synthetics.modifiers = {

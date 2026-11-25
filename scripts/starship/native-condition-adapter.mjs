@@ -1,20 +1,13 @@
-const error = (key) => new Error(globalThis.game?.i18n?.localize?.(`SF2eTSC.effects.errors.${key}`) ?? `SF2eTSC.effects.errors.${key}`);
+export { deriveConditionModifiers, getConditionOptions, manualModifierSlug, modifierSelectorMatches } from "./native-effect-adapter.mjs";
 
-export function getConditionOptions() {
-  const manager = globalThis.game?.pf2e?.ConditionManager;
-  if (!manager) return [];
-  return (manager.conditionsSlugs ?? [])
-    .filter((slug) => slug !== "persistent-damage")
-    .flatMap((slug) => {
-      const condition = manager.getCondition(slug);
-      return condition ? [{ slug, label: condition.name, valued: condition.system?.value?.isValued === true }] : [];
-    });
-}
+import { getConditionOptions, modifierSelectorMatches } from "./native-effect-adapter.mjs";
+
+const error = (key) => new Error(globalThis.game?.i18n?.localize?.(`SF2eTSC.effects.errors.${key}`) ?? `SF2eTSC.effects.errors.${key}`);
 
 export async function addNativeCondition(actor, slug, value) {
   if (!globalThis.game?.user?.isGM) throw error("gmOnly");
   const option = getConditionOptions().find((condition) => condition.slug === slug);
-  if (!option) throw error("invalidCondition");
+  if (!option || option.slug === "persistent-damage") throw error("invalidCondition");
   if (typeof actor.increaseCondition !== "function") throw error("nativeUnavailable");
   const conditionValue = option.valued ? value : null;
   if (option.valued && (!Number.isInteger(conditionValue) || conditionValue < 1 || conditionValue > 100))
@@ -51,33 +44,24 @@ function conditionSources(actor) {
   return sources;
 }
 
-function modifierDomains(selector, context) {
-  const domains = new Set(["all", selector]);
-  if (selector === "ac") domains.add("dex-based");
-  if (["fortitude", "reflex", "will"].includes(selector)) {
-    domains.add("saving-throw");
-    domains.add(`${selector === "fortitude" ? "con" : selector === "reflex" ? "dex" : "wis"}-based`);
-  }
-  if (selector === "perception") domains.add("wis-based");
-  if (selector === "attack") domains.add("attack-roll");
+function compatibilityModifierDomains(selector, context) {
+  const domains = new Set(["all"]);
   if (selector === "speed") domains.add("all-speeds");
-  if (selector === "station-check") {
-    const skill = context.skill;
-    if (skill) domains.add(skill);
-  }
-  const skill = selector === "station-check" ? context.skill : selector;
-  const ability = context.ability ?? globalThis.CONFIG?.PF2E?.skills?.[skill]?.attribute;
-  if (ability) domains.add(`${ability}-based`);
-  if (skill && Object.hasOwn(globalThis.CONFIG?.PF2E?.skills ?? {}, skill)) domains.add("skill-check");
+  if (selector === "will") domains.add("saving-throw");
+  if (selector === "station-check" && context.skill) domains.add(context.skill);
+  if (context.ability) domains.add(`${context.ability}-based`);
   return domains;
 }
 
 export function nativeConditionModifiers(actor, selector, context = {}) {
   const sources = conditionSources(actor);
   if (!sources.size || !selector) return [];
+  const compatibilityDomains = compatibilityModifierDomains(selector, context);
+  const domains = Object.keys(actor.synthetics?.modifiers ?? {}).filter(
+    (domain) => compatibilityDomains.has(domain) || modifierSelectorMatches(domain, selector, context)
+  );
   const factories = new Set();
-  for (const domain of modifierDomains(selector, context))
-    for (const factory of actor.synthetics?.modifiers?.[domain] ?? []) factories.add(factory);
+  for (const domain of domains) for (const factory of actor.synthetics?.modifiers?.[domain] ?? []) factories.add(factory);
   const options = ["starship", ...(context.options ?? actor.getRollOptions?.(["all", selector]) ?? [])];
   return [...factories].flatMap((factory) => {
     const modifier = factory({ test: options });
