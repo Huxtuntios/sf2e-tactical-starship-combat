@@ -317,22 +317,216 @@ test("starship sheet exposes the manager action only to the GM", async () => {
   assert.doesNotMatch(render(source, { ...context, isGM: false }), /data-action="manageEffects"/);
 });
 
+test("public API exposes additive effect operations without removing current entry points", async () => {
+  await setup();
+  const { buildApi } = await import("../../scripts/api.mjs");
+  const { applyManualEffect, removeManualEffect, getEffectTargetCatalog } = await import("../../scripts/starship/application-service.mjs");
+  const { processPersistentDamage, applyPersistentDamage, recoverPersistentDamage } =
+    await import("../../scripts/starship/persistent-damage.mjs");
+  const { openEffectManager } = await import("../../scripts/ui/effect-manager.mjs");
+  const api = buildApi();
+  for (const [name, implementation] of Object.entries({
+    applyManualEffect,
+    removeManualEffect,
+    getEffectTargetCatalog,
+    processPersistentDamage,
+    applyPersistentDamage,
+    recoverPersistentDamage,
+    openEffectManager
+  })) {
+    assert.equal(api[name], implementation, name);
+  }
+  for (const name of ["openSensorMap", "openStarshipSheet", "executeStarshipAction", "applyStarshipDamage", "getStarshipState"]) {
+    assert.equal(typeof api[name], "function", name);
+  }
+});
+
+test("Sensor Map detail opens the same GM-only effect manager", async () => {
+  const { nativeActor } = await setup();
+  const ship = nativeActor(makeShip({ id: "sensor-manager-ship", name: "Aurora" }));
+  const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
+  const manager = await import("../../scripts/ui/effect-manager.mjs");
+  const action = SensorMapApplication.DEFAULT_OPTIONS.actions.manageEffects;
+  assert.equal(typeof action, "function");
+  const renderDescriptor = Object.getOwnPropertyDescriptor(manager.EffectManager.prototype, "render");
+  const raiseDescriptor = Object.getOwnPropertyDescriptor(manager.EffectManager.prototype, "bringToFront");
+  let rendered = 0;
+  manager.EffectManager.prototype.render = function () {
+    rendered++;
+    return Promise.resolve(this);
+  };
+  manager.EffectManager.prototype.bringToFront = function () {};
+  try {
+    await action.call({}, {}, { dataset: { shipUuid: ship.uuid } });
+    await Promise.resolve();
+    assert.equal(rendered, 1);
+    game.user = game.users.get("p1");
+    await action.call({}, {}, { dataset: { shipUuid: ship.uuid } });
+    await Promise.resolve();
+    assert.equal(rendered, 1);
+  } finally {
+    game.user = game.users.get("gm");
+    if (renderDescriptor) Object.defineProperty(manager.EffectManager.prototype, "render", renderDescriptor);
+    else delete manager.EffectManager.prototype.render;
+    if (raiseDescriptor) Object.defineProperty(manager.EffectManager.prototype, "bringToFront", raiseDescriptor);
+    else delete manager.EffectManager.prototype.bringToFront;
+  }
+});
+
 test("effect manager localization keys exist with EN/RU parity", () => {
   const en = loadLang("en");
   const ru = loadLang("ru");
-  for (const key of [
+  const keys = [
     "SF2eTSC.effects.title",
     "SF2eTSC.effects.manage",
+    "SF2eTSC.effects.operationalHint",
+    "SF2eTSC.effects.destroyedHint",
     "SF2eTSC.effects.addCondition",
+    "SF2eTSC.effects.conditionLabel",
+    "SF2eTSC.effects.conditionValue",
+    "SF2eTSC.effects.conditionValueHint",
     "SF2eTSC.effects.nativeConditions",
     "SF2eTSC.effects.moduleEffects",
     "SF2eTSC.effects.empty",
     "SF2eTSC.effects.remove",
     "SF2eTSC.effects.readOnly",
+    "SF2eTSC.effects.inactive",
+    "SF2eTSC.effects.add",
+    "SF2eTSC.effects.apply",
+    "SF2eTSC.effects.applied",
+    "SF2eTSC.effects.partial",
+    "SF2eTSC.effects.configure",
+    "SF2eTSC.effects.chooseTargets",
+    "SF2eTSC.effects.kindLabel",
+    "SF2eTSC.effects.kind.condition",
+    "SF2eTSC.effects.kind.bonus",
+    "SF2eTSC.effects.kind.penalty",
+    "SF2eTSC.effects.kind.persistent-damage",
+    "SF2eTSC.effects.customLabel",
+    "SF2eTSC.effects.conditionHint",
+    "SF2eTSC.effects.value",
+    "SF2eTSC.effects.modifier",
+    "SF2eTSC.effects.selector",
+    "SF2eTSC.effects.modifierType",
+    "SF2eTSC.effects.modifierTypes.status",
+    "SF2eTSC.effects.modifierTypes.circumstance",
+    "SF2eTSC.effects.modifierTypes.item",
+    "SF2eTSC.effects.modifierTypes.untyped",
+    "SF2eTSC.effects.statisticLabel",
+    "SF2eTSC.effects.statistic.both",
+    "SF2eTSC.effects.statistic.check",
+    "SF2eTSC.effects.statistic.dc",
+    "SF2eTSC.effects.formula",
+    "SF2eTSC.effects.damageType",
+    "SF2eTSC.effects.recoveryDC",
+    "SF2eTSC.effects.criticalHit",
+    "SF2eTSC.effects.immunity",
+    "SF2eTSC.effects.ignoreImmunities",
+    "SF2eTSC.effects.immunityHint",
+    "SF2eTSC.effects.targetHint",
+    "SF2eTSC.effects.summary",
+    "SF2eTSC.effects.noScopeTargets",
+    "SF2eTSC.effects.process",
+    "SF2eTSC.effects.processHint",
+    "SF2eTSC.effects.copiedSourceHint",
+    "SF2eTSC.effects.targets.ship",
+    "SF2eTSC.effects.targets.entire",
+    "SF2eTSC.effects.targets.mechanics",
+    "SF2eTSC.effects.targets.stations",
+    "SF2eTSC.effects.targets.actions",
+    "SF2eTSC.effects.targets.weapons",
+    "SF2eTSC.effects.targets.weaponAttacks",
+    "SF2eTSC.effects.targets.crew",
+    "SF2eTSC.effects.targets.allCrew",
+    "SF2eTSC.effects.mechanics.abilities",
+    "SF2eTSC.effects.mechanics.skills",
+    "SF2eTSC.effects.mechanics.attacks",
+    "SF2eTSC.effects.mechanics.saves",
+    "SF2eTSC.effects.mechanics.ac",
+    "SF2eTSC.effects.mechanics.defenses",
+    "SF2eTSC.effects.selectors.all",
+    "SF2eTSC.effects.selectors.ac",
+    "SF2eTSC.effects.selectors.saving-throw",
+    "SF2eTSC.effects.selectors.attack",
+    "SF2eTSC.effects.selectors.skill-check",
+    "SF2eTSC.effects.selectors.ability-check",
+    "SF2eTSC.effects.selectors.station-check",
+    "SF2eTSC.effects.selectors.station-damage",
+    "SF2eTSC.effects.selectors.area-dc",
+    "SF2eTSC.effects.selectors.ac-against-strikes",
+    "SF2eTSC.effects.selectors.reflex-against-area",
+    "SF2eTSC.effects.selectors.str-based",
+    "SF2eTSC.effects.selectors.dex-based",
+    "SF2eTSC.effects.selectors.con-based",
+    "SF2eTSC.effects.selectors.int-based",
+    "SF2eTSC.effects.selectors.wis-based",
+    "SF2eTSC.effects.selectors.cha-based",
+    "SF2eTSC.effects.selectors.fortitude",
+    "SF2eTSC.effects.selectors.reflex",
+    "SF2eTSC.effects.selectors.will",
+    "SF2eTSC.effects.selectors.perception",
+    "SF2eTSC.effects.status.active",
+    "SF2eTSC.effects.status.pending",
+    "SF2eTSC.effects.status.rolling",
+    "SF2eTSC.effects.status.failed",
+    "SF2eTSC.effects.status.partial",
+    "SF2eTSC.effects.status.suppressed",
+    "SF2eTSC.effects.status.ended",
+    "SF2eTSC.effects.status.recovered",
+    "SF2eTSC.effects.errors.gmOnly",
+    "SF2eTSC.effects.errors.invalidCondition",
+    "SF2eTSC.effects.errors.invalidConditionValue",
+    "SF2eTSC.effects.errors.conditionNotFound",
+    "SF2eTSC.effects.errors.nativeUnavailable",
+    "SF2eTSC.effects.errors.nativeRejected",
+    "SF2eTSC.effects.errors.nativeRemovalFailed",
+    "SF2eTSC.effects.errors.invalidTargets",
+    "SF2eTSC.effects.errors.staleTargets",
+    "SF2eTSC.effects.errors.unsupportedWeaponDefenses",
+    "SF2eTSC.effects.errors.noTargets",
+    "SF2eTSC.effects.errors.invalidInput",
+    "SF2eTSC.effects.errors.incompatibleStateTargets",
+    "SF2eTSC.effects.errors.incompatibleShipCondition",
+    "SF2eTSC.effects.errors.shipImmune",
+    "SF2eTSC.effects.errors.incompatibleCrewCondition",
+    "SF2eTSC.effects.errors.invalidPersistentDamage",
+    "SF2eTSC.effects.errors.incompatiblePersistentTargets",
+    "SF2eTSC.effects.errors.invalidModifier",
+    "SF2eTSC.effects.errors.incompatibleCrewModifier",
+    "SF2eTSC.effects.errors.incompatibleCrewStatistic",
+    "SF2eTSC.effects.errors.operationConflict",
+    "SF2eTSC.effects.errors.incompleteApplication",
+    "SF2eTSC.effects.errors.nativeIdentityMismatch",
+    "SF2eTSC.effects.errors.applicationNotFound",
+    "SF2eTSC.effects.errors.foreignItem",
+    "SF2eTSC.persistent.label",
+    "SF2eTSC.persistent.applyHint",
+    "SF2eTSC.persistent.apply",
+    "SF2eTSC.persistent.recover",
+    "SF2eTSC.persistent.errors.gmOnly",
+    "SF2eTSC.persistent.errors.invalidPersistentDamage",
+    "SF2eTSC.persistent.errors.nativeUnavailable",
+    "SF2eTSC.persistent.errors.operationConflict",
+    "SF2eTSC.persistent.errors.invalidInterval",
+    "SF2eTSC.persistent.errors.staleReceipt",
+    "SF2eTSC.persistent.errors.alreadyApplied",
+    "SF2eTSC.persistent.errors.invalidRecipient",
+    "SF2eTSC.persistent.errors.applyFirst",
     "SF2eTSC.status.operational",
     "SF2eTSC.status.destroyed"
-  ]) {
+  ];
+  for (const key of keys) {
     assert.ok(en[key], `en: ${key}`);
     assert.ok(ru[key], `ru: ${key}`);
   }
+  for (const key of Object.keys(en).filter((key) => /^SF2eTSC\.(?:effects|persistent)\./.test(key))) {
+    assert.ok(ru[key], `ru parity: ${key}`);
+  }
+  for (const key of Object.keys(ru).filter((key) => /^SF2eTSC\.(?:effects|persistent)\./.test(key))) {
+    assert.ok(en[key], `en parity: ${key}`);
+  }
+  assert.equal(en["SF2eTSC.effects.title"], "Starship Conditions & Effects");
+  assert.equal(ru["SF2eTSC.effects.title"], "Состояния и эффекты звездолёта");
+  assert.equal(ru["SF2eTSC.status.operational"], "Исправен");
+  assert.equal(ru["SF2eTSC.status.destroyed"], "Уничтожен");
 });

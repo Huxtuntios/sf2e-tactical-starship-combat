@@ -1,6 +1,8 @@
 import { registerModuleThemeHooks } from "./ui/sheet/sheet-theme.mjs";
 import { registerActionSheetThemes } from "./ui/action-sheet-theme.mjs";
 import { registerEffectHandlers } from "./starship/effect-service.mjs";
+import { registerApplicationService } from "./starship/application-service.mjs";
+import { registerPersistentDamageService } from "./starship/persistent-damage.mjs";
 import { registerStarshipStatistics } from "./starship/statistics-bridge.mjs";
 import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
 import { registerToolbeltDamage } from "./integrations/toolbelt-damage.mjs";
@@ -51,6 +53,7 @@ const TEMPLATES = [
   "sensor-map-dock",
   "sensor-contact-editor",
   "effect-manager",
+  "effect-targets",
   "starship-sheet",
   "starship-sheet-header",
   "starship-sheet-tabs",
@@ -123,6 +126,8 @@ Hooks.once("ready", async () => {
     registerReactionHandlers,
     registerShipHandlers,
     registerEffectHandlers,
+    registerApplicationService,
+    registerPersistentDamageService,
     registerSensorHandlers
   ])
     fn();

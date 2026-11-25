@@ -11,7 +11,8 @@ import { Targeting, registerNativeTargeting } from "./targeting.mjs";
 import { targetingState } from "../engine/target-rules.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { viewFor, findObject } from "../engine/sensor-ops.mjs";
-import { readStarship, statusOf } from "../starship/starship-state.mjs";
+import { readStarship, statusOf, isStarship } from "../starship/starship-state.mjs";
+import { openEffectManager } from "./effect-manager.mjs";
 import { MapActorCache } from "../sensor/map-actor-cache.mjs";
 import { Content } from "../content/loader.mjs";
 import { openApps, refreshApps } from "./base-app.mjs";
@@ -116,6 +117,9 @@ export class SensorMapApplication extends TscApp {
       moveRight: SensorMapApplication.#moveRight,
       setDetect: SensorMapApplication.#detect,
       openSheet: SensorMapApplication.#openSheet,
+      manageEffects: async function (_event, button) {
+        if (game.user.isGM) openEffectManager(await fromUuidSafe(button.dataset.shipUuid));
+      },
       triggerHazard: SensorMapApplication.#trigger,
       toggleHazard: SensorMapApplication.#toggleHazard,
       resizeZones: SensorMapApplication.#resize,
@@ -369,6 +373,8 @@ export class SensorMapApplication extends TscApp {
         canAddToInitiative: !!(isGM && d?.role === "npc"),
         zoneChoices: Array.from({ length: tsc.zones }, (_, i) => ({ id: i + 1, selected: i + 1 === obj.zone })),
         actorUuid: obj.actorUuid,
+        canManageEffects: isGM && isStarship(actor),
+        effectShipUuid: actor?.uuid,
         canRename: obj.type === "custom",
         detectionLabel: T(`SF2eTSC.detection.${obj.detection.party}`),
         detection: DETECTION_LEVELS.filter((id) => id !== "identified").map((id) => ({
@@ -415,6 +421,8 @@ export class SensorMapApplication extends TscApp {
         : null;
     return {
       gm,
+      canManageEffects: isGM && isStarship(actor),
+      effectShipUuid: actor?.uuid,
       typeOptions: objectTypeView(sel, isGM),
       vitals,
       canMove: movable.includes(sel.key),
