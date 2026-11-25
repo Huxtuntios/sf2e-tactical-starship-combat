@@ -6,11 +6,11 @@ import { resolveSeek, detectionTargetability, seekDC } from "../engine/detection
 import { degreeOfSuccess } from "../engine/degree.mjs";
 import { effectiveDetection } from "../engine/sensor-ops.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
-import { shipSkillValue } from "../starship/stats.mjs";
+import { shipModuleValue, stationStatistic } from "../starship/stats.mjs";
 import { hazardStealthDC } from "../hazards/hazard-stealth.mjs";
 import { calculateZoneDistance } from "../engine/range.mjs";
 import { makeEffect, replaceStationBoost } from "../starship/effects.mjs";
-import { computeShipStats, shipStatistic, rollNativeCheck, crewStatistic } from "../starship/stats.mjs";
+import { shipStatistic, rollNativeCheck } from "../starship/stats.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { rollSpec, basicSaveMultiplier } from "./dice.mjs";
 import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
@@ -120,8 +120,16 @@ const EXEC = {
         crit = false;
       if (fx.save) {
         const targetActor = t.actor;
-        const stat = shipStatistic(targetActor, fx.save.type);
-        const dcStat = crewStatistic(ctx.crew ?? ctx.ship, fx.save.dcSkill ?? "crafting");
+        const stat = shipStatistic(targetActor, fx.save.type, { againstUuid: ctx.shipUuid, statistic: "check" });
+        const dcStat = stationStatistic(ctx.crew, ctx.ship, fx.save.dcSkill ?? "crafting", {
+          data: ctx.data,
+          stationId: ctx.station?.id,
+          actionId: ctx.action.id,
+          weaponId: ctx.weapon?.id,
+          againstUuid: t.uuid,
+          combat: ctx.combat,
+          statistic: "dc"
+        });
         const dc = dcStat?.dc?.value ?? 10 + (ctx.level ?? 1) + 5;
         const res = await rollNativeCheck({
           statistic: stat,
@@ -131,7 +139,7 @@ const EXEC = {
           secret: !!ctx.privateAction,
           skipDialog: ctx.options.skipDialog,
           messageMode: ctx.options.messageMode,
-          modifierOnly: computeShipStats(targetActor)[fx.save.type]
+          modifierOnly: shipModuleValue(targetActor, fx.save.type, { againstUuid: ctx.shipUuid, statistic: "check" })
         });
         if (!res) {
           ctx.cancelled = true;
@@ -222,12 +230,15 @@ export async function executeEffects(effects, ctx) {
 }
 
 /** Stealth DC of a sensor object for Seek Starships (ship Stealth skill / hazard Stealth / level DC). */
-async function seekTargetDC(o) {
+async function seekTargetDC(o, againstUuid) {
   const a = o.actorUuid ? await fromUuidSafe(o.actorUuid) : null;
   if (a && isStarship(a)) {
     const d = readStarship(a);
-    const mod = shipSkillValue(d.skills, "stealth") ?? a.skills?.stealth?.mod ?? null;
-    return seekDC({ stealthDC: o.stealthDC, stealthMod: mod, level: d.level ?? o.level });
+    const context = { againstUuid, statistic: "dc" };
+    const stat = shipStatistic(a, "stealth", context);
+    const value = stat?.dc?.value;
+    const mod = shipModuleValue(a, "stealth", context) ?? a.skills?.stealth?.mod ?? null;
+    return seekDC({ stealthDC: o.stealthDC ?? value, stealthMod: mod, level: d.level ?? o.level });
   }
   if (a) return seekDC({ stealthDC: hazardStealthDC(a) ?? o.stealthDC, level: a.system?.details?.level?.value ?? o.level });
   return seekDC({ stealthDC: o.stealthDC, level: o.level });
@@ -250,7 +261,7 @@ export async function resolveSeekBuiltin(ctx, rollResult) {
     if (!target || calculateZoneDistance(me.zone, target.zone) > range) continue;
     const current = effectiveDetection(target, [observer]);
     if (current === "observed" || current === "identified") continue;
-    const dcValue = await seekTargetDC(target);
+    const dcValue = await seekTargetDC(target, ctx.shipUuid);
     const degree = degreeOfSuccess(rollResult.total, dcValue, rollResult.natural);
     const next = resolveSeek(current, degree);
     if (next !== current) {

@@ -144,7 +144,6 @@ function nativeActor(actor, { immune = [], unaffected = [] } = {}) {
 }
 
 const M = "sf2e-tactical-starship-combat";
-const task11 = { skip: "Task 11 integrates scoped context-dc and sheet-roll consumers" };
 const effect = (selector, value, type = "status", targets = { entire: true }, id = "fx") => ({
   id,
   slug: id,
@@ -450,7 +449,7 @@ test("station check bonus does not silently alter the operator skill DC", () => 
   assert.equal(stat.dc.value, 20);
   assert.equal(crew.skills.computers.check.mod, 10);
 });
-test("displayed source skill DC uses the same scoped native operator statistic", task11, () => {
+test("displayed source skill DC uses the same scoped native operator statistic", () => {
   const ship = setup([effect("computers", -2)]);
   const crew = { type: "character", synthetics: {}, skills: {} };
   crew.skills.computers = new NativeStatistic(crew, { slug: "computers", modifiers: [{ slug: "base", modifier: 10, type: "untyped" }] });
@@ -484,7 +483,7 @@ test("NPC weapon separates persistent components from immediate damage", () => {
   assert.deepEqual(weapon.damageParts, [{ formula: "2d6", type: "fire" }]);
   assert.deepEqual(weapon.persistentParts, [{ formula: "1d4", type: "fire", category: "persistent" }]);
 });
-test("sheet NPC damage preview retains the separate persistent category", task11, () => {
+test("sheet NPC damage preview retains the separate persistent category", () => {
   const ship = setup([], { strikes: [{ name: "Laser", attack: 10, damage: "1d6 fire plus 1d4 persistent electricity" }] });
   assert.match(sheetAttackRows(ship).find((r) => r.kind === "strike").damageText, /1d4 persistent/i);
 });
@@ -561,7 +560,7 @@ test("NPC attack preview preserves native item modifiers and actual roll stacks 
   await resolveStrike(ctx);
   assert.equal(ctx.attackResult.total, 18);
 });
-test("sheet NPC attack preview receives scoped native modifiers", task11, () => {
+test("sheet NPC attack preview receives scoped native modifiers", () => {
   const ship = setup([effect("attack", -2)]);
   ship.type = "npc";
   ship.perception = new NativeStatistic(ship, { slug: "perception", modifiers: [] });

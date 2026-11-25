@@ -17,6 +17,7 @@ import { damagePartsFromRoll } from "../../scripts/rolls/typed-damage.mjs";
 import { Reactions, resolveReactionResponse } from "../../scripts/actions/reactions.mjs";
 import { Draft } from "../../scripts/actions/draft.mjs";
 import { computeShipStats } from "../../scripts/starship/stats.mjs";
+import { stackModifiers } from "../../scripts/engine/stacking.mjs";
 import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
 import { MODULE_ID as M, HOOK_EVENTS } from "../../scripts/constants.mjs";
 
@@ -225,6 +226,45 @@ test("area fire passes nonlethal on a critical save failure", async () => {
   assert.deepEqual([state(s).hp.value, state(s).compromised, state(s).inoperable, state(s).destroyed], [0, 0, true, false]);
 });
 
+test("area fire native source DC and module penalties share their native type", async () => {
+  const s = await scenario({
+    installed: true,
+    attacker: { effects: [{ id: "penalty", slug: "penalty", modifiers: [{ selector: "area-dc", type: "status", value: -2 }] }] }
+  });
+  s.ctx.options.areaOrigin = 3;
+  s.crew.classDC = {
+    dc: { value: 19 },
+    clone: ({ modifiers }) => ({
+      dc: {
+        value: 20 + stackModifiers([{ type: "status", value: -1 }, ...modifiers.map((m) => ({ type: m.type, value: m.modifier }))]).total
+      }
+    })
+  };
+  let dc;
+  class Save {
+    constructor() {
+      this.domains = ["reflex", "saving-throw", "all", "dex-based"];
+      this.mod = 8;
+      this.dc = { value: 18 };
+      this.check = {
+        mod: 8,
+        roll: async (options) => {
+          dc = options.dc.value;
+          return { total: 20, degreeOfSuccess: 2 };
+        }
+      };
+    }
+    clone() {
+      return this;
+    }
+  }
+  s.defender.saves = { reflex: new Save() };
+  s.defender.perception = new Save();
+  dice(4);
+  await resolveAreaFire(s.ctx, "area-fire");
+  assert.equal(dc, 18);
+});
+
 test("same-type NPC components group before resistance and hardness", async () => {
   const s = await scenario({ damage: "1d6 piercing plus 1d6 piercing", target: { extra: { resistances: { piercing: 3 }, hardness: 1 } } });
   dice(10, 4, 4);
@@ -354,7 +394,7 @@ for (const shieldAbsorb of ["half", "full"]) {
 
 for (const protocol of [true, false]) {
   test(`immediate real Drone Block ${protocol ? "Protocol manual skips all automatic damage/riders" : "base automatic still applies"}`, async () => {
-    const s = await scenario({ damage: "1d6 piercing", target: { sp: 2 } });
+    const s = await scenario({ damage: "1d6 piercing plus 1d6 persistent fire", target: { sp: 2 } });
     s.crew.system.details = { level: { value: 4 } };
     await s.combat.createEmbeddedDocuments("Combatant", [{ actorId: s.crew.id, initiative: 20 }]);
     await patchStarship(
@@ -390,6 +430,7 @@ for (const protocol of [true, false]) {
       assert.deepEqual([state(s).hp.value, state(s).sp.value], [30, 2]);
       assert.equal(damageLog(s).length, 0);
       assert.equal(s.ctx.damageResults, undefined);
+      assert.equal(s.ctx.pendingPersistentDamage?.length ?? 0, 0);
       assert.equal(s.ctx.data.effects.length, 1);
       assert.equal(state(s).stations[0].malfunctioning, false);
       assert.equal(state(s).drones[0].tscProtocolBlocks, 1);
@@ -416,7 +457,7 @@ test("attack effects retain their original types exactly once; off-kilter and cu
     pre.mods.map((mod) => [mod.type, mod.value]),
     [["status", 2]]
   );
-  s.ctx.stats.offKilter = true;
+  s.ctx.data.offKilter = true;
   s.ctx.data.customModifiers = [
     { selector: "attack", label: "Status custom", type: "status", value: 3 },
     { selector: "attack", label: "Circumstance bonus", type: "circumstance", value: 1 },
@@ -427,7 +468,7 @@ test("attack effects retain their original types exactly once; off-kilter and cu
   s.ctx.stationRow.tracking = 1;
   pre = computeAttackModifiers(s.ctx, resolveWeapon(s.ctx), s.ctx.target);
   assert.equal(pre.total, 4); // status 3 + circumstance 1 - 3 + untyped 2 + item 1
-  assert.equal(pre.mods.filter((mod) => mod.slug === "tsc-status").length, 1);
+  assert.equal(pre.mods.filter((mod) => mod.type === "status" && mod.value === 2).length, 1);
   assert.equal(pre.mods.find((mod) => mod.slug === "tsc-off-kilter").value, -2);
   assert.deepEqual(
     pre.mods.filter((mod) => mod.slug.startsWith("tsc-custom")).map((mod) => mod.type),

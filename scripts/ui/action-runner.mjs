@@ -15,7 +15,7 @@ import { notifyError } from "../utils/logging.mjs";
 import { isCardAttack, beginCardTargeting } from "../chat/attack-card.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { randomId } from "../utils/ids.mjs";
-import { stationEffects } from "../starship/effects.mjs";
+import { stationEffects, effectiveEffectStates } from "../starship/effects.mjs";
 import { beginNativeWeaponAttack } from "./native-attack.mjs";
 import { eligibleDroneMovements } from "../engine/drone-state.mjs";
 import { rollEventOptions } from "../starship/stats.mjs";
@@ -87,8 +87,9 @@ async function confirmActionConsequences(action, ctx) {
 /** Client-side availability preview (the GM re-validates everything authoritatively). */
 export function previewAction(action, { ship, crew, station, combat = activeStarshipCombat() }) {
   const reasons = [];
-  const data = readStarship(ship);
-  const stats = computeShipStats(ship);
+  const data = effectiveEffectStates(readStarship(ship), { actor: ship, actionId: action.id });
+  station = data.stations.find((s) => s.id === station?.id) ?? station;
+  const stats = computeShipStats(ship, { stationId: station?.id, actionId: action.id, selector: "station-check" });
   const tsc = combat ? getTsc(combat) : null;
   if (data.destroyed) reasons.push(T("SF2eTSC.errors.shipDestroyed"));
   if (station?.malfunctioning && !["repair-station", "jump-start"].includes(action.id)) reasons.push(T("SF2eTSC.errors.malfunctioning"));

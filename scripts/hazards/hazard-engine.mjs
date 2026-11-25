@@ -72,11 +72,11 @@ async function applyAutomatedEffect(hazardActor, text, draft) {
       crit = false;
     if (parsed.save && parsed.dc) {
       const res = await rollNativeCheck({
-        statistic: shipStatistic(entry.actor, parsed.save),
+        statistic: shipStatistic(entry.actor, parsed.save, { againstUuid: hazardActor.uuid, area: true, statistic: "check" }),
         dc: parsed.dc,
         label: `${entry.actor.name}: ${parsed.save}`,
         actor: entry.actor,
-        modifierOnly: computeShipStats(entry.actor)[parsed.save]
+        modifierOnly: computeShipStats(entry.actor, { againstUuid: hazardActor.uuid, area: true, statistic: "check" })[parsed.save]
       });
       if (!res) return { applied: false, cancelled: true, parsed, targets: targets.length };
       amount = Math.floor(roll.total * basicSaveMultiplier(res.degree));

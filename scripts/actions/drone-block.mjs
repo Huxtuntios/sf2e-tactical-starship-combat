@@ -8,6 +8,7 @@ import { ct } from "../content/content-i18n.mjs";
 import { can } from "../crew/permissions.mjs";
 import { postActionCard } from "../chat/chat-cards.mjs";
 import { log } from "../utils/logging.mjs";
+import { effectiveEffectStates } from "../starship/effects.mjs";
 
 function selectedDrone(data, stationId, crew, droneId) {
   const stations = data.stations.filter((s) => s?.id === stationId);
@@ -18,7 +19,8 @@ function selectedDrone(data, stationId, crew, droneId) {
       ? drones[0]
       : null;
   const level = crew?.system?.details?.level?.value ?? crew?.level;
-  if (!station || station.malfunctioning || data.destroyed || !drone || !Number.isInteger(level) || level < 1)
+  const malfunctioning = effectiveEffectStates(data, { actionId: "drone-block" }).stations.find((s) => s.id === stationId)?.malfunctioning;
+  if (!station || malfunctioning || data.destroyed || !drone || !Number.isInteger(level) || level < 1)
     throw new Error(T("SF2eTSC.droneBlock.invalid"));
   return { drone, level };
 }
@@ -93,8 +95,10 @@ export async function executeDroneBlockSoft({ user, ship, crewUuid, stationId, o
       const station = matches[0];
       if (matches.length !== 1 || !station || station.type !== "drone-console" || station.helmedBy !== crewUuid)
         throw new Error(T("SF2eTSC.errors.notHelming", { station: T("SF2eTSC.stations.drone-console") }));
-      if (station.malfunctioning || data.destroyed)
-        throw new Error(T(`SF2eTSC.errors.${station.malfunctioning ? "malfunctioning" : "shipDestroyed"}`));
+      const malfunctioning = effectiveEffectStates(data, { actor: ship, actionId: action.id }).stations.find(
+        (s) => s.id === stationId
+      )?.malfunctioning;
+      if (malfunctioning || data.destroyed) throw new Error(T(`SF2eTSC.errors.${malfunctioning ? "malfunctioning" : "shipDestroyed"}`));
       if ((data.upgrades ?? []).some((u) => u.ref === "drone-shield-protocol" && u.stationId === stationId))
         throw new Error(T("SF2eTSC.droneBlock.protocolManual"));
       const drones = (Array.isArray(data.drones) ? data.drones : []).filter((d) => d?.id === options.droneId);
