@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "dist", "ui-tests");
 fs.mkdirSync(out, { recursive: true });
-const fixtures = [
+const allFixtures = [
   ["smoke-sheet-theme.mjs", "sheets"],
   ["smoke-mine-modification.mjs", "mine-modification"],
   ["smoke-mine-targets.mjs", "mine-targets"],
@@ -24,10 +24,19 @@ const fixtures = [
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
   ["smoke-native-attack.mjs", "native-attack"],
+  ["smoke-plasma-attack.mjs", "plasma-attack"],
   ["smoke-chat-card-layout.mjs", "chat-card-layout"],
   ["smoke-action-controls.mjs", "action-controls"],
-  ["smoke-description-links.mjs", "description-links"]
+  ["smoke-description-links.mjs", "description-links"],
+  ["smoke-compact-ui.mjs", "compact-ui"],
+  ["smoke-starship-defense-editor.mjs", "defense-editor"]
 ];
+const fixtures = process.env.TSC_UI_FOLDER
+  ? allFixtures.filter(([, folder]) => fixturesMatch(folder, process.env.TSC_UI_FOLDER))
+  : allFixtures;
+function fixturesMatch(folder, filter) {
+  return filter.split(",").includes(folder);
+}
 for (const [tool, folder] of fixtures) {
   const result = spawnSync(process.execPath, [path.join(root, "tools", tool), path.join(out, folder)], { cwd: root, stdio: "inherit" });
   if (result.status !== 0) throw new Error(`Fixture generation failed: ${tool}`);
@@ -45,6 +54,20 @@ try {
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(pathToFileURL(path.join(out, folder, name)).href);
+      if (folder === "compact-ui") {
+        await page.waitForFunction(() => typeof globalThis.measureCompact === "function");
+        const measurements = [];
+        for (const width of [1100, 600, 380]) {
+          await page.setViewportSize({ width, height: 950 });
+          const measurement = await page.evaluate(() => globalThis.measureCompact());
+          measurements.push({ width, ...measurement });
+          await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-${width}.png`)) });
+        }
+        const checks = measurements.flatMap((measurement) => measurement.checks);
+        results.push({ file: `${folder}/${name}`, passed: checks.every((check) => check.pass), errors, measurements });
+        await page.close();
+        continue;
+      }
       // The appearance forms are static previews; every other fixture exposes explicit assertions.
       if (name.startsWith("form-")) {
         const formCount = await page.locator("form").count();
@@ -88,6 +111,12 @@ try {
           { timeout: 10000 }
         );
         const result = JSON.parse(await page.locator("#result").innerText());
+        if (folder === "plasma-attack") {
+          for (const lang of ["en", "ru"]) {
+            await page.evaluate((language) => globalThis.showPlasmaLanguage(language), lang);
+            await page.locator("#chat").screenshot({ path: path.join(out, folder, `plasma-attack-${lang}.png`) });
+          }
+        }
         if (folder === "start-wizard") {
           const before = await page.evaluate(() => {
             globalThis.fixture.root.querySelector(".tsc-wizard-browse").open = true;
@@ -140,6 +169,28 @@ try {
           }
           result.passed = result.checks.every((check) => check.pass);
         }
+        if (folder === "defense-editor") {
+          const addSelect = page.locator('[data-defense-add="resistances"]');
+          const initial = await addSelect.inputValue();
+          await addSelect.focus();
+          await addSelect.press("ArrowDown");
+          const changed = (await addSelect.inputValue()) !== initial;
+          await addSelect.press("Tab");
+          const advanced = await addSelect.evaluate((element) => globalThis.document.activeElement !== element);
+          const remove = page.locator("[data-defense-tag] button").first();
+          await remove.focus();
+          const focusVisible = await remove.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+          result.checks.push({ name: "native-select-keyboard", pass: changed && advanced });
+          result.checks.push({ name: "keyboard-focus-visible", pass: focusVisible });
+          result.passed = result.checks.every((check) => check.pass);
+          await page.evaluate(() => {
+            globalThis.document.querySelector("#app").style.width = "100%";
+          });
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-${width}.png`)) });
+          }
+        }
         if (folder === "action-controls") {
           const descriptionButton = page.locator('[data-kind="HUD"] .tsc-action-name').first();
           const before = await page.evaluate(() => globalThis.actionControlExecutions.length);
@@ -185,5 +236,16 @@ try {
 }
 fs.writeFileSync(path.join(out, "results.json"), `${JSON.stringify(results, null, 2)}\n`);
 const failures = results.filter((r) => !r.passed || r.errors.length);
-console.log(JSON.stringify({ total: results.length, passed: results.length - failures.length, failures }, null, 2));
+const failureDetails = failures.map((result) =>
+  result.measurements
+    ? {
+        file: result.file,
+        errors: result.errors,
+        failedChecks: result.measurements.flatMap((measurement) =>
+          measurement.checks.filter((check) => !check.pass).map((check) => `${measurement.width}: ${check.name}`)
+        )
+      }
+    : result
+);
+console.log(JSON.stringify({ total: results.length, passed: results.length - failures.length, failures: failureDetails }, null, 2));
 if (failures.length) process.exitCode = 1;

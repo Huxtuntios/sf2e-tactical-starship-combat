@@ -288,6 +288,10 @@ test("production context: own ship retains full details while foreign identifica
   assert.equal(own.detail.canOpen, true);
   assert.equal(own.detail.vitals.hp, 73);
   assert.ok(own.detail.rows.some((row) => row.k === "AC"));
+  assert.ok(
+    !own.detail.rows.some((row) => ["Hull Points", "Shield Points"].includes(row.k)),
+    "editable vitals are not repeated in the detail rows"
+  );
   actor.flags["sf2e-tactical-starship-combat"].starship.role = "npc";
   app.invalidateActorCache(actor);
   for (const level of ["identified", "observed", "hidden", "undetected"]) {

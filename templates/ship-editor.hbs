@@ -47,15 +47,53 @@
       <label><input type="checkbox" data-field="offKilter" {{#if ship.offKilter}}checked{{/if}}> {{localize "SF2eTSC.status.off-kilter"}}</label>
       <label><input type="checkbox" data-field="destroyed" {{#if ship.destroyed}}checked{{/if}}> {{localize "SF2eTSC.status.destroyed"}}</label>
     </div>{{/if}}
-    <div class="tsc-row-inputs">
-      <label class="wide">{{localize "SF2eTSC.edit.immunities"}} <input type="text" data-field="immunities" data-type="csv" value="{{edit.immunities}}"></label>
-      <label class="wide">{{localize "SF2eTSC.chat.resistance"}} <input type="text" data-field="resistances" data-type="kv" value="{{edit.resistances}}" placeholder="{{localize 'SF2eTSC.edit.ph.resistances'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
-      <label class="wide">{{localize "SF2eTSC.chat.weakness"}} <input type="text" data-field="weaknesses" data-type="kv" value="{{edit.weaknesses}}" placeholder="{{localize 'SF2eTSC.edit.ph.weaknesses'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
-      <label class="wide">{{localize "SF2eTSC.edit.skills"}} <input type="text" data-field="skills" data-type="kv" value="{{edit.skills}}" placeholder="{{localize 'SF2eTSC.edit.ph.skills'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></label>
+    <div class="tsc-defense-editors">
+      <section class="tsc-defense-editor" data-defense-editor="immunities" aria-labelledby="tsc-immunities-title">
+        <h4 id="tsc-immunities-title">{{localize "SF2eTSC.edit.immunities"}}</h4>
+        <div class="tsc-defense-tags" role="group" aria-label="{{localize 'SF2eTSC.edit.immunities'}}">
+          {{#each edit.defenses.immunities.entries}}<span class="tsc-defense-tag" data-defense-tag="{{key}}">
+            <span>{{label}}</span>
+            <button type="button" data-action="removeDefenseEntry" data-defense-kind="immunities" data-defense-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.removeDefense' name=label}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+          </span>{{/each}}
+          {{#unless edit.defenses.immunities.entries}}<span class="tsc-dim">{{localize "SF2eTSC.edit.noDefenses"}}</span>{{/unless}}
+        </div>
+        <div class="tsc-row-inputs">
+          <select data-defense-add="immunities" aria-label="{{localize 'SF2eTSC.edit.addImmunity'}}">
+            <option value="">{{localize "SF2eTSC.edit.chooseDefense"}}</option>
+            {{#each edit.defenses.immunities.addOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
+          </select>
+          <button type="button" data-action="addDefenseEntry" data-defense-kind="immunities" {{#unless edit.defenses.immunities.addOptions}}disabled{{/unless}}>{{localize "SF2eTSC.edit.add"}}</button>
+        </div>
+      </section>
+      {{#each edit.defenses.numeric}}
+      <section class="tsc-defense-editor" data-defense-editor="{{kind}}" aria-labelledby="tsc-{{kind}}-title">
+        <h4 id="tsc-{{kind}}-title">{{label}}</h4>
+        {{#if rows}}
+        <div class="tsc-table-scroll" tabindex="0" role="region" aria-label="{{label}}">
+          <table class="tsc-table tsc-defense-table">
+            <thead><tr><th scope="col">{{typeLabel}}</th><th scope="col">{{valueLabel}}</th><th scope="col" aria-label="{{localize 'SF2eTSC.edit.remove'}}"></th></tr></thead>
+            <tbody>{{#each rows}}<tr data-defense-row>
+              <td><select data-defense-kind="{{../kind}}" data-defense-key="{{key}}" data-defense-property="type" aria-label="{{../typeLabel}}: {{label}}">{{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}} {{#if disabled}}disabled{{/if}}>{{label}}</option>{{/each}}</select></td>
+              <td><input type="number" step="1" data-defense-kind="{{../kind}}" data-defense-key="{{key}}" data-defense-property="value" value="{{value}}" aria-label="{{../valueLabel}}: {{label}}"></td>
+              <td><button type="button" class="danger" data-action="removeDefenseEntry" data-defense-kind="{{../kind}}" data-defense-key="{{key}}" aria-label="{{localize 'SF2eTSC.edit.removeDefense' name=label}}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
+            </tr>{{/each}}</tbody>
+          </table>
+        </div>
+        {{else}}<p class="tsc-dim">{{localize "SF2eTSC.edit.noDefenses"}}</p>{{/if}}
+        <div class="tsc-row-inputs">
+          <select data-defense-add="{{kind}}" aria-label="{{localize 'SF2eTSC.edit.chooseDefense'}}: {{label}}">
+            <option value="">{{localize "SF2eTSC.edit.chooseDefense"}}</option>
+            {{#each addOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
+          </select>
+          <button type="button" data-action="addDefenseEntry" data-defense-kind="{{kind}}" {{#unless addOptions}}disabled{{/unless}}>{{localize "SF2eTSC.edit.add"}}</button>
+        </div>
+      </section>
+      {{/each}}
     </div>
   </div>
 
   <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.tabs.stations"}}</h4>
+    <div class="tsc-table-scroll" tabindex="0" role="region" aria-label="{{localize 'SF2eTSC.tabs.stations'}}">
     <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.ui.type"}}</th><th>{{localize "SF2eTSC.ui.grade"}}</th><th>{{localize "SF2eTSC.edit.stationActions"}}</th><th></th></tr></thead>
     <tbody>{{#each edit.stations}}<tr>
       <td><input type="text" data-station-field="name" data-station-id="{{id}}" value="{{name}}"></td>
@@ -64,10 +102,12 @@
       <td><input type="text" data-station-field="actions" data-type="csv" data-station-id="{{id}}" value="{{actionsText}}"></td>
       <td><button type="button" class="danger" data-action="removeStation" data-station-id="{{id}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
     </tr>{{/each}}</tbody></table>
+    </div>
     <button type="button" data-action="addStation"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addStation"}}</button>
   </div>
 
   <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.tabs.weapons"}}</h4>
+    <div class="tsc-table-scroll" tabindex="0" role="region" aria-label="{{localize 'SF2eTSC.tabs.weapons'}}">
     <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.edit.die"}}</th><th>{{localize "SF2eTSC.ui.damageType"}}</th><th>{{localize "SF2eTSC.ui.range"}}</th><th>{{localize "SF2eTSC.ui.traits"}}</th><th></th></tr></thead>
     <tbody>{{#each edit.weapons}}<tr>
       <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="name" value="{{name}}"></td>
@@ -77,10 +117,12 @@
       <td><input type="text" data-list="weapons" data-index="{{@index}}" data-key="traits" data-type="csv" value="{{traitsText}}"></td>
       <td><button type="button" class="danger" data-action="removeListItem" data-list="weapons" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
     </tr>{{/each}}</tbody></table>
+    </div>
     <div class="tsc-row-inputs"><select name="weaponCatalog">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>
   </div>
 
   <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.ui.strikes"}}</h4>
+    <div class="tsc-table-scroll" tabindex="0" role="region" aria-label="{{localize 'SF2eTSC.ui.strikes'}}">
     <table class="tsc-table tsc-edit-table"><thead><tr><th>{{localize "SF2eTSC.ui.name"}}</th><th>{{localize "SF2eTSC.edit.kind"}}</th><th>{{localize "SF2eTSC.edit.attack"}}</th><th>{{localize "SF2eTSC.chat.damage"}}</th><th>{{localize "SF2eTSC.ui.traits"}}</th><th></th></tr></thead>
     <tbody>{{#each edit.strikes}}<tr>
       <td><input type="text" data-list="strikes" data-index="{{@index}}" data-key="name" value="{{name}}"></td>
@@ -90,6 +132,7 @@
       <td><input type="text" data-list="strikes" data-index="{{@index}}" data-key="traits" data-type="csv" value="{{traitsText}}" placeholder="{{localize 'SF2eTSC.edit.traitsPlaceholder'}}" title="{{localize 'SF2eTSC.edit.slugHint'}}"></td>
       <td><button type="button" class="danger" data-action="removeListItem" data-list="strikes" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
     </tr>{{/each}}</tbody></table>
+    </div>
     <button type="button" data-action="addListItem" data-list="strikes"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.edit.addStrike"}}</button>
   </div>
 

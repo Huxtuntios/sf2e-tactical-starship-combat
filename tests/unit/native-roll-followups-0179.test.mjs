@@ -10,6 +10,8 @@ import { computeShipStats } from "../../scripts/starship/stats.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 
+const M = "sf2e-tactical-starship-combat";
+
 test("cancelled Seek Starships skips builtin resolution and effects", async () => {
   installFoundryMock();
   await loadContentFromDisk();
@@ -147,7 +149,10 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
   });
   const draft = {
     tsc: getTsc(combat),
-    ship: async () => ({ actor: target, data: readStarship(target) })
+    ship: async () => ({ actor: target, data: readStarship(target) }),
+    target(uuid) {
+      return this.ship(uuid);
+    }
   };
   const options = { weaponId: "weapon", skipDialog: true, messageMode: "blind" };
   const ctx = {
@@ -184,6 +189,9 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
     reports: [],
     draft: {
       ship: async () => ({ actor: target, data: readStarship(target) }),
+      target(uuid) {
+        return this.ship(uuid);
+      },
       log() {},
       event() {},
       afterCommit() {}
@@ -193,6 +201,146 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
   await executeEffects([{ type: "damage", dice: { count: 1, faces: 6 }, save: { type: "reflex", dcSkill: "crafting" } }], effectCtx);
   assert.equal(effectSave.passed.skipDialog, true);
   assert.equal(effectSave.passed.messageMode, "blind");
+});
+
+async function dcScenario({ level = 3, stationType = "pilot" } = {}) {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const check = saveStatistic();
+  const crew = makeCharacter({ id: "dc-crew", name: "DC Crew", owners: ["p1"] });
+  crew.skills = { crafting: check.statistic, computers: check.statistic };
+  const ship = makeShip({
+    id: "dc-ship",
+    name: "DC Ship",
+    level,
+    owners: ["p1"],
+    stations: [{ id: "dc-station", type: stationType, grade: "tactical", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, name: crew.name, role: "crew", stationId: "dc-station" }]
+  });
+  const combat = makeStarshipCombat({ objects: [{ key: ship.uuid, zone: 1, detection: { party: "identified" } }] });
+  const { Content } = await import("../../scripts/content/loader.mjs");
+  return {
+    ship,
+    crew,
+    check,
+    combat,
+    Content,
+    run: (actionId, options = {}) =>
+      executeAction({
+        user: game.users.get("p1"),
+        shipUuid: ship.uuid,
+        crewUuid: crew.uuid,
+        stationId: "dc-station",
+        actionId,
+        options: { skipDialog: true, ...options }
+      })
+  };
+}
+
+test("Reposition Shield uses the pending attacker's starship level DC instead of its Reflex save", async () => {
+  const scenario = await dcScenario({ stationType: "generator" });
+  const attacker = makeShip({ id: "dc-attacker", name: "Level 10 Attacker", role: "npc", level: 10, extra: { reflex: 0 } });
+
+  await scenario.run("reposition-shield", { skill: "crafting", pendingStrike: { attackerUuid: attacker.uuid } });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("Reposition Shield without a pending Strike uses the acting starship's level DC", async () => {
+  const scenario = await dcScenario({ level: 10, stationType: "generator" });
+
+  await scenario.run("reposition-shield", { skill: "crafting" });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("Reposition Shield falls back to the acting starship's level DC when the attacker cannot be resolved", async () => {
+  const scenario = await dcScenario({ level: 10, stationType: "generator" });
+
+  await scenario.run("reposition-shield", { skill: "crafting", pendingStrike: { attackerUuid: "Actor.missing" } });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("manualReflexDC preserves an explicit manual DC with and without a pending Strike", async () => {
+  const scenario = await dcScenario({ stationType: "generator" });
+  const attacker = makeShip({ id: "dc-manual-attacker", name: "Manual DC Attacker", role: "npc", level: 10, extra: { reflex: 0 } });
+
+  await scenario.run("reposition-shield", { skill: "crafting", manualDC: 31 });
+  assert.equal(scenario.check.passed.dc.value, 31);
+
+  await scenario.run("reposition-shield", {
+    skill: "crafting",
+    manualDC: 32,
+    pendingStrike: { attackerUuid: attacker.uuid }
+  });
+  assert.equal(scenario.check.passed.dc.value, 32);
+});
+
+test("target defense DC types keep using the target's actual saves and Perception", async () => {
+  const scenario = await dcScenario();
+  const target = makeShip({
+    id: "dc-target",
+    name: "DC Target",
+    role: "npc",
+    extra: { reflex: 2, will: 3, fort: 4, perception: 5 }
+  });
+  scenario.combat.flags[M].tsc.objects.push({
+    key: target.uuid,
+    actorUuid: target.uuid,
+    type: "starship",
+    zone: 2,
+    detection: { party: "identified" }
+  });
+
+  for (const [type, expected] of [
+    ["targetReflex", 12],
+    ["targetWill", 13],
+    ["targetFortitude", 14],
+    ["targetPerception", 15]
+  ]) {
+    const actionId = `dc-${type}`;
+    scenario.Content.actions.set(actionId, {
+      id: actionId,
+      name: actionId,
+      station: "pilot",
+      cost: 1,
+      targeting: { type: "starship" },
+      check: { kind: "skill", skills: ["computers"], dc: { type } }
+    });
+
+    await scenario.run(actionId, { skill: "computers", targetUUIDs: [target.uuid] });
+
+    assert.equal(scenario.check.passed.dc.value, expected, type);
+  }
+});
+
+test("targetSave keeps using the attacker's skill DC instead of the target defense or level DC", async () => {
+  const scenario = await dcScenario();
+  const target = makeShip({ id: "dc-save-target", name: "DC Save Target", role: "npc", extra: { reflex: 2 } });
+  scenario.combat.flags[M].tsc.objects.push({
+    key: target.uuid,
+    actorUuid: target.uuid,
+    type: "starship",
+    zone: 2,
+    detection: { party: "identified" }
+  });
+  const targetSave = saveStatistic();
+  targetSave.statistic.mod = 2;
+  target.saves = { reflex: targetSave.statistic };
+  scenario.crew.skills.computers.dc = { value: 23 };
+  scenario.Content.actions.set("dc-target-save", {
+    id: "dc-target-save",
+    name: "DC Target Save",
+    station: "pilot",
+    cost: 1,
+    targeting: { type: "starship" },
+    check: { kind: "targetSave", save: "reflex", dcSkill: "computers" }
+  });
+
+  await scenario.run("dc-target-save", { targetUUIDs: [target.uuid] });
+
+  assert.equal(targetSave.passed.dc.value, 23);
 });
 
 test("HUD and both station-item action paths preserve the initiating click options", async () => {

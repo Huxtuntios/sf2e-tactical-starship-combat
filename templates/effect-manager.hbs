@@ -1,0 +1,39 @@
+<section class="tsc-effect-manager-body">
+  {{#if isGM}}<div class="tsc-effect-manager-state" role="group" aria-label="{{localize 'SF2eTSC.effects.title'}}">
+    <button type="button" data-action="setOperational" data-state="operational" title="{{localize 'SF2eTSC.effects.operationalHint'}}"><i class="fa-solid fa-wrench" aria-hidden="true"></i> {{localize "SF2eTSC.status.operational"}}</button>
+    <button type="button" class="danger" data-action="setOperational" data-state="destroyed" title="{{localize 'SF2eTSC.effects.destroyedHint'}}"><i class="fa-solid fa-skull" aria-hidden="true"></i> {{localize "SF2eTSC.status.destroyed"}}</button>
+  </div>{{/if}}
+  {{#if isGM}}
+  <form class="tsc-effect-condition-form" data-condition-form>
+    <label>{{localize "SF2eTSC.effects.conditionLabel"}}
+      <select name="conditionSlug" required>
+        {{#each conditionOptions}}<option value="{{slug}}">{{label}}</option>{{/each}}
+      </select>
+    </label>
+    <label>{{localize "SF2eTSC.effects.conditionValue"}}
+      <input name="conditionValue" type="number" min="1" max="100" step="1" value="1" required>
+    </label>
+    <button type="button" data-action="addCondition" {{#unless conditionOptions.length}}disabled{{/unless}}><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "SF2eTSC.effects.addCondition"}}</button>
+    <p class="hint">{{localize "SF2eTSC.effects.conditionValueHint"}}</p>
+  </form>
+  {{else}}<p class="hint">{{localize "SF2eTSC.effects.readOnly"}}</p>{{/if}}
+  <p role="alert">{{error}}</p>
+  <h4>{{localize "SF2eTSC.effects.nativeConditions"}}</h4>
+  <div class="tsc-effect-manager-list">
+    {{#each conditions}}
+    <article class="tsc-effect-manager-row" data-condition-id="{{id}}">
+      <header><strong>{{label}}{{#if valued}} · {{value}}{{/if}}</strong>{{#unless active}}<span class="hint">{{localize "SF2eTSC.effects.inactive"}}</span>{{/unless}}</header>
+      {{#if @root.isGM}}<button type="button" data-action="removeCondition" data-item-id="{{id}}">{{localize "SF2eTSC.effects.remove"}}</button>{{/if}}
+    </article>
+    {{else}}<p class="hint">{{localize "SF2eTSC.effects.empty"}}</p>{{/each}}
+  </div>
+  <h4>{{localize "SF2eTSC.effects.moduleEffects"}}</h4>
+  <div class="tsc-effect-manager-list">
+    {{#each effects}}
+    <article class="tsc-effect-manager-row" data-effect-id="{{id}}">
+      <header><strong>{{label}}</strong>{{#if details}}<span class="hint">{{details}}</span>{{/if}}</header>
+      {{#if @root.isGM}}<button type="button" data-action="removeEffect" data-effect-id="{{id}}">{{localize "SF2eTSC.effects.remove"}}</button>{{/if}}
+    </article>
+    {{else}}<p class="hint">{{localize "SF2eTSC.effects.empty"}}</p>{{/each}}
+  </div>
+</section>

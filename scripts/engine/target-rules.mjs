@@ -52,8 +52,8 @@ export function evaluateTarget({
   if ((obj.key === shipKey || (obj.privateContact && obj.actorUuid === shipKey)) && !allowSelf) return { ...out, reason: "self" };
   if (obj.privateContact && (obj.pendingReveal || !["hidden", "observed"].includes(obj.detection?.party)))
     return { ...out, reason: obj.detection?.party === "hidden" ? "hidden" : "undetected" };
-  if (obj.type !== "starship" && !(obj.type === "contact" && obj.tscPrivateProjection === true && obj.objectType === "starship"))
-    return { ...out, reason: "notStarship" };
+  const objectType = obj.type === "contact" && obj.tscPrivateProjection ? obj.objectType : obj.type;
+  if (!["starship", "hazard"].includes(objectType)) return { ...out, reason: "notStarship" };
   if (isDestroyed(obj.key)) return { ...out, reason: "destroyed" };
   if (obj.key !== shipKey && !obj.alwaysVisible && detectionTargetability(level) === "no") return { ...out, reason: "undetected" };
   if (!override) {
@@ -71,7 +71,7 @@ export function targetingState(tsc, shipUuid, contacts = []) {
   const objects = tsc.objects.map((obj) => {
     if (!obj.tscPrivateProjection) return obj;
     const contact = contacts.find((c) => c.key === obj.key);
-    return contact?.type === "starship" &&
+    return ["starship", "hazard"].includes(contact?.type) &&
       contact.actorUuid &&
       !contact.pendingReveal &&
       ["hidden", "observed"].includes(contact.detection?.party) &&

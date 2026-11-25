@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { linkInline } from "../../scripts/content/inline-links.mjs";
-import { checkLinksHTML } from "../../scripts/content/inline-checks.mjs";
+import { checkLinksHTML, linkChecks } from "../../scripts/content/inline-checks.mjs";
 
 test("EN damage forms become @Damage with the original text as label", () => {
   assert.equal(linkInline("2d8+7 fire damage"), "@Damage[(2d8+7)[fire]]{2d8+7 fire damage}");
@@ -30,6 +30,13 @@ test("linking is idempotent and leaves existing enrichers alone", () => {
   assert.equal(linkInline(once), once);
   assert.equal((once.match(/@Damage\[/g) ?? []).length, 1);
 });
+test("an existing contextual @Check does not suppress a separate numeric check", () => {
+  const contextual = "@Check[crafting|dc:10]{Crafting}";
+  const once = linkChecks(`<p>${contextual} and DC 20 Reflex save.</p>`);
+  assert.equal(once, `<p>${contextual} and @Check[reflex|dc:20]{DC 20 Reflex save}.</p>`);
+  assert.equal(linkChecks(once), once);
+});
+
 test("module windows render damage and condition links", () => {
   const h = checkLinksHTML("Takes 2d8 fire damage and is off-guard.");
   assert.match(h, /class="tsc-check tsc-damage" data-inline="@Damage\[2d8\[fire\]\]"/);

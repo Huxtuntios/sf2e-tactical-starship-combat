@@ -3,7 +3,8 @@ import { Crew } from "../../crew/crew-service.mjs";
 import { Ship } from "../../starship/ship-service.mjs";
 import { request } from "../../socket.mjs";
 import { notifyError } from "../../utils/logging.mjs";
-import { parseKv, parseCsv } from "../sheet-edit.mjs";
+import { parseCsv } from "../sheet-edit.mjs";
+import { saveDefenseRows } from "./sheet-actions.mjs";
 import { wireOnce } from "./sheet-model.mjs";
 
 const guard = (fn) =>
@@ -27,12 +28,34 @@ export function wireSheetInputs(sheet) {
           const key = t.dataset.field;
           let v = t.type === "checkbox" ? t.checked : t.type === "number" ? Number(t.value) : t.value;
           if (t.dataset.type === "csv") v = parseCsv(v);
-          else if (t.dataset.type === "kv") v = parseKv(v);
           if (key.startsWith("hp.") || key.startsWith("sp.")) {
             const [k, sub] = key.split(".");
             return Ship.patch(sheet.document.uuid, { [k]: { [sub]: v } });
           }
           return Ship.patch(sheet.document.uuid, { [key]: v });
+        })
+      )
+  );
+  el.querySelectorAll("[data-defense-kind][data-defense-property]").forEach(
+    (input) =>
+      wireOnce(input, "Defense") &&
+      input.addEventListener(
+        "change",
+        guard(async () => {
+          const kind = input.dataset.defenseKind;
+          const root = input.closest(`[data-defense-editor="${CSS.escape(kind)}"]`);
+          if (!root) return;
+          const rows = [...root.querySelectorAll("[data-defense-row]")].map((row) => ({
+            key: row.querySelector('[data-defense-property="type"]')?.value,
+            value: row.querySelector('[data-defense-property="value"]')?.value
+          }));
+          try {
+            await saveDefenseRows(sheet, kind, rows);
+          } catch (err) {
+            if (err.i18nKey) notifyError(err.i18nKey, err.errorData);
+            else notifyError("SF2eTSC.errors.generic", { message: err.message });
+            await sheet.render({ parts: ["body"] });
+          }
         })
       )
   );

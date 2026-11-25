@@ -16,7 +16,13 @@ const pending = new Map();
 const TIMEOUT_MS = 15000;
 const RESULT_TIMEOUT_MS = 120000;
 let socketRegistration = null;
-const ACKNOWLEDGED_REQUESTS = new Set(["executeAction", "executeNativeAttack", "resolveAttackCard", "applyAttackCardDamage"]);
+const ACKNOWLEDGED_REQUESTS = new Set([
+  "executeAction",
+  "executeNativeAttack",
+  "resolveAttackCard",
+  "rollAttackCardSaves",
+  "applyAttackCardDamage"
+]);
 
 // Только транспортные повторы отдельных команд дронов. Это не постоянный журнал и не гарантия при смене GM.
 const DRONE_ACTIONS = new Set(["deploy-drone", "retrieve-drone", "deploy-starship-mine", "repair-hull-drone"]);

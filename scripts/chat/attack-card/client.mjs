@@ -8,11 +8,12 @@ import { registerHandler, request } from "../../socket.mjs";
 import { escapeHtml, T, fromUuidSync_ } from "../../utils/foundry.mjs";
 import { notifyError } from "../../utils/logging.mjs";
 import { ct } from "../../content/content-i18n.mjs";
-import { CARD_FLAG } from "./model.mjs";
+import { CARD_FLAG, attackCardSave, attackCardSavesComplete, cardTargetKeys, isPlasmaAttackCard } from "./model.mjs";
 import { renderAttackCard, renderDiag } from "./render.mjs";
-import { declareAttack, resolveAttackCard, rollAttackCardDamage, applyAttackCardDamage } from "./service.mjs";
+import { declareAttack, resolveAttackCard, rollAttackCardDamage, rollAttackCardSaves, applyAttackCardDamage } from "./service.mjs";
 import { previewNativeAttack, executeNativeAttack } from "../native-attack.mjs";
 import { rollEventOptions } from "../../starship/stats.mjs";
+import { registerCardRendering } from "../card.mjs";
 
 /** Mark the chosen MAP button (DOM only). */
 export function setMapChoice(card, choice) {
@@ -26,9 +27,24 @@ export function setMapChoice(card, choice) {
 /* ----------------------------------------------------------------------------------------- client */
 /** Client-side MAP choice per open attack card (survives the card re-render). */
 export const cardMapChoice = new Map();
-async function clientResolve(messageId, targetKey, mapChoice = "0", rollOptions = {}) {
+function currentTargetUUIDs() {
+  return [
+    ...new Set(
+      [...(game.user?.targets ?? [])]
+        .map((token) => token?.actor?.uuid ?? token?.document?.actorUuid)
+        .filter((uuid) => typeof uuid === "string" && uuid)
+    )
+  ];
+}
+export function cardResolutionPayload(messageId, targetUUIDs, mapChoice = "0", rollOptions = {}) {
+  const keys = [...new Set(targetUUIDs.filter((key) => typeof key === "string" && key))];
+  return { messageId, targetKey: keys[0], targetUUIDs: keys, mapChoice, ...rollOptions };
+}
+
+async function clientResolveTargets(messageId, targetUUIDs, mapChoice = "0", rollOptions = {}) {
+  const payload = cardResolutionPayload(messageId, targetUUIDs, mapChoice, rollOptions);
   try {
-    await request("resolveAttackCard", { messageId, targetKey, mapChoice, ...rollOptions });
+    await request("resolveAttackCard", payload);
   } catch (err) {
     if (game.user.isGM && !/already|уже|stale|устарел/i.test(err.message)) {
       const go = await foundry.applications.api.DialogV2.confirm({
@@ -39,7 +55,7 @@ async function clientResolve(messageId, targetKey, mapChoice = "0", rollOptions 
       }).catch(() => false);
       if (go) {
         try {
-          await request("resolveAttackCard", { messageId, targetKey, mapChoice, ...rollOptions, gmOverride: true });
+          await request("resolveAttackCard", { ...payload, gmOverride: true });
         } catch (e2) {
           notifyError("SF2eTSC.errors.generic", { message: e2.message });
         }
@@ -48,11 +64,21 @@ async function clientResolve(messageId, targetKey, mapChoice = "0", rollOptions 
   }
 }
 
+export function setCardTargetSelection(card, selectedKeys) {
+  const selected = new Set(selectedKeys);
+  card?.querySelectorAll("[data-tsc-attack='resolve'][data-target-key]").forEach((button) => {
+    const active = selected.has(button.dataset.targetKey);
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
 /** Start a Sensor Map targeting session that resolves the card (same handler as the card buttons). */
 export async function beginCardTargeting(messageId, mapChoice = cardMapChoice.get(messageId) ?? "0", rollOptions = {}) {
   const message = game.messages.get(messageId);
   const c = message?.flags?.[MODULE_ID]?.[CARD_FLAG];
   if (!c || c.status !== "open") return;
+  const plasma = isPlasmaAttackCard(c);
   const [{ Targeting }, { openSensorMap }] = await Promise.all([import("../../ui/targeting.mjs"), import("../../ui/launchers.mjs")]);
   cardMapChoice.set(messageId, mapChoice);
   Targeting.begin({
@@ -62,9 +88,13 @@ export async function beginCardTargeting(messageId, mapChoice = cardMapChoice.ge
     rangeIncrement: c.range.increment,
     enforceDetection: c.ship.role === "player",
     allowSelf: false,
-    gm: false,
+    gm: game.user.isGM,
+    singleTarget: !plasma,
     messageId,
-    onPick: (key) => clientResolve(messageId, key, cardMapChoice.get(messageId) ?? mapChoice, rollOptions)
+    onExecute: (keys) => {
+      if (!plasma && keys.length !== 1) return false;
+      return clientResolveTargets(messageId, plasma ? keys : [keys[0]], cardMapChoice.get(messageId) ?? mapChoice, rollOptions);
+    }
   });
   openSensorMap();
 }
@@ -77,11 +107,13 @@ function canAct(c) {
 }
 
 export function registerAttackCards() {
+  registerCardRendering();
   registerHandler("declareAttack", declareAttack);
   registerHandler("previewNativeAttack", previewNativeAttack);
   registerHandler("executeNativeAttack", executeNativeAttack);
   registerHandler("resolveAttackCard", resolveAttackCard);
   registerHandler("rollAttackCardDamage", rollAttackCardDamage);
+  registerHandler("rollAttackCardSaves", rollAttackCardSaves);
   registerHandler("applyAttackCardDamage", applyAttackCardDamage);
   Hooks.on("renderChatMessageHTML", (message, html) => {
     const c = message.flags?.[MODULE_ID]?.[CARD_FLAG];
@@ -91,6 +123,7 @@ export function registerAttackCards() {
     if (c?.native) {
       // Append only the controls needed for deferred damage; preserve the system's own result HTML.
       el.querySelector(".tsc-native-attack-controls")?.remove();
+      if (c.result?.pendingDamage) el.querySelectorAll('.message-content [data-action$="-damage"]').forEach((button) => button.remove());
       const host = el.querySelector(".message-content") ?? el;
       const controls = document.createElement("div");
       controls.className = "tsc-native-attack-controls";
@@ -108,13 +141,31 @@ export function registerAttackCards() {
         note.textContent = messages.join(" ");
         controls.append(note);
       }
+      const plasma = isPlasmaAttackCard(c);
+      const save = attackCardSave(c);
+      if (plasma && c.result?.pendingDamage?.profile?.shape) {
+        const shape = document.createElement("p");
+        shape.className = "tsc-hint";
+        const value = c.result.pendingDamage.profile.shape.value;
+        shape.textContent = `${T("SF2eTSC.attackCard.attackShape")}: ${T(`SF2eTSC.attackCard.shape.${c.result.pendingDamage.profile.shape.type}`)}${value != null ? ` ${value} ${T("SF2eTSC.attackCard.zones")}` : ""}`;
+        controls.append(shape);
+      }
       if (c.result?.pendingDamage && !c.damageApplied) {
         const damage = document.createElement("button");
         damage.type = "button";
         damage.dataset.tscAttack = "damage";
-        damage.textContent = T(c.damageRoll ? "SF2eTSC.rolls.rerollDamage" : "SF2eTSC.rolls.rollDamage");
+        damage.textContent = plasma
+          ? T("SF2eTSC.attackCard.damage")
+          : T(c.damageRoll ? "SF2eTSC.rolls.rerollDamage" : "SF2eTSC.rolls.rollDamage");
         controls.append(damage);
-        if (c.damageRoll && game.user.isGM) {
+        if (plasma && save) {
+          const saveButton = document.createElement("button");
+          saveButton.type = "button";
+          saveButton.dataset.tscAttack = "save";
+          saveButton.textContent = T("SF2eTSC.attackCard.save");
+          controls.append(saveButton);
+        }
+        if (c.damageRoll && (!save || attackCardSavesComplete(c)) && game.user.isGM) {
           const apply = document.createElement("button");
           apply.type = "button";
           apply.dataset.tscAttack = "apply";
@@ -132,7 +183,12 @@ export function registerAttackCards() {
         controls.querySelectorAll("button").forEach((b) => {
           b.disabled = true;
         });
-        const type = button.dataset.tscAttack === "damage" ? "rollAttackCardDamage" : "applyAttackCardDamage";
+        const type =
+          button.dataset.tscAttack === "damage"
+            ? "rollAttackCardDamage"
+            : button.dataset.tscAttack === "save"
+              ? "rollAttackCardSaves"
+              : "applyAttackCardDamage";
         request(type, { messageId: message.id })
           .catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }))
           .finally(() =>
@@ -150,12 +206,14 @@ export function registerAttackCards() {
       slot.replaceWith(tmp.firstElementChild);
     }
     if (!c) return;
+    const plasma = isPlasmaAttackCard(c);
     const card = el.querySelector(".tsc-attack-card");
     if (!game.user.isGM) card?.querySelectorAll("[data-gm-only]").forEach((b) => b.remove());
     if (!canAct(c)) {
       card?.querySelectorAll("[data-tsc-attack]").forEach((b) => b.remove());
       return;
     }
+    if (c.targets?.length) setCardTargetSelection(card, cardTargetKeys(c.targets, currentTargetUUIDs()));
     const stored = cardMapChoice.get(message.id);
     if (stored) setMapChoice(card, stored);
     const chosenMap = () => card.querySelector("[data-tsc-map-choice].active")?.dataset.tscMapChoice ?? "0";
@@ -183,14 +241,20 @@ export function registerAttackCards() {
           x.disabled = false;
         });
       };
-      if (b.dataset.tscAttack === "resolve")
-        clientResolve(message.id, b.dataset.targetKey, chosenMap(), rollEventOptions(ev)).finally(done);
-      else if (b.dataset.tscAttack === "map") {
+      if (b.dataset.tscAttack === "resolve") {
+        const selected = plasma ? currentTargetUUIDs() : [];
+        const targets = selected.length ? selected : [b.dataset.targetKey];
+        clientResolveTargets(message.id, targets, chosenMap(), rollEventOptions(ev)).finally(done);
+      } else if (b.dataset.tscAttack === "map") {
         done();
         const opts = rollEventOptions(ev);
         beginCardTargeting(message.id, chosenMap(), opts);
       } else if (b.dataset.tscAttack === "damage")
         request("rollAttackCardDamage", { messageId: message.id })
+          .catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }))
+          .finally(done);
+      else if (b.dataset.tscAttack === "save")
+        request("rollAttackCardSaves", { messageId: message.id })
           .catch((err) => notifyError("SF2eTSC.errors.generic", { message: err.message }))
           .finally(done);
       else if (b.dataset.tscAttack === "apply")

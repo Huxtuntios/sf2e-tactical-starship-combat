@@ -1,5 +1,6 @@
 import { stackModifiers } from "../engine/stacking.mjs";
 import { effectModifiers, hasCondition } from "./effects.mjs";
+import { nativeConditionModifiers, nativeHasCondition } from "./native-condition-adapter.mjs";
 import { isStarship, readStarship } from "./starship-state.mjs";
 import { Content } from "../content/loader.mjs";
 import { log } from "../utils/logging.mjs";
@@ -40,7 +41,7 @@ export function pilotingDC(data) {
 }
 
 /** Effective combat statistics of a starship including helmed bonuses, effects and conditions. */
-export function computeShipStats(actor) {
+export function computeShipStats(actor, { includeNativeConditions = true } = {}) {
   const data = readStarship(actor);
   const helm = helmedBonuses(data);
   const fx = data.effects ?? [];
@@ -50,12 +51,14 @@ export function computeShipStats(actor) {
   const offKilter = data.offKilter || hasCondition(fx, "off-kilter");
   const kilter = (sel) =>
     offKilter && ["attack", "reflex", "area-dc"].includes(sel) ? [mod("circumstance", -2, L("mods.offKilter", "Off-Kilter"))] : [];
+  const native = (sel) => (includeNativeConditions ? nativeConditionModifiers(actor, sel) : []);
   const total = (sel, base, extra = []) =>
     stackModifiers([
       ...extra,
       ...penalties(sel),
       ...kilter(sel),
       ...effectModifiers(fx, sel),
+      ...native(sel),
       ...(data.customModifiers ?? []).filter((m) => m.selector === sel)
     ]);
   const piloting = pilotingDC(data);
@@ -76,16 +79,32 @@ export function computeShipStats(actor) {
     will: data.will + will.total,
     perception: data.perception + per.total,
     speed: Math.max(0, data.speed + speed.total),
-    sensorRange: data.sensorRange + helm.sensorRange,
+    sensorRange: data.sensorRange == null ? null : data.sensorRange + helm.sensorRange,
     attackModifier: atk.total,
     areaDCModifier: area.total,
-    offGuard: hasCondition(fx, "off-guard") || inop,
+    offGuard: hasCondition(fx, "off-guard") || (includeNativeConditions && nativeHasCondition(actor, "off-guard")) || inop,
     offKilter,
     inoperable: inop,
     breakdown: { ac: ac.applied, fortitude: fort.applied, reflex: ref.applied, will: will.applied }
   };
 }
 export const shipDC = (stats, slug) => (slug === "ac" ? stats.ac : 10 + (stats[slug] ?? 0));
+
+export function targetStatistic(actor, slug) {
+  if (actor?.type !== "hazard") return shipStatistic(actor, slug);
+  if (slug === "perception") return actor.perception ?? actor.getStatistic?.("perception") ?? null;
+  return actor.saves?.[slug] ?? actor.getStatistic?.(slug) ?? null;
+}
+
+export function targetSaveModifier(actor, slug) {
+  if (actor?.type !== "hazard") return computeShipStats(actor)[slug];
+  return Number(actor.system?.saves?.[slug]?.value ?? actor.saves?.[slug]?.mod ?? 0);
+}
+
+export function targetArmorClass(actor) {
+  if (actor?.type !== "hazard") return computeShipStats(actor).ac;
+  return Number(actor.system?.attributes?.ac?.value ?? 0);
+}
 
 /* ------------------------------------------------------------------ rolling helpers (native SF2e pipeline first) */
 /**
@@ -248,8 +267,9 @@ export function shipSkillValue(skills, slug) {
   return null;
 }
 /** Module-owned value of a ship statistic: saves/perception include module effects; skills are statblock finals. */
-export function shipModuleValue(actor, slug) {
-  if (slug === "perception" || SHIP_SAVE_SLUGS.includes(slug)) return computeShipStats(actor)[slug] ?? 0;
+export function shipModuleValue(actor, slug, options = {}) {
+  if (slug === "perception" || SHIP_SAVE_SLUGS.includes(slug))
+    return computeShipStats(actor, { includeNativeConditions: options.includeNativeConditions ?? true })[slug] ?? 0;
   return shipSkillValue(readStarship(actor).skills, slug);
 }
 /** Value stored in the actor's own system data (before system effects), used to compute the module delta. */
@@ -271,7 +291,7 @@ function nativeSourceBase(actor, slug) {
 export function shipStatistic(actor, slug) {
   const isSave = SHIP_SAVE_SLUGS.includes(slug),
     isSkill = !isSave && slug !== "perception";
-  const value = shipModuleValue(actor, slug);
+  const value = shipModuleValue(actor, slug, { includeNativeConditions: false });
   if (value == null) return null;
   const native = slug === "perception" ? actor.perception : isSave ? actor.saves?.[slug] : actor.skills?.[slug];
   const Ctor = statisticCtor(actor);
@@ -286,7 +306,21 @@ export function shipStatistic(actor, slug) {
   }
   if (!Ctor) return null;
   const label = isSkill ? L(`skills.${slug}`, slug) : L(`ui.${slug}`, slug.charAt(0).toUpperCase() + slug.slice(1));
-  const domains = isSave ? [slug, "saving-throw", "all"] : isSkill ? [slug, "skill-check", "all"] : [slug, "perception", "all"];
+  const ability = isSave
+    ? slug === "fortitude"
+      ? "con"
+      : slug === "reflex"
+        ? "dex"
+        : "wis"
+    : isSkill
+      ? CONFIG?.PF2E?.skills?.[slug]?.attribute
+      : "wis";
+  const domains = [
+    slug,
+    ...(isSave ? ["saving-throw"] : isSkill ? ["skill-check"] : ["perception"]),
+    ...(ability ? [`${ability}-based`] : []),
+    "all"
+  ];
   const type = isSave ? "saving-throw" : isSkill ? "skill-check" : "perception-check";
   return new Ctor(actor, {
     slug,

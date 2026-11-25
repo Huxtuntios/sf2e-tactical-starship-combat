@@ -193,7 +193,7 @@ test("Toolbelt damage: permissions, private messages and ordinary actors are che
   assert.equal(readStarship(s.actor).sp.value, 4);
 });
 
-test("Toolbelt damage: malformed requests and unavailable integration cannot mutate the ship", async () => {
+test("Toolbelt damage: malformed requests cannot mutate the ship and absence does not disable the adapter", async () => {
   const s = await scenario();
   for (const patch of [
     { mode: "anything" },
@@ -205,8 +205,8 @@ test("Toolbelt damage: malformed requests and unavailable integration cannot mut
   ])
     await assert.rejects(s.apply(patch));
   game.modules.set("pf2e-toolbelt", { active: false });
-  await assert.rejects(s.apply());
-  assert.equal(readStarship(s.actor).sp.value, 12);
+  await s.apply();
+  assert.equal(readStarship(s.actor).sp.value, 4, "native SF2e damage still uses the starship adapter without Toolbelt");
 });
 
 test("Toolbelt damage: unsupported persistent, healing-only and split splash rolls fail explicitly", async () => {

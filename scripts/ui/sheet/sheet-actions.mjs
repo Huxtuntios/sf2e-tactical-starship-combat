@@ -35,6 +35,8 @@ import { upgradeCatalog } from "../../content/loader.mjs";
 import { stationUpgradeStatus } from "../../engine/upgrades.mjs";
 import { SHIP_TARGET } from "./sheet-upgrades.mjs";
 import { modulePackId } from "../../utils/system.mjs";
+import { permissionsFor } from "../../crew/permissions.mjs";
+import { addListValue, addMapValue, numericMapFromRows, removeListValueAt, removeMapValue } from "../sheet-edit.mjs";
 
 export function switchTab(e, t) {
   this.tab = t.dataset.tab;
@@ -44,6 +46,66 @@ export function switchTab(e, t) {
 export function editImage(e, t) {
   pickActorImage(this.document, t.dataset.target ?? "img");
 }
+
+const DEFENSE_KINDS = new Set(["immunities", "resistances", "weaknesses", "skills"]);
+const defenseCatalog = (kind) => {
+  const config = globalThis.CONFIG?.PF2E;
+  if (kind === "immunities") return config?.immunityTypes;
+  if (kind === "resistances") return config?.resistanceTypes;
+  if (kind === "weaknesses") return config?.weaknessTypes;
+  return config?.skills;
+};
+const defenseKnownKeys = (kind) => Object.keys(defenseCatalog(kind) ?? {}).filter((key) => key !== "custom");
+function assertConfigureShip(sheet) {
+  if (!game.user.isGM && !permissionsFor(game.user, sheet.document).has("configureShip")) {
+    throw new Error(T("SF2eTSC.errors.noPermission"));
+  }
+}
+function assertDefenseKind(kind) {
+  if (!DEFENSE_KINDS.has(kind))
+    throw Object.assign(new Error("SF2eTSC.errors.defenseKindInvalid"), { i18nKey: "SF2eTSC.errors.defenseKindInvalid" });
+}
+
+export async function addDefenseEntry(_e, target) {
+  assertConfigureShip(this);
+  const kind = target.dataset.defenseKind;
+  assertDefenseKind(kind);
+  const selected = this.element.querySelector(`[data-defense-add="${kind}"]`)?.value;
+  if (!selected) return;
+  const data = readStarship(this.document);
+  const options = { knownKeys: defenseKnownKeys(kind) };
+  const patch =
+    kind === "immunities"
+      ? { immunities: addListValue(data.immunities, selected, options) }
+      : { [kind]: addMapValue(data[kind], selected, kind === "skills" ? 0 : 5, options) };
+  await Ship.patch(this.document.uuid, patch);
+}
+
+export async function saveDefenseRows(sheet, kind, rows) {
+  assertConfigureShip(sheet);
+  assertDefenseKind(kind);
+  if (kind === "immunities")
+    throw Object.assign(new Error("SF2eTSC.errors.defenseRowsInvalid"), { i18nKey: "SF2eTSC.errors.defenseRowsInvalid" });
+  const current = readStarship(sheet.document)[kind];
+  const map = numericMapFromRows(rows, { knownKeys: defenseKnownKeys(kind), existingKeys: Object.keys(current ?? {}) });
+  await Ship.patch(sheet.document.uuid, { [kind]: map });
+}
+
+export async function removeDefenseEntry(_e, target) {
+  assertConfigureShip(this);
+  const kind = target.dataset.defenseKind;
+  assertDefenseKind(kind);
+  const data = readStarship(this.document);
+  if (kind === "immunities") {
+    const index = Number(target.dataset.defenseIndex);
+    await Ship.patch(this.document.uuid, { immunities: removeListValueAt(data.immunities, index) });
+    return;
+  }
+  const key = target.dataset.defenseKey;
+  if (!Object.hasOwn(data[kind] ?? {}, key)) return;
+  await Ship.patch(this.document.uuid, { [kind]: removeMapValue(data[kind], key) });
+}
+
 export async function addListItem(e, t) {
   const list = t.dataset.list;
   const item =

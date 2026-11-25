@@ -102,7 +102,15 @@ async function damageShip(source, damageType, amount = 5, traits = []) {
   const original = structuredClone(actor);
   const data = { ...structuredClone(actor.flags[MODULE_ID].starship), hp: structuredClone(actor.system.attributes.hp) };
   const result = await applyDamageInDraft(
-    { ship: async () => ({ actor, data }), log() {}, event() {}, afterCommit() {} },
+    {
+      ship: async () => ({ actor, data }),
+      target() {
+        return this.ship();
+      },
+      log() {},
+      event() {},
+      afterCommit() {}
+    },
     "Actor.test-defense",
     { amount, damageType, traits, silent: true }
   );

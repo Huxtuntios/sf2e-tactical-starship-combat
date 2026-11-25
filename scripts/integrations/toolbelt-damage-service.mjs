@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../constants.mjs";
 import { registerHandler } from "../socket.mjs";
-import { T, fromUuidSafe, moduleActive } from "../utils/foundry.mjs";
+import { T, fromUuidSafe } from "../utils/foundry.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { Draft } from "../actions/draft.mjs";
@@ -11,6 +11,7 @@ import { nativeSystemId } from "../utils/system.mjs";
 
 const queues = new Map();
 export const CHAT_DAMAGE_FLAG = "chatDamageApplications";
+export const STARSHIP_DAMAGE_ADAPTER = "sf2e-starship-damage-v1";
 export const damageApplicationKey = (messageId, rollIndex) => `${messageId}:${rollIndex}`;
 export const damageReceiptKey = (actorUuid, rollIndex) => `${actorUuid.replace(/\./g, "_")}_${rollIndex}`;
 const rejectDamage = (key) => {
@@ -78,7 +79,6 @@ function mayRead(user, message) {
 
 /** Авторитетная очередь активного ГМа; разные режимы одного броска не считаются разными попаданиями. */
 export async function applyToolbeltDamage({ user, payload }) {
-  if (!moduleActive("pf2e-toolbelt")) rejectDamage("inactive");
   if (!["shields", "hull"].includes(payload.mode) || !Number.isInteger(payload.rollIndex) || payload.rollIndex < 0) rejectDamage("invalid");
   const target = await fromUuidSafe(payload.targetUuid);
   const actor = target?.actor ?? target;
@@ -118,11 +118,12 @@ export async function applyToolbeltDamage({ user, payload }) {
         traits,
         criticalHit,
         nonlethal: traits.includes("nonlethal"),
-        source: `${T("SF2eTSC.toolbelt.source")}: ${message.id} (${parts.map((part) => `${part.amount} ${part.type}`).join(" + ")})`,
+        source: `${T("SF2eTSC.chat.starshipDamageSource")}: ${message.id} (${parts.map((part) => `${part.amount} ${part.type}`).join(" + ")})`,
         undoRef: { messageId: message.id, rollIndex: payload.rollIndex, targetUuid: payload.targetUuid }
       });
       const receipt = {
         key,
+        adapter: STARSHIP_DAMAGE_ADAPTER,
         shipUuid: actor.uuid,
         mode: payload.mode,
         by: user.id,
@@ -160,7 +161,6 @@ export function damageReceiptOf(message, actor, index) {
 
 /** Точечная отмена одного применения урона: только суммы квитанции, без критических состояний. */
 export async function undoToolbeltDamage({ user, payload }) {
-  if (!moduleActive("pf2e-toolbelt")) rejectDamage("inactive");
   if (!user.isGM) throw new Error(T("SF2eTSC.errors.gmOnly"));
   if (!Number.isInteger(payload.rollIndex) || payload.rollIndex < 0) rejectDamage("invalid");
   const target = await fromUuidSafe(payload.targetUuid);

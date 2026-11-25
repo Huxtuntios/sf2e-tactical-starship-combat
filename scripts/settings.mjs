@@ -93,6 +93,12 @@ export function registerSettings() {
     default: "crew",
     choices: { crew: L("crewInitiativeScope.crew"), stationed: L("crewInitiativeScope.stationed"), off: L("crewInitiativeScope.off") }
   });
+  reg("resetStationsOnInitiative", {
+    name: L("resetStationsOnInitiative.name"),
+    hint: L("resetStationsOnInitiative.hint"),
+    type: Boolean,
+    default: false
+  });
   reg("movementMode", {
     name: L("movementMode.name"),
     hint: L("movementMode.hint"),

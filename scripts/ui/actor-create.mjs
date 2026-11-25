@@ -15,7 +15,7 @@ import { ct } from "../content/content-i18n.mjs";
 export const CREATE_KINDS = { "tsc-player": "vehicle", "tsc-npc": "npc", "tsc-hazard": "hazard" };
 
 /** Pure: creation data (without name) for a kind. Used by the creation dialog. */
-export function creationData(kind, { name, level = 1, frame = null } = {}) {
+export function creationData(kind, { name, level = 1, frame = null, size = "medium" } = {}) {
   if (kind === "tsc-player") {
     if (!frame) throw new Error(game.i18n.localize("SF2eTSC.errors.noFrames"));
     return buildPlayerShipData({ name, frame, level: Math.max(1, Math.min(20, level)), i18n: docI18nOptions() });
@@ -26,7 +26,7 @@ export function creationData(kind, { name, level = 1, frame = null } = {}) {
         id: `custom-${foundry.utils.randomID(8)}`,
         name,
         level,
-        size: "medium",
+        size,
         traits: ["tech"],
         hp: 20 + level * 15,
         sp: Math.max(0, level * 5),
@@ -36,7 +36,6 @@ export function creationData(kind, { name, level = 1, frame = null } = {}) {
         will: 7 + level,
         perception: 7 + level,
         speed: 4,
-        sensorRange: 4,
         stations: [
           { type: "pilot", actions: [] },
           { type: "gunnery", actions: [] },

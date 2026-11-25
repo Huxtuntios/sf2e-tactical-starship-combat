@@ -1,5 +1,6 @@
 import { restoreUiState } from "./client-ui.mjs";
 import { editEffect } from "./effect-editor.mjs";
+import { openEffectManager } from "./effect-manager.mjs";
 import { openHistory } from "./history-app.mjs";
 import { request } from "../socket.mjs";
 /**
@@ -20,7 +21,7 @@ import * as A from "./sheet/sheet-actions.mjs";
 import { openStationHUD, openCrewManager } from "./launchers.mjs";
 import { wireCrewSelects } from "../crew/crew-view.mjs";
 import { wireInlineClicks } from "./inline-clicks.mjs";
-import { showActionDescription, showActionWarning } from "./action-controls.mjs";
+import { sendActionDescription, showActionDescription, showActionWarning } from "./action-controls.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const guard = (fn) =>
@@ -28,7 +29,8 @@ const guard = (fn) =>
     try {
       return await fn.apply(this, a);
     } catch (err) {
-      notifyError("SF2eTSC.errors.generic", { message: err.message });
+      if (err.i18nKey) notifyError(err.i18nKey, err.errorData);
+      else notifyError("SF2eTSC.errors.generic", { message: err.message });
     }
   };
 const sheetParts = (prefix) => ({
@@ -47,6 +49,8 @@ export class StarshipSheet extends LiveMixin(HandlebarsApplicationMixin(foundry.
     actions: {
       tscTab: A.switchTab,
       editImage: guard(A.editImage),
+      addDefenseEntry: guard(A.addDefenseEntry),
+      removeDefenseEntry: guard(A.removeDefenseEntry),
       addListItem: guard(A.addListItem),
       removeListItem: guard(A.removeListItem),
       editJson: guard(A.editJson),
@@ -92,8 +96,12 @@ export class StarshipSheet extends LiveMixin(HandlebarsApplicationMixin(foundry.
       importJson: guard(A.importJson),
       runAction: guard(A.runShipAction),
       describeAction: guard(showActionDescription),
+      sendActionDescription: guard(sendActionDescription),
       actionWarning: showActionWarning,
       removeEffect: guard(A.removeEffect),
+      manageEffects: function () {
+        return openEffectManager(this.document);
+      },
       openHolodock: A.holodock,
       openHistory: function () {
         openHistory(this.document.uuid);

@@ -218,7 +218,7 @@ function conditionSegment(s) {
 /** Enrichers (one bracket level, as in @Damage[(2d6)[fire]]) and HTML tags are protected. */
 export const TOKEN_RE =
   /(<(?:a|code|pre|script|style)\b[^>]*>[\s\S]*?<\/(?:a|code|pre|script|style)\s*>|\[\[[^\]]+\]\](?:\{[^}]*\})?|@\w+\[(?:[^[\]]|\[[^\]]*\])*\](?:\{[^}]*\})?|<[^>]*>)/gi;
-function splitApply(s, fn) {
+export function splitApply(s, fn) {
   return String(s)
     .split(TOKEN_RE)
     .map((part, i) => (i % 2 ? part : fn(part)))

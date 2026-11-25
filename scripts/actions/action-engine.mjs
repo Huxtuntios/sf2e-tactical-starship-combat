@@ -16,8 +16,16 @@ import { bindNpcStrikeTemplate } from "./npc-rows.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { evaluateRequirements } from "./requirements.mjs";
 import { executeEffects, resolveSeekBuiltin, modelKeyOf } from "./effects-exec.mjs";
-import { resolveStrike, resolveAreaFire, resolveSpellAttack, resolveWeapon } from "./strike.mjs";
-import { computeShipStats, shipDC, shipStatistic, shipModuleValue, crewStatistic, rollNativeCheck } from "../starship/stats.mjs";
+import { resolveStrike, resolveAreaFire, resolveSpellAttack, resolveWeapon, weaponProfileOf } from "./strike.mjs";
+import {
+  computeShipStats,
+  shipDC,
+  shipModuleValue,
+  crewStatistic,
+  rollNativeCheck,
+  targetStatistic,
+  targetSaveModifier
+} from "../starship/stats.mjs";
 import { effectModifiers, stationEffects } from "../starship/effects.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { activeStarshipCombat, combatantForActor, turnIndexOf } from "../combat/tsc-state.mjs";
@@ -76,32 +84,45 @@ export function targetRuleInput(ctx) {
     soft: !ctx.strictRules,
     isDestroyed: (key) => {
       const a = fromUuidSync_(findObject(ctx.tsc, key)?.actorUuid ?? key);
-      return !!(a && isStarship(a) && readStarship(a).destroyed);
+      if (!a) return false;
+      if (isStarship(a)) return readStarship(a).destroyed;
+      const hp = a.system?.attributes?.hp;
+      return a.type === "hazard" && a.system?.attributes?.hasHealth && hp?.value <= 0;
     }
   };
 }
 
-async function resolveTarget(ctx) {
+async function resolveTargets(ctx) {
   const t = ctx.action.targeting ?? { type: "none" };
-  if (t.type !== "starship") return null;
-  const key = ctx.options.targetKey;
-  if (!key) fail("needTarget");
-  const obj = findObject(ctx.tsc, key);
-  if (!obj) fail("targetNotFound");
-  if (obj.tscPrivateProjection) fail("badTarget");
-  const ev = evaluateTarget({ ...targetRuleInput(ctx), obj });
-  if (!ev.available) fail(TARGET_REASON_ERRORS[ev.reason] ?? "badTarget");
-  if (ev.warning) ctx.rule(TARGET_REASON_ERRORS[ev.warning] ?? "badTarget");
-  const entry = await ctx.draft.ship(obj.actorUuid ?? obj.key);
-  return {
-    key,
-    uuid: entry.actor.uuid,
-    actor: entry.actor,
-    data: entry.data,
-    obj,
-    modelKey: modelKeyOf(entry.data),
-    distance: ev.distance
-  };
+  if (t.type !== "starship") return [];
+  const keys = Array.isArray(ctx.options.targetUUIDs) ? ctx.options.targetUUIDs : ctx.options.targetKey ? [ctx.options.targetKey] : [];
+  if (!keys.length) fail("needTarget");
+  const targets = [];
+  const seen = new Set();
+  for (const key of keys) {
+    const obj =
+      ctx.tsc.objects.find((candidate) => candidate.key === key) ??
+      ctx.tsc.objects.find((candidate) => candidate.actorUuid === key && !candidate.tscPrivateProjection && !candidate.privateContact);
+    if (!obj || obj.tscPrivateProjection) continue;
+    const ev = evaluateTarget({ ...targetRuleInput(ctx), obj });
+    if (!ev.available) fail(TARGET_REASON_ERRORS[ev.reason] ?? "badTarget");
+    if (ev.warning) ctx.rule(TARGET_REASON_ERRORS[ev.warning] ?? "badTarget");
+    const actor = await fromUuidSafe(obj.actorUuid ?? obj.key);
+    if (!actor || (!isStarship(actor) && actor.type !== "hazard") || seen.has(actor.uuid)) continue;
+    const entry = await ctx.draft.target(actor.uuid);
+    seen.add(actor.uuid);
+    targets.push({
+      key: obj.key,
+      uuid: entry.actor.uuid,
+      actor: entry.actor,
+      data: entry.data,
+      obj,
+      modelKey: modelKeyOf(entry.data),
+      distance: ev.distance
+    });
+  }
+  if (!targets.length) fail("targetNotFound");
+  return targets;
 }
 
 function pickSkill(ctx) {
@@ -117,26 +138,30 @@ function pickSkill(ctx) {
     );
   return skills[0];
 }
+function targetDC(ctx, slug) {
+  const actor = ctx.target.actor;
+  if (actor?.type !== "hazard") return shipDC(computeShipStats(actor), slug);
+  const modifier = slug === "perception" ? Number(actor.system?.attributes?.stealth?.value ?? 0) : targetSaveModifier(actor, slug);
+  return 10 + modifier;
+}
 function checkDC(ctx, spec) {
   switch (spec?.type) {
     case "fixed":
       return spec.value;
     case "targetPerception":
-      return shipDC(computeShipStats(ctx.target.actor), "perception");
+      return targetDC(ctx, "perception");
     case "targetReflex":
-      return shipDC(computeShipStats(ctx.target.actor), "reflex");
+      return targetDC(ctx, "reflex");
     case "targetWill":
-      return shipDC(computeShipStats(ctx.target.actor), "will");
+      return targetDC(ctx, "will");
     case "targetFortitude":
-      return shipDC(computeShipStats(ctx.target.actor), "fortitude");
+      return targetDC(ctx, "fortitude");
     case "levelBased":
       return ctx.options.manualDC ?? levelDC(ctx.options.dcLevel ?? ctx.data.level);
     case "manualReflexDC": {
-      if (ctx.options.pendingStrike) {
-        const a = fromUuidSync(ctx.options.pendingStrike.attackerUuid);
-        if (a) return shipDC(computeShipStats(a), "reflex");
-      }
-      return ctx.options.manualDC ?? 10 + (ctx.level + 5);
+      if (ctx.options.manualDC != null) return ctx.options.manualDC;
+      const attacker = ctx.options.pendingStrike ? fromUuidSync_(ctx.options.pendingStrike.attackerUuid) : null;
+      return levelDC(attacker ? readStarship(attacker).level : ctx.data.level);
     }
     default:
       return null;
@@ -153,7 +178,7 @@ async function runCheck(ctx) {
     const npcMod = ctx.data.role === "npc" && !ctx.crew ? shipModuleValue(ctx.ship, c.dcSkill) : null;
     if (ctx.data.role === "npc" && !dcStat && npcMod === null) fail("noSkill", { skill: c.dcSkill });
     const dc = dcStat?.dc?.value ?? (npcMod !== null ? 10 + npcMod : 10 + ctx.level + 5);
-    const stat = shipStatistic(ctx.target.actor, c.save);
+    const stat = targetStatistic(ctx.target.actor, c.save);
     const res = await rollNativeCheck({
       statistic: stat,
       dc,
@@ -162,7 +187,7 @@ async function runCheck(ctx) {
       secret: !!ctx.privateAction,
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
-      modifierOnly: computeShipStats(ctx.target.actor)[c.save]
+      modifierOnly: targetSaveModifier(ctx.target.actor, c.save)
     });
     if (!res) {
       ctx.cancelled = true;
@@ -259,6 +284,8 @@ function attackSummaryOf(ctx) {
     map: ctx.mapState ? { before: ctx.mapState.current, choice: String(ctx.mapState.manualIndex ?? 0) } : null,
     weapon: ctx.weapon ? { id: ctx.weapon.id, name: ctx.weapon.name } : null,
     targetName: ctx.target?.actor?.name ?? null,
+    targetUUIDs: ctx.targets.map((target) => target.uuid),
+    targetKeys: ctx.targets.map((target) => target.key),
     pendingDamage: ctx.pendingDamage ?? null,
     boundDamage: ctx.boundDamage ?? null
   };
@@ -315,6 +342,8 @@ async function executeActionNow(params) {
   }
   const crew = crewUuid ? await fromUuidSafe(crewUuid) : null;
   const hasCrewRole = data.role !== "npc" && (data.role === "player" || (data.crew?.length ?? 0) > 0);
+  if (action.builtin === "strike" && hasCrewRole && !crew && !gmOverride)
+    fail("notHelming", { station: T(`SF2eTSC.stations.${action.station}`) });
 
   const strictRules = strictRulesFor(gmOverride);
   const warnings = [];
@@ -366,6 +395,7 @@ async function executeActionNow(params) {
     station: null,
     stationRow: null,
     target: null,
+    targets: [],
     weapon: null
   };
   if (!ctx.tsc && !isGM) fail("noCombat");
@@ -423,8 +453,13 @@ async function executeActionNow(params) {
     action.builtin === "npc-strike"
   )
     ctx.weapon = resolveWeapon(ctx);
-  ctx.target = params.dryRun && !params.validateTarget ? null : await resolveTarget(ctx);
-  ctx.privateAction = !!(ctx.target?.obj?.privateContact || findObject(ctx.tsc, shipUuid)?.privateContact);
+  ctx.targets = params.dryRun && !params.validateTarget ? [] : await resolveTargets(ctx);
+  const plasmaSheetAttack =
+    options.sheetRoll === true && ["strike", "npc-strike"].includes(action.builtin) && weaponProfileOf(ctx.weapon).plasma;
+  if (ctx.targets.length > 1 && !action.targeting?.multiple && !plasmaSheetAttack) fail("badTarget");
+  ctx.target = ctx.targets[0] ?? null;
+  if (action.targeting?.multiple) ctx.areaTargets = ctx.targets;
+  ctx.privateAction = !!(ctx.targets.some((target) => target.obj?.privateContact) || findObject(ctx.tsc, shipUuid)?.privateContact);
   if (ctx.privateAction) draft.privateAction = true;
   const failed = evaluateRequirements(action, ctx, strictRules);
   if (failed.length) rule("requirementFailed", { reqs: failed.map((k) => T(`SF2eTSC.requirements.${k}`)).join(", ") });
@@ -538,6 +573,7 @@ export const CLIENT_OPTION_KEYS = Object.freeze([
   "manualDC",
   "dcLevel",
   "targetKey",
+  "targetUUIDs",
   "targetStationId",
   "stationId",
   "areaOrigin",
@@ -565,6 +601,16 @@ export function sanitizeActionRequest(payload, user) {
       if (Number.isFinite(n)) options[k] = Math.trunc(n);
     } else if (k === "gmOverride") {
       if (user?.isGM && v === true) options.gmOverride = true;
+    } else if (k === "targetUUIDs") {
+      if (Array.isArray(v))
+        options.targetUUIDs = [
+          ...new Set(
+            v
+              .filter((x) => typeof x === "string" && x)
+              .slice(0, 50)
+              .map((x) => x.slice(0, 300))
+          )
+        ];
     } else if (k === "sheetRoll") {
       if (v === true) options.sheetRoll = true;
     } else if (k === "mapChoice") {

@@ -10,7 +10,7 @@ fs.mkdirSync(out, { recursive: true });
 const translations = JSON.parse(fs.readFileSync(path.join(root, "lang", "ru.json"), "utf8")).SF2eTSC.toolbelt;
 const content = `<!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="${rootUrl}/styles/main.css">
-<style>body{background:#eee;color:#222;font:14px Arial;padding:20px}.damage-application{margin:12px;padding:12px;border:1px solid #888;max-width:430px;display:flex;flex-wrap:nowrap;align-items:center;gap:4px}button{min-height:28px}</style>
+<style>body{background:#eee;color:#222;font:14px Arial;padding:20px}.damage-application{margin:12px;padding:12px;border:1px solid #888;max-width:430px;display:flex;flex-wrap:nowrap;align-items:center;gap:4px}button{min-height:28px}button[data-action]{display:inline-flex}</style>
 <main id="chat">
 <section class="damage-application" id="ship" data-target-uuid="Scene.a.Token.ship" data-target-roll-index="0">
 <strong>Звездолёт</strong><button data-action="target-applyDamage" data-multiplier="1">Урон</button><button data-action="target-applyDamage" data-multiplier="0.5">Половина</button><button data-action="target-shieldBlock">Блок щитом</button></section>
@@ -33,13 +33,16 @@ const checks=[];const check=(name,pass)=>checks.push({name,pass:!!pass});const w
 const shipRow=el.querySelector('#ship');const reset=()=>{ship.flags[M].chatDamageApplications=[];binding.refresh();};
 check('two-ship-modes',shipRow.querySelectorAll('[data-tsc-ship-damage]').length===2);
 check('ordinary-row-untouched',!el.querySelector('#ordinary .tsc-ship-damage-controls'));
+check('ordinary-native-buttons-visible',!el.querySelector('#ordinary [data-action]').hidden);
 check('no-duplicate-wiring',wireToolbeltDamage(message,el)===null&&shipRow.querySelectorAll('[data-tsc-ship-damage]').length===2);
 await wait();
-const layoutNative=shipRow.querySelector('[data-action="target-applyDamage"]').getBoundingClientRect();
 const layoutControls=shipRow.querySelector('.tsc-ship-damage-controls').getBoundingClientRect();
-check('ship-controls-on-own-line',layoutControls.top>=layoutNative.bottom-1);
-check('native-buttons-not-squeezed',layoutNative.width>=40);
+check('ship-controls-on-own-line',layoutControls.top>=shipRow.querySelector('strong').getBoundingClientRect().bottom-1);
+check('ship-native-buttons-hidden',[...shipRow.querySelectorAll('[data-action]')].every(button=>button.hidden));
+check('ship-native-buttons-not-displayed',[...shipRow.querySelectorAll('[data-action]')].every(button=>getComputedStyle(button).display==='none'));
+check('no-visible-competing-damage-buttons',shipRow.querySelectorAll('[data-action]:not([hidden])').length===0);
 check('multiplier-select-kept',!!shipRow.querySelector('select.tsc-ship-damage-multiplier'));
+check('multiplier-select-labeled',!!shipRow.querySelector('select.tsc-ship-damage-multiplier')?.getAttribute('aria-label'));
 shipRow.querySelector('[data-action="target-applyDamage"]').click();await wait();
 check('native-toolbelt-captured-once',calls.length===1&&calls[0].mode==='shields'&&nativeClicks===0);
 check('receipt-disables-modes',shipRow.querySelector('[data-tsc-ship-damage]').disabled);

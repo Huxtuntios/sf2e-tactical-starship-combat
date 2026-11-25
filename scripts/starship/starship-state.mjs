@@ -1,6 +1,6 @@
 import { MODULE_ID, FLAGS, DATA_VERSION } from "../constants.mjs";
 import { foldStationUpgrades } from "../engine/upgrades.mjs";
-import { upgradeCatalog } from "../content/loader.mjs";
+import { Content, upgradeCatalog } from "../content/loader.mjs";
 import { normalizeStarship } from "../engine/validation.mjs";
 import { normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
 import { migrate, needsMigration } from "../engine/migration.mjs";
@@ -44,13 +44,16 @@ export function readStarship(actor) {
   let raw = actor?.flags?.[MODULE_ID]?.[FLAGS.STARSHIP] ?? {};
   if (needsMigration(raw)) {
     try {
-      raw = migrate(raw).data;
+      raw = migrate(raw, DATA_VERSION, undefined, { frame: Content.frames.get(raw.frame) ?? null }).data;
     } catch (err) {
       log.warn("migration failed in memory", err);
     }
   }
   raw = foldStationUpgrades(raw, upgradeCatalog()); // idempotent: one source of truth for installed upgrades (0.9.1)
-  const { data, errors, warnings } = normalizeStarship({ ...raw, hp: hullOf(actor), name: actor?.name });
+  const { data, errors, warnings } = normalizeStarship(
+    { ...raw, hp: hullOf(actor), name: actor?.name },
+    { frame: Content.frames.get(raw.frame) ?? null }
+  );
   if (errors.length) log.debug(`${actor?.name}: starship data errors`, errors);
   if (warnings.length) log.debug(`${actor?.name}: starship data warnings`, warnings);
   data._errors = errors;

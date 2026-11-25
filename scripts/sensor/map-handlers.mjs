@@ -137,7 +137,10 @@ export async function sensorUpdate({ user, payload: raw }) {
     const designation = moduleSetting("contactDesignation");
     const before = ["move", "shift"].includes(payload.op) ? findObject(getTsc(combat), payload.key)?.zone : null;
     const removing = payload.op === "remove" ? findObject(getTsc(combat), payload.key) : null;
-    if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
+    const sharedActor =
+      removing?.actorUuid && getTsc(combat).objects.filter((object) => object.actorUuid === removing.actorUuid).length > 1;
+    if (removing?.actorUuid && !sharedActor)
+      await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
     await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
     // Remember the art orientation on the Actor itself so future placements and copies inherit it.

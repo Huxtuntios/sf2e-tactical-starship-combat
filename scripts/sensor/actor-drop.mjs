@@ -15,25 +15,35 @@ export function sensorDragData(event) {
 }
 
 /** Новые записи становятся общедоступными только после явного подтверждения ведущего. */
-export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseActor = false } = {}) {
+export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseActor = false, key = actor?.uuid } = {}) {
   if (!actor || actor.documentName !== "Actor" || typeof actor.uuid !== "string" || !actor.uuid || !actor.name)
     throw new Error("invalidActor");
   if (!Number.isInteger(zone) || zone < 1 || zone > state.zones) throw new Error("invalidZone");
   const ship = isStarship(actor);
   const hazard = !ship && actor.type === "hazard";
   if (!ship && !hazard) throw new Error("unsupportedActor");
-  const matches = state.objects.filter((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
-  if (matches.length > 1) throw new Error("duplicateActors");
-  if (matches.length) {
-    const old = matches[0];
-    if (old.mineRef) throw new Error("managedMine");
-    return { state: old.zone === zone ? state : moveObject(state, old.key, zone), result: old.zone === zone ? "unchanged" : "moved" };
+  const additionalReference = key !== actor.uuid;
+  const actorMatches = state.objects.filter((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
+  if (additionalReference) {
+    if (typeof key !== "string" || !key || state.objects.some((o) => o.key === key)) throw new Error("duplicateActors");
+    if (actorMatches.some((o) => o.mineRef)) throw new Error("managedMine");
+  } else {
+    if (actorMatches.length > 1) throw new Error("duplicateActors");
+    if (actorMatches.length) {
+      const old = actorMatches[0];
+      if (old.mineRef) throw new Error("managedMine");
+      return {
+        state: old.zone === zone ? state : moveObject(state, old.key, zone),
+        result: old.zone === zone ? "unchanged" : "moved",
+        key: old.key
+      };
+    }
   }
   if (!publicActor) throw new Error("disclosureRequired");
   const rawHeading = actor.flags?.[MODULE_ID]?.[FLAGS.STARSHIP]?.heading;
   const heading = ship && ["left", "right"].includes(rawHeading) ? rawHeading : null;
   const object = {
-    key: actor.uuid,
+    key,
     actorUuid: actor.uuid,
     ...(reuseActor ? { reuseActor: true } : {}),
     type: ship ? "starship" : "hazard",
@@ -52,5 +62,5 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseA
         [actor.uuid]: { disabled: false, placement: "sensor", ...(next.hazardState?.[actor.uuid] ?? {}) }
       }
     };
-  return { state: next, result: "added" };
+  return { state: next, result: "added", key };
 }

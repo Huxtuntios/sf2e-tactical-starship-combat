@@ -7,7 +7,7 @@ import { legacyEnvironmentObjectDialogContent, submitLegacyEnvironmentObject } f
  */
 import { ZONE_LIMITS, HEADINGS, STATUS_STATES } from "../constants.mjs";
 import { TscApp, tpl } from "./base-app.mjs";
-import { Targeting } from "./targeting.mjs";
+import { Targeting, registerNativeTargeting } from "./targeting.mjs";
 import { targetingState } from "../engine/target-rules.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { viewFor, findObject } from "../engine/sensor-ops.mjs";
@@ -27,20 +27,39 @@ import { DETECTION_LEVELS } from "../constants.mjs";
 import { calculateZoneDistance } from "../engine/range.mjs";
 import { HazardEngine } from "../hazards/hazard-engine.mjs";
 import { displayDesignation } from "../utils/designations.mjs";
-import { ICONS, observerKeys, canMoveKey, sensorPartsFor } from "../sensor/map-model.mjs";
+import { ICONS, observerKeys, canMoveKey, sensorPartsFor, sensorRangePresentation } from "../sensor/map-model.mjs";
 import { buildHudContext, runHudAction } from "./hud-model.mjs";
-import { showActionDescription, showActionWarning } from "./action-controls.mjs";
+import { sendActionDescription, showActionDescription, showActionWarning } from "./action-controls.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
 import { MapAppearanceApplication } from "./map-appearance-app.mjs";
 import { normalizeMapAppearance, safeImagePath, resolveArrowAppearance, visualTransform } from "../sensor/appearance.mjs";
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
+import { registerSensorHandlers as registerBaseSensorHandlers } from "../sensor/map-handlers.mjs";
 
 export { PLAYER_SENSOR_OPS, userControlsShip, canMoveKey, observerKeys, applySensorOp } from "../sensor/map-model.mjs";
-export { registerSensorHandlers } from "../sensor/map-handlers.mjs";
 
 const SENSOR_CACHE_INVALIDATE = "sf2e-tactical-starship-combat.invalidateSensorMapActors";
+let rangeHooksRegistered = false;
+
+export function registerSensorHandlers() {
+  registerBaseSensorHandlers();
+  registerNativeTargeting();
+  if (rangeHooksRegistered) return;
+  rangeHooksRegistered = true;
+  const parentActor = (parent) =>
+    parent?.documentName === "Actor" ? parent : parent?.parent?.documentName === "Actor" ? parent.parent : null;
+  const refresh = (parent) => {
+    const actor = parentActor(parent);
+    if (!actor) return;
+    invalidateSensorMapActors(actor);
+    refreshApps("actor", actor);
+  };
+  for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, (item) => refresh(item?.parent));
+  for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"])
+    Hooks.on(hook, (effect) => refresh(effect?.parent));
+}
 
 /** Include instances still preparing their first render; refresh stays debounced and part-merged. */
 export function invalidateSensorMapActors(actor = null) {
@@ -100,11 +119,14 @@ export class SensorMapApplication extends TscApp {
       triggerHazard: SensorMapApplication.#trigger,
       toggleHazard: SensorMapApplication.#toggleHazard,
       resizeZones: SensorMapApplication.#resize,
+      toggleRanges: SensorMapApplication.#toggleRanges,
       toggleHidden: SensorMapApplication.#hidden,
       editZone: SensorMapApplication.#editZone,
       cancelTargeting: SensorMapApplication.#cancel,
+      executeTargeting: SensorMapApplication.#executeTargeting,
       dockAct: SensorMapApplication.#dockAct,
       describeAction: showActionDescription,
+      sendActionDescription,
       actionWarning: showActionWarning,
       dockPick: SensorMapApplication.#dockPick,
       openCrew: () => openCrewManager(),
@@ -134,11 +156,14 @@ export class SensorMapApplication extends TscApp {
     this._actorCacheHook = null;
     this.actorCache.dispose();
     this._mapPermissions = this._catalog = null;
+    if (Targeting.hoverKey === this._hover) Targeting.hoverKey = null;
+    this._hover = null;
     releaseMapBackground(this._backgroundLayer);
     this._backgroundLayer = null;
     super._cleanup?.();
   }
   selected = null;
+  showRanges = true;
   dockIndex = 0;
   gmToolsOpen = false;
   wants(channel, doc) {
@@ -156,7 +181,14 @@ export class SensorMapApplication extends TscApp {
     const isGM = game.user.isGM;
     if (!combat) {
       this.actorCache.setVisible([], game.user);
-      return { noCombat: true, isGM, backgroundRevision: this.backgroundRevision };
+      return {
+        noCombat: true,
+        isGM,
+        rangeMode: isGM ? "gm" : "player",
+        showRanges: this.showRanges,
+        sensorRanges: [],
+        backgroundRevision: this.backgroundRevision
+      };
     }
     // Catalog replacement is also detected when callers reload it without a settings refresh.
     const catalog = [Content.stations, Content.upgrades, Content.stations.size, Content.upgrades.size];
@@ -193,7 +225,7 @@ export class SensorMapApplication extends TscApp {
     if (this._mapPermissions?.key !== permissionKey) {
       this._mapPermissions = {
         key: permissionKey,
-        own: isGM ? [] : observerKeys(tsc, game.user),
+        own: observerKeys(tsc, game.user),
         movable: tsc.objects.filter((o) => (isGM ? !o.mineRef : canMoveKey(game.user, tsc, o.key))).map((o) => o.key)
       };
     }
@@ -210,13 +242,22 @@ export class SensorMapApplication extends TscApp {
       if (unresolved) this._mapPermissions = null;
     }
     const t = Targeting.current;
+    const targetedKeys = new Set(Targeting.targetUUIDs());
     const targetTsc = t ? targetingState(publicState, t.shipUuid, privateObjects) : null;
     const appearance = normalizeMapAppearance(tsc.appearance);
     const arrows = new Map([["", resolveArrowAppearance(appearance)]]);
+    const rangePresentation = sensorRangePresentation(tsc, {
+      isGM,
+      observerKeys: own,
+      resolve: (uuid) => resolved.get(uuid)?.actor ?? fromUuidSync_(uuid),
+      showRanges: this.showRanges
+    });
     const zones = [];
     for (let z = 1; includes("zones") && z <= tsc.zones; z++) {
       const info = tsc.zoneInfo?.[z] ?? {};
-      const objs = view.filter((o) => o.zone === z).map((o) => this.#decorate(o, targetTsc, combat, resolved, appearance, arrows));
+      const objs = view
+        .filter((o) => o.zone === z)
+        .map((o) => this.#decorate(o, targetTsc, targetedKeys, combat, resolved, appearance, arrows));
       zones.push({
         zone: z,
         label: String(z).padStart(2, "0"),
@@ -227,12 +268,16 @@ export class SensorMapApplication extends TscApp {
         publicNotes: info.publicNotes ?? "",
         gmNotes: isGM ? (info.gmNotes ?? "") : "",
         hasNotes: !!(info.publicNotes || (isGM && info.gmNotes)),
+        outsideRange: rangePresentation.zones[z - 1]?.outsideRange ?? false,
         crowded: objs.length > 1
       });
     }
     const sel = this.selected ? view.find((o) => o.key === this.selected) : null;
     return {
       isGM,
+      rangeMode: rangePresentation.rangeMode,
+      showRanges: this.showRanges,
+      sensorRanges: rangePresentation.ranges,
       combat: { round: combat.round, turn: combat.combatant?.name ?? "—" },
       zoneCount: tsc.zones,
       zones,
@@ -257,7 +302,7 @@ export class SensorMapApplication extends TscApp {
     };
   }
 
-  #decorate(o, targetTsc, combat, resolved, appearance, arrows) {
+  #decorate(o, targetTsc, targetedKeys, combat, resolved, appearance, arrows) {
     const entry = o.known ? resolved.get(o.actorUuid ?? o.key) : null;
     const actor = o.fullDetails && o.type === "starship" ? entry?.actor : null;
     let status = o.fullDetails ? "operational" : null,
@@ -275,6 +320,7 @@ export class SensorMapApplication extends TscApp {
     const transform = visualTransform(o.mapTransform, o.heading, appearance.autoMirror, o.autoMirrorOverride);
     const cls = targetTsc ? Targeting.classify(targetTsc, o) : null;
     const isCurrent = combat.combatant?.actorId && actor?.id === combat.combatant.actorId;
+    const targeted = targetedKeys.has(o.key) || targetedKeys.has(o.actorUuid);
     return {
       key: o.key,
       label: displayDesignation(o.label),
@@ -299,7 +345,8 @@ export class SensorMapApplication extends TscApp {
       sp,
       hpPct: hpPct(hp),
       spPct: hpPct(sp),
-      selected: this.selected === o.key,
+      selected: this.selected === o.key || targeted,
+      targeted,
       target: cls?.status ?? null,
       targetLabel: cls ? T(`SF2eTSC.targeting.${cls.status}`) : null,
       current: !!isCurrent,
@@ -335,6 +382,10 @@ export class SensorMapApplication extends TscApp {
     const hazardActor = sel.type === "hazard" ? entry?.actor : null;
     const mine = obj.mineRef && isGM ? obj.mineRef : null;
     const stats = d ? this.actorCache.stats(entry) : null;
+    const vitals =
+      d && (isGM || can(game.user, actor, "adjustVitals"))
+        ? { shipUuid: actor.uuid, hp: d.hp.value, hpMax: d.hp.max, sp: d.sp.value, spMax: d.sp.max }
+        : null;
     const rows = [{ k: T("SF2eTSC.ui.zone"), v: sel.zone }];
     rows.push({ k: T("SF2eTSC.ui.type"), v: T(`SF2eTSC.objectTypes.${sel.fullDetails ? sel.type : sel.category}`) });
     if (sel.heading) rows.push({ k: T("SF2eTSC.ui.heading"), v: T(`SF2eTSC.heading.${sel.heading}`) });
@@ -342,18 +393,17 @@ export class SensorMapApplication extends TscApp {
     if (d)
       rows.push(
         { k: T("SF2eTSC.ui.level"), v: d.level },
-        { k: T("SF2eTSC.ui.hullPoints"), v: `${d.hp.value}/${d.hp.max}` },
-        { k: T("SF2eTSC.ui.shieldPoints"), v: `${d.sp.value}/${d.sp.max}` },
+        ...(vitals
+          ? []
+          : [
+              { k: T("SF2eTSC.ui.hullPoints"), v: `${d.hp.value}/${d.hp.max}` },
+              { k: T("SF2eTSC.ui.shieldPoints"), v: `${d.sp.value}/${d.sp.max}` }
+            ]),
         { k: T("SF2eTSC.ui.ac"), v: stats.ac },
         { k: T("SF2eTSC.ui.status"), v: T(`SF2eTSC.status.${statusOf(d)}`) }
       );
     if (isGM && d?.compromised) rows.push({ k: T("SF2eTSC.ui.compromised"), v: d.compromised });
     const hs = tsc.hazardState?.[sel.key];
-    // current Hull / Shield Points: GM and the ship's crew (adjustVitals); the server re-checks every change
-    const vitals =
-      d && (isGM || can(game.user, actor, "adjustVitals"))
-        ? { shipUuid: actor.uuid, hp: d.hp.value, hpMax: d.hp.max, sp: d.sp.value, spMax: d.sp.max }
-        : null;
     const gm =
       isGM && d
         ? {
@@ -428,6 +478,22 @@ export class SensorMapApplication extends TscApp {
     });
   }
 
+  #syncTargetingControls() {
+    this.element.querySelector("[data-tsc-execute-targeting]")?.remove();
+    const session = Targeting.current;
+    const banner = this.element.querySelector(".tsc-targeting-banner");
+    if (!session || !banner) return;
+    const count = Targeting.targetUUIDs().length;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.action = "executeTargeting";
+    button.dataset.tscExecuteTargeting = "1";
+    button.textContent = `${T("SF2eTSC.ui.execute")} (${count})`;
+    button.disabled = count === 0 || (session.singleTarget && count !== 1);
+    button.title = T(button.disabled ? "SF2eTSC.errors.badTarget" : "SF2eTSC.ui.execute");
+    banner.append(button);
+  }
+
   #paintPreview() {
     const span = this.element?.querySelector?.("[data-tsc-preview]");
     if (!span) return;
@@ -491,11 +557,15 @@ export class SensorMapApplication extends TscApp {
 
   _onRender(context, options) {
     super._onRender?.(context, options);
+    const hovered = this.element.querySelector(".tsc-obj:hover")?.dataset.objectKey ?? null;
+    this._hover = hovered;
+    Targeting.hoverKey = hovered;
     const layer = this.element.querySelector(".tsc-map-background");
     if (this._backgroundLayer && this._backgroundLayer !== layer) releaseMapBackground(this._backgroundLayer);
     this._backgroundLayer = layer;
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
+    this.#syncTargetingControls();
     this.#wireGmEdit();
     this.#wirePrivateZone();
     this.element.querySelectorAll("details.tsc-gm-tools").forEach((d) => {
@@ -511,13 +581,17 @@ export class SensorMapApplication extends TscApp {
       // update only the preview text. A full re-render on hover replaced the button under the cursor
       // between mousedown and mouseup, so the click (= target pick) never reached the action handler.
       el.addEventListener("mouseenter", () => {
-        if (Targeting.current) {
-          this._hover = el.dataset.objectKey;
-          this.#paintPreview();
-        }
+        this._hover = el.dataset.objectKey;
+        Targeting.hoverKey = this._hover;
+        if (Targeting.current) this.#paintPreview();
+      });
+      el.addEventListener("mouseleave", () => {
+        if (this._hover === el.dataset.objectKey) this._hover = null;
+        if (Targeting.hoverKey === el.dataset.objectKey) Targeting.hoverKey = null;
       });
     });
     this.element.setAttribute("data-orientation", "horizontal");
+    this.element.dataset.rangeMode = context.rangeMode;
     if (!this.element.dataset.tscEsc) {
       this.element.dataset.tscEsc = "1";
       this.element.addEventListener("keydown", (ev) => {
@@ -536,7 +610,9 @@ export class SensorMapApplication extends TscApp {
   static #select(event, target) {
     const key = target.dataset.objectKey;
     if (Targeting.current)
-      return Targeting.pick(key, targetingState(getTsc(activeStarshipCombat()), Targeting.current.shipUuid, this._privateObjects));
+      return Targeting.pick(key, targetingState(getTsc(activeStarshipCombat()), Targeting.current.shipUuid, this._privateObjects), {
+        additive: !!event.shiftKey
+      });
     this.selected = this.selected === key ? null : key;
     this.render({ parts: sensorPartsFor("select") });
   }
@@ -553,6 +629,9 @@ export class SensorMapApplication extends TscApp {
   }
   static #cancel() {
     Targeting.end();
+  }
+  static async #executeTargeting() {
+    await Targeting.execute();
   }
   static async #dockAct(event, target) {
     await runHudAction(this.dockIndex, target.dataset.actionId, event);
@@ -767,6 +846,10 @@ export class SensorMapApplication extends TscApp {
   }
   static async #hidden(e, t) {
     await request("sensorUpdate", { op: "hidden", combatId: activeStarshipCombat().id, key: t.dataset.key });
+  }
+  static #toggleRanges() {
+    this.showRanges = !this.showRanges;
+    this.render({ parts: ["bar", "zones"] });
   }
   static async #openSheet(e, t) {
     const a = await fromUuidSafe(t.dataset.key);

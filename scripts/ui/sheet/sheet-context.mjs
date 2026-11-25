@@ -21,7 +21,7 @@ import { actionLabel } from "../../actions/action-engine.mjs";
 import { T, fromUuidSync_ } from "../../utils/foundry.mjs";
 import { ct, ctPlain } from "../../content/content-i18n.mjs";
 import { traitsText, damageTypeLabel, stationTypeLabel } from "../../utils/labels.mjs";
-import { formatKv, NPC_COSTS } from "../sheet-edit.mjs";
+import { buildDefenseEditorContext, NPC_COSTS } from "../sheet-edit.mjs";
 import { shipCheckRows, sheetAttackRows, statCells, skillCheckRows, pilotingSaveButtons } from "../../rolls/ship-rolls.mjs";
 import { strikeListRows, canRoll, safeRows, mine, npcActionRows } from "./sheet-rows.mjs";
 import { stationUpgradeView, shipUpgradeView } from "./sheet-upgrades.mjs";
@@ -157,6 +157,7 @@ export async function buildSheetContext(sheet) {
     })),
     ship: {
       ...data,
+      fortify: data.fortify ?? 0,
       hullDC: 10 + data.compromised,
       status: statusOf(data),
       statusLabel: T(`SF2eTSC.status.${statusOf(data)}`),
@@ -221,10 +222,16 @@ export async function buildSheetContext(sheet) {
     },
     edit: {
       traits: (data.traits ?? []).join(", "),
-      immunities: (data.immunities ?? []).join(", "),
-      resistances: formatKv(data.resistances),
-      weaknesses: formatKv(data.weaknesses),
-      skills: formatKv(data.skills),
+      defenses: buildDefenseEditorContext(
+        data,
+        {
+          immunities: globalThis.CONFIG?.PF2E?.immunityTypes,
+          resistances: globalThis.CONFIG?.PF2E?.resistanceTypes,
+          weaknesses: globalThis.CONFIG?.PF2E?.weaknessTypes,
+          skills: globalThis.CONFIG?.PF2E?.skills
+        },
+        (key) => T(key)
+      ),
       sizes: ["tiny", "small", "medium", "large", "huge", "gargantuan"].map((id) => ({ id, sel: id === data.size })),
       stations: data.stations.map((st) => ({ ...st, actionsText: (st.actions ?? []).join(", ") })),
       weapons: data.weapons.map((w) => ({ ...w, traitsText: (w.traits ?? []).join(", ") })),

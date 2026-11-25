@@ -39,6 +39,8 @@
       "encounterBuilder": "Starship Encounter Builder",
       "enemyShips": "Enemy ships",
       "execute": "Execute",
+      "editOptions": "Edit options",
+      "softAutomationHint": "This action can change game state. Confirm to execute, edit the options, or cancel.",
       "expansionBays": "Expansion bays",
       "exportJson": "Export JSON",
       "flipHeading": "Flip heading",
@@ -150,6 +152,7 @@
       },
       "dragHint": "Drag a starship to another zone to move it",
       "actionDescription": "Description",
+      "sendDescription": "Send description to chat",
       "moveManual": "Move the ship up to {speed} zones on the sensor map manually (now in zone {zone}).",
       "levelShort": "Lv",
       "areaExclude": "Exclude from the area",
@@ -183,6 +186,8 @@
       "compromisedUp": "Compromised increases to {value}.",
       "contactUpdated": "Contact updated",
       "crew": "Crew",
+      "selectedTargets": "Selected targets",
+      "starshipDamageSource": "Starship damage",
       "damage": "Damage",
       "damageTaken": "Damage taken",
       "destroyed": "DESTROYED",
@@ -198,6 +203,15 @@
       "miss": "The Strike misses.",
       "noTargetsInArea": "No starships in the area (zones {zones}).",
       "nothingFound": "Nothing new detected.",
+      "outcomes": {
+        "criticalSuccess": "The target takes no damage.",
+        "success": "The target takes half damage.",
+        "successTyped": "The target takes half damage ({damageType}).",
+        "failure": "The target takes full damage.",
+        "failureTyped": "The target takes full damage ({damageType}).",
+        "criticalFailure": "The target takes double damage.",
+        "criticalFailureTyped": "The target takes double damage ({damageType})."
+      },
       "nowCompromised": "Compromised {value}! The ship is inoperable.",
       "offKilterEnded": "No longer off-kilter.",
       "repaired": "repaired",
@@ -294,6 +308,13 @@
       "notCompromised": "A hull integrity check is only made while the ship is compromised (compromised is 0).",
       "combatMissing": "That encounter no longer exists. Create or select an encounter in the Combat Tracker.",
       "invalidData": "Invalid data.",
+      "defenseDuplicate": "This type is already present: {type}.",
+      "defenseTypeUnknown": "Unknown defense or skill type: {type}.",
+      "defenseTypeRequired": "Choose a defense or skill type.",
+      "defenseValueInvalid": "{type} must have an integer value.",
+      "defenseRowsInvalid": "The defense rows are invalid.",
+      "defenseIndexInvalid": "The defense entry no longer exists.",
+      "defenseKindInvalid": "This defense cannot be edited here.",
       "noCombatantHud": "This character has no combatant in the current combat: actions can’t be spent. Ask the GM to sync the crew with initiative.",
       "subsystemFailed": "Subsystem “{label}” failed: {message}",
       "unknownContent": "Unknown content entry: {id}",
@@ -400,6 +421,31 @@
       "observed": "Observed",
       "identified": "Identified",
       "contact": "Contact"
+    },
+    "effects": {
+      "title": "Starship Conditions & Effects",
+      "manage": "Manage Conditions & Effects",
+      "operationalHint": "Return the starship to operational condition without changing crew, stations, weapons, upgrades, or resources.",
+      "destroyedHint": "Mark the starship destroyed without deleting the actor or changing its resources.",
+      "addCondition": "Add Condition",
+      "conditionLabel": "Condition",
+      "conditionValue": "Value",
+      "conditionValueHint": "Used only for conditions that have a value.",
+      "nativeConditions": "Native Conditions",
+      "moduleEffects": "Module Effects",
+      "empty": "No conditions or effects.",
+      "remove": "Remove",
+      "readOnly": "Read-only",
+      "inactive": "Inactive",
+      "errors": {
+        "gmOnly": "Only a GM can manage starship conditions.",
+        "invalidCondition": "Invalid condition.",
+        "invalidConditionValue": "Condition value must be an integer from 1 to 100.",
+        "conditionNotFound": "Condition not found on this starship.",
+        "nativeUnavailable": "Native SF2e conditions are unavailable.",
+        "nativeRejected": "SF2e rejected the condition.",
+        "nativeRemovalFailed": "The condition could not be removed."
+      }
     },
     "status": {
       "operational": "Operational",
@@ -551,6 +597,10 @@
       "hour": "once per hour",
       "day": "once per day",
       "minute": "once per minute"
+    },
+    "keybindings": {
+      "targetSensorMap": "Target hovered Sensor Map object",
+      "targetSensorMapHint": "Target the Sensor Map object under the pointer. Hold Shift to add it to the current targets."
     },
     "targeting": {
       "valid": "Valid",
@@ -795,6 +845,10 @@
         "stationed": "Only crew helming a battle station",
         "off": "Off (manual)"
       },
+      "resetStationsOnInitiative": {
+        "name": "Reset stations at initiative start",
+        "hint": "Clear battle station occupancy when initiative starts. Crew records, weapons, upgrades, effects and other combat data are preserved. Disabled by default."
+      },
       "attackCards": {
         "name": "Attack declaration cards",
         "hint": "Controls legacy and spell attack declaration cards. Weapon Strikes select a target on the Sensor Map and use a system roll message."
@@ -838,6 +892,13 @@
       "fortify": "Fortify value",
       "immunities": "Immunities",
       "skills": "Skills",
+      "add": "Add",
+      "chooseDefense": "Choose a type…",
+      "noDefenses": "No entries.",
+      "removeDefense": "Remove {name}",
+      "addImmunity": "Add immunity",
+      "value": "Value",
+      "modifier": "Modifier",
       "stationActions": "Station actions (comma separated)",
       "remove": "Remove",
       "die": "Damage die",
@@ -968,6 +1029,18 @@
       "compromisedUp": "Compromised +{value}",
       "consequences": "Consequences",
       "resultTitle": "Result",
+      "attackShape": "Attack shape",
+      "damage": "Damage",
+      "save": "Save",
+      "noSave": "This attack has no save.",
+      "shape": {
+        "single": "Single target",
+        "line": "Line",
+        "burst": "Burst",
+        "cone": "Cone",
+        "emanation": "Emanation",
+        "volley": "Volley"
+      },
       "status": {
         "resolved": "Resolved",
         "void": "Cancelled",
@@ -1121,6 +1194,7 @@
       "alreadyApplied": "The damage has already been applied.",
       "busy": "Damage is being rolled already.",
       "rollDamageFirst": "Roll the damage first.",
+      "rollSavesFirst": "Roll the saves first.",
       "damageFlavor": "{ship}: damage — {weapon} ({type}){crit}",
       "damageFormula": "Damage formula",
       "damageRolled": "Damage rolled",

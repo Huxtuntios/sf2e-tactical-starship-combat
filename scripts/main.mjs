@@ -6,7 +6,7 @@ import { registerPetCabinMonitor } from "./actions/pet-cabin-monitor.mjs";
 import { registerToolbeltDamage } from "./integrations/toolbelt-damage.mjs";
 import { MODULE_ID, MODULE_TITLE, DATA_VERSION, HOOK_EVENTS } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
-import { loadContent } from "./content/loader.mjs";
+import { Content, loadContent } from "./content/loader.mjs";
 import { loadContentTranslations } from "./content/content-i18n.mjs";
 import { initSocket, onClientEvent } from "./socket.mjs";
 import { registerCrewHandlers } from "./crew/crew-service.mjs";
@@ -25,7 +25,7 @@ import { StarshipSheet, NPCStarshipSheet } from "./ui/starship-sheet.mjs";
 import { refreshApps } from "./ui/base-app.mjs";
 import { openSensorMap } from "./ui/launchers.mjs";
 import { isStarship, readStarship } from "./starship/starship-state.mjs";
-import { needsMigration, migrate } from "./engine/migration.mjs";
+import { migrateStarships } from "./engine/migration.mjs";
 import { checkCausodesConflict } from "./integrations/causodes.mjs";
 import { buildApi } from "./api.mjs";
 import { registerActorCreation } from "./ui/actor-create.mjs";
@@ -39,6 +39,7 @@ import { OCCUPANT_PARTIAL, isCrewMember, invalidateCrewIndex } from "./crew/occu
 import { moduleSetting, isActiveGM, T } from "./utils/foundry.mjs";
 import { systemSupport, missingStarfinderSkills } from "./utils/system.mjs";
 import { syncPrivateProjections } from "./sensor/private-contacts.mjs";
+import { registerNativeTargeting } from "./ui/targeting.mjs";
 
 let enabled = false;
 
@@ -49,6 +50,7 @@ const TEMPLATES = [
   "map-appearance",
   "sensor-map-dock",
   "sensor-contact-editor",
+  "effect-manager",
   "starship-sheet",
   "starship-sheet-header",
   "starship-sheet-tabs",
@@ -79,6 +81,7 @@ Hooks.once("init", () => {
   foundry.applications.handlebars.loadTemplates(TEMPLATES);
   game.modules.get(MODULE_ID).api = buildApi();
   registerActorCreation();
+  registerNativeTargeting();
   registerConditionEnricher();
   registerUpgradeUsages();
   registerItemTagging();
@@ -162,21 +165,19 @@ async function stampSystemSchema() {
   }
 }
 
-/** Migrate legacy/unversioned starship flags (active GM only, once per world version). */
+/** Migrate legacy/unversioned starship flags (active GM only); retry unfinished Actors even after the world stamp advances. */
 async function migrateAll() {
-  const done = game.settings.get(MODULE_ID, "dataVersion");
-  if (done >= DATA_VERSION) return;
-  let n = 0;
-  for (const actor of game.actors.filter(isStarship)) {
-    const raw = actor.flags[MODULE_ID].starship;
-    if (needsMigration(raw)) {
-      const { data } = migrate(raw);
-      await actor.update({ [`flags.${MODULE_ID}.starship`]: data });
-      n++;
-    }
+  const report = await migrateStarships(game.actors.filter(isStarship), {
+    getVersion: () => game.settings.get(MODULE_ID, "dataVersion"),
+    setVersion: (version) => game.settings.set(MODULE_ID, "dataVersion", version),
+    frameFor: (data) => Content.frames.get(data.frame) ?? null
+  });
+  for (const entry of report.entries) {
+    const detail = `${entry.actorId}: sensorRange ${entry.value ?? "unset"} from ${entry.source}`;
+    if (entry.warning) log.warn(`migration ${detail}`, entry.warning);
+    else log.info(`migration ${detail}`);
   }
-  await game.settings.set(MODULE_ID, "dataVersion", DATA_VERSION);
-  if (n) log.info(`migrated ${n} starships to dataVersion ${DATA_VERSION}`);
+  if (report.migrated) log.info(`migrated ${report.migrated} starships to dataVersion ${DATA_VERSION}`);
 }
 
 /** Document updates / hooks drive every refresh (no polling). */

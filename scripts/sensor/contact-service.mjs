@@ -154,15 +154,15 @@ async function applyDetection(combat, key, detection) {
   else await changePrivateContact(combat, key, "detect", detection);
 }
 
-async function publishActorContact(combat, actor, zone, reuseActor = false) {
+async function publishActorContact(combat, actor, zone, reuseActor = false, key = actor.uuid) {
   return serialize(`sensor:${combat.id}`, async () => {
     if (reuseActor && privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid))
       throw new Error(T("SF2eTSC.mapDrop.privateContact"));
     const previous = getTsc(combat);
     const preserveIds = new Set([...(combat.combatants ?? [])].map((entry) => entry.id));
-    const change = dropActorOnMap(previous, actor, zone, { publicActor: true, reuseActor });
-    await saveTsc(combat, change.state);
+    const change = dropActorOnMap(previous, actor, zone, { publicActor: true, reuseActor, key });
     try {
+      await saveTsc(combat, change.state);
       await ensureSensorActorCombatant(combat, actor);
     } catch (error) {
       await deleteSensorActorCombatant(combat, actor.uuid, { preserveIds });
@@ -188,7 +188,7 @@ export async function addSensorContact(combat, spec, deps = {}) {
     }
     const source = await (deps.resolve ?? fromUuidSafe)(spec.uuid);
     const worldSource = spec.source === "world";
-    const reuseActor = worldSource && moduleSetting("reuseWorldActorsOnSensorMap");
+    const reuseAllowed = worldSource && moduleSetting("reuseWorldActorsOnSensorMap");
     if (
       !source ||
       source.documentName !== "Actor" ||
@@ -197,15 +197,22 @@ export async function addSensorContact(combat, spec, deps = {}) {
       (worldSource ? !isWorldActor(source) : !source.pack)
     )
       throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
-    const existing = reuseActor && privateContacts(combat.id).find((o) => o.actorUuid === source.uuid);
+    const existing = reuseAllowed ? privateContacts(combat.id).find((o) => o.actorUuid === source.uuid) : null;
+    const reuseActor = reuseAllowed;
     if (existing?.pendingReveal) throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
-    if (reuseActor && getTsc(combat).objects.some((o) => o.actorUuid === source.uuid || o.key === source.uuid)) {
-      const result = await publishActorContact(combat, source, spec.zone, true);
-      return { key: source.uuid, actorUuid: source.uuid, result };
-    }
     const visible = actorVisibleToPlayers(source);
     if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
     if (visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+    const onMap = getTsc(combat).objects.some((o) => o.actorUuid === source.uuid || o.key === source.uuid);
+    if (reuseActor && spec.independent === true && visible && onMap) {
+      const key = `map-${foundry.utils.randomID(16)}`;
+      const result = await publishActorContact(combat, source, spec.zone, true, key);
+      return { key, actorUuid: source.uuid, result };
+    }
+    if (reuseActor && onMap) {
+      const result = await publishActorContact(combat, source, spec.zone, true);
+      return { key: source.uuid, actorUuid: source.uuid, result };
+    }
     const actor = reuseActor
       ? source
       : await createSensorActorInstance(source, combat, {

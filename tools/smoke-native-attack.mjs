@@ -7,11 +7,12 @@ const out = process.argv[2] ?? path.join(root, "dist", "native-attack-smoke");
 const rootUrl = pathToFileURL(root).href;
 fs.mkdirSync(out, { recursive: true });
 const html = `<!doctype html><meta charset="utf-8">
-<article id="chat"><div class="message-content"><section class="system-roll">System attack: 19</section></div></article>
+<article id="chat"><div class="message-content"><section class="system-roll">System attack: 19<button data-action="strike-damage">Native damage</button></section></div></article>
 <pre id="result">waiting</pre>
 <script type="module">
 const M='sf2e-tactical-starship-combat', hooks={}, calls=[];
-globalThis.Hooks={on:(n,f)=>hooks[n]=f};
+globalThis.Hooks={on:(n,f)=>{(hooks[n]??=[]).push(f);return f;}};
+const render=(...args)=>(hooks.renderChatMessageHTML??[]).forEach(fn=>fn(...args));
 globalThis.foundry={utils:{randomID:()=>String(Math.random())}};
 const gm={id:'gm',isGM:true,active:true};
 globalThis.game={user:{id:'p1',isGM:false},users:{activeGM:gm,get:id=>id==='gm'?gm:null},i18n:{localize:k=>k,format:(k,data)=>k+':'+(data?.message??'')},socket:{connected:true,emit:(...args)=>calls.push(args)}};
@@ -22,18 +23,19 @@ const checks=[], check=(name,pass)=>checks.push({name,pass:!!pass});
 const element=document.querySelector('#chat');
 const card={native:true,createdBy:'p1',result:{pendingDamage:{}}};
 const msg={id:'m1',flags:{[M]:{attackCard:card}}};
-hooks.renderChatMessageHTML(msg,element);hooks.renderChatMessageHTML(msg,element);
-check('native-result-preserved',element.querySelector('.system-roll').textContent==='System attack: 19');
+render(msg,element);render(msg,element);
+check('native-result-preserved',element.querySelector('.system-roll').textContent.includes('System attack: 19'));
+check('native-damage-control-replaced',!element.querySelector('[data-action="strike-damage"]'));
 check('rerender-single-control',element.querySelectorAll('.tsc-native-attack-controls').length===1 && element.querySelectorAll('button').length===1);
 element.querySelector('button').click();element.querySelector('button').click();
-check('double-click-one-request',calls.length===1 && calls[0][1].type==='rollAttackCardDamage');
+check('double-click-one-request',calls.length===1 && calls[0]?.[1]?.type==='rollAttackCardDamage');
 const {dispatchSocketMessage}=await import('${rootUrl}/scripts/socket.mjs');
-await dispatchSocketMessage({kind:'response',requestId:calls[0][1].requestId,to:'p1',ok:true,result:{}},'gm',{
+if(calls.length) await dispatchSocketMessage({kind:'response',requestId:calls[0][1].requestId,to:'p1',ok:true,result:{}},'gm',{
   users:game.users,selfId:'p1',isActiveGM:false,clientEvents:new Map(),emit:()=>{}
 });
 await new Promise(resolve=>setTimeout(resolve,0));
 check('response-releases-busy-control',!element.querySelector('button').disabled);
-game.user={id:'gm',isGM:true};card.damageRoll={total:5};hooks.renderChatMessageHTML(msg,element);
+game.user={id:'gm',isGM:true};card.damageRoll={total:5};render(msg,element);
 check('gm-can-apply',element.querySelectorAll('button').length===2 && !!element.querySelector('[data-tsc-attack="apply"]'));
 const {registerHandler}=await import('${rootUrl}/scripts/socket.mjs');
 const nativeTimeout=globalThis.setTimeout,nativeClear=globalThis.clearTimeout;
@@ -65,9 +67,14 @@ check('local-damage-timeout-releases-controls',!apply.disabled&&errors.some(e=>e
 const errorCount=errors.length;finishDamage({late:true});await flush();
 check('local-damage-late-result-does-not-resettle',errors.length===errorCount&&timers.size===0&&!apply.disabled);
 globalThis.setTimeout=nativeTimeout;globalThis.clearTimeout=nativeClear;
-game.user={id:'other',isGM:false};hooks.renderChatMessageHTML(msg,element);
+game.user={id:'other',isGM:false};render(msg,element);
 check('other-user-no-buttons',element.querySelectorAll('button').length===0);
 check('no-result-copy',element.querySelectorAll('.system-roll').length===1);
+const descriptionMessage={id:'description',flags:{[M]:{actionDescription:{actionId:'evade',sourceText:'Original rules text.',resultText:'Result: Success'}}}};
+const description=document.createElement('div');description.className='message-content';description.innerHTML='<div class="tsc-action-description-message"><header><h3>Evade</h3></header><p>Original rules text.</p><p>Result: Success</p></div>';
+render(descriptionMessage,description);
+check('action-description-native-shell',!!description.querySelector('article.pf2e.chat-card.sf2e-tsc-card'));
+check('action-description-source-result-separated',description.querySelector('.tsc-action-source-text')?.textContent==='Original rules text.'&&description.querySelector('.tsc-action-result-text')?.textContent==='Result: Success');
 document.querySelector('#result').textContent=JSON.stringify({checks,passed:checks.every(c=>c.pass)});
 </script>`;
 fs.writeFileSync(path.join(out, "native-attack.html"), html);

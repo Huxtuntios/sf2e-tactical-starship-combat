@@ -173,7 +173,7 @@ actors[0].system.attributes.hp.value=8;
 invalidateSensorMapActors(actors[0]);
 // Use production invalidation/refresh scheduling; assert after its merged render rather than a hand refresh.
 await new Promise(resolve=>setTimeout(resolve,120));
-check('actor-hook-refreshes-map-detail',app.element.querySelector('[data-object-key="object-0"]').title.includes('8/100')&&app.element.querySelector('[data-application-part="detail"]').textContent.includes('8/100')&&metrics.resolve===13&&metrics.read===13&&metrics.stats===2);
+check('actor-hook-refreshes-map-detail',app.element.querySelector('[data-object-key="object-0"]').title.includes('8/100')&&app.element.querySelector('[data-application-part="detail"] [data-gm-ship="hp"]')?.value==='8'&&app.element.querySelector('[data-application-part="detail"] [data-gm-ship="hp"]')?.dataset.max==='100'&&metrics.resolve===13&&metrics.read===13&&metrics.stats===2);
 const revision=app.backgroundRevision;
 await saveUiState({constructor:{name:'OtherModuleWindow'},position:{width:600,height:400}});
 check('other-window-preferences-saved',!!savedUiState['OtherModuleWindow:window']);
@@ -181,7 +181,7 @@ refreshApps('settings');
 check('ui-state-refresh-does-not-bump-revision',app.backgroundRevision===revision);
 await new Promise(resolve=>setTimeout(resolve,120));await backgroundReady(layer);
 check('ui-state-refresh-retains-loaded-background',app.element.querySelector('.tsc-map-background')===layer&&layer.style.backgroundImage===display&&metrics.loads===1&&metrics.draws===1&&!revoked.includes(blobs[0]));
-check('settings-rerender-remains-active',app.element.querySelectorAll('[data-object-key]').length===360&&app.element.querySelector('[data-application-part="detail"]').textContent.includes('8/100'));
+check('settings-rerender-remains-active',app.element.querySelectorAll('[data-object-key]').length===360&&app.element.querySelector('[data-application-part="detail"] [data-gm-ship="hp"]')?.value==='8');
 state.appearance.background='ordinary.png';
 await app.render({parts:['zones']});await backgroundReady(layer);
 check('ordinary-native-source',layer.dataset.backgroundState==='original'&&layer.style.backgroundImage.includes('ordinary.png')&&!layer.style.backgroundImage.includes('blob:'));

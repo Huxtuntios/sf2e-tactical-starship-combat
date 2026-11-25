@@ -330,6 +330,56 @@ test("an unoccupied assigned weapon never borrows the request's character", asyn
   assert.equal(result.ctx.crew, null);
   assert.equal(sheetAttackRows(s.ship)[0].enabled, false);
 });
+for (const system of ["sf2e", "pf2e"]) {
+  for (const enforcement of ["strict", "warn"]) {
+    for (const unavailable of ["unoccupied", "deleted"]) {
+      test(`${system} ${enforcement}: ${unavailable} gunner refuses actual attack execution without side effects`, async () => {
+        const s = await scenario(system);
+        await game.settings.set(M, "ruleEnforcement", enforcement);
+        if (unavailable === "unoccupied") {
+          await s.ship.update({
+            [`flags.${M}.starship.stations`]: [{ id: "g", type: "gunnery", grade: "commercial", helmedBy: null, weaponId: "w" }]
+          });
+        } else {
+          game.actors.delete(s.crew.id);
+          await s.ship.update({ [`flags.${M}.starship.crew`]: [{ ...s.ship.flags[M].starship.crew[0], userId: s.user.id }] });
+        }
+        const before = structuredClone({ ship: s.ship.flags[M], target: s.target.flags[M], combat: s.combat.flags[M] });
+        dice(20);
+        await assert.rejects(
+          () => executeNativeAttack({ user: s.user, payload: { ...s.payload, options: { ...s.payload.options, gmOverride: true } } }),
+          /must be helming|нужно занимать станцию/i
+        );
+        assert.equal(game.messages.size, 0);
+        assert.deepEqual({ ship: s.ship.flags[M], target: s.target.flags[M], combat: s.combat.flags[M] }, before);
+      });
+    }
+  }
+  test(`${system}: explicit GM override retains unoccupied station attack execution`, async () => {
+    const s = await scenario(system);
+    await s.ship.update({
+      [`flags.${M}.starship.stations`]: [{ id: "g", type: "gunnery", grade: "commercial", helmedBy: null, weaponId: "w" }]
+    });
+    dice(20);
+    const result = await executeNativeAttack({
+      user: game.users.get("gm"),
+      payload: { ...s.payload, options: { ...s.payload.options, gmOverride: true } }
+    });
+    assert.ok(game.messages.get(result.messageId).flags[M].nativeAttackReceipt);
+  });
+}
+test("GM without explicit override cannot fire an unoccupied player weapon", async () => {
+  const s = await scenario();
+  await s.ship.update({
+    [`flags.${M}.starship.stations`]: [{ id: "g", type: "gunnery", grade: "commercial", helmedBy: null, weaponId: "w" }]
+  });
+  dice(20);
+  await assert.rejects(
+    () => executeNativeAttack({ user: game.users.get("gm"), payload: s.payload }),
+    /must be helming|нужно занимать станцию/i
+  );
+  assert.equal(game.messages.size, 0);
+});
 test("NPC statblock attacks never use crew weapon proficiency", async () => {
   const s = await scenario();
   await s.ship.update({

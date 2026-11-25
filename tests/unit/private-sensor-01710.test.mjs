@@ -94,11 +94,13 @@ test("the actual drop listener reuses the original private Actor without creatio
   const drop = () =>
     handlers.drop({ preventDefault() {}, dataTransfer: { getData: () => JSON.stringify({ type: "Actor", uuid: enemy.uuid }) } });
   await drop();
+  zone.dataset.zone = "7";
   await drop();
   assert.equal(calls, 0);
   const contacts = privateContacts(combat.id);
   assert.equal(contacts.length, 1);
   assert.equal(contacts[0].actorUuid, enemy.uuid);
+  assert.equal(contacts[0].zone, 7);
   assert.equal(game.actors.size, 1);
   assert.equal(game.actors.get(enemy.id), enemy);
   assert.deepEqual(

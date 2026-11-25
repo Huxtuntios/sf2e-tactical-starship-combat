@@ -21,6 +21,7 @@ import {
   safeImagePath
 } from "./appearance.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
+import { computeShipStats } from "../starship/stats.mjs";
 
 export const ICONS = {
   starship: "🚀",
@@ -74,6 +75,54 @@ export function observerKeys(tsc, user, resolve = defaultResolve) {
       keys.push(o.key);
   }
   return keys;
+}
+
+const RANGE_COLORS = ["#38bdf8", "#a78bfa", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#c084fc", "#f97316"];
+
+/** Numeric, identity-free range overlays for each friendly ship; never changes contact visibility. */
+export function sensorRangePresentation(
+  tsc,
+  {
+    isGM = false,
+    observerKeys: ownKeys = [],
+    resolve = defaultResolve,
+    rangeFor = (actor) => computeShipStats(actor).sensorRange,
+    showRanges = true
+  } = {}
+) {
+  const zoneCount = Math.max(1, Math.floor(tsc?.zones ?? 1));
+  const ranges = [];
+  if (showRanges) {
+    const available = new Set(ownKeys);
+    for (const object of tsc?.objects ?? []) {
+      if (object.type !== "starship" || !available.has(object.key)) continue;
+      const actor = resolve(object.actorUuid ?? object.key);
+      if (!actor) continue;
+      const zone = Math.floor(object.zone);
+      const range = rangeFor(actor);
+      if (!Number.isInteger(zone) || !Number.isInteger(range) || range < 0) continue;
+      const center = Math.min(zoneCount, Math.max(1, zone));
+      const startZone = Math.max(1, center - range);
+      const endZone = Math.min(zoneCount, center + range);
+      const index = ranges.length;
+      ranges.push({
+        index,
+        zone: center,
+        range,
+        startZone,
+        endZone,
+        endColumn: endZone + 1,
+        color: RANGE_COLORS[index % RANGE_COLORS.length]
+      });
+    }
+  }
+  const blurOutside = !isGM && ranges.length === 1;
+  const zones = Array.from({ length: zoneCount }, (_, offset) => {
+    const zone = offset + 1;
+    const rangeIndexes = ranges.flatMap((range) => (zone >= range.startZone && zone <= range.endZone ? [range.index] : []));
+    return { zone, rangeIndexes, outsideRange: blurOutside && rangeIndexes.length === 0 };
+  });
+  return { rangeMode: isGM ? "gm" : "player", ranges, zones, blurOutside };
 }
 
 /** Players may only move/shift their own ship by one zone; returns the sanitized payload or throws. */

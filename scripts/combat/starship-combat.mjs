@@ -525,13 +525,14 @@ export async function setStarshipCombatEnabled(combat, enabled) {
 }
 
 /** Per-turn processing (active GM only). */
-async function onTurnChange(combat) {
+async function onTurnChange(combat, changes) {
   const state = foundry.utils.deepClone(getTsc(combat));
   const cb = combat.combatant;
   // Turn-index corrections (e.g. after a compromised ship is inserted before the current combatant) also fire
   // updateCombat with a "turn" change. Only a genuinely new turn (round + combatant) may reset budgets/effects.
   const key = turnKey(combat);
   if (key && state.lastTurnKey === key) return;
+  const resetStations = moduleSetting("resetStationsOnInitiative") === true && changes.round === 1 && changes.turn === 0 && !!key;
   const previous = state.lastEffectTurn ?? null;
   state.lastEffectTurn = { id: cb?.id ?? null, round: combat.round, turn: combat.turn };
   state.lastTurnKey = key;
@@ -571,6 +572,15 @@ async function onTurnChange(combat) {
         },
         { reason: T("SF2eTSC.qol.turnTiming"), undoable: false }
       );
+    if (resetStations && data.stations.some((station) => station.helmedBy)) {
+      await patchStarship(
+        ship,
+        (d) => {
+          for (const station of d.stations) station.helmedBy = null;
+        },
+        { history: false, undoable: false }
+      );
+    }
   }
   await saveTsc(combat, state);
   await HazardEngine.processResets(combat);
@@ -638,7 +648,7 @@ async function cleanupEndedCombat(combat) {
 export function registerCombatHooks() {
   Hooks.on("updateCombat", (combat, changes) => {
     if (!isActiveGM() || !isStarshipCombat(combat) || combat.flags?.[MODULE_ID]?.combatSetup) return;
-    if ("turn" in changes || "round" in changes) onTurnChange(combat).catch((err) => log.error("turn processing failed", err));
+    if ("turn" in changes || "round" in changes) onTurnChange(combat, changes).catch((err) => log.error("turn processing failed", err));
   });
   Hooks.on("createCombatant", (c) => onCreateCombatant(c).catch((err) => log.error("auto-detect failed", err)));
   Hooks.on("deleteCombat", (combat) => {

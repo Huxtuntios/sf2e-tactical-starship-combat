@@ -23,10 +23,28 @@ const read = (file) => JSON.parse(fs.readFileSync(new URL(file, root), "utf8"));
 const manifest = read("module.json");
 function pf2e() {
   installFoundryMock();
-  game.system = { id: "pf2e", version: "8.6.1" };
-  game.modules.set("sf2e-anachronism", { active: true, version: "2.4.0" });
+  game.system = { id: "pf2e", version: "8.7.1" };
+  game.modules.set("sf2e-anachronism", { active: true, version: "2.5.1" });
   CONFIG.PF2E = { skills: { computers: {}, piloting: {} } };
 }
+
+test("PF2e 8.7.1 and Anachronism 2.5.1 satisfy the conditional gate with native skills", () => {
+  pf2e();
+  assert.deepEqual(systemSupport(), { supported: true });
+  assert.deepEqual(missingStarfinderSkills(), []);
+});
+
+test("PF2e gate honors the system minimum declared by the active Anachronism module", () => {
+  const anachronism = {
+    active: true,
+    version: "2.5.1",
+    relationships: {
+      systems: new Set([{ id: "pf2e", compatibility: { minimum: "8.7.1" } }])
+    }
+  };
+  assert.equal(systemSupport({ id: "pf2e", version: "8.6.1" }, anachronism).key, "pf2eVersion");
+  assert.deepEqual(systemSupport({ id: "pf2e", version: "8.7.1" }, anachronism), { supported: true });
+});
 
 test("PF2e requires active, compatible Anachronism; SF2e remains independent", () => {
   assert.deepEqual(systemSupport({ id: "sf2e" }, null), { supported: true });

@@ -28,6 +28,23 @@ export class Draft {
     this.ships.set(uuid, entry);
     return entry;
   }
+  async target(uuid) {
+    const actor = await fromUuidSafe(uuid);
+    if (isStarship(actor)) return this.ship(uuid);
+    if (actor?.type !== "hazard") throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
+    const attributes = actor.system?.attributes ?? {};
+    return {
+      actor,
+      data: {
+        name: actor.name,
+        heading: null,
+        effects: [],
+        hp: foundry.utils.deepClone(attributes.hp ?? { value: 0, max: 0 }),
+        ac: attributes.ac?.value ?? 0,
+        hardness: attributes.hardness ?? 0
+      }
+    };
+  }
   event(name, ...args) {
     this.hooks.push([name, ...args]);
   }

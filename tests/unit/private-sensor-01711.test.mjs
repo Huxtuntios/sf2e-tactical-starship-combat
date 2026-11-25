@@ -16,6 +16,8 @@ import { previewNativeAttack, executeNativeAttack } from "../../scripts/chat/nat
 import { declareAttack, resolveAttackCard, rollAttackCardDamage, applyAttackCardDamage } from "../../scripts/chat/attack-card/service.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 
+const M = "sf2e-tactical-starship-combat";
+
 let attackId = 0;
 async function targetingScenario() {
   const s = setup();
@@ -72,7 +74,7 @@ test("ordinary targeting allows every detected state but never undetected overri
         range: 3,
         obj: { key: "private-target", type: "contact", objectType, tscPrivateProjection: true, zone: 3, detection: { party: "hidden" } }
       }).available,
-      objectType === "starship"
+      objectType === "starship" || objectType === "hazard"
     );
 });
 
@@ -505,6 +507,35 @@ test("GM-whisper private sheet attack keeps its bound damage controls", async ()
   await resolveAttackCard({ user: s.gm, payload: { messageId: declaration.messageId, targetKey: s.key, skipDialog: true } });
   assert.ok(game.messages.get(declaration.messageId).flags["sf2e-tactical-starship-combat"].attackCard.result.pendingDamage);
 });
+test("Area Fire damages a hazard in the burst with its native Reflex save", async () => {
+  const s = await targetingScenario();
+  const hazard = new MockActor({
+    id: "area-hazard",
+    name: "Area Hazard",
+    type: "hazard",
+    system: {
+      attributes: { hp: { value: 20, max: 20 }, ac: { value: 14 }, hardness: 0, hasHealth: true },
+      saves: { fortitude: { value: 5 }, reflex: { value: 0 }, will: { value: 4 } }
+    }
+  });
+  game.actors.set(hazard.id, hazard);
+  const objects = s.combat.flags["sf2e-tactical-starship-combat"].tsc.objects;
+  objects.push({ key: hazard.uuid, actorUuid: hazard.uuid, type: "hazard", zone: 3, detection: { party: "identified" } });
+  await s.combat.update({ [`flags.${M}.tsc.objects`]: objects });
+  Object.assign(s.attacker.flags[M].starship.weapons[0], {
+    traits: ["area (burst 1 zone)"],
+    range: 3,
+    die: "1d6",
+    damageType: "fire"
+  });
+  dice(6, 1, 1);
+
+  await executeAction({ ...s.payload, actionId: "area-fire", user: s.user, options: { ...s.payload.options, areaOrigin: 3 } });
+
+  assert.equal(hazard.system.attributes.hp.value, 8, "failed basic Reflex doubles the 6 damage");
+  assert.equal(hazard.flags[M]?.starship, undefined);
+});
+
 for (const choice of ["include", "exclude", "cancel"]) {
   test(`Area Fire ${choice}s an undetected private ship only through the GM dialog`, async () => {
     const s = await targetingScenario();

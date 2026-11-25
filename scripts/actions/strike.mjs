@@ -10,7 +10,16 @@ import { isAttackFromBehind } from "../engine/heading.mjs";
 import { calculateAreaZones, parseAreaTrait, areaTargets } from "../engine/areas.mjs";
 import { stackModifiers } from "../engine/stacking.mjs";
 import { effectModifiers, stationEffects, effectsAgainst, consumedByStrike, offGuardAgainst } from "../starship/effects.mjs";
-import { computeShipStats, shipStatistic, rollNativeCheck, crewClassDC, bestSpellStatistic, secretVisibility } from "../starship/stats.mjs";
+import {
+  computeShipStats,
+  rollNativeCheck,
+  crewClassDC,
+  bestSpellStatistic,
+  secretVisibility,
+  targetArmorClass,
+  targetSaveModifier,
+  targetStatistic
+} from "../starship/stats.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { basicSaveMultiplier } from "./dice.mjs";
 import { stationOf } from "../starship/starship-state.mjs";
@@ -21,6 +30,9 @@ import { log } from "../utils/logging.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { manualModifiersFor } from "./manual-modifiers.mjs";
 import { buildWeaponItemData } from "../content/weapon-docs.mjs";
+import { weaponProfileOf } from "./weapon-profile.mjs";
+
+export { weaponProfileOf };
 
 const DEGREE_LABEL = (d) => T(`SF2eTSC.degree.${["criticalFailure", "failure", "success", "criticalSuccess"][d]}`);
 
@@ -38,6 +50,10 @@ export function resolveWeapon(ctx) {
       damageType: parts[0].type,
       damageParts: parts,
       traits: s.traits ?? [],
+      group: s.group,
+      type: s.type,
+      save: s.save,
+      savingThrow: s.savingThrow,
       range: npcStrikeRange(s, ctx.stats?.sensorRange)
     };
   }
@@ -134,7 +150,8 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
     mods.push({ ...m, slug: `tsc-custom-attack-${i}` });
   for (const n of rp.notes) mods.push({ slug: `tsc-${n.key}`, label: modLabel(n.key), type: "untyped", value: n.value });
   if (mapPenalty) mods.push({ slug: "multiple-attack-penalty", label: T("SF2eTSC.ui.map"), type: "untyped", value: mapPenalty });
-  const tstats = computeShipStats(target.actor);
+  const hazard = target.actor?.type === "hazard";
+  const tstats = hazard ? { ac: targetArmorClass(target.actor), offGuard: false } : computeShipStats(target.actor);
   const against = effectsAgainst(target.data.effects, ctx.shipUuid);
   const acMods = [
     ...effectModifiers(against, "ac-against-strikes").map((m) => ({ label: effectLabel(m.slug, m.label), type: m.type, value: m.value }))
@@ -403,6 +420,15 @@ export async function resolveStrike(ctx) {
     // bound here on the GM side; the card can only roll/apply damage for exactly this target, once. The weapon/target
     // data is bound even on a miss so a system reroll that hits can build the pending damage.
     const traitsL = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
+    const profile = weaponProfileOf(weapon);
+    const boundTargets = profile.plasma ? ctx.targets : [target];
+    const bindings = boundTargets.map((bound) => ({ targetUuid: bound.uuid, targetKey: bound.key }));
+    const save = profile.save
+      ? {
+          ...profile.save,
+          dc: profile.save.dc ?? crewClassDC(ctx.crew) + (profile.area ? (ctx.stats.areaDCModifier ?? 0) : 0)
+        }
+      : null;
     ctx.boundDamage = {
       damageParts: weapon.npc ? weapon.damageParts : null,
       formula: damageFormula(ctx, weapon, false),
@@ -410,8 +436,9 @@ export async function resolveStrike(ctx) {
       damageType: weapon.damageType,
       extraTypes: (weapon.damageParts ?? []).slice(1).map((p) => p.type),
       traits: traitsL,
-      targetUuid: target.uuid,
-      targetKey: target.key,
+      targetUuid: bindings[0].targetUuid,
+      targetKey: bindings[0].targetKey,
+      ...(profile.plasma ? { plasma: true, profile, targets: bindings, save } : {}),
       ...(ctx.privateAction ? { privateCombatId: ctx.combat.id } : {}),
       source: weapon.name
     };
@@ -619,13 +646,13 @@ export async function resolveAreaFire(ctx, kind) {
     value: `${T(`SF2eTSC.areaTypes.${area.type}`)} ${area.value} — ${T("SF2eTSC.ui.zone")} ${zones.join(", ")}`
   });
   for (const o of targets) {
-    const entry = await ctx.draft.ship(o.actorUuid ?? o.key);
+    const entry = await ctx.draft.target(o.actorUuid ?? o.key);
     if (entry.data.destroyed) continue;
     const lockOn = effectModifiers(effectsAgainst(entry.data.effects, ctx.shipUuid), "reflex-against-area").reduce(
       (a, m) => a + m.value,
       0
     );
-    const stat = shipStatistic(entry.actor, "reflex");
+    const stat = targetStatistic(entry.actor, "reflex");
     const res = await rollNativeCheck({
       statistic: stat,
       dc: baseDC,
@@ -635,7 +662,7 @@ export async function resolveAreaFire(ctx, kind) {
       extraModifiers: lockOn ? [{ slug: "tsc-lock-on", label: modLabel("lockOn"), type: "circumstance", value: lockOn }] : [],
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
-      modifierOnly: computeShipStats(entry.actor).reflex + lockOn
+      modifierOnly: targetSaveModifier(entry.actor, "reflex") + lockOn
     });
     if (!res) {
       ctx.cancelled = true;

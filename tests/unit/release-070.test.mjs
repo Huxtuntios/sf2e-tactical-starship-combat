@@ -32,7 +32,10 @@ test("0.7.0: attack card uses MAP buttons and passes the choice to sensor-map ta
   assert.ok(!s.includes("<select data-tsc-map"));
   assert.ok(s.includes("data-tsc-map-choice"));
   assert.match(s, /beginCardTargeting\(message\.id, chosenMap\(\), opts\)/);
-  assert.match(s, /clientResolve\(messageId, key, cardMapChoice\.get\(messageId\) \?\? mapChoice, rollOptions\)/);
+  assert.match(
+    s,
+    /clientResolveTargets\(messageId, plasma \? keys : \[keys\[0\]\], cardMapChoice\.get\(messageId\) \?\? mapChoice, rollOptions\)/
+  );
   assert.ok(s.includes("rollEventOptions(ev)"));
 });
 

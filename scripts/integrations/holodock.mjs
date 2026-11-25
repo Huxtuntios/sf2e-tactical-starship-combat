@@ -8,22 +8,18 @@ function api() {
   return game.holodock ?? game.modules.get(HOLODOCK_ID)?.api ?? null;
 }
 
-/**
- * Open the HoloDock profile of a ship when the (optional) module exposes a way to do it.
- * Combat-critical fields (hp, sp, ac, speed, compromised, stations...) stay owned by this module: nothing is ever
- * written from HoloDock data, the bridge is one-way and read-only.
- */
-export function openHolodock(actor) {
+/** HoloDock 1.0.1 exposes only open(); tactical ship data remains owned by this module. */
+export function openHolodock() {
   const a = api();
   if (!a) return ui.notifications.warn(T("SF2eTSC.integrations.holodockMissing"));
-  for (const fn of ["openDashboard", "open", "openProfile", "openShip"]) {
-    if (typeof a[fn] === "function") {
-      try {
-        return a[fn](actor);
-      } catch (err) {
-        log.warn(`holodock.${fn} failed`, err);
-      }
-    }
+  if (typeof a.open !== "function") {
+    ui.notifications.info(T("SF2eTSC.integrations.holodockNoApi"));
+    return;
+  }
+  try {
+    return a.open();
+  } catch (err) {
+    log.warn("holodock.open failed", err);
   }
   ui.notifications.info(T("SF2eTSC.integrations.holodockNoApi"));
 }
