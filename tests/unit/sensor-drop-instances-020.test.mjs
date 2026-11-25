@@ -146,6 +146,15 @@ test("dragging an existing Sensor Map object moves only that object without crea
   harness.zone.dataset.zone = "6";
   await harness.drop();
   const [first, second] = getTsc(combat).objects;
+  first.mapTransform = { rotation: 37, flipX: true, flipY: false, baseDirection: "right" };
+  first.autoMirrorOverride = true;
+  second.mapTransform = { rotation: 280, flipX: false, flipY: true, baseDirection: "left" };
+  second.autoMirrorOverride = false;
+  const orientation = getTsc(combat).objects.map(({ mapTransform, autoMirrorOverride, heading }) => ({
+    mapTransform: structuredClone(mapTransform),
+    autoMirrorOverride,
+    heading
+  }));
   const { wireSensorMapDragDrop } = await import("../../scripts/ui/sensor-drop-ui.mjs");
   const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
   const handlers = {};
@@ -177,6 +186,14 @@ test("dragging an existing Sensor Map object moves only that object without crea
   assert.deepEqual(
     getTsc(combat).objects.map((object) => object.zone),
     [2, 7]
+  );
+  assert.deepEqual(
+    getTsc(combat).objects.map(({ mapTransform, autoMirrorOverride, heading }) => ({
+      mapTransform,
+      autoMirrorOverride,
+      heading
+    })),
+    orientation
   );
 });
 

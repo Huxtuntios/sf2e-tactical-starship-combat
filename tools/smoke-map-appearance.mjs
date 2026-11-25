@@ -137,9 +137,11 @@ const failed=app.querySelector('[data-object-key="failed"] img');check('broken-i
 check('images-not-blurred',getComputedStyle(app.querySelector('.tsc-object-art')).filter==='none');
 const shipButton=app.querySelector('[data-object-key="ship"]'); const icon=shipButton.querySelector('.tsc-obj-icon');
 check('object-visual-transform',getComputedStyle(icon).transform!=='none');
+const shipArrow=shipButton.querySelector('.tsc-obj-arrow');const iconRect=icon.getBoundingClientRect(),arrowRect=shipArrow.getBoundingClientRect();
+check('icon-arrow-same-row',Math.abs((iconRect.top+iconRect.bottom)/2-(arrowRect.top+arrowRect.bottom)/2)<1);
 const beforeRect=shipButton.getBoundingClientRect(); icon.style.transform='rotate(135deg) scale(1, -1)'; const afterRect=shipButton.getBoundingClientRect();
 check('transform-does-not-move-hitbox',beforeRect.x===afterRect.x&&beforeRect.y===afterRect.y&&beforeRect.width===afterRect.width&&beforeRect.height===afterRect.height);
-const shipArrow=shipButton.querySelector('.tsc-obj-arrow'), shipVisual=shipButton.querySelector('.tsc-obj-visual');
+const shipVisual=shipButton.querySelector('.tsc-obj-visual');
 check('ship-arrow-size',getComputedStyle(shipArrow).fontSize==='24px');
 check('ship-arrow-gap',getComputedStyle(shipVisual).gap==='7px');
 check('ship-arrow-opacity',getComputedStyle(shipArrow).opacity==='0.6');
