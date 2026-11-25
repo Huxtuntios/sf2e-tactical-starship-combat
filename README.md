@@ -104,6 +104,24 @@ The module ID remains `sf2e-tactical-starship-combat`; existing settings and fla
 - **Client memory.** Window dimensions and ship tabs are remembered locally. Catalog and upgrade searches remain available.
 - **Multiplayer authority.** State-changing requests are validated and written by the active GM. Players need the appropriate ship/station access; no socketlib dependency is required.
 
+## GM effects and persistent damage (1.4.0)
+
+Open **Starship effects** from the ship's Overview or the GM Sensor Map contact detail, including a private ship contact. Choose **Apply an effect**, configure it, then use the separate target dialog. No application is written until **Apply effect**; cancellation leaves state unchanged.
+
+- **Condition / state:** choose a supported system condition or module ship state and its value when required. Ship conditions must have verified mechanical support; incompatible combinations are rejected instead of becoming display-only effects. Crew conditions use the installed system's native Items and affected-by checks.
+- **Bonus / penalty:** choose the actual statistic selector, signed value and native stacking type (status, circumstance, item or untyped), with checks only, DCs only or both. These change actual rolls and supported defensive statistics, not just sheet text.
+- **Targets:** Entire Starship is selected by default and does not automatically include crew. Uncheck it for independent ability checks, skills/checks, attacks, saves, AC or other supported defensive DCs; installed stations, their individual actions, all weapon attacks or individual weapons; All Crew or specific registered/assigned crew. Other defensive DCs are separate from AC/saves. Combined scopes form a union: one application contributes once to the same mechanical target. Crew lists never enumerate unrelated world Actors. No independent weapon-defense statistic currently exists, so that scope is unavailable. Empty, stale and incompatible choices are refused.
+- **Ignore Target Immunities:** GM-only and off by default; recorded for this application. It bypasses effect immunity only. It does not edit immunity data, bypass affected-by restrictions, replace native stacking or disable IWR when later damage is applied. Rejected native recipients are reported individually; successful recipients are retained.
+- **Inspect / remove:** the manager shows parameters, captured target labels, linked recipient status and duration. Remove deletes that exact application and its own native Items, even after crew reassignment; it preserves unrelated same-name Items. Existing duration controls remain available in combat. Indefinite manual effects survive combat end.
+
+For **persistent damage**, set a dice formula (`NdM`, optionally plus/minus an integer, such as `1d6+2`), current system damage type, recovery DC (default **15**) and whether the original application was a critical hit. Ship applications use the strongest expected damage of each type; different types roll separately but apply as one simultaneous packet. IWR is processed per type, then Hardness and shields/hull are processed once. Original critical scaling does not make every later interval a new critical hit.
+
+In combat, processing runs at an actual ordinary ship turn end. A ship with no ordinary turn uses **one ship-level end-of-round fallback**, never one tick per crew turn; a compromised hull-integrity combatant does not add a persistent tick. Outside combat, **Roll outside combat** uses the current world-time interval; repeating it at the same time does not reroll. Advance game time for another interval.
+
+The roll creates a durable pending receipt. The GM explicitly **applies the packet** before rolling recovery; repeated apply, alternative Toolbelt controls and reloads retain the same receipt. Successful ship recovery ends all same-type ship recipients, including suppressed ones, but does not end crew recipients. Crew use native persistent damage and independent native recovery. Removing a single row is distinct from same-type recovery. Conditions are not recreated when native Items expire or are removed. Unsupported/custom condition rules and non-Strike NPC abilities remain manual.
+
+Supported NPC Strike persistent components are staged separately from immediate damage in both direct and deferred workflows. The manual Drone Shield Protocol path stays manual. See [rules decisions](docs/rules-decisions.md), [API](docs/api.md) and [1.4.0 verification status](docs/releases/1.4.0.md) for implementation boundaries and actually executed test tiers.
+
 ## Settings
 
 | Setting                  | Scope                    | Purpose                                                      |

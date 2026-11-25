@@ -9,6 +9,19 @@ Integrated native-first build with unified GM-controlled starship effects and pe
 - Preserve native-first targeting, hazard statistics and saves, plasma multi-target attacks, Sensor Map range/detection/placement behavior, card outcomes and native condition management.
 - Add regression and EN/RU UI fixture coverage. Final live Foundry verification remains pending; no general Undo or change-history UI is restored.
 
+## 1.4.0 — 2026-11-22
+
+Unified GM-controlled starship effects and persistent damage. The module ID, pack names/document IDs and compatibility declarations are unchanged; no world conversion or new dependency is required.
+
+- One compact effect manager opens from the Starship Sheet or GM Sensor Map detail, including private contacts. Configure a condition, bonus, penalty or persistent damage, then choose targets in a separate dialog with a preconfirmation summary. Entire Starship is the default; independent mechanics, installed stations/actions/weapons and registered/assigned crew can be combined without duplicating an application's contribution. All Crew never selects unrelated world Actors. Unsupported weapon defenses and incompatible/stale selections are refused.
+- Ship effects change actual native-stacked modifiers, check/DC domains, attack previews, weapon rolls, Piloting-derived AC and supported station-state gates. Native crew effects use exact linked Items; rejected recipients are reported, removal survives reassignment, and unrelated Items are preserved. Manual overlays are not written back into physical ship/station damage data. Existing attack/MAP, repaired-station behavior, wizard, detection and manual Drone Shield Protocol workflows remain in place.
+- Ignore Target Immunities is GM-only, off by default and stored per application. It bypasses only that effect's immunity check, not affected-by restrictions, native stacking, actual immunity data or subsequent damage-type defenses.
+- Ship persistent damage uses native typed dice and strongest same-type suppression, with different types applied together through existing IWR, Hardness, shields, hull and critical-state handling. Durable interval/application receipts protect repeats and reloads. The GM explicitly applies a rolled packet before recovery; ship recovery clears same-type ship recipients, while crew recovery is independent. Exact row removal removes only that application. Indefinite manual effects survive combat end.
+- Persistent damage runs at a real ship turn end, or once per round at the ship-level end-of-round fallback when no ordinary ship turn exists; crew and compromised hull-integrity turns do not create extra ticks. Outside-combat manual rolls use the current world-time interval. Supported NPC persistent Strike components are staged with direct/deferred damage rather than applied as immediate damage.
+- EN/RU configuration, target groups, statuses, errors, immunity explanations and documentation; native form controls, explicit submit/cancel, focus indicators and narrow-layout coverage.
+
+Verification and remaining live/release gates are recorded in `docs/releases/1.4.0.md`; this changelog is not a publication or compatibility certification.
+
 ## 1.3.1 — 2026-11-22
 
 Correct weapon-specific crew proficiency for player starship attacks. Compatibility declarations, the module ID, pack names and document IDs are unchanged; no world migration is required.

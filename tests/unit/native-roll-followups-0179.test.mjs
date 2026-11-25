@@ -118,6 +118,7 @@ function saveStatistic() {
       return passed;
     },
     statistic: {
+      domains: ["reflex", "saving-throw", "all", "dex-based"],
       mod: 8,
       check: {
         roll: async (options) => {

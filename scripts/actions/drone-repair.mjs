@@ -3,7 +3,7 @@ import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { patchStarship, readStarship } from "../starship/starship-state.mjs";
-import { shipModifiers } from "../starship/stats.mjs";
+import { shipModifiers, stationStatistic } from "../starship/stats.mjs";
 import { snapshot, equalState, recordChange, combatGuard } from "../history/history.mjs";
 import { resolveHullRestored } from "../engine/compromised.mjs";
 import { Initiative } from "../combat/initiative.mjs";
@@ -88,21 +88,13 @@ export async function executeDroneRepair({ user, ship, crewUuid, stationId, opti
         statistic: "check",
         includeStationCheck: true
       });
-      let statistic = stat;
-      if (boost.length) {
-        if (typeof stat.clone !== "function" || typeof game.pf2e?.Modifier !== "function")
-          throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
-        try {
-          statistic = stat.clone({
-            modifiers: boost.map(
-              (m) => new game.pf2e.Modifier({ slug: `tsc-${m.slug}`, label: m.label ?? m.slug, modifier: m.value, type: m.type })
-            )
-          });
-        } catch (err) {
-          throw new Error(T("SF2eTSC.droneRepair.nativeMissing"), { cause: err });
-        }
-        if (typeof statistic?.check?.roll !== "function") throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
+      let statistic;
+      try {
+        statistic = stationStatistic(crew, ship, "crafting", { data, stationId, actionId: action.id, combat, statistic: "check" });
+      } catch (err) {
+        throw new Error(T("SF2eTSC.droneRepair.nativeMissing"), { cause: err });
       }
+      if (typeof statistic?.check?.roll !== "function") throw new Error(T("SF2eTSC.droneRepair.nativeMissing"));
       before = structuredClone(data);
       writeOptions.expected = snapshot(before);
       writeOptions.expectedCombat = combatGuard(combat);

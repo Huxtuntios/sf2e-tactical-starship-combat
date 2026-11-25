@@ -1,5 +1,6 @@
 import { registerHandler } from "../socket.mjs";
-import { loadStarship, patchStarship } from "./starship-state.mjs";
+import { loadStarship, readStarship, patchStarship } from "./starship-state.mjs";
+import { removeManualEffect } from "./application-service.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
 import { sanitizeTiming } from "./effect-timing.mjs";
 import { addNativeCondition, removeNativeCondition } from "./native-condition-adapter.mjs";
@@ -45,6 +46,10 @@ export function registerEffectHandlers() {
     requireGM(user);
     const actor = await loadStarship(payload.shipUuid),
       combat = activeStarshipCombat();
+    if (payload.op === "complete" && readStarship(actor).effects.some((e) => e.id === payload.effectId && e.manual)) {
+      await removeManualEffect(actor.uuid, payload.effectId);
+      return true;
+    }
     await patchStarship(
       actor,
       (data) => {
