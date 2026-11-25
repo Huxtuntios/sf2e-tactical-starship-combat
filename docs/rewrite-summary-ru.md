@@ -6,13 +6,13 @@
 >
 > Версия модуля в сборке: `1.5.0` (интегрированная сборка)
 >
-> Историческая база реконструкции: `1.3.1`; метрики и live-результаты ниже относятся к ней
+> Историческая база реконструкции: `1.3.1`; итоговые метрики и live-матрица относятся к интегрированной сборке `1.5.0`, исторические решения помечены отдельно
 >
 > Дата плана: 2026-11-25
 >
 > Локальная release-проверка: 2026-11-26
 
-Исторические решения и доказательства реконструкции сохранены ниже. Полная интеграция unified effects и persistent damage в `1.5.0` описана в разделе 8; live-проверка этой интеграции ещё не выполнена.
+Исторические решения и доказательства реконструкции сохранены ниже. Полная интеграция unified effects и persistent damage в `1.5.0` описана в разделе 8; GM live-проверка интеграции выполнена, post-1.5.0 backlog остаётся обязательным перед PR.
 
 ## 1. Что сделано
 
@@ -139,48 +139,51 @@
 
 ## 3. Фактические метрики
 
-| Показатель                          |        Исходно |   Итог |      Изменение |
-| ----------------------------------- | -------------: | -----: | -------------: |
-| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 66,362 |         +8,132 |
-| Runtime `scripts/styles/templates`  |         29,316 | 32,215 | +2,899 (+9.9%) |
-| Runtime dependencies                |              0 |      0 |              0 |
-| Dev dependencies                    |              9 |      9 |              0 |
-| Unit/integration/architecture tests | 1,490 baseline |  1,717 |           +227 |
-| Chromium UI fixtures                |    63 baseline |     92 |            +29 |
+| Показатель                          |        Исходно |   Итог |       Изменение |
+| ----------------------------------- | -------------: | -----: | --------------: |
+| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 74,203 |         +15,973 |
+| Runtime `scripts/styles/templates`  |         29,316 | 34,702 | +5,386 (+18.4%) |
+| Runtime dependencies                |              0 |      0 |               0 |
+| Dev dependencies                    |              9 |      9 |               0 |
+| Unit/integration/architecture tests | 1,490 baseline |  1,888 |            +398 |
+| Chromium UI fixtures                |    63 baseline |     96 |             +33 |
 
-Сырой объём runtime-кода вырос примерно на 9.9%, потому что добавлены требуемые функции и тесты. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
+Сырой объём runtime-кода вырос примерно на 18.4%, потому что добавлены требуемые функции, интеграция v1.4.0 и тесты. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
 
 ## 4. Проверки
 
-- `npm run check` — **1715 passed, 0 failed, 2 skipped** (всего 1717; пропуски — отсутствующие installed SF2e/PF2e helper-тесты).
-- `npm run test:ui` — **92/92**.
-- `npm run lint` — чисто.
-- `npm run validate` — 0 errors/warnings.
-- `npm run build:release` — успешно.
-- `node tools/verify-release.mjs dist v1.3.1` — ZIP, manifest, hashes и packs проверены.
+- `TSC_SYSTEMS_PATH="C:/Program Files/FoundryVTT-WindowsPortable-14/Data/systems" npm run check` — **1888 passed, 0 failed, 0 skipped**.
+- `npm run test:ui` — **96/96**.
+- `npm run lint` — чисто; `npm run validate` — 0 errors/warnings.
+- `npm run build:release` и `node tools/verify-release.mjs dist v1.5.0` — успешно; ZIP, manifest, hashes и packs проверены.
 - `git diff --check` — чисто.
-- Live environment: Foundry `14.370`, SF2e `1.7.1`, world `sekrety-roya`, GM `Gamemaster2`, загруженный module `1.3.1`, Toolbelt `3.62.0`, Workbench `7.7.5`.
-- Финальные targeted live-проверки — **10/10**: KeyT, map-only duplicate с тем же Actor UUID, hazard target, HTML inline enrichment, КС 27, destroyed/operational, native valued condition и четыре секции степеней успеха.
-- Plasma live regression — **19/19**: две цели, один damage roll, два save, DOM-кнопки до применения, урон обеим целям, защита от replay, блокировка non-plasma multi-target и сброс станций.
-- Cleanup: удалены 4 тестовых Actors, 1 Combat, 1 Scene, 20 тестовых ChatMessage и 11 тестовых макросов; оставшиеся actor/item/combat/scene/message ID совпали с baseline.
-- Финальный restart: module `1.3.1`, API и KeyT загружены, console errors/warnings — **0**, тестовых артефактов — **0**.
+- Merge `origin/main` ec57d50 выполнен commit `55e441d`; после merge сохранены v1.4.0 и native-first поведения.
+- Live environment: Foundry `14.370`, SF2e `1.7.1`, world `sekrety-roya`, GM `Gamemaster2`, module `1.5.0`, Toolbelt `3.62.0`.
+- Финальная live-матрица `1.5.0` — **24/24**: manual ship/crew/scoped effects, replay/conflict, persistent strongest/multi-type/apply-once/recovery, hazard target, Sensor Map range split, native multi-target, plasma controls/one-roll/two-saves/damage/replay, inline HTML, destroyed/operational и card outcomes.
+- Cleanup: owned Actors, Combat, Scene, ChatMessages и макросы удалены; actor/item/combat/scene/message hashes совпали с baseline, остались 3 исходных пользовательских макроса.
+- Чистый reload после cleanup: module `1.5.0`, API/KeyT загружены, console errors/warnings — **0**, тестовых артефактов — **0**.
 
-Не проверено в реальном Foundry: отдельный подключённый player-client и multi-client синхронизация, PF2e + Anachronism gameplay, live Workbench/HoloDock/Causodes/Toolbelt взаимодействие. Targeted и plasma сценарии проверены в GM-клиенте; это не заменяет двухклиентский privacy/gameplay прогон.
+Исторические live-результаты реконструкции `1.3.1` сохранены в `dist/live-verification/final-live-results.json` и `plasma-regression-results.json`. Не проверено в реальном Foundry: отдельный подключённый player-client и multi-client синхронизация, PF2e + Anachronism gameplay, live Workbench/HoloDock/Causodes/Toolbelt взаимодействие. GM-проверки не заменяют двухклиентский privacy/gameplay прогон.
 
 ## 5. Скриншоты и размеры
 
-В bundle включены 6 live-снимков GM-клиента Foundry и 7 локальных Chromium-фикстур. Live-снимки различаются явно в `manifest.json` и не выдаются за mocked fixtures.
+В bundle включены 11 live-снимков GM-клиента Foundry и 7 локальных Chromium-фикстур. Live-снимки различаются явно в `manifest.json` и не выдаются за mocked fixtures.
 
 ### Live Foundry 14.370 / SF2e 1.7.1
 
-| Файл                          |   Размер |   Байты |
-| ----------------------------- | -------: | ------: |
-| `live-sensor-map-targets.png` | 1920×889 | 211,339 |
-| `live-vitals-dedupe.png`      | 1920×889 | 212,228 |
-| `live-effect-manager.png`     | 1920×889 | 129,171 |
-| `live-defense-editor.png`     | 1920×889 | 184,606 |
-| `live-outcome-card.png`       | 1920×889 | 373,581 |
-| `live-plasma-controls.png`    | 1920×889 | 233,753 |
+| Файл                            |   Размер |   Байты |
+| ------------------------------- | -------: | ------: |
+| `live-sensor-map-targets.png`   | 1920×889 | 211,339 |
+| `live-vitals-dedupe.png`        | 1920×889 | 212,228 |
+| `live-effect-manager.png`       | 1920×889 | 129,171 |
+| `live-defense-editor.png`       | 1920×889 | 184,606 |
+| `live-outcome-card.png`         | 1920×889 | 373,581 |
+| `live-plasma-controls.png`      | 1920×889 | 233,753 |
+| `v1.5.0-effect-manager.png`     | 1920×889 | 302,827 |
+| `v1.5.0-effect-targets.png`     | 1920×889 | 289,526 |
+| `v1.5.0-sensor-map.png`         | 1920×889 | 288,131 |
+| `v1.5.0-persistent-receipt.png` | 1920×889 | 326,461 |
+| `v1.5.0-plasma-card.png`        | 1920×889 | 329,127 |
 
 ### Chromium fixtures
 
@@ -194,7 +197,7 @@
 | `plasma-attack__plasma-attack-ru.png`          | 1084×72 |  3,659 |
 | `action-controls__action-controls-ru-dark.png` | 320×670 | 27,366 |
 
-Дополнительно сохранены `compactness-before.json`, `compactness-after.json`, `compactness-station-before-after.json` и `vitals-dedupe.json` с измерениями 1100/600/380 px. Архив `dist/ui-screenshots.zip` — **1,451,675 bytes**, SHA-256 `ad7b059676333b8a074c15ce1a6f6aada913e877ec87a82ccc7e15ee43d4f79e`.
+Дополнительно сохранены `compactness-before.json`, `compactness-after.json`, `compactness-station-before-after.json`, `vitals-dedupe.json` и документные результаты live-проверки `1.5.0`. Архив `dist/ui-screenshots.zip` — **2,913,243 bytes**, SHA-256 `df6cbc4e441a41d85e6e0efdce416e13c8e56dda6cdbb9c67c8c7959ee1cb847`.
 
 ## 6. Артефакты
 
@@ -202,10 +205,11 @@
 - Release manifest: `dist/module.json`.
 - Актуальные размер и SHA-256 module ZIP: `dist/SHA256SUMS.txt` и финальный отчёт; hash не вписан внутрь самого архива, чтобы избежать самоссылочного несовпадения.
 - Скриншоты: `dist/ui-screenshots/`.
-- ZIP скриншотов: `dist/ui-screenshots.zip` — **1,451,675 bytes**.
+- ZIP скриншотов: `dist/ui-screenshots.zip` — **2,913,243 bytes**.
 - Контрольная сумма скриншотов: `dist/ui-screenshots.sha256`.
 - Manifest скриншотов: `dist/ui-screenshots/manifest.json`.
-- Live-результаты: `dist/live-verification/final-live-results.json`, `plasma-regression-results.json`, `cleanup-results.json`, `final-startup-verification.json`.
+- Live-результаты `1.5.0`: `dist/live-verification/v1.5.0-baseline.json`, `v1.5.0-results.json`, `v1.5.0-cleanup-results.json`, `v1.5.0-startup-verification.json`.
+- Исторические live-результаты `1.3.1`: `dist/live-verification/final-live-results.json`, `plasma-regression-results.json`, `cleanup-results.json`, `final-startup-verification.json`.
 - Архитектура: `docs/architecture.md`.
 - Миграции: `docs/migration-notes.md`.
 - Карта API: `docs/rebuild-native-api-map.md`.
@@ -221,7 +225,7 @@
 - Native-first targeting, hazard AC/saves/HP/Hardness/IWR, plasma multi-target и per-target receipts, Sensor Map range/detection/placement, карточки степеней успеха и native Condition Manager остались действующими. Нативные condition modifiers учитываются один раз.
 - Публичный API расширен аддитивно: `applyManualEffect`, `removeManualEffect`, `getEffectTargetCatalog`, `processPersistentDamage`, `applyPersistentDamage`, `recoverPersistentDamage`, `openEffectManager`.
 
-Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). Финальная live-матрица Foundry для 1.5.0 и последующий live-backlog ещё не выполнены. До их завершения и очистки принадлежащих тесту документов запрещены push, PR, merge, tag и публикация; задача release chore меняет только версию и документацию.
+Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). GM live-матрица Foundry для `1.5.0` выполнена — **24/24**, тестовые документы очищены и baseline восстановлен. До завершения post-1.5.0 backlog T-044/T-045–T-050 с live-проверками и очисткой принадлежащих тесту документов запрещены push, PR, merge, tag и публикация.
 
 ## 9. Источники правил и API
 
