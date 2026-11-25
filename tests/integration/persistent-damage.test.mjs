@@ -14,7 +14,7 @@ import { patchStarship, readStarship } from "../../scripts/starship/starship-sta
 import { Draft } from "../../scripts/actions/draft.mjs";
 import { applyDamageInDraft } from "../../scripts/damage/damage-service.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
-import { registerToolbeltDamage } from "../../scripts/integrations/toolbelt-damage.mjs";
+import { hasDamageReceipt, registerToolbeltDamage } from "../../scripts/integrations/toolbelt-damage.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import * as combatService from "../../scripts/combat/starship-combat.mjs";
 import { executeAction } from "../../scripts/actions/action-engine.mjs";
@@ -165,7 +165,6 @@ const persistentError = (key) => (err) => {
   const localized = game.i18n.localize(`SF2eTSC.persistent.errors.${key}`);
   return err.message.startsWith(localized) || persistentErrorPatterns[key]?.test(err.message) === true;
 };
-const task9 = { skip: "Task 9 routes persistent cards through Toolbelt" };
 
 async function setup(extra = {}) {
   installNativeEffectsFixture();
@@ -537,7 +536,7 @@ test("persistent chat controls apply and recover the same durable receipt", asyn
   assert.equal(readStarship(ship).effects.length, 0);
   binding.close();
 });
-test("Toolbelt socket route also shares receipt and rejects changed target or player", task9, async (t) => {
+test("Toolbelt socket route also shares receipt and rejects changed target or player", async (t) => {
   t.mock.method(console, "warn", () => {});
   const { ship, pc } = await setup();
   game.modules.set("pf2e-toolbelt", { active: true });
@@ -545,6 +544,7 @@ test("Toolbelt socket route also shares receipt and rejects changed target or pl
   await add(ship);
   const receipt = await process(ship);
   const message = game.messages.contents.at(-1);
+  const before = structuredClone(readStarship(ship));
   async function send(targetUuid = ship.uuid, sender = "gm") {
     let response;
     await dispatchSocketMessage(
@@ -559,12 +559,25 @@ test("Toolbelt socket route also shares receipt and rejects changed target or pl
     );
     return response;
   }
-  assert.equal((await send(pc.uuid)).ok, false);
-  assert.equal((await send(ship.uuid, "p1")).ok, false);
+  const changedTarget = await send(pc.uuid);
+  assert.equal(changedTarget.ok, false);
+  assert.match(changedTarget.error, persistentErrorPatterns.invalidRecipient);
+  const player = await send(ship.uuid, "p1");
+  assert.equal(player.ok, false);
+  assert.match(player.error, persistentErrorPatterns.gmOnly);
+  assert.deepEqual(readStarship(ship), before);
   const applied = await send();
   assert.equal(applied.ok, true);
-  assert.equal(applied.payload?.status ?? applied.result?.status, "applied");
+  assert.equal(applied.result?.status, "applied");
+  assert.equal(applied.result?.id, receipt.id);
+  assert.equal(hasDamageReceipt(message, ship, 0), false);
+  const after = structuredClone(readStarship(ship));
+  const repeated = await send();
+  assert.equal(repeated.ok, false);
+  assert.match(repeated.error, persistentErrorPatterns.alreadyApplied);
+  assert.deepEqual(readStarship(ship), after);
   await assert.rejects(service.applyPersistentDamage(ship.uuid, receipt.id), persistentError("alreadyApplied"));
+  assert.deepEqual(readStarship(ship), after);
 });
 test("native creation preparation synchronizes visible suppression state", async () => {
   const { ship, pc } = await setup();

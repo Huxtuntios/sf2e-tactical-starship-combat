@@ -10,8 +10,9 @@ import {
   damagePartsFromMessage,
   CHAT_DAMAGE_FLAG
 } from "../../scripts/integrations/toolbelt-damage-service.mjs";
-import { hasDamageReceipt } from "../../scripts/integrations/toolbelt-damage.mjs";
+import { hasDamageReceipt, registerToolbeltDamage } from "../../scripts/integrations/toolbelt-damage.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
+import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { readStarship, patchStarship } from "../../scripts/starship/starship-state.mjs";
 import { rollTypedDamage } from "../../scripts/rolls/typed-damage.mjs";
 
@@ -190,6 +191,43 @@ test("Toolbelt damage: permissions, private messages and ordinary actors are che
   await assert.rejects(s.apply({ targetUuid: pc.uuid }, player));
   assert.equal(readStarship(s.actor).sp.value, 12);
   await s.apply({}, player);
+  assert.equal(readStarship(s.actor).sp.value, 4);
+});
+
+test("registered Toolbelt route preserves ordinary starship damage and rejects ordinary characters", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const s = await scenario();
+  const pc = makeCharacter({ id: "ordinary" });
+  pc.system = { attributes: { hp: { value: 20 } } };
+  registerToolbeltDamage();
+  let requestId = 0;
+  const send = async (targetUuid) => {
+    let response;
+    await dispatchSocketMessage(
+      {
+        kind: "request",
+        type: "toolbeltDamage",
+        requestId: `ordinary-${++requestId}`,
+        payload: { ...s.payload, targetUuid }
+      },
+      "gm",
+      { users: game.users, selfId: "gm", isActiveGM: true, emit: (result) => (response = result) }
+    );
+    return response;
+  };
+  const rejected = await send(pc.uuid);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /ship|корабл/i);
+  assert.equal(pc.system.attributes.hp.value, 20);
+  assert.equal(readStarship(s.actor).sp.value, 12);
+  const applied = await send(s.token.uuid);
+  assert.equal(applied.ok, true);
+  assert.deepEqual(applied.result, { shield: 8, hull: 0, mode: "shields" });
+  assert.equal(readStarship(s.actor).sp.value, 4);
+  assert.equal(readStarship(s.actor).persistentDamageReceipts?.length ?? 0, 0);
+  const repeated = await send(s.token.uuid);
+  assert.equal(repeated.ok, false);
+  assert.match(repeated.error, /already|уже/i);
   assert.equal(readStarship(s.actor).sp.value, 4);
 });
 
