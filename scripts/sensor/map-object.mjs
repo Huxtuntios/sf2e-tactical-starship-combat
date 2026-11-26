@@ -376,15 +376,43 @@ function snapshotSheetKey(combatId, key) {
   return `${combatId}:${key}`;
 }
 
-function syncSnapshotDocument(entry) {
-  const data = entry.actor.toObject();
-  data._id = entry.document.id;
-  entry.document.updateSource(data, { recursive: false, clean: false });
+function configureSnapshotSheet(entry) {
+  const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
+  if (!ActorClass) return false;
+  const data = clone(entry.actor._data);
+  data._id = foundry.utils.randomID(16);
+  const document = new ActorClass(data, { strict: false });
+  Object.defineProperty(document, "uuid", { configurable: true, get: () => entry.actor.uuid });
+  const sheet = document.sheet;
+  if (!sheet) return false;
+  entry.document = document;
+  entry.sheet = sheet;
+  document.update = async (changes, options = {}) => {
+    await entry.actor.update(changes, options);
+    return document;
+  };
+  document.setFlag = (scope, key, value) => entry.actor.setFlag(scope, key, value);
+  document.createEmbeddedDocuments = (type, sources, options) => entry.actor.createEmbeddedDocuments(type, sources, options);
+  document.updateEmbeddedDocuments = (type, updates, options) => entry.actor.updateEmbeddedDocuments(type, updates, options);
+  document.deleteEmbeddedDocuments = (type, ids, options) => entry.actor.deleteEmbeddedDocuments(type, ids, options);
+  document.increaseCondition = (condition, options) => entry.actor.increaseCondition(condition, options);
+  document.decreaseCondition = (condition, options) => entry.actor.decreaseCondition(condition, options);
+  document.toggleCondition = (condition, options) => entry.actor.toggleCondition(condition, options);
+  Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => isActiveGM() && entry.actor.isOwner });
+  sheet._processSubmitData = async (_event, _form, submitData, options = {}) => {
+    if (!sheet.isEditable) return {};
+    requirePrivateGM();
+    await entry.actor.update(submitData, options);
+    return { updated: document };
+  };
+  return true;
 }
 
 async function refreshSnapshotSheet(entry) {
-  syncSnapshotDocument(entry);
-  if (entry.sheet.rendered) await entry.sheet.render(true);
+  const rendered = entry.sheet.rendered;
+  await closeSnapshotSheet(entry);
+  configureSnapshotSheet(entry);
+  if (rendered) await entry.sheet.render(true);
 }
 
 async function closeSnapshotSheet(entry) {
@@ -432,7 +460,6 @@ function applyUpdate(target, changes) {
 }
 
 export class MapObjectActor {
-  #sheet = null;
   #persist = true;
   #synthetics = { modifiers: {}, modifierAdjustments: {}, rollTwice: {}, rollSubstitutions: {}, degreeOfSuccessAdjustments: {} };
 
@@ -491,45 +518,13 @@ export class MapObjectActor {
   }
 
   get sheet() {
-    if (this.#sheet) return this.#sheet;
     const registryKey = snapshotSheetKey(this.combatId, this.id);
     const existing = snapshotSheetRegistry.get(registryKey);
-    if (existing) {
-      existing.actor = this;
-      syncSnapshotDocument(existing);
-      this.#sheet = existing.sheet;
-      return this.#sheet;
-    }
-    const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
-    if (!ActorClass) return null;
-    const data = clone(this._data);
-    data._id = foundry.utils.randomID(16);
-    const document = new ActorClass(data, { strict: false });
-    Object.defineProperty(document, "uuid", { configurable: true, get: () => this.uuid });
-    const sheet = document.sheet;
-    if (!sheet) return null;
-    const entry = { actor: this, document, sheet, pending: false };
+    if (existing) return existing.sheet;
+    const entry = { actor: this, document: null, sheet: null, pending: false };
+    if (!configureSnapshotSheet(entry)) return null;
     snapshotSheetRegistry.set(registryKey, entry);
-    document.update = async (changes, options = {}) => {
-      await entry.actor.update(changes, options);
-      return document;
-    };
-    document.setFlag = (scope, key, value) => entry.actor.setFlag(scope, key, value);
-    document.createEmbeddedDocuments = (type, sources, options) => entry.actor.createEmbeddedDocuments(type, sources, options);
-    document.updateEmbeddedDocuments = (type, updates, options) => entry.actor.updateEmbeddedDocuments(type, updates, options);
-    document.deleteEmbeddedDocuments = (type, ids, options) => entry.actor.deleteEmbeddedDocuments(type, ids, options);
-    document.increaseCondition = (condition, options) => entry.actor.increaseCondition(condition, options);
-    document.decreaseCondition = (condition, options) => entry.actor.decreaseCondition(condition, options);
-    document.toggleCondition = (condition, options) => entry.actor.toggleCondition(condition, options);
-    Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => isActiveGM() && entry.actor.isOwner });
-    sheet._processSubmitData = async (_event, _form, submitData, options = {}) => {
-      if (!sheet.isEditable) return {};
-      requirePrivateGM();
-      await entry.actor.update(submitData, options);
-      return { updated: document };
-    };
-    this.#sheet = sheet;
-    return sheet;
+    return entry.sheet;
   }
 
   get _source() {

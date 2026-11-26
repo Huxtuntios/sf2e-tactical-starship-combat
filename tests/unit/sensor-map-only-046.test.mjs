@@ -695,9 +695,13 @@ test("GM can save map-only sheet edits to the snapshot and refresh the open shee
   assert.equal(stored.system.attributes.hp.value, 7);
   assert.equal(stored.flags[MODULE_ID].starship.ac, 19);
   assert.equal(stored.flags[MODULE_ID].starship.speed, 9);
-  assert.equal(sheet.document.name, "Saved snapshot");
-  assert.equal(sheet.document.system.attributes.hp.value, 7);
-  assert.equal(renders.filter((entry) => entry.sheet === sheet).length, 2);
+  const savedSheet = actor.sheet;
+  assert.notStrictEqual(savedSheet, sheet);
+  assert.equal(savedSheet.document.name, "Saved snapshot");
+  assert.equal(savedSheet.document.system.attributes.hp.value, 7);
+  assert.equal(sheet.rendered, false);
+  assert.equal(savedSheet.rendered, true);
+  assert.equal(renders.length, 2);
   assert.equal(renders.at(-1).options, true);
   assert.deepEqual(source.toObject(), before);
   assert.equal(game.actors.size, 1);
@@ -784,7 +788,9 @@ test("independent placements keep distinct sheets and snapshot values", async ()
   assert.notStrictEqual(firstSheet, secondSheet);
   assert.notStrictEqual(firstSheet.document, secondSheet.document);
   await firstSheet.submit({ "system.attributes.hp.value": 5 });
-  assert.equal(firstSheet.document.system.attributes.hp.value, 5);
+  const savedFirstSheet = resolveSensorActorSync(combat, first.key).sheet;
+  assert.notStrictEqual(savedFirstSheet, firstSheet);
+  assert.equal(savedFirstSheet.document.system.attributes.hp.value, 5);
   assert.equal(secondSheet.document.system.attributes.hp.value, 24);
   assert.equal(mapObjectSources(combat.id)[second.key].data.system.attributes.hp.value, 24);
   assert.deepEqual(source.toObject(), before);
@@ -807,10 +813,17 @@ test("direct snapshot store updates refresh an open sheet and deletion closes it
     [`flags.${MODULE_ID}.privateSensor.mapObjects.${placement.key}`]: new foundry.data.operators.ForcedReplacement(record)
   });
 
-  assert.equal(sheet.document.system.attributes.hp.value, 6);
+  let refreshed = sheet;
+  for (let attempt = 0; attempt < 20 && refreshed === sheet; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    refreshed = resolveSensorActorSync(combat, placement.key).sheet;
+  }
+  assert.notStrictEqual(refreshed, sheet);
+  assert.equal(refreshed.document.system.attributes.hp.value, 6);
+  assert.equal(sheet.rendered, false);
   assert.equal(renders.length, 2);
   await deleteMapObjectSource(combat.id, placement.key);
-  assert.equal(sheet.rendered, false);
+  assert.equal(refreshed.rendered, false);
   assert.equal(resolveSensorActorSync(combat, placement.key), null);
 });
 
@@ -851,18 +864,36 @@ test("map-only actors delegate prepared statistics, roll options and immunity wi
   assert.equal(mapObjectSources(combat.id)[placement.key].data.flags.sf2e.rollOptions.all["self:prepared:only"], undefined);
 });
 
-test("snapshot saves refresh the cached prepared ActorClass view in place", async () => {
+test("snapshot saves replace the prepared ActorClass so native statistics recalculate", async () => {
   const combat = setup();
   installPreparedSnapshotMock();
   const source = ship("prepared-refresh-source");
+  source.system.saves = { fortitude: { value: 8 }, reflex: { value: 8 }, will: { value: 8 } };
   const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
   const actor = resolveSensorActorSync(combat, placement.key);
   const prepared = actor.sheet.document;
+  const { computeShipStats } = await import("../../scripts/starship/stats.mjs");
+  assert.equal(computeShipStats(actor).reflex, 8);
 
-  await actor.sheet.submit({ "system.attributes.hp.value": 7, name: "Prepared refresh" });
-  assert.strictEqual(actor.sheet.document, prepared);
-  assert.equal(prepared.system.attributes.hp.value, 7);
-  assert.equal(prepared.name, "Prepared refresh");
+  await actor.sheet.submit({
+    "system.attributes.hp.value": 7,
+    name: "Prepared refresh",
+    items: [
+      {
+        _id: "refresh-clumsy",
+        type: "condition",
+        slug: "clumsy",
+        name: "Clumsy",
+        active: true,
+        system: { value: { isValued: true, value: 2 }, rules: [{ key: "FlatModifier", selector: "dex-based", type: "status", value: -4 }] }
+      }
+    ]
+  });
+  const refreshed = actor.sheet.document;
+  assert.notStrictEqual(refreshed, prepared);
+  assert.equal(refreshed.system.attributes.hp.value, 7);
+  assert.equal(refreshed.name, "Prepared refresh");
+  assert.equal(computeShipStats(actor).reflex, 4);
   assert.equal(actor.getRollOptions().includes("self:type:npc"), true);
   assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 7);
 });
