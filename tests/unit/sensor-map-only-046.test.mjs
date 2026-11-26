@@ -506,6 +506,140 @@ function installSnapshotSheetMock() {
   return { renders };
 }
 
+function installPreparedSnapshotMock() {
+  class PreparedSheet {
+    constructor(document) {
+      this.document = document;
+      this.rendered = false;
+    }
+
+    async render() {
+      this.rendered = true;
+      return this;
+    }
+
+    async close() {
+      this.rendered = false;
+    }
+
+    async submit(submitData) {
+      return this._processSubmitData(null, null, submitData);
+    }
+  }
+  class PreparedStatistic {
+    constructor(actor, slug, mod) {
+      this.actor = actor;
+      this.slug = slug;
+      this.mod = mod;
+      this.domains = [slug, "all"];
+      this.check = { mod, roll: async () => ({ total: 12, degreeOfSuccess: 0, dice: [{ total: 12 }] }) };
+      this.dc = { value: 10 + mod };
+    }
+
+    clone(data = {}) {
+      return new PreparedStatistic(this.actor, data.slug ?? this.slug, data.mod ?? this.mod);
+    }
+  }
+  class PreparedActor {
+    constructor(data) {
+      this.id = data._id;
+      this.uuid = `Actor.${this.id}`;
+      this._source = structuredClone(data);
+      this.sheet = new PreparedSheet(this);
+      this.updateSource(this._source);
+    }
+
+    updateSource(data) {
+      this._source = structuredClone(data);
+      this.name = this._source.name;
+      this.type = this._source.type;
+      this.ownership = structuredClone(this._source.ownership ?? { default: 0 });
+      this.system = structuredClone(this._source.system ?? {});
+      this.flags = structuredClone(this._source.flags ?? {});
+      this.flags.sf2e ??= {};
+      this.flags.sf2e.rollOptions ??= {};
+      this.flags.sf2e.rollOptions.all ??= {};
+      this.flags.sf2e.rollOptions.all[`self:type:${this.type}`] = true;
+      this.items = new Map();
+      this.synthetics = { modifiers: {} };
+      for (const source of this._source.items ?? []) {
+        const item = {
+          ...structuredClone(source),
+          id: source._id,
+          uuid: `${this.uuid}.Item.${source._id}`,
+          parent: this,
+          actor: this,
+          active: source.active !== false,
+          isOfType: (...types) => types.includes(source.type),
+          getRollOptions: () => [`item:type:${source.type}`, `item:slug:${source.system?.slug ?? source.slug}`]
+        };
+        this.items.set(item.id, item);
+        if (item.type !== "condition") continue;
+        for (const rule of item.system.rules ?? []) {
+          if (rule.key !== "FlatModifier") continue;
+          (this.synthetics.modifiers[rule.selector] ??= []).push(() => ({
+            modifier: rule.value,
+            type: rule.type,
+            label: item.name,
+            slug: item.slug,
+            source: item.uuid
+          }));
+        }
+      }
+      const reflexMod = 8 + (this.synthetics.modifiers["dex-based"] ?? []).reduce((total, factory) => total + factory().modifier, 0);
+      this.saves = {
+        fortitude: new PreparedStatistic(this, "fortitude", 8),
+        reflex: new PreparedStatistic(this, "reflex", reflexMod),
+        will: new PreparedStatistic(this, "will", 8)
+      };
+      this.skills = {};
+      this.perception = new PreparedStatistic(this, "perception", 6);
+      this.armorClass = { value: 10, modifiers: [], dc: { value: 10, modifiers: [] } };
+      this.attributes = {
+        ...this.system.attributes,
+        immunities: (this.system.attributes?.immunities ?? []).map((entry) =>
+          typeof entry === "string" ? { test: (options) => options.has(`item:slug:${entry}`) } : entry
+        )
+      };
+    }
+
+    testUserPermission(user, level) {
+      if (user?.isGM) return true;
+      const granted = this.ownership[user?.id] ?? this.ownership.default ?? 0;
+      return granted >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
+    }
+
+    isOfType(...types) {
+      return types.includes(this.type);
+    }
+
+    getRollOptions(domains = []) {
+      const included = new Set(["all", ...domains]);
+      return Object.entries(this.flags.sf2e.rollOptions.all)
+        .filter(
+          ([key, enabled]) =>
+            enabled && (included.has("all") || [...included].some((domain) => key === domain || key.startsWith(`${domain}:`)))
+        )
+        .map(([key]) => key);
+    }
+
+    isImmuneTo(condition) {
+      const slug = typeof condition === "string" ? condition : condition.slug;
+      const options = new Set([`item:type:condition`, `item:slug:${slug}`]);
+      return this.attributes.immunities.some((immunity) => immunity.test(options));
+    }
+
+    hasCondition(...slugs) {
+      return [...this.items.values()].some((item) => item.type === "condition" && item.active && slugs.includes(item.slug));
+    }
+
+    getStatistic(slug) {
+      return this.saves[slug] ?? this.skills[slug] ?? (slug === "perception" ? this.perception : null);
+    }
+  }
+  CONFIG.Actor = { documentClass: PreparedActor };
+}
+
 function installSnapshotConditionFixture() {
   const definitions = new Map([
     ["clumsy", { name: "Clumsy", valued: true }],
@@ -674,6 +808,59 @@ test("direct snapshot store updates refresh an open sheet and deletion closes it
   await deleteMapObjectSource(combat.id, placement.key);
   assert.equal(sheet.rendered, false);
   assert.equal(resolveSensorActorSync(combat, placement.key), null);
+});
+
+test("map-only actors delegate prepared statistics, roll options and immunity without persisting derived data", async () => {
+  const combat = setup();
+  installPreparedSnapshotMock();
+  const source = ship("prepared-snapshot-source");
+  source.system.saves = { fortitude: { value: 8 }, reflex: { value: 8 }, will: { value: 8 } };
+  source.system.attributes.immunities = ["clumsy"];
+  source.flags.sf2e = { rollOptions: { all: { "self:test:snapshot": true } } };
+  source.items.set("clumsy", {
+    _id: "clumsy",
+    type: "condition",
+    slug: "clumsy",
+    name: "Clumsy",
+    active: true,
+    system: { value: { isValued: true, value: 2 }, rules: [{ key: "FlatModifier", selector: "dex-based", type: "status", value: -4 }] }
+  });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const prepared = actor.sheet.document;
+  const { computeShipStats, rollNativeCheck, shipStatistic } = await import("../../scripts/starship/stats.mjs");
+  const { nativeConditionModifiers } = await import("../../scripts/starship/native-condition-adapter.mjs");
+
+  assert.strictEqual(actor.sheet.document, prepared);
+  assert.ok(actor.getRollOptions().includes("self:test:snapshot"));
+  assert.equal(actor.isImmuneTo("clumsy"), true);
+  assert.deepEqual(nativeConditionModifiers(actor, "reflex"), [
+    { selector: "reflex", type: "status", value: -4, label: "Clumsy", slug: "clumsy" }
+  ]);
+  assert.equal(computeShipStats(actor).reflex, 4);
+  const statistic = shipStatistic(actor, "reflex");
+  assert.equal(typeof statistic.check.roll, "function");
+  const result = await rollNativeCheck({ statistic, dc: 15, createMessage: false });
+  assert.equal(result.native, true);
+
+  prepared.flags.sf2e.rollOptions.all["self:prepared:only"] = true;
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.flags.sf2e.rollOptions.all["self:prepared:only"], undefined);
+});
+
+test("snapshot saves refresh the cached prepared ActorClass view in place", async () => {
+  const combat = setup();
+  installPreparedSnapshotMock();
+  const source = ship("prepared-refresh-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const prepared = actor.sheet.document;
+
+  await actor.sheet.submit({ "system.attributes.hp.value": 7, name: "Prepared refresh" });
+  assert.strictEqual(actor.sheet.document, prepared);
+  assert.equal(prepared.system.attributes.hp.value, 7);
+  assert.equal(prepared.name, "Prepared refresh");
+  assert.equal(actor.getRollOptions().includes("self:type:npc"), true);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 7);
 });
 
 test("map-only native conditions add, increment, persist and remove through embedded Items", async () => {

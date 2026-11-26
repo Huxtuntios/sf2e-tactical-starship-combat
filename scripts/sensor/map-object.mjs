@@ -339,7 +339,11 @@ class SnapshotItem {
   }
 
   get uuid() {
-    return `${this.#actor.uuid}.Item.${this.id}`;
+    return `Actor.${this.#actor.uuid}.Item.${this.id}`;
+  }
+
+  getRollOptions(domains = []) {
+    return this.#actor.preparedItem(this.id)?.getRollOptions?.(domains) ?? [`item:type:${this.type}`, `item:slug:${this.slug}`];
   }
 
   isOfType(...types) {
@@ -430,6 +434,7 @@ function applyUpdate(target, changes) {
 export class MapObjectActor {
   #sheet = null;
   #persist = true;
+  #synthetics = { modifiers: {}, modifierAdjustments: {}, rollTwice: {}, rollSubstitutions: {}, degreeOfSuccessAdjustments: {} };
 
   constructor(record, { persist = true } = {}) {
     this._record = clone(record);
@@ -442,7 +447,6 @@ export class MapObjectActor {
     this.isMapObject = true;
     this.pack = null;
     this.isToken = false;
-    this.synthetics = { modifiers: {}, modifierAdjustments: {}, rollTwice: {}, rollSubstitutions: {}, degreeOfSuccessAdjustments: {} };
     this.#syncItems();
   }
 
@@ -552,6 +556,46 @@ export class MapObjectActor {
     if (!this.#persist) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
   }
 
+  #preparedDocument() {
+    return this.#persist ? (this.sheet?.document ?? null) : null;
+  }
+
+  preparedItem(id) {
+    return this.#preparedDocument()?.items?.get(id) ?? null;
+  }
+
+  get synthetics() {
+    return this.#preparedDocument()?.synthetics ?? this.#synthetics;
+  }
+
+  set synthetics(value) {
+    this.#synthetics = value;
+  }
+
+  get saves() {
+    return this.#preparedDocument()?.saves ?? null;
+  }
+
+  get skills() {
+    return this.#preparedDocument()?.skills ?? null;
+  }
+
+  get perception() {
+    return this.#preparedDocument()?.perception ?? null;
+  }
+
+  get armorClass() {
+    return this.#preparedDocument()?.armorClass ?? null;
+  }
+
+  get attributes() {
+    return this.#preparedDocument()?.attributes ?? this.system.attributes;
+  }
+
+  get rollOptions() {
+    return this.#preparedDocument()?.rollOptions ?? this.flags.sf2e?.rollOptions ?? {};
+  }
+
   get canHostRuleElements() {
     return true;
   }
@@ -572,11 +616,17 @@ export class MapObjectActor {
     return granted >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
   }
 
-  getRollOptions() {
-    return [];
+  getRollOptions(domains = []) {
+    return this.#preparedDocument()?.getRollOptions?.(domains) ?? [];
+  }
+
+  getStatistic(slug) {
+    return this.#preparedDocument()?.getStatistic?.(slug) ?? null;
   }
 
   getCondition(slug, { all = false } = {}) {
+    const prepared = this.#preparedDocument()?.getCondition?.(slug, { all });
+    if (prepared) return prepared;
     const conditions = [...this.items.values()].filter(
       (item) => item.type === "condition" && (all || item.active) && (item.slug === slug || item.id === slug)
     );
@@ -590,16 +640,20 @@ export class MapObjectActor {
   }
 
   hasCondition(...slugs) {
+    const prepared = this.#preparedDocument();
+    if (prepared?.hasCondition) return prepared.hasCondition(...slugs);
     return slugs.some((slug) => !!this.getCondition(slug));
   }
 
   isAffectedBy(condition) {
+    const prepared = this.#preparedDocument();
+    if (prepared?.isAffectedBy) return prepared.isAffectedBy(condition);
     const slug = typeof condition === "string" ? condition : condition?.slug;
     return slug ? this.hasCondition(slug) : false;
   }
 
-  isImmuneTo() {
-    return false;
+  isImmuneTo(condition) {
+    return this.#preparedDocument()?.isImmuneTo?.(condition) ?? false;
   }
 
   async increaseCondition(condition, { max = Number.MAX_SAFE_INTEGER, value } = {}) {
