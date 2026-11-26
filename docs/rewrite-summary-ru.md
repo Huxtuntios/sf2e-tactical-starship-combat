@@ -227,7 +227,7 @@
 - Native-first targeting, hazard AC/saves/HP/Hardness/IWR, plasma multi-target и per-target receipts, Sensor Map range/detection/placement, карточки степеней успеха и native Condition Manager остались действующими. Нативные condition modifiers учитываются один раз.
 - Публичный API расширен аддитивно: `applyManualEffect`, `removeManualEffect`, `getEffectTargetCatalog`, `processPersistentDamage`, `applyPersistentDamage`, `recoverPersistentDamage`, `openEffectManager`.
 
-Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). GM live-матрица Foundry для `1.5.0` выполнена — **24/24**; post-1.5.0 backlog T-045–T-050 и T-051 также прошли live-проверки, тестовые документы очищены и baseline восстановлен. До сохранения завершения T-044/T-048 в Taskflow запрещены push, PR, merge, tag и публикация.
+Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). GM live-матрица Foundry для `1.5.0` выполнена — **24/24**; post-1.5.0 backlog T-045–T-050 и T-051 также прошли live-проверки, тестовые документы очищены и baseline восстановлен. После сохранения T-044 ветка отправлена в origin и создан PR #26 против `main`; tag, публикация релиза и merge в `main` не выполнялись.
 
 ## 9. Post-1.5.0 backlog
 
