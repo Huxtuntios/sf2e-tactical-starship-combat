@@ -220,8 +220,8 @@ test("migration 1 → 2 folds station.upgrades and legacy records without losing
     ]
   };
   const { data, log } = migrate(legacy);
-  assert.equal(data.dataVersion, 2);
-  assert.deepEqual(log, ["1->2"]);
+  assert.equal(data.dataVersion, 3);
+  assert.deepEqual(log, ["1->2", "2->3"]);
   assert.equal(data.upgrades.length, 4);
   assert.deepEqual(data.stations[0].upgrades, []);
   const byRef = Object.fromEntries(data.upgrades.map((u) => [u.ref, u]));

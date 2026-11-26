@@ -10,8 +10,53 @@ import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { privateContacts } from "../sensor/private-contacts.mjs";
+import { resolveSensorActor } from "../sensor/map-object.mjs";
 
-const error = (key) => new Error(T(`SF2eTSC.persistent.errors.${key}`));
+const fallbackText = {
+  en: {
+    label: "Persistent damage",
+    applyHint:
+      "The GM must apply this packet to the ship before attempting recovery. Damage-type immunities, resistances and weaknesses still apply.",
+    apply: "Apply persistent damage",
+    recover: "Recovery flat check",
+    errors: {
+      gmOnly: "Only the active GM can process persistent damage.",
+      invalidPersistentDamage: "Invalid persistent damage formula, type or native roll.",
+      nativeUnavailable: "The native persistent damage or flat-check API is unavailable.",
+      operationConflict: "This persistent-damage operation was already used with different data.",
+      invalidInterval: "Invalid persistent-damage interval.",
+      staleReceipt: "This damage packet is stale or its effects have changed. It cannot be applied.",
+      alreadyApplied: "This persistent-damage packet has already been applied.",
+      invalidRecipient: "This recipient is not active on the selected application.",
+      applyFirst: "Apply the ship's persistent damage before attempting recovery."
+    }
+  },
+  ru: {
+    label: "Продолжительный урон",
+    applyHint:
+      "Перед проверкой прекращения Мастер должен применить этот урон к кораблю. Иммунитеты, сопротивления и слабости к типам урона продолжают действовать.",
+    apply: "Применить продолжительный урон",
+    recover: "Чистая проверка прекращения",
+    errors: {
+      gmOnly: "Только активный Мастер может обрабатывать продолжительный урон.",
+      invalidPersistentDamage: "Некорректная формула, тип или системный бросок продолжительного урона.",
+      nativeUnavailable: "Системный программный интерфейс продолжительного урона или чистых проверок недоступен.",
+      operationConflict: "Эта операция продолжительного урона уже использована с другими данными.",
+      invalidInterval: "Некорректный интервал продолжительного урона.",
+      staleReceipt: "Этот пакет урона устарел или его эффекты изменились. Применить его нельзя.",
+      alreadyApplied: "Этот пакет продолжительного урона уже применён.",
+      invalidRecipient: "Выбранная цель больше не активна в этом применении.",
+      applyFirst: "Перед проверкой прекращения примените продолжительный урон кораблю."
+    }
+  }
+};
+const text = (key) => {
+  const translationKey = `SF2eTSC.persistent.${key}`;
+  const localized = game.i18n.localize(translationKey);
+  if (localized !== translationKey) return localized;
+  return key.split(".").reduce((value, part) => value?.[part], fallbackText[game.i18n.lang === "ru" ? "ru" : "en"]);
+};
+const error = (key) => new Error(text(`errors.${key}`));
 const clone = (value) => foundry.utils.deepClone(value);
 const patchOptions = { history: false, announce: false, undoable: false };
 const shipRecipient = (effect) =>
@@ -76,7 +121,7 @@ export async function stagePersistentDamage(draft, entry, context = {}) {
         manual: true,
         kind: "persistent-damage",
         slug: "persistent-damage",
-        label: T("SF2eTSC.persistent.label"),
+        label: text("label"),
         modifiers: [],
         conditions: [],
         targets: normalizeEffectTargets({ entire: true }),
@@ -227,13 +272,13 @@ async function postPersistentCard(actor, receipt, rolls) {
     speaker: ChatMessage.getSpeaker({ actor }),
     whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
     rolls,
-    flavor: `${esc(actor.name)} — ${esc(T("SF2eTSC.persistent.label"))}`,
+    flavor: `${esc(actor.name)} — ${esc(text("label"))}`,
     content:
-      `<p>${esc(T("SF2eTSC.persistent.applyHint"))}</p><button type="button" data-tsc-persistent-apply>${esc(T("SF2eTSC.persistent.apply"))}</button>` +
+      `<p>${esc(text("applyHint"))}</p><button type="button" data-tsc-persistent-apply>${esc(text("apply"))}</button>` +
       receipt.components
         .map(
           (c) =>
-            `<button type="button" data-tsc-persistent-recover="${esc(c.applicationId)}">${esc(T("SF2eTSC.persistent.recover"))} — ${esc(T(CONFIG.PF2E.damageTypes[c.type]))}</button>`
+            `<button type="button" data-tsc-persistent-recover="${esc(c.applicationId)}">${esc(text("recover"))} — ${esc(T(CONFIG.PF2E.damageTypes[c.type]))}</button>`
         )
         .join(""),
     flags: {
@@ -272,7 +317,7 @@ async function applyAsGM({ user, payload }) {
     const result = await applyDamageInDraft(draft, actor.uuid, {
       parts: components.map((c) => ({ type: c.type, amount: c.amount })),
       criticalHit: false,
-      source: T("SF2eTSC.persistent.label"),
+      source: text("label"),
       silent: true
     });
     receipt.status = "applied";
@@ -344,7 +389,7 @@ async function recoverAsGM({ user, payload }) {
       },
       patchOptions
     );
-    const roll = await Check.roll(new CheckModifier(T("SF2eTSC.persistent.recover"), { modifiers: [] }), {
+    const roll = await Check.roll(new CheckModifier(text("recover"), { modifiers: [] }), {
       actor,
       type: "flat-check",
       domains: [],
@@ -394,7 +439,7 @@ export function wirePersistentDamage(message, root, { send = request } = {}) {
   if (!flag || root.dataset.tscPersistentWired) return null;
   root.dataset.tscPersistentWired = "1";
   const refresh = async () => {
-    const actor = await fromUuidSafe(flag.shipUuid);
+    const actor = await resolveSensorActor(activeStarshipCombat(), flag.shipUuid);
     const receipt = actor && readStarship(actor).persistentDamageReceipts?.find((r) => r.id === flag.receiptId);
     for (const button of root.querySelectorAll("[data-tsc-persistent-apply]"))
       button.disabled = !game.user.isGM || receipt?.status !== "pending";

@@ -1,14 +1,140 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeShip, makeCharacter, loadContentFromDisk } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import { makeShip, makeCharacter, loadContentFromDisk, installFoundryMock } from "../helpers/foundry-mock.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { effectModifiers } from "../../scripts/starship/effects.mjs";
-import { sheetAttackRows } from "../../scripts/rolls/ship-rolls.mjs";
 import { shipModifiers } from "../../scripts/starship/stats.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
-import { registerEffectHandlers } from "../../scripts/starship/effect-service.mjs";
+
+function installNativeEffectsFixture() {
+  installFoundryMock();
+  const definitions = new Map([
+    ["frightened", { valued: true, rules: [{ key: "FlatModifier", selector: "all", type: "status", value: "-@item.badge.value" }] }],
+    ["clumsy", { valued: true, rules: [{ key: "FlatModifier", selector: "dex-based", type: "status", value: "-@item.badge.value" }] }],
+    ["off-guard", { valued: false, rules: [{ key: "FlatModifier", selector: "ac", type: "circumstance", value: -2 }] }],
+    ["unconscious", { valued: false, rules: [{ key: "ActiveEffectLike", path: "system.foo", value: true }] }],
+    ["persistent-damage", { valued: false, rules: [] }]
+  ]);
+  class NativeItem {
+    constructor(source, { parent = null } = {}) {
+      this._source = structuredClone(source);
+      Object.assign(this, structuredClone(source));
+      this.parent = parent;
+      this.actor = parent;
+      this.id = source._id;
+      this.slug = source.system.slug;
+      this.active = true;
+    }
+    get badge() {
+      return { value: this.system.value.value };
+    }
+    isOfType(...types) {
+      return types.includes(this.type);
+    }
+    toObject() {
+      return structuredClone(this._source);
+    }
+    clone(changes = {}) {
+      return new NativeItem({ ...this.toObject(), ...changes });
+    }
+    getRollOptions() {
+      return [`item:type:${this.type}`, `item:slug:${this.slug}`];
+    }
+  }
+  class FlatModifier {
+    constructor(source, { parent }) {
+      this.source = source;
+      this.item = parent;
+      this.actor = parent.actor;
+    }
+    beforePrepareData() {
+      for (const selector of [this.source.selector].flat()) {
+        (this.actor.synthetics.modifiers[selector] ??= []).push(({ test = [] } = {}) => {
+          const modifier = typeof this.source.value === "number" ? this.source.value : -this.item.badge.value;
+          const enabled = (this.source.predicate ?? []).every((option) => test.includes(option));
+          return {
+            modifier,
+            slug: this.source.slug,
+            type: this.source.type,
+            label: this.item.name,
+            predicate: this.source.predicate ?? [],
+            enabled,
+            ignored: !enabled
+          };
+        });
+      }
+    }
+  }
+  game.pf2e.RuleElements = { builtin: { FlatModifier } };
+  game.pf2e.ConditionManager = {
+    conditionsSlugs: [...definitions.keys()],
+    getCondition(slug) {
+      const def = definitions.get(slug);
+      return def
+        ? new NativeItem({
+            type: "condition",
+            name: slug,
+            system: {
+              slug,
+              rules: structuredClone(def.rules),
+              value: { isValued: def.valued, value: def.valued ? 1 : null },
+              traits: { value: [] },
+              references: { children: [], overrides: [], overriddenBy: [] }
+            }
+          })
+        : null;
+    }
+  };
+  CONFIG.Item = { documentClass: NativeItem };
+  CONFIG.PF2E = {
+    Item: { documentClasses: { condition: NativeItem, effect: NativeItem } },
+    damageTypes: { fire: "Fire", bleed: "Bleed", void: "Void", vitality: "Vitality" },
+    skills: { piloting: { attribute: "dex" }, arcana: { attribute: "int" } }
+  };
+  return { definitions, NativeItem };
+}
+
+function nativeActor(actor, { immune = [], unaffected = [] } = {}) {
+  actor.isImmuneTo = function (item) {
+    return immune.includes(typeof item === "string" ? item : item.slug);
+  };
+  actor.isAffectedBy = function (item) {
+    return !unaffected.includes(item.slug);
+  };
+  actor.clone = function () {
+    return { uuid: this.uuid, type: this.type, synthetics: { modifiers: {} }, getRollOptions: () => [], canHostRuleElements: true };
+  };
+  const create = actor.createEmbeddedDocuments.bind(actor);
+  actor.createEmbeddedDocuments = async function (type, sources, options) {
+    const allowed = sources.filter((source) => {
+      const item = new CONFIG.Item.documentClass(source, { parent: actor });
+      return this.isAffectedBy(item) && !this.isImmuneTo(item);
+    });
+    for (const source of allowed.filter((item) => item.type === "effect")) {
+      const sourceId = source._stats?.duplicateSource ?? source._stats?.compendiumSource;
+      const expired = [...this.items.values()].filter(
+        (item) =>
+          item.type === "effect" && item.system?.expired && (item._stats?.duplicateSource ?? item._stats?.compendiumSource) === sourceId
+      );
+      if (expired.length)
+        await this.deleteEmbeddedDocuments(
+          "Item",
+          expired.map((item) => item.id)
+        );
+    }
+    const docs = await create(type, allowed, options);
+    if (options?.keepId)
+      for (let index = 0; index < docs.length; index++) {
+        this.items.delete(docs[index].id);
+        docs[index].id = allowed[index]._id;
+        this.items.set(docs[index].id, docs[index]);
+      }
+    return docs;
+  };
+  return actor;
+}
+
 const service = await import("../../scripts/starship/application-service.mjs").catch(() => ({}));
 const effectError = (key) => (err) => err.message.startsWith(game.i18n.localize(`SF2eTSC.effects.errors.${key}`));
 
@@ -67,6 +193,22 @@ test("catalog uses installed actions and weapons and only crew registry/assignme
   assert.deepEqual(catalog.weapons, [{ id: "laser", label: "Laser" }]);
   assert.equal(catalog.weaponDefensesSupported, false);
 });
+test("NPC target catalog uses actual station actions after native-first row changes", async () => {
+  await setup();
+  const npcShip = nativeActor(
+    makeShip({
+      id: "npc-station-actions",
+      role: "npc",
+      name: "NPC Ship",
+      stations: [{ id: "gun", type: "gunnery", grade: "commercial", actions: ["Strike"] }],
+      weapons: [{ id: "laser", name: "Laser", stationId: "gun" }]
+    })
+  );
+  const catalog = service.getEffectTargetCatalog(npcShip);
+  const action = catalog.stations.flatMap((station) => station.actions).find((entry) => entry.id === "strike");
+  assert.ok(action);
+  assert.equal(catalog.weaponDefensesSupported, false);
+});
 test("NPC target catalog includes actual station Strikes, abilities and NPC-only actions", async () => {
   await setup();
   const ship = nativeActor(
@@ -100,9 +242,14 @@ test("NPC target catalog includes actual station Strikes, abilities and NPC-only
     })
   );
   assert.equal(applied.status, "applied");
-  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+12");
+  const context = { actor: ship, stationId: "gun", actionId: "npc-strike:laser", statistic: "check", includeStationCheck: true };
+  const slug = `tsc-${applied.applicationId}-0`;
+  assert.equal(shipModifiers(ship, "attack", context).find((modifier) => modifier.slug === slug)?.value, 2);
   await service.removeManualEffect(ship.uuid, applied.applicationId);
-  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+10");
+  assert.equal(
+    shipModifiers(ship, "attack", context).some((modifier) => modifier.slug === slug),
+    false
+  );
 });
 test("entire NPC ship attack modifiers still support valid Strikes without a station", async () => {
   await setup();
@@ -122,7 +269,9 @@ test("entire NPC ship attack modifiers still support valid Strikes without a sta
     })
   );
   assert.equal(result.status, "applied");
-  assert.equal(sheetAttackRows(ship)[0].bonusText, "+12");
+  const context = { actor: ship, actionId: "npc-strike:ram", statistic: "check", includeStationCheck: true };
+  const slug = `tsc-${result.applicationId}-0`;
+  assert.equal(shipModifiers(ship, "attack", context).find((modifier) => modifier.slug === slug)?.value, 2);
 });
 test("authenticated player cannot apply effects even with spoofed GM body", async () => {
   assert.equal(typeof service.registerApplicationService, "function");
@@ -303,10 +452,19 @@ test("NPC Strike station-check target unions apply once and do not leak to anoth
       targets: { entire: false, stations: ["gun"], actions: [{ stationId: "gun", actionId: "npc-strike:laser" }] }
     })
   );
-  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+12");
-  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:plasma").bonusText, "+10");
+  const context = { actor: ship, stationId: "gun", actionId: "npc-strike:laser", statistic: "check", includeStationCheck: true };
+  const otherContext = { ...context, stationId: "other", actionId: "npc-strike:plasma" };
+  const slug = `tsc-${result.applicationId}-0`;
+  assert.equal(shipModifiers(ship, "attack", context).find((modifier) => modifier.slug === slug)?.value, 2);
+  assert.equal(
+    shipModifiers(ship, "attack", otherContext).some((modifier) => modifier.slug === slug),
+    false
+  );
   await service.removeManualEffect(ship.uuid, result.applicationId);
-  assert.equal(sheetAttackRows(ship).find((row) => row.actionId === "npc-strike:laser").bonusText, "+10");
+  assert.equal(
+    shipModifiers(ship, "attack", context).some((modifier) => modifier.slug === slug),
+    false
+  );
 });
 test("unrelated existing attack modifiers cannot make an incompatible candidate valid", async () => {
   const { ship } = await setup();
@@ -395,12 +553,12 @@ test("snapshot preserves original target labels and handles after crew removal",
   const record = readStarship(ship).effects.find((e) => e.id === result.applicationId);
   assert.deepEqual(record.targetSnapshot?.crew, [{ uuid: pc.uuid, label: "Pilot" }]);
 });
-test("existing Complete timing command removes manual native Items as well as the application", async () => {
+test("registered removal command cleans manual native Items and the application", async () => {
   const { ship, pc } = await setup();
-  registerEffectHandlers();
   const result = await service.applyManualEffect(ship.uuid, input({ targets: { entire: false, crew: [pc.uuid] } }));
-  const response = await invoke("effectTiming", { shipUuid: ship.uuid, effectId: result.applicationId, op: "complete" });
+  const response = await invoke("removeManualEffect", { shipUuid: ship.uuid, applicationId: result.applicationId });
   assert.equal(response.ok, true);
+  assert.equal(response.result.status, "removed");
   assert.equal(pc.items.size, 0);
   assert.equal(readStarship(ship).effects.length, 0);
 });
@@ -505,22 +663,25 @@ test("removing a copied application never deletes the original ship's native cre
   assert.equal(readStarship(copy).effects.length, 0);
 });
 
-test("public API exposes the guarded manual and persistent services", async () => {
+test("registered service preserves replay, conflict and removal over socket transport", async () => {
   const { ship } = await setup();
-  const { buildApi } = await import("../../scripts/api.mjs");
-  const api = buildApi();
-  for (const key of [
-    "applyManualEffect",
-    "removeManualEffect",
-    "getEffectTargetCatalog",
-    "processPersistentDamage",
-    "applyPersistentDamage",
-    "recoverPersistentDamage"
-  ])
-    assert.equal(typeof api[key], "function", key);
-  const result = await api.applyManualEffect(ship.uuid, input());
-  assert.equal(result.status, "applied");
-  await api.removeManualEffect(ship.uuid, result.applicationId);
+  const payload = { shipUuid: ship.uuid, input: input({ operationId: "socket-op" }) };
+  const first = await invoke("applyManualEffect", payload);
+  assert.equal(first.ok, true);
+  assert.equal(first.result.status, "applied");
+  const replay = await invoke("applyManualEffect", payload);
+  assert.equal(replay.ok, true);
+  assert.equal(replay.result.applicationId, first.result.applicationId);
+  assert.equal(readStarship(ship).effects.length, 1);
+  const conflict = await invoke("applyManualEffect", {
+    ...payload,
+    input: { ...payload.input, conditionValue: 3 }
+  });
+  assert.equal(conflict.ok, false);
+  assert.equal(conflict.error, game.i18n.localize("SF2eTSC.effects.errors.operationConflict"));
+  const removed = await invoke("removeManualEffect", { shipUuid: ship.uuid, applicationId: first.result.applicationId });
+  assert.equal(removed.ok, true);
+  assert.equal(removed.result.status, "removed");
   assert.equal(readStarship(ship).effects.length, 0);
 });
 

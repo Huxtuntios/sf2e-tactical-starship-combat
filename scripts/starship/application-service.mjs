@@ -302,7 +302,7 @@ function validateInput(input, actor, catalog) {
     if (persistent.criticalHit !== undefined && typeof persistent.criticalHit !== "boolean") throw error("invalidPersistentDamage");
     if (shipSelection(targets) && !targets.entire) throw error("incompatiblePersistentTargets");
     record.slug = "persistent-damage";
-    record.label = input.label ?? game.i18n.localize("SF2eTSC.persistent.label");
+    record.label = input.label ?? game.i18n.localize("SF2eTSC.damageTypes.persistent");
     if (shipSelection(targets)) {
       const condition = game.pf2e?.ConditionManager?.getCondition(record.slug);
       if (!condition) throw error("nativeUnavailable");

@@ -199,8 +199,8 @@ test("advancement: grades and scaling", () => {
 });
 test("migration and normalization", () => {
   const { data, log } = migrate({ level: 3 });
-  assert.equal(data.dataVersion, 2);
-  assert.deepEqual(log, ["0->1", "1->2"]);
+  assert.equal(data.dataVersion, 3);
+  assert.deepEqual(log, ["0->1", "1->2", "2->3"]);
   const n = normalizeStarship({ hp: { value: 99, max: 24 }, heading: "up" });
   assert.equal(n.data.hp.value, 24);
   assert.equal(n.data.heading, "right");

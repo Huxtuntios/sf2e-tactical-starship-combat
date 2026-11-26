@@ -58,6 +58,13 @@ test("Shift toggles the initiating user's SF2e check-dialog setting and preserve
   });
 });
 
+test("fallback checks preserve an explicit zero modifier", async () => {
+  installFoundryMock();
+  const statistic = { mod: 5 };
+  const result = await rollNativeCheck({ statistic, modifierOnly: 0, dc: null, createMessage: false });
+  assert.equal(result.roll.formula, "1d20 + 0");
+});
+
 test("native modifier clones pass the module's typed modifiers and cancellation never starts a fallback roll", async () => {
   installFoundryMock();
   game.pf2e.Modifier = class {

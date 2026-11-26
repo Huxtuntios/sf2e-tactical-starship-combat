@@ -41,7 +41,7 @@ function starship(id, name = "Enemy ship", role = "npc", extra = {}) {
 const text = (combat) => JSON.stringify(combat.flags);
 
 for (const initiative of [false, true]) {
-  test(`Contact Editor rejects an exposed private Actor without changing contacts${initiative ? " or hidden initiative" : ""}`, async () => {
+  test(`source permission changes do not mutate an existing private map snapshot${initiative ? " or hidden initiative" : ""}`, async () => {
     const combat = setup();
     const actor = starship("exposed-private-original");
     const placement = await addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 3, detection: "hidden" });
@@ -65,8 +65,8 @@ for (const initiative of [false, true]) {
       }))
     );
     const writes = globalThis.__writes.length;
-    await assert.rejects(addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 5, detection: "identified" }), {
-      message: T("SF2eTSC.mapDrop.privateContact")
+    await assert.rejects(addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 5, detection: "hidden" }), {
+      message: T("SF2eTSC.privateMap.actorExposed")
     });
     assert.equal(game.actors.size, 1);
     assert.deepEqual(actor.toObject(), beforeActor);
@@ -86,87 +86,78 @@ for (const initiative of [false, true]) {
   });
 }
 
-test("Contact Editor checks private collisions after acquiring the shared map lock", async () => {
+test("Contact Editor serializes independent public and private placements without replacing either record", async () => {
   const combat = setup();
   const actor = starship("queued-private-original", "Queued NPC", "npc", { ownership: { p1: 1 } });
   const { serialize } = await import("../../scripts/utils/serial.mjs");
   const { addPrivateContact } = await import("../../scripts/sensor/private-contacts.mjs");
   const entered = Promise.withResolvers();
   const release = Promise.withResolvers();
-  const visibleChecked = Promise.withResolvers();
   const blocked = serialize(`sensor:${combat.id}`, async () => {
     entered.resolve();
     await release.promise;
   });
   await entered.promise;
   const privatePlacement = addPrivateContact(combat, actor, 3, { reuseActor: true });
-  const permission = actor.testUserPermission;
-  actor.testUserPermission = function (user, level) {
-    const result = permission.call(this, user, level);
-    if (!user.isGM && level === "LIMITED") visibleChecked.resolve();
-    return result;
-  };
-  const publication = addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 5, detection: "identified" });
-  const rejected = assert.rejects(publication, { message: T("SF2eTSC.mapDrop.privateContact") });
-  try {
-    await visibleChecked.promise;
-    await actor.update({ "ownership.p1": 0 });
-  } finally {
-    actor.testUserPermission = permission;
-    release.resolve();
-  }
+  const publication = addSensorContact(combat, {
+    source: "world",
+    uuid: actor.uuid,
+    zone: 5,
+    detection: "identified",
+    publicActor: true
+  });
+  await actor.update({ "ownership.p1": 0 });
+  release.resolve();
   await blocked;
   await privatePlacement;
-  await rejected;
+  const placed = await publication;
   assert.equal(privateContacts(combat.id).length, 1);
   assert.equal(privateContacts(combat.id)[0].actorUuid, actor.uuid);
-  assert.deepEqual(getTsc(combat).objects, []);
-  assert.equal(combat.combatants.size, 0);
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(getTsc(combat).objects[0].key, placed.key);
+  assert.equal(getTsc(combat).objects[0].mapOnly, true);
+  assert.equal(combat.combatants.size, 1);
   assert.equal(game.actors.get(actor.id), actor);
 });
 
-test("copy mode can publish a separate Actor while the exposed original has a private contact", async () => {
+test("public placement adds a map-only object while an existing private snapshot stays unchanged", async () => {
   const combat = setup();
   const actor = starship("copy-private-original");
   await addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 3, detection: "hidden" });
   await actor.update({ "ownership.p1": 1 });
-  await game.settings.set(MODULE, "reuseWorldActorsOnSensorMap", false);
   const beforeActor = actor.toObject();
   const beforeContacts = structuredClone(privateContacts(combat.id));
   const placement = await addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 5, detection: "identified" });
   assert.notEqual(placement.actorUuid, actor.uuid);
-  assert.equal(game.actors.size, 2);
+  assert.equal(placement.actorUuid, placement.key);
+  assert.equal(game.actors.size, 1);
   assert.deepEqual(privateContacts(combat.id), beforeContacts);
   assert.deepEqual(actor.toObject(), beforeActor);
   assert.equal(getTsc(combat).objects.filter((object) => object.actorUuid === actor.uuid).length, 0);
   assert.equal(getTsc(combat).objects.filter((object) => object.actorUuid === placement.actorUuid).length, 1);
+  assert.equal(getTsc(combat).objects.find((object) => object.key === placement.key).mapOnly, true);
 });
 
-test("copy mode keeps repeated private placements independent and switching back reuses the original", async () => {
+test("repeated private placements always remain independent map-only snapshots", async () => {
   const combat = setup();
   const actor = starship("mode-original");
   const before = actor.toObject();
   const spec = { source: "world", uuid: actor.uuid, zone: 2, detection: "hidden" };
   const original = await addSensorContact(combat, spec);
-  await game.settings.set(MODULE, "reuseWorldActorsOnSensorMap", false);
   const copies = await Promise.all([addSensorContact(combat, spec), addSensorContact(combat, { ...spec, zone: 4 })]);
-  assert.equal(game.actors.size, 3);
-  assert.equal(privateContacts(combat.id).length, 3);
-  assert.equal(new Set([original.actorUuid, ...copies.map((copy) => copy.actorUuid)]).size, 3);
+  const repeated = await addSensorContact(combat, { ...spec, zone: 6 });
+  assert.equal(game.actors.size, 1);
+  assert.equal(privateContacts(combat.id).length, 4);
+  assert.equal(new Set([original.key, ...copies.map((copy) => copy.key), repeated.key]).size, 4);
   assert.equal(
-    copies.every((copy) => fromUuidSync(copy.actorUuid).flags[MODULE].tacticalCopyOf === actor.uuid),
+    privateContacts(combat.id).every((contact) => contact.mapOnly && contact.actorUuid === contact.key),
     true
   );
-  await game.settings.set(MODULE, "reuseWorldActorsOnSensorMap", true);
-  const reused = await addSensorContact(combat, { ...spec, zone: 6 });
-  assert.equal(reused.key, original.key);
-  assert.equal(reused.actorUuid, actor.uuid);
-  assert.equal(game.actors.size, 3);
   assert.deepEqual(actor.toObject(), before);
 });
 
 for (const kind of ["npc", "player", "hazard"]) {
-  test(`world ${kind} placement reuses the original document without Actor creation or configuration writes`, async () => {
+  test(`world ${kind} placements create isolated map-only snapshots without Actor creation or source writes`, async () => {
     const combat = setup();
     const actor = kind === "hazard" ? hazard("original") : starship("original", "Original", kind === "player" ? "player" : "npc");
     if (kind === "player") actor.owners = ["p1"];
@@ -177,7 +168,8 @@ for (const kind of ["npc", "player", "hazard"]) {
     const spec = { source: "world", uuid: actor.uuid, zone: 3, detection: kind === "player" ? "identified" : "hidden" };
     const result = await addSensorContact(combat, spec);
     assert.equal(game.actors.size, count);
-    assert.equal(result.actorUuid, actor.uuid);
+    assert.equal(result.actorUuid, result.key);
+    assert.notEqual(result.actorUuid, actor.uuid);
     assert.equal(game.actors.get(actor.id), actor);
     assert.deepEqual(actor.toObject(), before);
     assert.deepEqual(
@@ -185,58 +177,83 @@ for (const kind of ["npc", "player", "hazard"]) {
       []
     );
     const repeat = await addSensorContact(combat, { ...spec, zone: 5, detection: kind === "player" ? "identified" : "undetected" });
-    assert.equal(repeat.actorUuid, actor.uuid);
+    assert.notEqual(repeat.key, result.key);
+    assert.equal(repeat.actorUuid, repeat.key);
     assert.equal(game.actors.size, count);
     if (kind !== "player") {
-      assert.equal(privateContacts(combat.id).length, 1);
-      assert.equal(privateContacts(combat.id)[0].key, result.key);
-      assert.equal(privateContacts(combat.id)[0].zone, 5);
+      assert.equal(privateContacts(combat.id).length, 2);
+      assert.deepEqual(
+        privateContacts(combat.id).map((contact) => contact.zone),
+        [3, 5]
+      );
       assert.equal(privateContacts(combat.id)[0].detection.party, "hidden");
-    }
+      assert.equal(privateContacts(combat.id)[1].detection.party, "undetected");
+    } else assert.equal(getTsc(combat).objects.length, 2);
   });
 }
 
-test("concurrent private world drops create one reference and reveal/initiative/removal retain the original Actor", async () => {
+test("concurrent private world drops create separate snapshots and reveal/removal affect only the selected one", async () => {
   const combat = setup();
   const actor = starship("concurrent-original");
   const before = actor.toObject();
   const spec = { source: "world", uuid: actor.uuid, zone: 3, detection: "hidden" };
   const results = await Promise.all([addSensorContact(combat, spec), addSensorContact(combat, spec)]);
   assert.equal(game.actors.size, 1);
-  assert.equal(results[0].actorUuid, actor.uuid);
-  assert.equal(results[1].key, results[0].key);
-  assert.equal(privateContacts(combat.id).length, 1);
+  assert.notEqual(results[0].key, results[1].key);
+  assert.equal(results[0].actorUuid, results[0].key);
+  assert.equal(results[1].actorUuid, results[1].key);
+  assert.equal(privateContacts(combat.id).length, 2);
   const { addSensorObjectToInitiative } = await import("../../scripts/sensor/initiative.mjs");
   const { changePrivateContact } = await import("../../scripts/sensor/private-contacts.mjs");
   assert.equal((await addSensorObjectToInitiative(combat.id, results[0].key)).status, "added");
   const entry = combat.combatants.contents[0];
   await entry.update({ initiative: 17 });
   await changePrivateContact(combat, results[0].key, "reveal");
-  assert.equal(getTsc(combat).objects[0].actorUuid, actor.uuid);
+  assert.equal(getTsc(combat).objects.find((object) => object.key === results[0].key).actorUuid, results[0].key);
+  assert.equal(getTsc(combat).objects.find((object) => object.key === results[0].key).mapOnly, true);
   assert.equal(combat.combatants.size, 1);
   assert.equal(combat.combatants.contents[0].id, entry.id);
   assert.equal(entry.initiative, 17);
   assert.equal(entry.hidden, false);
+  assert.equal(privateContacts(combat.id).length, 1);
+  assert.equal(privateContacts(combat.id)[0].key, results[1].key);
   assert.deepEqual(actor.toObject(), before);
   const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
-  await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: actor.uuid } });
+  await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: results[0].key } });
   assert.equal(game.actors.get(actor.id), actor);
   assert.equal(combat.combatants.size, 0);
+  assert.equal(privateContacts(combat.id).length, 1);
 });
 
-test("identified world NPC and complex hazard placements create initiative for the original UUID, never a copy", async () => {
+test("identified world NPC and complex hazard placements create map-only initiative entries", async () => {
   const combat = setup();
   const actors = [starship("identified-npc"), hazard("identified-complex", "Complex", { system: { details: { isComplex: true } } })];
+  const keys = [];
   for (const actor of actors) {
     const before = actor.toObject();
-    await addSensorContact(combat, { source: "world", uuid: actor.uuid, zone: 2, detection: "identified" });
+    const placement = await addSensorContact(combat, {
+      source: "world",
+      uuid: actor.uuid,
+      zone: 2,
+      detection: "identified",
+      publicActor: true
+    });
+    keys.push(placement.key);
     assert.equal(game.actors.size, 2);
-    assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+    assert.equal(combat.combatants.filter((entry) => entry.flags[MODULE].sensorMapObject?.key === placement.key).length, 1);
     assert.deepEqual(actor.toObject(), before);
   }
   assert.deepEqual(
     getTsc(combat).objects.map((object) => object.actorUuid),
-    ["Actor.identified-npc", "Actor.identified-complex"]
+    keys
+  );
+  assert.equal(
+    getTsc(combat).objects.every((object) => object.mapOnly),
+    true
+  );
+  assert.equal(
+    combat.combatants.contents.every((entry) => entry.actorId === null),
+    true
   );
 });
 
@@ -258,13 +275,14 @@ test("world hazard: undetected stays private; hidden publishes anonymous categor
   const combat = setup();
   const h = hazard("h1");
   const r = await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 4, detection: "undetected" });
-  assert.equal(r.actorUuid, h.uuid);
+  assert.equal(r.actorUuid, r.key);
+  assert.notEqual(r.actorUuid, h.uuid);
   assert.equal(game.actors.get(h.id), h);
   assert.equal(privateContacts(combat.id)[0].zone, 4);
   assert.deepEqual(getTsc(combat).objects, []);
   const h2 = hazard("h2", "Other");
   await addSensorContact(combat, { source: "world", uuid: h2.uuid, zone: 5, detection: "hidden" });
-  assert.equal(privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid).actorUuid, h2.uuid);
+  assert.notEqual(privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid).key, r.key);
   const hidden = privateContacts(combat.id).find((o) => o.actorUuid !== r.actorUuid);
   assert.equal(hidden.detection.party, "hidden");
   assert.deepEqual(getTsc(combat).objects, [
@@ -281,8 +299,7 @@ test("world hazard: undetected stays private; hidden publishes anonymous categor
     }
   ]);
   assert.equal(Object.hasOwn(getTsc(combat).objects[0], "art"), false);
-  for (const secret of [h.name, h.uuid, h2.name, h2.uuid, r.actorUuid, hidden.actorUuid])
-    assert.equal(text(combat).includes(secret), false);
+  for (const secret of [h.name, h.uuid, h2.name, h2.uuid]) assert.equal(text(combat).includes(secret), false);
 });
 
 test("observed publishes anonymous category and approved art; identified can be selected directly", async () => {
@@ -308,27 +325,25 @@ test("observed publishes anonymous category and approved art; identified can be 
   assert.equal(marker.art, h.img);
   assert.equal(marker.heading, null);
   assert.equal(marker.zone, 4);
-  for (const secret of ["Secret hazard", h.uuid, privateContacts(combat.id)[0].actorUuid])
-    assert.equal(text(combat).includes(secret), false);
+  for (const secret of ["Secret hazard", h.uuid]) assert.equal(text(combat).includes(secret), false);
   // раскрытие переводит объект в публичный и очищает приватную запись
   const key = privateContacts(combat.id)[0].key;
   const instanceUuid = privateContacts(combat.id)[0].actorUuid;
   const { changePrivateContact } = await import("../../scripts/sensor/private-contacts.mjs");
   await changePrivateContact(combat, key, "reveal");
   assert.equal(getTsc(combat).objects[0].actorUuid, instanceUuid);
-  assert.equal(
-    combat.combatants.some((c) => c.actorId === fromUuidSync(instanceUuid).id),
-    false
-  );
+  assert.equal(getTsc(combat).objects[0].mapOnly, true);
+  assert.equal(combat.combatants.size, 0);
   assert.deepEqual(privateContacts(combat.id), []);
 });
 
 test("identified placement immediately publishes the Actor selected in the editor", async () => {
   const combat = setup();
   const h = hazard("h1");
-  await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 2, detection: "identified" });
+  const placement = await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 2, detection: "identified", publicActor: true });
   const o = getTsc(combat).objects[0];
-  assert.equal(o.actorUuid, h.uuid);
+  assert.equal(o.actorUuid, placement.key);
+  assert.equal(o.mapOnly, true);
   assert.deepEqual([o.type, o.zone, o.detection.party], ["hazard", 2, "identified"]);
   assert.equal(game.actors.get(h.id), h);
   assert.deepEqual(privateContacts(combat.id), []);
@@ -339,7 +354,8 @@ test("world Starship Actors use private NPC contacts and identified public Playe
   const npcShip = starship("npc-ship");
   await addSensorContact(combat, { source: "world", uuid: npcShip.uuid, zone: 3, detection: "hidden" });
   const privateShipUuid = privateContacts(combat.id)[0].actorUuid;
-  assert.equal(privateShipUuid, npcShip.uuid);
+  assert.equal(privateShipUuid, privateContacts(combat.id)[0].key);
+  assert.notEqual(privateShipUuid, npcShip.uuid);
   assert.equal(game.actors.get(npcShip.id), npcShip);
   const [marker] = getTsc(combat).objects;
   assert.equal(getTsc(combat).objects.length, 1);
@@ -347,9 +363,9 @@ test("world Starship Actors use private NPC contacts and identified public Playe
   assert.equal(marker.objectType, "starship");
   assert.equal(marker.heading, null);
   assert.equal(Object.hasOwn(marker, "art"), false);
-  for (const secret of [npcShip.name, npcShip.uuid, privateShipUuid]) assert.equal(text(combat).includes(secret), false);
+  for (const secret of [npcShip.name, npcShip.uuid]) assert.equal(text(combat).includes(secret), false);
   assert.equal(
-    (combat.combatants ?? []).some((c) => c.actorId === fromUuidSync(privateShipUuid).id),
+    (combat.combatants ?? []).some((c) => c.flags[MODULE].sensorMapObject?.key === privateShipUuid),
     false
   );
 
@@ -361,10 +377,13 @@ test("world Starship Actors use private NPC contacts and identified public Playe
     zone: 2,
     detection: "identified"
   });
-  const publicShipUuid = getTsc(combat).objects.find((object) => object.detection.party === "identified").actorUuid;
-  assert.equal(publicShipUuid, playerShip.uuid);
+  const publicObject = getTsc(combat).objects.find((object) => object.detection.party === "identified");
+  const publicShipUuid = publicObject.actorUuid;
+  assert.equal(publicShipUuid, publicObject.key);
+  assert.notEqual(publicShipUuid, playerShip.uuid);
+  assert.equal(publicObject.mapOnly, true);
   assert.equal(
-    (combat.combatants ?? []).some((c) => c.actorId === fromUuidSync(publicShipUuid).id),
+    (combat.combatants ?? []).some((c) => c.flags[MODULE].sensorMapObject?.key === publicShipUuid),
     false
   );
 });
@@ -376,8 +395,9 @@ test("an Actor already visible to players can only be placed as identified", asy
   await assert.rejects(addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 3, detection: "undetected" }));
   await assert.rejects(addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 3, detection: "observed" }));
   assert.deepEqual(getTsc(combat).objects, []);
-  await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 3, detection: "identified" });
-  assert.equal(getTsc(combat).objects[0].actorUuid, h.uuid);
+  const placement = await addSensorContact(combat, { source: "world", uuid: h.uuid, zone: 3, detection: "identified" });
+  assert.equal(getTsc(combat).objects[0].actorUuid, placement.key);
+  assert.equal(getTsc(combat).objects[0].mapOnly, true);
 });
 
 test("intentional private NPC copies stay independent, reveal gets initiative, and removal cleans up only that copy", async () => {
@@ -488,13 +508,19 @@ test("custom contact without an Actor: placement, zone change, detection and no 
   assert.equal(text(combat).includes("Secret anomaly"), false);
 });
 
-test("compendium hazard becomes a private world copy per placement; failed placement removes the copy", async () => {
+test("explicit hazard import still copies, while Sensor Map placements use independent private snapshots", async () => {
   const combat = setup();
   const source = {
     documentName: "Actor",
     type: "hazard",
     pack: "pf2e.hazards",
     uuid: "Compendium.pf2e.hazards.Actor.abc",
+    name: "Orbital trap",
+    img: "hazard.webp",
+    ownership: { default: 0 },
+    testUserPermission: (user, level) =>
+      user?.isGM === true ||
+      Number(source.ownership?.[user?.id] ?? source.ownership?.default ?? 0) >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? 0),
     toObject: () => ({
       _id: "abc",
       name: "Orbital trap",
@@ -527,18 +553,28 @@ test("compendium hazard becomes a private world copy per placement; failed place
   assert.equal(copy.flags.other, 1);
   assert.equal(actorVisibleToPlayers(copy), false);
   game.actors.delete(copy.id);
-  // два размещения → два независимых документа
-  const a = await addSensorContact(combat, { source: "compendium", uuid: source.uuid, zone: 2, detection: "hidden" }, deps);
-  const b = await addSensorContact(combat, { source: "compendium", uuid: source.uuid, zone: 2, detection: "hidden" }, deps);
+  const createActor = async () => {
+    throw new Error("Sensor Map placement must not create an Actor");
+  };
+  const mapDeps = { resolve: deps.resolve, createActor };
+  const a = await addSensorContact(combat, { source: "compendium", uuid: source.uuid, zone: 2, detection: "hidden" }, mapDeps);
+  const b = await addSensorContact(combat, { source: "compendium", uuid: source.uuid, zone: 4, detection: "hidden" }, mapDeps);
   assert.notEqual(a.actorUuid, b.actorUuid);
+  assert.equal(a.actorUuid, a.key);
+  assert.equal(b.actorUuid, b.key);
   assert.equal(privateContacts(combat.id).length, 2);
+  assert.equal(
+    privateContacts(combat.id).every((contact) => contact.mapOnly),
+    true
+  );
+  assert.equal(game.actors.size, 0);
+  assert.equal(created.length, 1);
   assert.equal(text(combat).includes("Orbital trap"), false);
-  // размещение не удалось (копия оказалась видимой игрокам) → копия не остаётся сиротой, приватное хранилище не меняется
-  const before = privateContacts(combat.id).length;
-  const bad = { ...deps, createActor: async (d) => Object.assign(await deps.createActor(d), { owners: ["p1"] }) };
-  await assert.rejects(addSensorContact(combat, { source: "compendium", uuid: source.uuid, zone: 2, detection: "hidden" }, bad));
-  assert.equal(created.at(-1).deleted, true);
-  assert.equal(privateContacts(combat.id).length, before);
+  const before = structuredClone(game.journal.contents[0].flags);
+  await assert.rejects(
+    addSensorContact(combat, { source: "compendium", uuid: "Compendium.pf2e.hazards.Actor.missing", zone: 2, detection: "hidden" }, mapDeps)
+  );
+  assert.deepEqual(game.journal.contents[0].flags, before);
   // не компендий и не опасность
   await assert.rejects(importHazardCopy("Actor.h", { resolve: async () => ({ documentName: "Actor", type: "hazard", pack: null }) }));
 });

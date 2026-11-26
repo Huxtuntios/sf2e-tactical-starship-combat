@@ -3,7 +3,7 @@
  * "DC 5 flat check") into sf2e/pf2e inline check enrichers (@Check[will|dc:32]{…}) so they are clickable in
  * sheets, journals and chat. Pure (no Foundry globals); idempotent — text that already contains enrichers is skipped.
  */
-import { linkInline, DAMAGE_TOKEN, CONDITION_TOKEN, TOKEN_RE, DAMAGE_TYPES } from "./inline-links.mjs";
+import { linkInline, DAMAGE_TOKEN, CONDITION_TOKEN, TOKEN_RE, DAMAGE_TYPES, splitApply } from "./inline-links.mjs";
 import { normalizeNativeChecks } from "./native-checks.mjs";
 import { safeDiceFormula } from "./inline-dice.mjs";
 export const CHECK_SKILLS = [
@@ -37,9 +37,7 @@ const SKILL_RE = new RegExp(`DC (\\d+) (${SKILL_LIST})( checks?)?`, "g");
 const SKILL_AFTER_RE = new RegExp(`\\b(${SKILL})${RANK.replace("(?:", "(")} \\(DC (\\d+)\\)`, "g");
 const FLAT_RE = /DC (\d+) flat check/g;
 
-export function linkChecks(html) {
-  let s = String(html ?? "");
-  if (!s || s.includes("@Check[")) return s;
+function linkChecksText(s) {
   s = s.replace(
     SAVE_RE,
     (m, dc, basic, save, word) =>
@@ -68,6 +66,12 @@ export function linkChecks(html) {
   // "Computers (trained) (DC 18)" style
   s = s.replace(SKILL_AFTER_RE, (m, sk, rank, dc) => `@Check[${sk.toLowerCase()}|dc:${dc}]{${sk}${rank ?? ""} (DC ${dc})}`);
   return s;
+}
+
+export function linkChecks(html) {
+  const s = String(html ?? "");
+  if (!s) return s;
+  return splitApply(s, linkChecksText);
 }
 
 const esc = (s) =>

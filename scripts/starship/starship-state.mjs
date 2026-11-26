@@ -1,10 +1,11 @@
 import { MODULE_ID, FLAGS, DATA_VERSION } from "../constants.mjs";
 import { foldStationUpgrades } from "../engine/upgrades.mjs";
-import { upgradeCatalog } from "../content/loader.mjs";
+import { Content, upgradeCatalog } from "../content/loader.mjs";
 import { normalizeStarship } from "../engine/validation.mjs";
 import { normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
 import { migrate, needsMigration } from "../engine/migration.mjs";
 import { log } from "../utils/logging.mjs";
+import { isMapObjectActor, mapObjectActorFromStore, resolveSensorActorSync } from "../sensor/map-object.mjs";
 
 /** Only actors carrying the explicit marker are starships. Ordinary vehicles/NPCs are never touched. */
 export function isStarship(actor) {
@@ -17,11 +18,15 @@ export function isStarship(actor) {
 export async function loadStarship(uuid, { resolve = null } = {}) {
   let actor = null;
   if (typeof uuid === "string" && uuid) {
-    const fn = resolve ?? globalThis.fromUuid;
-    try {
-      actor = await fn(uuid);
-    } catch {
-      actor = null;
+    const combat = globalThis.game?.combat ?? globalThis.game?.combats?.find((entry) => entry.active);
+    actor = resolveSensorActorSync(combat, uuid, { resolve: () => null });
+    if (!actor) {
+      const fn = resolve ?? globalThis.fromUuid;
+      try {
+        actor = await fn(uuid);
+      } catch {
+        actor = null;
+      }
     }
   }
   const t = (k) => globalThis.game?.i18n?.localize?.(k) ?? k;
@@ -44,13 +49,16 @@ export function readStarship(actor) {
   let raw = actor?.flags?.[MODULE_ID]?.[FLAGS.STARSHIP] ?? {};
   if (needsMigration(raw)) {
     try {
-      raw = migrate(raw).data;
+      raw = migrate(raw, DATA_VERSION, undefined, { frame: Content.frames.get(raw.frame) ?? null }).data;
     } catch (err) {
       log.warn("migration failed in memory", err);
     }
   }
   raw = foldStationUpgrades(raw, upgradeCatalog()); // idempotent: one source of truth for installed upgrades (0.9.1)
-  const { data, errors, warnings } = normalizeStarship({ ...raw, hp: hullOf(actor), name: actor?.name });
+  const { data, errors, warnings } = normalizeStarship(
+    { ...raw, hp: hullOf(actor), name: actor?.name },
+    { frame: Content.frames.get(raw.frame) ?? null }
+  );
   if (errors.length) log.debug(`${actor?.name}: starship data errors`, errors);
   if (warnings.length) log.debug(`${actor?.name}: starship data warnings`, warnings);
   data._errors = errors;
@@ -67,6 +75,11 @@ function persistable(data) {
 
 const writeQueues = new Map();
 
+function freshStarshipActor(actor) {
+  if (!isMapObjectActor(actor)) return actor;
+  return mapObjectActorFromStore(actor.combatId, actor.uuid) ?? actor;
+}
+
 /** Authoritative write (GM only). Mirrors Hull Points to the system. */
 async function performWrite(
   actor,
@@ -79,12 +92,15 @@ async function performWrite(
     reason = "",
     undoable = true,
     expected = null,
+    expectedSource = null,
     expectedCombat = undefined,
-    force = false
+    force = false,
+    documentPatch = null
   } = {}
 ) {
+  actor = freshStarshipActor(actor);
   if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
-  const before = readStarship(actor);
+  const before = foundry.utils.deepClone(readStarship(actor));
   const audit = await import("../history/history.mjs");
   if (expected && !audit.equalState(audit.snapshot(before), expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
   if (expectedCombat !== undefined && !audit.equalState(audit.combatGuard(), expectedCombat))
@@ -95,13 +111,14 @@ async function performWrite(
   const hullUnchanged =
     !hull ||
     ((!Number.isInteger(hull.value) || hull.value === before.hp.value) && (!Number.isInteger(hull.max) || hull.max === before.hp.max));
-  if (!force && !Object.keys(extra).length && hullUnchanged && audit.equalState(persistable(before), nextFlag)) return actor;
-  const updates = { [`flags.${MODULE_ID}.${FLAGS.STARSHIP}`]: nextFlag, ...extra };
+  if (!force && !documentPatch && !Object.keys(extra).length && hullUnchanged && audit.equalState(persistable(before), nextFlag))
+    return actor;
+  const updates = documentPatch ?? { [`flags.${MODULE_ID}.${FLAGS.STARSHIP}`]: nextFlag, ...extra };
   if (hull) {
     if (Number.isInteger(hull.value)) updates["system.attributes.hp.value"] = hull.value;
     if (Number.isInteger(hull.max) && hull.max !== actor.system?.attributes?.hp?.max) updates["system.attributes.hp.max"] = hull.max;
   }
-  const result = await actor.update(updates);
+  const result = isMapObjectActor(actor) ? await actor.update(updates, { expectedSource }) : await actor.update(updates);
   if (history) {
     try {
       await audit.recordChange(actor, before, readStarship(actor), { reason, undoable, announce });
@@ -132,10 +149,73 @@ export function writeStarship(actor, data, options = {}) {
 /** Чтение, проверка и изменение выполняются вместе в очереди авторитетного GM. */
 export function patchStarship(actor, mutator, options = {}) {
   return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
+    const expectedSource = isMapObjectActor(actor) ? structuredClone(actor._source) : null;
     const data = foundry.utils.deepClone(readStarship(actor));
     const result = await mutator(data);
-    await performWrite(actor, data, { hullPatch: data.hp, ...options });
+    await performWrite(actor, data, {
+      hullPatch: data.hp,
+      ...options,
+      expectedSource: options.expectedSource ?? expectedSource
+    });
     return result;
+  });
+}
+
+export function isSafeDefenseMapKey(key) {
+  return (
+    typeof key === "string" &&
+    !!key.trim() &&
+    key.length <= 200 &&
+    !key.includes(".") &&
+    !key.startsWith("-=") &&
+    !key.startsWith("==") &&
+    !["__proto__", "constructor", "prototype"].includes(key)
+  );
+}
+
+export function deleteStarshipMapKey(actor, kind, key) {
+  return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
+    if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
+    if (!isSafeDefenseMapKey(key)) throw new Error(game.i18n.localize("SF2eTSC.errors.invalidData"));
+    const data = foundry.utils.deepClone(readStarship(actor));
+    const map = data[kind];
+    if (!map || typeof map !== "object" || Array.isArray(map) || !Object.hasOwn(map, key)) return false;
+    delete map[key];
+    await performWrite(actor, data, {
+      hullPatch: false,
+      documentPatch: {
+        [`flags.${MODULE_ID}.${FLAGS.STARSHIP}.${kind}.${key}`]: new foundry.data.operators.ForcedDeletion()
+      }
+    });
+    return true;
+  });
+}
+
+export function replaceStarshipMap(actor, kind, replacement, { expected = null } = {}) {
+  return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
+    if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
+    const data = foundry.utils.deepClone(readStarship(actor));
+    const current = data[kind] && typeof data[kind] === "object" && !Array.isArray(data[kind]) ? data[kind] : {};
+    const next = structuredClone(replacement);
+    for (const key of [...Object.keys(current), ...Object.keys(next)]) {
+      if (!isSafeDefenseMapKey(key)) throw new Error(game.i18n.localize("SF2eTSC.errors.invalidData"));
+    }
+    const expectedSource = isMapObjectActor(actor) ? structuredClone(actor._source) : null;
+    const audit = await import("../history/history.mjs");
+    if (expected && !audit.equalState(current, expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
+    if (audit.equalState(current, next)) return false;
+    const prefix = `flags.${MODULE_ID}.${FLAGS.STARSHIP}.${kind}`;
+    const updates = {};
+    for (const key of Object.keys(current)) {
+      if (!Object.hasOwn(next, key)) updates[`${prefix}.${key}`] = new foundry.data.operators.ForcedDeletion();
+    }
+    for (const [key, value] of Object.entries(next)) updates[`${prefix}.${key}`] = value;
+    data[kind] = next;
+    await performWrite(actor, data, { hullPatch: false, documentPatch: updates, expectedSource });
+    return true;
   });
 }
 

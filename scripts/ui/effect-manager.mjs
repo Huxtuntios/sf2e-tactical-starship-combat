@@ -1,7 +1,8 @@
 import { TscApp, tpl, openApps } from "./base-app.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
-import { getEffectTargetCatalog } from "../starship/application-service.mjs";
+import { getEffectTargetCatalog, removeManualEffect } from "../starship/application-service.mjs";
 import { processPersistentDamage, applyPersistentDamage, recoverPersistentDamage } from "../starship/persistent-damage.mjs";
+import { getConditionOptions } from "../starship/native-condition-adapter.mjs";
 import { request } from "../socket.mjs";
 import { T, fromUuidSync_ } from "../utils/foundry.mjs";
 import { ct } from "../content/content-i18n.mjs";
@@ -15,6 +16,22 @@ export class EffectManager extends TscApp {
     position: { width: 620, height: 550 },
     window: { icon: "fa-solid fa-sliders" },
     actions: {
+      setOperational: function (_event, button) {
+        return this.perform(() => request("setStarshipOperationalState", { shipUuid: this.actor.uuid, state: button.dataset.state }));
+      },
+      addCondition: function (_event, button) {
+        return this.perform(() => {
+          const fields = button.form.elements;
+          return request("addStarshipCondition", {
+            shipUuid: this.actor.uuid,
+            slug: fields.conditionSlug.value,
+            value: Number(fields.conditionValue.value)
+          });
+        });
+      },
+      removeCondition: function (_event, button) {
+        return this.perform(() => request("removeStarshipCondition", { shipUuid: this.actor.uuid, itemId: button.dataset.itemId }));
+      },
       add: async function () {
         if (this.busy || !game.user.isGM) return;
         this.busy = true;
@@ -28,9 +45,11 @@ export class EffectManager extends TscApp {
         }
       },
       remove: function (_event, button) {
-        return this.perform(() =>
-          request("effectTiming", { shipUuid: this.actor.uuid, effectId: button.dataset.effectId, op: "complete" })
-        );
+        return this.perform(() => {
+          const effect = readStarship(this.actor).effects.find((entry) => entry.id === button.dataset.effectId);
+          if (effect?.manual) return removeManualEffect(this.actor.uuid, effect.id);
+          return request("effectTiming", { shipUuid: this.actor.uuid, effectId: button.dataset.effectId, op: "complete" });
+        });
       },
       timing: function (_event, button) {
         return this.perform(() => editEffect(this.actor, button.dataset.effectId));
@@ -48,7 +67,9 @@ export class EffectManager extends TscApp {
       }
     }
   };
-  static PARTS = { body: { template: tpl("effect-manager"), scrollable: [".tsc-effect-applications"] } };
+  static PARTS = {
+    body: { template: tpl("effect-manager"), scrollable: [".tsc-effect-applications", ".tsc-effect-manager-list"] }
+  };
   constructor(actor) {
     super();
     this.actor = actor;
@@ -70,9 +91,21 @@ export class EffectManager extends TscApp {
   async _prepareContext() {
     const data = readStarship(this.actor);
     const catalog = getEffectTargetCatalog(this.actor);
+    const conditions = [...(this.actor.items?.values?.() ?? [])]
+      .filter((item) => (typeof item.isOfType === "function" ? item.isOfType("condition") : item.type === "condition"))
+      .map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        label: item.name,
+        valued: item.system?.value?.isValued === true,
+        value: item.system?.value?.value ?? null,
+        active: item.active !== false
+      }));
     const effects = data.effects.map((effect) => {
       const snapshot = effect.targetSnapshot ?? catalog;
       const persistent = effect.kind === "persistent-damage";
+      const defaultPersistentLabel = T("SF2eTSC.damageTypes.persistent");
+      const defaultLabel = persistent && (!effect.label || [effect.slug, effect.kind, defaultPersistentLabel].includes(effect.label));
       const status = effect.shipPersistent?.suppressedBy
         ? "suppressed"
         : effect.rejectedTargets?.length
@@ -80,7 +113,7 @@ export class EffectManager extends TscApp {
           : (effect.status ?? "active");
       return {
         id: effect.id,
-        label: ct(effect.label ?? effect.slug),
+        label: defaultLabel ? T("SF2eTSC.persistent.label") : ct(effect.label ?? effect.slug),
         caption: effectCaption(effect),
         details: persistent ? null : effectDetails(effect),
         statusLabel: T(`SF2eTSC.effects.status.${status}`),
@@ -121,6 +154,11 @@ export class EffectManager extends TscApp {
     });
     const combat = activeStarshipCombat();
     return {
+      isGM: game.user.isGM,
+      operational: !data.destroyed,
+      destroyed: data.destroyed,
+      conditionOptions: getConditionOptions(),
+      conditions,
       effects,
       error: this.error,
       hasCombat: !!combat,
@@ -166,6 +204,8 @@ export function openEffectManager(actor) {
     return null;
   }
   const app = openApps(EffectManager).find((manager) => manager.actor.uuid === actor.uuid) ?? new EffectManager(actor);
-  app.render({ force: true }).then(() => app.bringToFront());
+  Promise.resolve(app.render({ force: true }))
+    .then(() => app.bringToFront())
+    .catch((err) => ui.notifications.error(err.message));
   return app;
 }

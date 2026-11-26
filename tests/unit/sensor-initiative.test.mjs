@@ -8,6 +8,12 @@ import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { addPrivateContact, changePrivateContact, privateContacts } from "../../scripts/sensor/private-contacts.mjs";
 import { createSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
+import { loadStarship } from "../../scripts/starship/starship-state.mjs";
+
+const entryFor = (combat, actor, key = actor.uuid) =>
+  combat.combatants.find((entry) => entry.actorId === actor.id || entry.flags?.[MODULE_ID]?.sensorMapObject?.key === key);
+const entryMatches = (entry, actor, key = actor.uuid) =>
+  entry.actorId === actor.id || entry.flags?.[MODULE_ID]?.sensorMapObject?.key === key;
 
 function setup() {
   installFoundryMock();
@@ -125,7 +131,7 @@ test("hidden and private NPC contacts use hidden generic Combatants and the Cont
     zone: 4,
     detection: "undetected"
   });
-  const privateActor = fromUuidSync(privatePlacement.actorUuid);
+  const privateActor = await loadStarship(privatePlacement.actorUuid);
 
   const single = await addSensorObjectToInitiative(combat.id, hiddenMapNpc.uuid);
   const privateSingle = await addSensorObjectToInitiative(combat.id, privatePlacement.key);
@@ -134,8 +140,12 @@ test("hidden and private NPC contacts use hidden generic Combatants and the Cont
   assert.equal(single.status, "added");
   assert.equal(privateSingle.status, "added");
   assert.deepEqual(report, { added: 1, existing: 2, skipped: 0, failed: 0, reportCreated: true });
-  for (const actor of [hiddenMapNpc, unidentifiedMapNpc, privateActor]) {
-    const combatant = combat.combatants.find((entry) => entry.actorId === actor.id);
+  for (const [actor, key] of [
+    [hiddenMapNpc, hiddenMapNpc.uuid],
+    [unidentifiedMapNpc, unidentifiedMapNpc.uuid],
+    [privateActor, privatePlacement.key]
+  ]) {
+    const combatant = entryFor(combat, actor, key);
     assert.ok(combatant);
     assert.equal(combatant.hidden, true);
     assert.equal(combatant.name, "Contact");
@@ -186,8 +196,8 @@ test("individual add resolves an observed private contact before its anonymous p
 
   assert.deepEqual(socketPayloads[0].result, { status: "added" });
   assert.equal(JSON.stringify(socketPayloads).includes(source.name), false);
-  const actor = fromUuidSync(placement.actorUuid);
-  const combatant = combat.combatants.find((entry) => entry.actorId === actor.id);
+  const actor = await loadStarship(placement.actorUuid);
+  const combatant = entryFor(combat, actor, placement.key);
   assert.ok(combatant);
   assert.equal(combatant.hidden, true);
   assert.equal(combatant.name, "Contact");
@@ -203,16 +213,17 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
     zone: 5,
     detection: "undetected"
   });
-  const actor = fromUuidSync(placement.actorUuid);
+  const actor = await loadStarship(placement.actorUuid);
+  const sourceBefore = source.toObject();
   assert.equal((await addSensorObjectToInitiative(combat.id, placement.key)).status, "added");
-  const original = combat.combatants.find((entry) => entry.actorId === actor.id);
+  const original = entryFor(combat, actor, placement.key);
   assert.ok(original);
   assert.equal(original.hidden, true);
   assert.equal(original.name, "Contact");
 
   await changePrivateContact(combat, placement.key, "reveal");
 
-  const combatants = combat.combatants.filter((entry) => entry.actorId === actor.id);
+  const combatants = combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key));
   assert.equal(combatants.length, 1);
   assert.equal(combatants[0].id, original.id);
   assert.equal(combatants[0].hidden, false);
@@ -220,8 +231,9 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
   assert.equal(combatants[0].img, actor.img);
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
   assert.equal(combatants[0].flags[MODULE_ID].sensorMapInitiative.combatId, combat.id);
-  assert.equal(actor, source);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
+  assert.notEqual(actor, source);
+  assert.equal((await loadStarship(placement.key)).flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.deepEqual(source.toObject(), sourceBefore);
   assert.equal(privateContacts(combat.id).length, 0);
   assert.equal(combat.flags[MODULE_ID].tsc.objects.filter((object) => object.actorUuid === actor.uuid).length, 1);
 });
@@ -310,20 +322,25 @@ test("reveal rejects a private Actor Combatant that is not the safe generic hidd
     zone: 2,
     detection: "undetected"
   });
-  const actor = fromUuidSync(placement.actorUuid);
+  const actor = await loadStarship(placement.actorUuid);
   const [unrelated] = await combat.createEmbeddedDocuments("Combatant", [
     {
-      actorId: actor.id,
+      actorId: null,
       name: actor.name,
       img: actor.img,
       hidden: false,
-      flags: { [MODULE_ID]: { sensorMapInitiative: { contactDesignation: true } } }
+      flags: {
+        [MODULE_ID]: {
+          sensorMapObject: { combatId: combat.id, key: placement.key },
+          sensorMapInitiative: { contactDesignation: true }
+        }
+      }
     }
   ]);
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
 
-  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(unrelated.hidden, false);
   assert.equal(unrelated.name, actor.name);
   assert.equal(privateContacts(combat.id).length, 1);
@@ -339,15 +356,16 @@ test("reveal rejects a generic hidden Combatant associated with another Combat",
     zone: 2,
     detection: "undetected"
   });
-  const actor = fromUuidSync(placement.actorUuid);
+  const actor = await loadStarship(placement.actorUuid);
   const [unrelated] = await combat.createEmbeddedDocuments("Combatant", [
     {
-      actorId: actor.id,
+      actorId: null,
       name: "Contact",
       img: "icons/svg/mystery-man.svg",
       hidden: true,
       flags: {
         [MODULE_ID]: {
+          sensorMapObject: { combatId: combat.id, key: placement.key },
           sensorMapInitiative: { contactDesignation: true, combatId: "another-combat" }
         }
       }
@@ -356,7 +374,7 @@ test("reveal rejects a generic hidden Combatant associated with another Combat",
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
 
-  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(unrelated.name, "Contact");
   assert.equal(unrelated.flags[MODULE_ID].sensorMapInitiative.combatId, "another-combat");
   assert.equal(privateContacts(combat.id).length, 1);
@@ -372,9 +390,10 @@ test("failed finalization keeps the same revealed initiative entry pending and c
     zone: 2,
     detection: "undetected"
   });
-  const actor = fromUuidSync(placement.actorUuid);
+  const actor = await loadStarship(placement.actorUuid);
+  const sourceBefore = source.toObject();
   await addSensorObjectToInitiative(combat.id, placement.key);
-  const original = combat.combatants.find((entry) => entry.actorId === actor.id);
+  const original = entryFor(combat, actor, placement.key);
   const doc = game.journal.contents[0];
   const update = doc.update.bind(doc);
   let shouldFail = true;
@@ -388,22 +407,23 @@ test("failed finalization keeps the same revealed initiative entry pending and c
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /journal failed/);
 
-  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(original.hidden, false);
   assert.equal(original.name, actor.name);
   assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
-  assert.equal(actor, source);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
+  assert.notEqual(actor, source);
+  assert.equal((await loadStarship(placement.key)).flags[MODULE_ID].sensorContactInstance.privateContact, false);
+  assert.deepEqual(source.toObject(), sourceBefore);
   assert.equal(combat.flags[MODULE_ID].tsc.objects.length, 1);
   assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
   assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
 
   await changePrivateContact(combat, placement.key, "reveal");
-  assert.equal(combat.combatants.filter((entry) => entry.actorId === actor.id).length, 1);
-  assert.equal(original.id, combat.combatants.find((entry) => entry.actorId === actor.id).id);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
+  assert.equal(original.id, entryFor(combat, actor, placement.key).id);
   assert.equal(original.hidden, false);
-  assert.equal(actor, source);
-  assert.equal(actor.flags[MODULE_ID].sensorContactInstance, undefined);
+  assert.notEqual(actor, source);
+  assert.equal((await loadStarship(placement.key)).flags[MODULE_ID].sensorContactInstance.privateContact, false);
 });
 
 test("uninstanced source Actors are not added, and non-GM requests are rejected", async () => {

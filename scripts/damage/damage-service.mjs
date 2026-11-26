@@ -28,7 +28,24 @@ export async function applyDamageInDraft(
   }
 ) {
   draft.auditReason = source || attackLine || damageType;
-  const entry = await draft.ship(shipUuid);
+  const entry = await draft.target(shipUuid);
+  const privateTarget = !!draft.combat && privateContacts(draft.combat.id).some((contact) => contact.actorUuid === shipUuid);
+  if (privateTarget) draft.privateAction = true;
+  if (entry.actor.type === "hazard")
+    return applyHazardDamageInDraft(draft, entry, {
+      amount,
+      parts,
+      damageType,
+      strikeResistance,
+      traits,
+      criticalHit,
+      nonlethal,
+      source,
+      attackLine,
+      silent,
+      undoRef,
+      privateTarget
+    });
   const d = entry.data;
   if (persistentParts?.length) {
     const { stagePersistentDamage } = await import("../starship/persistent-damage.mjs");
@@ -39,8 +56,6 @@ export async function applyDamageInDraft(
       criticalHit
     });
   }
-  const privateTarget = !!draft.combat && privateContacts(draft.combat.id).some((contact) => contact.actorUuid === shipUuid);
-  if (privateTarget) draft.privateAction = true;
   // module IWR (ship editor) + the actor's own system IWR (sf2e attributes), all normalised to system damage slugs
   const sysAttr = entry.actor?.system?.attributes ?? {};
   const immunities = [
@@ -104,6 +119,77 @@ export async function applyDamageInDraft(
     if (draft.combat) draft.afterCommit(() => Initiative.enterCompromised(draft.combat, actor));
   }
   if (result.destroyed) draft.event(HOOK_EVENTS.destroyed, actor);
-  if (!silent && !privateTarget) draft.afterCommit(() => postDamageCard({ actor, source, result, attackLine, undoRef }));
+  if (!silent && !privateTarget)
+    draft.afterCommit(() =>
+      postDamageCard({
+        actor,
+        source,
+        whisperGM: !!draft.privateAction,
+        result,
+        attackLine,
+        undoRef,
+        targetUUIDs: [shipUuid],
+        damageType: parts?.length === 1 ? parts[0].type : damageType,
+        parts
+      })
+    );
+  return result;
+}
+
+async function applyHazardDamageInDraft(
+  draft,
+  entry,
+  { amount, parts, damageType, strikeResistance, traits, criticalHit, nonlethal, source, attackLine, silent, undoRef, privateTarget }
+) {
+  const actor = entry.actor;
+  const attributes = actor.system?.attributes ?? {};
+  const immunities = normalizeIwr(attributes.immunities, false);
+  const resistances = {
+    ...normalizeIwr(attributes.resistances),
+    "all-damage": Math.max(normalizeIwr(attributes.resistances)["all-damage"] ?? 0, strikeResistance)
+  };
+  const weaknesses = normalizeIwr(attributes.weaknesses);
+  const compute = parts ? computeStarshipDamagePacket : computeStarshipDamage;
+  const result = compute({
+    state: {
+      hp: entry.data.hp.value,
+      sp: 0,
+      isPlayer: false,
+      hardness: entry.data.hardness ?? 0,
+      immunities,
+      resistances,
+      weaknesses
+    },
+    amount,
+    parts,
+    damageType,
+    traits,
+    criticalHit,
+    nonlethal
+  });
+  if (result.mitigatedDamage > 0) {
+    const previous = draft.hazards.get(actor.uuid);
+    draft.hazards.set(actor.uuid, {
+      actor,
+      patch: { ...(previous?.patch ?? {}), "system.attributes.hp.value": result.newState.hp },
+      hpDelta: (previous?.hpDelta ?? 0) - result.mitigatedDamage
+    });
+  }
+  draft.log(`${actor.name}: HP -${result.hullDamage}`, "damage", { shipUuid: actor.uuid, ...result });
+  draft.event(HOOK_EVENTS.damaged, actor, result);
+  if (!silent && !privateTarget)
+    draft.afterCommit(() =>
+      postDamageCard({
+        actor,
+        source,
+        whisperGM: !!draft.privateAction,
+        result,
+        attackLine,
+        undoRef,
+        targetUUIDs: [actor.uuid],
+        damageType: parts?.length === 1 ? parts[0].type : damageType,
+        parts
+      })
+    );
   return result;
 }

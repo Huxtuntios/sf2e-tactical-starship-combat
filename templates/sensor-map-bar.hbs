@@ -6,7 +6,21 @@
       <span class="tsc-pill" title="{{localize 'SF2eTSC.ui.round'}}">{{localize "SF2eTSC.ui.round"}} {{combat.round}}</span>
       <span class="tsc-pill" title="{{localize 'SF2eTSC.ui.currentTurn'}}">▶ {{combat.turn}}</span>
       <span class="tsc-pill">{{zoneCount}} {{localize "SF2eTSC.ui.zones"}}</span>
+      <button
+        type="button"
+        data-action="toggleRanges"
+        title="{{localize 'SF2eTSC.ui.sensorRange'}}"
+        aria-label="{{localize 'SF2eTSC.ui.sensorRange'}}"
+        aria-pressed="{{showRanges}}"
+      ><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i></button>
       {{#if isGM}}
+        <label class="tsc-action-object-picker" for="tsc-sensor-action-object">
+          <span>{{localize "SF2eTSC.ui.actionObject"}}</span>
+          <select id="tsc-sensor-action-object" name="actionObject" data-tsc-action-object title="{{localize 'SF2eTSC.ui.actionObjectHint'}}">
+            <option value="">{{localize "SF2eTSC.ui.noActionObject"}}</option>
+            {{#each actionObjects}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} — {{typeLabel}}{{#if positionLabel}} — {{positionLabel}}{{/if}}</option>{{/each}}
+          </select>
+        </label>
         <span class="tsc-spacer"></span>
         <span class="tsc-map-tools" role="group" aria-label="{{localize 'SF2eTSC.ui.gmTools'}}">
           {{#if pendingRevealCount}}

@@ -64,7 +64,7 @@ export function parseAreaTrait(text, fallbackValue = 1) {
 }
 
 /**
- * Starships hit by an area: every starship in the area zones except the attacker and the explicitly excluded keys.
+ * Starships and hazards hit by an area: every targetable object in the area zones except the attacker and the explicitly excluded keys.
  * @returns {{ hit: object[], excluded: object[] }}
  */
 export function areaTargets(objects, zones, selfKey, exclude = []) {
@@ -72,7 +72,8 @@ export function areaTargets(objects, zones, selfKey, exclude = []) {
   const hit = [];
   const excluded = [];
   for (const o of objects ?? []) {
-    if (o.type !== "starship" || o.key === selfKey || !zones.includes(o.zone)) continue;
+    const objectType = o.type === "contact" && o.tscPrivateProjection ? o.objectType : o.type;
+    if (!["starship", "hazard"].includes(objectType) || o.key === selfKey || !zones.includes(o.zone)) continue;
     (ex.has(o.key) ? excluded : hit).push(o);
   }
   return { hit, excluded };

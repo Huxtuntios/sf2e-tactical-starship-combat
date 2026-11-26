@@ -3,6 +3,7 @@ import { gradeAtLeast } from "../engine/advancement.mjs";
 import { isFrequencyAvailable, frequencyKey } from "../engine/frequency.mjs";
 import { findObject, effectiveDetection } from "../engine/sensor-ops.mjs";
 import { observerKeys } from "../sensor/map-model.mjs";
+import { resolveSensorActorSync } from "../sensor/map-object.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { computeShipStats, crewStatistic, shipModuleValue } from "../starship/stats.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
@@ -10,7 +11,7 @@ import { request } from "../socket.mjs";
 import { actionLabel } from "../actions/action-engine.mjs";
 import { Targeting } from "./targeting.mjs";
 import { npcStrikeRange } from "../actions/strike.mjs";
-import { T, moduleSetting, fromUuidSync_ } from "../utils/foundry.mjs";
+import { T, escapeHtml, moduleSetting, fromUuidSync_ } from "../utils/foundry.mjs";
 import { notifyError } from "../utils/logging.mjs";
 import { isCardAttack, beginCardTargeting } from "../chat/attack-card.mjs";
 import { ct } from "../content/content-i18n.mjs";
@@ -19,6 +20,10 @@ import { stationEffects, effectiveEffectStates } from "../starship/effects.mjs";
 import { beginNativeWeaponAttack } from "./native-attack.mjs";
 import { eligibleDroneMovements } from "../engine/drone-state.mjs";
 import { rollEventOptions } from "../starship/stats.mjs";
+import { formatActionResultText } from "../actions/result-text.mjs";
+import { sendActionDescriptionToChat } from "./action-controls.mjs";
+const CONFIRM_ACTION_IDS = new Set(["deploy-drone", "retrieve-drone", "deploy-starship-mine", "drone-block", "repair-hull-drone"]);
+const ATTACK_BUILTINS = new Set(["strike", "npc-strike", "spell-attack"]);
 const skillLabel = (s) => {
   const k = `SF2eTSC.skills.${String(s).toLowerCase()}`;
   return game.i18n.has(k) ? T(k) : s;
@@ -32,6 +37,53 @@ export const COST_ICON = (cost) =>
       : Array.isArray(cost)
         ? `◆–${"◆".repeat(Math.max(...cost))}`
         : "◆".repeat(Number(cost) || 1);
+
+export function requiresActionConfirmation(action) {
+  if (ATTACK_BUILTINS.has(action?.builtin)) return false;
+  if (CONFIRM_ACTION_IDS.has(action?.id)) return true;
+  if (["area-fire", "auto-fire", "seek"].includes(action?.builtin)) return true;
+  return !!action?.frequency || (action?.effects ?? []).some((effect) => effect?.type && effect.type !== "manual");
+}
+
+function actionConsequenceText(action, ctx) {
+  const reports = (action.effects ?? []).map((effect) => {
+    if (effect.type === "manual") return ct(effect.text);
+    if (effect.type === "applyEffect") return ct(effect.effect?.label ?? effect.effect?.slug ?? effect.type);
+    if (effect.type === "moveAlongHeading") {
+      const speed = effect.zones === "speed" ? computeShipStats(ctx.ship).speed : Number(effect.zones);
+      const combat = activeStarshipCombat();
+      const object = combat ? findObject(getTsc(combat), ctx.ship.uuid) : null;
+      return T("SF2eTSC.ui.moveManual", { speed, zone: object?.zone ?? "—" });
+    }
+    if (effect.type === "damage") return `${T("SF2eTSC.chat.damage")}: ${effect.dice ?? effect.type}`;
+    if (effect.type === "restoreShields") return `${T("SF2eTSC.ui.shieldPoints")}: ${effect.dice ?? effect.type}`;
+    if (effect.type === "restoreHull") return `${T("SF2eTSC.ui.hullPoints")}: ${effect.dice ?? effect.type}`;
+    if (effect.type === "malfunction") return T("SF2eTSC.ui.malfunctioning");
+    if (effect.type === "clearMalfunction") return T("SF2eTSC.chat.repaired");
+    if (effect.type === "setOffKilter") return T("SF2eTSC.mods.offKilter");
+    if (effect.type === "clearOffKilter") return T("SF2eTSC.chat.offKilterEnded");
+    return ct(effect.text ?? effect.type);
+  });
+  return formatActionResultText({ reports }, { localize: T });
+}
+
+async function confirmActionConsequences(action, ctx) {
+  const consequences = actionConsequenceText(action, ctx);
+  const content = [
+    `<p>${escapeHtml(ct(action.text ?? ""))}</p>`,
+    consequences ? `<div class="tsc-action-consequences">${escapeHtml(consequences).replace(/\n/g, "<br>")}</div>` : "",
+    `<p class="hint">${escapeHtml(T("SF2eTSC.ui.softAutomationHint"))}</p>`
+  ].join("");
+  return foundry.applications.api.DialogV2.confirm({
+    classes: ["sf2e-tsc"],
+    window: { title: actionLabel(action) },
+    content,
+    yes: { label: T("SF2eTSC.ui.execute"), icon: "fa-solid fa-check", callback: () => "confirm" },
+    no: { label: T("SF2eTSC.ui.cancel"), icon: "fa-solid fa-xmark", default: true, callback: () => "cancel" },
+    buttons: [{ action: "edit", label: T("SF2eTSC.ui.editOptions"), icon: "fa-solid fa-pen", callback: () => "edit" }],
+    rejectClose: false
+  }).catch(() => "cancel");
+}
 
 /** Client-side availability preview (the GM re-validates everything authoritatively). */
 export function previewAction(action, { ship, crew, station, combat = activeStarshipCombat() }) {
@@ -281,6 +333,17 @@ async function promptOptions(action, { ship, crew, station, target }) {
     window: { title: actionLabel(action) },
     content: fields.join(""),
     ok: { label: T("SF2eTSC.ui.execute"), callback: (e, b) => new foundry.applications.ux.FormDataExtended(b.form).object },
+    buttons: [
+      {
+        action: "sendDescription",
+        label: T("SF2eTSC.ui.sendDescription"),
+        icon: "fa-solid fa-comment",
+        callback: async () => {
+          await sendActionDescriptionToChat({ action, ship, crew, station });
+          return "";
+        }
+      }
+    ],
     rejectClose: false
   }).catch(() => null);
   if (!res) return null;
@@ -307,20 +370,20 @@ export async function runAction(action, ctx) {
     const w = d.weapons.find((x) => x.id === station?.weaponId) ?? d.weapons[0];
     return w ? (Content.weapons.get(w.weaponRef ?? w.id)?.range ?? w.range) : 6;
   })();
-  const execute = async (targetKey, targetObj) => {
-    const opts = await promptOptions(action, { ship, crew, station, target: targetObj });
-    if (opts === null) return;
-    if (action.id === "drone-block") {
-      const level = crew?.system?.details?.level?.value ?? crew?.level;
-      const resistance = Number.isInteger(level) && level >= 1 ? Math.floor(level / 2) : 0;
-      const go = await foundry.applications.api.DialogV2.confirm({
-        classes: ["sf2e-tsc"],
-        window: { title: T("SF2eTSC.droneBlock.softTitle") },
-        content: `<p>${foundry.utils.escapeHTML(T("SF2eTSC.droneBlock.softHint", { resistance }))}</p>`,
-        rejectClose: false
-      }).catch(() => false);
-      if (!go) return;
+  const execute = async (targetUUIDs, targetObjs) => {
+    const targetKey = targetUUIDs.length === 1 ? targetUUIDs[0] : null;
+    const target = targetObjs[0] ? { actor: targetObjs[0] } : null;
+    let opts = await promptOptions(action, { ship, crew, station, target });
+    while (opts !== null && requiresActionConfirmation(action)) {
+      const choice = await confirmActionConsequences(action, ctx);
+      if (choice === true || choice === "confirm") break;
+      if (choice === "edit") {
+        opts = await promptOptions(action, { ship, crew, station, target });
+        continue;
+      }
+      return;
     }
+    if (opts === null) return;
     if (action.id === "deploy-starship-mine") opts.mineId = randomId("mine");
     if (action.id === "repair-hull-drone") opts.repairId = randomId("repair");
     const send = (extra = {}) =>
@@ -329,7 +392,7 @@ export async function runAction(action, ctx) {
         actionId: action.id,
         crewUuid: crew?.uuid ?? null,
         stationId: station?.id ?? null,
-        options: { ...opts, targetKey, ...extra, ...rollOptions }
+        options: { ...opts, ...(targetUUIDs.length ? { targetUUIDs } : { targetKey }), ...extra, ...rollOptions }
       });
     try {
       await send();
@@ -352,7 +415,13 @@ export async function runAction(action, ctx) {
       } else notifyError("SF2eTSC.errors.generic", { message: err.message });
     }
   };
-  if (!needsTarget) return execute(null, null);
+  if (!needsTarget) return execute([], []);
+  const currentTargets = Targeting.targetUUIDs();
+  if (currentTargets.length === 1 && !isCardAttack(action))
+    return execute(
+      currentTargets,
+      currentTargets.map((key) => resolveSensorActorSync(activeStarshipCombat(), key))
+    );
   if (isCardAttack(action) && ["strike", "npc-strike"].includes(action.builtin)) {
     const opts = await promptOptions(action, { ship, crew, station, target: null });
     if (opts !== null)
@@ -396,10 +465,13 @@ export async function runAction(action, ctx) {
     range: targetRange(action, ship, weaponRange),
     allowSelf: !!action.targeting?.allowSelf,
     enforceDetection: readStarship(ship).role === "player" && action.builtin !== "seek",
-    gm: game.user.isGM && false,
-    onPick: async (key) => {
-      const tgt = fromUuidSync(key);
-      await execute(key, { actor: tgt });
+    gm: game.user.isGM,
+    singleTarget: true,
+    onExecute: async (keys) => {
+      await execute(
+        keys,
+        keys.map((key) => resolveSensorActorSync(activeStarshipCombat(), key))
+      );
     }
   });
 }

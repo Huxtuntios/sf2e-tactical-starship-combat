@@ -3,7 +3,7 @@ import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { can } from "../crew/permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
 import { patchStarship, readStarship } from "../starship/starship-state.mjs";
-import { stationStatistic, shipModifiers } from "../starship/stats.mjs";
+import { shipModifiers, stationStatistic } from "../starship/stats.mjs";
 import { snapshot, equalState, recordChange, combatGuard } from "../history/history.mjs";
 import { resolveHullRestored } from "../engine/compromised.mjs";
 import { Initiative } from "../combat/initiative.mjs";

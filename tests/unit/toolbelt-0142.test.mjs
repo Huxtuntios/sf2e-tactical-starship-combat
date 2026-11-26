@@ -183,7 +183,8 @@ test("actual Barrow Dirgesinger action card has normalized save text and native 
   await postActionCard({ actor, action: { id: "fragment-launcher", name: source.name }, manual: [ct(source.text)] });
   const content = game.messages.contents.at(-1).content;
   assert.match(content, /@Damage\[\(1d8\+3\)\[piercing\]\]/);
-  assert.match(content, /@Check\[reflex\|dc:17\|basic\]\{простой спасбросок Рефлекса\}/);
+  assert.match(content, /data-check="reflex\|dc:17\|basic"/);
+  assert.match(content, /data-label="КС 17 простой спасбросок Рефлекса"/);
   assert.ok(!content.includes("(@Check"));
   setContentTranslations("en", {});
 });

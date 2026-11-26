@@ -9,9 +9,10 @@ import {
   SENSOR_CONTACT_COMBATANT_NAME
 } from "./actor-instance.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
-import { isActiveGM, T, fromUuidSafe, escapeHtml } from "../utils/foundry.mjs";
+import { isActiveGM, T, escapeHtml } from "../utils/foundry.mjs";
 import { log } from "../utils/logging.mjs";
 import { serialize } from "../utils/serial.mjs";
+import { isMapObjectActor, resolveSensorActor } from "./map-object.mjs";
 
 const sensorInstance = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
 
@@ -38,7 +39,15 @@ function combatants(combat) {
 }
 
 function combatantForActor(combat, actor) {
-  return combatants(combat).find((entry) => entry.actorId === actor.id || entry.actor?.uuid === actor.uuid) ?? null;
+  return (
+    combatants(combat).find(
+      (entry) =>
+        entry.actorId === actor.id ||
+        entry.actor?.uuid === actor.uuid ||
+        entry.flags?.[MODULE_ID]?.sensorMapObject?.key === actor.uuid ||
+        entry.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid === actor.uuid
+    ) ?? null
+  );
 }
 
 function skipped(name, reason) {
@@ -50,6 +59,7 @@ function objectName(object) {
 }
 
 function independentForCombat(actor, combatId, record) {
+  if (isMapObjectActor(actor)) return actor.combatId === combatId;
   if (record?.reuseActor === true) return isWorldActor(actor);
   const instance = sensorInstance(actor);
   if (instance) return instance.combatId === combatId && instance.privateContact !== true;
@@ -58,6 +68,8 @@ function independentForCombat(actor, combatId, record) {
 }
 
 function independentPrivateActor(actor, combatId, record) {
+  if (isMapObjectActor(actor))
+    return actor.combatId === combatId && actor.flags?.[MODULE_ID]?.sensorContactInstance?.privateContact === true;
   if (record?.reuseActor === true) return isWorldActor(actor);
   const instance = sensorInstance(actor);
   return instance?.combatId === combatId && instance.privateContact === true;
@@ -109,7 +121,7 @@ async function addActorLocked(combatId, input) {
   const { actorUuid, isPrivate, validateCurrent } = input;
   let { name, displayName, hidden } = input;
   let combat = liveCombat(combatId);
-  const actor = await fromUuidSafe(actorUuid);
+  const actor = await resolveSensorActor(combat, actorUuid);
   if (!actor || actor.uuid !== actorUuid || actor.documentName !== "Actor")
     return { status: "failed", item: { name, reason: "actorMissing" } };
   if (!isStarship(actor)) return skipped(name, "notNpcShip");
@@ -171,13 +183,22 @@ async function addActorLocked(combatId, input) {
 
   const [created] = await combat.createEmbeddedDocuments("Combatant", [
     {
-      actorId: actor.id,
+      actorId: isMapObjectActor(actor) ? null : actor.id,
       sceneId: combat.scene?.id ?? null,
       tokenId: null,
       name: displayName,
       img: hidden ? SENSOR_CONTACT_COMBATANT_IMAGE : undefined,
       hidden,
-      flags: { [MODULE_ID]: { sensorMapInitiative: { combatId: combat.id, contactDesignation: hidden } } }
+      flags: {
+        [MODULE_ID]: {
+          sensorMapInitiative: { combatId: combat.id, contactDesignation: hidden },
+          ...(isMapObjectActor(actor)
+            ? {
+                sensorMapObject: { combatId: combat.id, key: actor.uuid }
+              }
+            : {})
+        }
+      }
     }
   ]);
   if (!created) throw new Error("couldNotCreateSensorCombatant");

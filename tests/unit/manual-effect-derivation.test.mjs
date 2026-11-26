@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { makeShip } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effect-fixture.mjs";
 import * as Effects from "../../scripts/starship/effects.mjs";
+
 const { effectModifiers, hasCondition } = Effects;
 
 test("pending and failed applications never claim successful ship mechanics", () => {

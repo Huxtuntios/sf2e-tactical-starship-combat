@@ -1,14 +1,16 @@
 import { readStarship, writeStarship, isStarship } from "../starship/starship-state.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
-import { fromUuidSafe } from "../utils/foundry.mjs";
+import { resolveSensorActor, resolveSensorActorForAction } from "../sensor/map-object.mjs";
 import { log } from "../utils/logging.mjs";
 import { equalState, snapshot } from "../history/history.mjs";
 import { serialize } from "../utils/serial.mjs";
+import { HOOK_EVENTS } from "../constants.mjs";
 
 /** Staged changes with per-document conflict guards; a multi-document commit is not atomic. */
 export class Draft {
-  constructor(combat, { trackCombat = true } = {}) {
+  constructor(combat, { trackCombat = true, actionAliases = false } = {}) {
     this.combat = combat ?? null;
+    this.actionAliases = actionAliases;
     this.tsc = combat && trackCombat ? foundry.utils.deepClone(getTsc(combat)) : null;
     this.beforeTsc = this.tsc ? foundry.utils.deepClone(this.tsc) : null;
     this.ships = new Map(); // uuid -> { actor, data }
@@ -19,7 +21,7 @@ export class Draft {
   }
   async ship(uuid) {
     if (this.ships.has(uuid)) return this.ships.get(uuid);
-    const actor = await fromUuidSafe(uuid);
+    const actor = await (this.actionAliases ? resolveSensorActorForAction(this.combat, uuid) : resolveSensorActor(this.combat, uuid));
     if (!actor) throw new Error(game.i18n.localize("SF2eTSC.errors.shipNotFound"));
     // commit() writes starship data for every loaded entry, so non-starship actors are refused here
     if (!isStarship(actor)) throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
@@ -27,6 +29,26 @@ export class Draft {
     const entry = { actor, before, data: foundry.utils.deepClone(before) };
     this.ships.set(uuid, entry);
     return entry;
+  }
+  async target(uuid) {
+    const actor = await (this.actionAliases ? resolveSensorActorForAction(this.combat, uuid) : resolveSensorActor(this.combat, uuid));
+    if (isStarship(actor)) return this.ship(uuid);
+    if (actor?.type !== "hazard") throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
+    const attributes = actor.system?.attributes ?? {};
+    const hp = foundry.utils.deepClone(attributes.hp ?? { value: 0, max: 0 });
+    const stagedDelta = this.hazards.get(actor.uuid)?.hpDelta ?? 0;
+    if (stagedDelta) hp.value = Math.max(0, Math.min(hp.max, hp.value + stagedDelta));
+    return {
+      actor,
+      data: {
+        name: actor.name,
+        heading: null,
+        effects: [],
+        hp,
+        ac: attributes.ac?.value ?? 0,
+        hardness: attributes.hardness ?? 0
+      }
+    };
   }
   event(name, ...args) {
     this.hooks.push([name, ...args]);
@@ -50,6 +72,9 @@ export class Draft {
     // Dialogs/rolls run under per-ship locks, so another ship may commit combat state while we wait.
     // Coordinate the shared combat write here: rebase our tsc delta onto the current state (conflict-aware)
     // and save it BEFORE any ship write, so a combat conflict aborts without partial ship writes.
+    let commitError = null;
+    let destructionWrites = [];
+    let results = [];
     await serialize("tsc-commit", async () => {
       if (changed.some(({ actor, before }) => !equalState(snapshot(readStarship(actor)), snapshot(before))))
         throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
@@ -76,15 +101,45 @@ export class Draft {
             undoable: undoable && !!this.auditReason
           })
         );
-      for (const { actor, patch } of this.hazards.values()) writes.push(actor.update(patch));
-      const results = await Promise.allSettled(writes);
+      for (const [writeIndex, { actor }] of changed.entries())
+        for (const [hookIndex, [name, target]] of this.hooks.entries())
+          if (name === HOOK_EVENTS.destroyed && target?.uuid === actor.uuid) destructionWrites.push({ hookIndex, writeIndex });
+      const hazardTransitions = [];
+      const hazardWriteStart = writes.length;
+      for (const entry of this.hazards.values()) {
+        const actor = (await resolveSensorActor(this.combat, entry.actor.uuid)) ?? entry.actor;
+        const patch = { ...entry.patch };
+        const beforeHp = actor.system?.attributes?.hp?.value ?? 0;
+        let afterHp = beforeHp;
+        if (entry.hpDelta) {
+          const attributes = actor.system?.attributes ?? {};
+          const current = beforeHp;
+          const max = attributes.hp?.max ?? current;
+          afterHp = Math.max(0, Math.min(max, current + entry.hpDelta));
+          patch["system.attributes.hp.value"] = afterHp;
+        }
+        hazardTransitions.push({ actor, beforeHp, afterHp });
+        writes.push(actor.update(patch));
+      }
+      results = await Promise.allSettled(writes);
       const failed = results.filter((r) => r.status === "rejected");
+      for (const [index, transition] of hazardTransitions.entries()) {
+        if (results[hazardWriteStart + index]?.status !== "fulfilled") continue;
+        const { actor, beforeHp, afterHp } = transition;
+        if (beforeHp <= 0 || afterHp !== 0) continue;
+        let hookIndex = this.hooks.findIndex(([name, target]) => name === HOOK_EVENTS.destroyed && target?.uuid === actor.uuid);
+        if (hookIndex < 0) {
+          hookIndex = this.hooks.length;
+          this.event(HOOK_EVENTS.destroyed, actor);
+        }
+        destructionWrites.push({ hookIndex, writeIndex: hazardWriteStart + index });
+      }
       if (failed.length) {
         log.error(
           "draft commit partially failed",
           failed.map((f) => f.reason)
         );
-        throw new Error(
+        commitError = new Error(
           globalThis.game?.i18n?.format?.("SF2eTSC.errors.commitFailed", { count: failed.length }) ??
             `Commit failed (${failed.length}/${results.length} writes)`
         );
@@ -92,6 +147,16 @@ export class Draft {
     });
     // Hooks/afterCommit run outside the write lock: a callback may itself commit (e.g. a hazard trigger),
     // which would deadlock if the outer commit still held tsc-commit while awaiting it.
+    if (commitError) {
+      const dispatched = new Set();
+      for (const { hookIndex, writeIndex } of destructionWrites) {
+        if (results[writeIndex]?.status !== "fulfilled" || dispatched.has(hookIndex)) continue;
+        const [name, ...args] = this.hooks[hookIndex];
+        Hooks.callAll(name, ...args);
+        dispatched.add(hookIndex);
+      }
+      throw commitError;
+    }
     for (const [name, ...args] of this.hooks) Hooks.callAll(name, ...args);
     for (const fn of this.after) {
       try {

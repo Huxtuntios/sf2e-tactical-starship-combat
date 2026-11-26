@@ -27,6 +27,8 @@ export function systemSupport(system = globalThis.game?.system, anachronism = gl
   if (!versionAtLeast(system.version, PF2E_MINIMUM)) return { supported: false, key: "pf2eVersion" };
   if (!anachronism?.active) return { supported: false, key: "anachronismRequired" };
   if (!versionAtLeast(anachronism.version, ANACHRONISM_MINIMUM)) return { supported: false, key: "anachronismVersion" };
+  const pf2eMinimum = [...(anachronism.relationships?.systems ?? [])].find((relation) => relation.id === "pf2e")?.compatibility?.minimum;
+  if (pf2eMinimum && !versionAtLeast(system.version, pf2eMinimum)) return { supported: false, key: "pf2eVersion" };
   return { supported: true };
 }
 

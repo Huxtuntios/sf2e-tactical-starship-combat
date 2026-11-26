@@ -2,7 +2,7 @@
 export const MODULE_ID = "sf2e-tactical-starship-combat";
 export const MODULE_TITLE = "SF2e Tactical Starship Combat";
 export const LOG_PREFIX = "[SF2e Tactical Starship Combat]";
-export const DATA_VERSION = 2; // 2 (0.9.1): station.upgrades folded into the ship-wide upgrades list (stationId)
+export const DATA_VERSION = 3; // 3: missing base sensorRange resolved from a verified frame or official NPC size
 /** Tag ("Other tags" on the item sheet) carried by every item and action this module creates or ships. */
 export const STARSHIP_TAG = "starship";
 export const SOCKET_EVENT = `module.${MODULE_ID}`;

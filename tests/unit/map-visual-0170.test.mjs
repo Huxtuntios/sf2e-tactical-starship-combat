@@ -102,6 +102,97 @@ test("object auto-mirroring overrides the global setting and recomputes from eac
   const legacy = state();
   assert.equal(viewFor(legacy)[0].autoMirrorOverride, null);
 });
+test("object rotation and manual flip round-trip independently per object after reload", async () => {
+  const { installFoundryMock, makeStarshipCombat } = await import("../helpers/foundry-mock.mjs");
+  installFoundryMock();
+  const { MapAppearanceApplication, objectVisualFromForm } = await import("../../scripts/ui/map-appearance-app.mjs");
+  const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
+  const combat = makeStarshipCombat({
+    objects: [
+      {
+        key: "Actor.first",
+        type: "starship",
+        zone: 2,
+        heading: "right",
+        art: "first.webp",
+        mapTransform: { rotation: 10, flipX: false, flipY: false, baseDirection: "right" }
+      },
+      {
+        key: "Actor.second",
+        type: "starship",
+        zone: 8,
+        heading: "left",
+        art: "second.webp",
+        mapTransform: { rotation: 280, flipX: true, flipY: true, baseDirection: "left" }
+      }
+    ]
+  });
+  const untouched = structuredClone(getTsc(combat).objects[1]);
+  const app = new MapAppearanceApplication(combat, "Actor.first");
+  await app._prepareContext();
+  const visual = objectVisualFromForm(
+    {
+      art: "first.webp",
+      rotation: "37",
+      flipX: true,
+      flipY: false,
+      baseDirection: "right",
+      autoMirrorOverride: "inherit",
+      arrowAppearanceMode: "inherit"
+    },
+    app._objectSnapshot,
+    app._appearanceSnapshot
+  );
+  assert.deepEqual(visual, { transform: { rotation: 37, flipX: true } });
+
+  const edited = applySensorOp(getTsc(combat), { op: "objectVisual", key: "Actor.first", visual });
+  assert.deepEqual(edited.objects[0].mapTransform, { rotation: 37, flipX: true, flipY: false, baseDirection: "right" });
+  assert.deepEqual(edited.objects[1], untouched);
+  const reloaded = normalizeSensorState(JSON.parse(JSON.stringify(edited)));
+  const reloadedApp = new MapAppearanceApplication(makeStarshipCombat({ objects: reloaded.objects }), "Actor.first");
+  const context = await reloadedApp._prepareContext();
+  assert.deepEqual(context.transform, { rotation: 37, flipX: true, flipY: false, baseDirection: "right" });
+  assert.deepEqual(reloaded.objects[1], untouched);
+  const rendered = visualTransform(context.transform, "right", false, null);
+  assert.equal(rendered.rotation, 37);
+  assert.equal(rendered.scaleX, -1);
+});
+
+test("heading toggles recompute auto-mirror without accumulating flips and survive reload", () => {
+  const manual = { rotation: 37, flipX: true, flipY: false, baseDirection: "right" };
+  let s = state();
+  s.appearance = { autoMirror: false };
+  s.objects[0].mapTransform = manual;
+  s.objects[0].autoMirrorOverride = true;
+  const orientation = () => {
+    const object = viewFor(s)[0];
+    return visualTransform(object.mapTransform, object.heading, s.appearance.autoMirror, object.autoMirrorOverride);
+  };
+
+  assert.equal(orientation().auto, true);
+  assert.equal(orientation().scaleX, 1);
+  s = applySensorOp(s, { op: "flip", key: ship.key });
+  assert.equal(s.objects[0].heading, "right");
+  assert.equal(orientation().auto, false);
+  assert.equal(orientation().scaleX, -1);
+  assert.deepEqual(s.objects[0].mapTransform, manual);
+  s = applySensorOp(s, { op: "flip", key: ship.key });
+  assert.equal(s.objects[0].heading, "left");
+  assert.equal(orientation().auto, true);
+  assert.equal(orientation().scaleX, 1);
+  assert.deepEqual(s.objects[0].mapTransform, manual);
+
+  s = applySensorOp(s, { op: "move", key: ship.key, zone: 7 });
+  assert.equal(s.objects[0].zone, 7);
+  assert.equal(s.objects[0].heading, "left");
+  assert.deepEqual(s.objects[0].mapTransform, manual);
+  const reloaded = normalizeSensorState(JSON.parse(JSON.stringify(s)));
+  const object = viewFor(reloaded)[0];
+  assert.equal(object.autoMirrorOverride, true);
+  assert.deepEqual(object.mapTransform, manual);
+  assert.equal(visualTransform(object.mapTransform, object.heading, reloaded.appearance.autoMirror, object.autoMirrorOverride).scaleX, 1);
+});
+
 test("object arrow formats inherit live globals, override them, and reset without changing game state", () => {
   assert.deepEqual(resolveArrowAppearance({}, null), {
     arrowMode: "text",

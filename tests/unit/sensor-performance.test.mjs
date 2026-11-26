@@ -288,6 +288,10 @@ test("production context: own ship retains full details while foreign identifica
   assert.equal(own.detail.canOpen, true);
   assert.equal(own.detail.vitals.hp, 73);
   assert.ok(own.detail.rows.some((row) => row.k === "AC"));
+  assert.ok(
+    !own.detail.rows.some((row) => ["Hull Points", "Shield Points"].includes(row.k)),
+    "editable vitals are not repeated in the detail rows"
+  );
   actor.flags["sf2e-tactical-starship-combat"].starship.role = "npc";
   app.invalidateActorCache(actor);
   for (const level of ["identified", "observed", "hidden", "undetected"]) {
@@ -297,6 +301,56 @@ test("production context: own ship retains full details while foreign identifica
     assert.ok(!context.detail || (!context.detail.canOpen && context.detail.vitals === null));
     assert.ok(!context.detail?.rows.some((row) => ["AC", "Hull Points", "Shield Points", "Status"].includes(row.k)));
     if (level === "undetected") assert.equal(context.detail, null);
+  }
+});
+
+test("public projection changes invalidate cached player data while unchanged projections reuse it", async () => {
+  let hp = 24;
+  let resolutions = 0;
+  const actor = { uuid: "map-public", testUserPermission: () => true };
+  const cache = new MapActorCache({
+    resolve: async () => {
+      resolutions++;
+      return actor;
+    },
+    read: () => ({ hp: { value: hp, max: 30 } }),
+    stats: () => ({}),
+    ship: () => true
+  });
+  const view = (version) => [{ known: true, type: "starship", actorUuid: actor.uuid, publicActor: { version } }];
+  cache.setVisible(view(1), user);
+  let entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 24);
+  assert.equal(resolutions, 1);
+
+  hp = 7;
+  cache.setVisible(view(2), user);
+  entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 7);
+  assert.equal(resolutions, 2);
+
+  cache.setVisible(view(2), user);
+  entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 7);
+  assert.equal(resolutions, 2);
+});
+
+test("unchanged public projection objects reuse their serialized cache stamp", () => {
+  const cache = new MapActorCache();
+  const projection = { flags: { ship: { hp: 24 } } };
+  const view = [{ known: true, type: "starship", actorUuid: "map-cached", publicActor: projection }];
+  const original = JSON.stringify;
+  let serializations = 0;
+  JSON.stringify = function (value, ...args) {
+    if (value === projection) serializations++;
+    return original.call(this, value, ...args);
+  };
+  try {
+    cache.setVisible(view, user);
+    cache.setVisible(view, user);
+    assert.equal(serializations, 1);
+  } finally {
+    JSON.stringify = original;
   }
 });
 

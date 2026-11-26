@@ -1,6 +1,6 @@
 <div class="tsc-tab-body">
   {{#if (eq tab "overview")}}
-    {{#if isGM}}<div class="tsc-btn-row"><button type="button" data-action="manageEffects"><i class="fa-solid fa-sliders" aria-hidden="true"></i> {{localize "SF2eTSC.effects.title"}}</button></div>{{/if}}
+    {{#if isGM}}<div class="tsc-sheet-toolbar"><button type="button" data-action="manageEffects"><i class="fa-solid fa-sliders" aria-hidden="true"></i> {{localize "SF2eTSC.effects.manage"}}</button></div>{{/if}}
     {{#if effects.length}}
     <ul class="tsc-chips tsc-effect-list" aria-label="{{localize 'SF2eTSC.ui.activeEffects'}}">
       {{#each effects}}<li data-qol-row data-effect-link="{{id}}" title="{{text}}">
@@ -16,6 +16,7 @@
     {{/if}}
     <div class="tsc-stat-grid">
       <div><label>{{localize "SF2eTSC.ui.ac"}}</label><strong>{{stats.ac}}</strong></div>
+      {{#if isNpc}}<div data-fortify-stat><label>{{localize "SF2eTSC.edit.fortify"}}</label><strong>{{ship.fortify}}</strong></div>{{/if}}
       {{#unless isNpc}}
       <div class="tsc-pdc" title="{{localize 'SF2eTSC.ui.pilotingDCHint'}}"><label>{{localize "SF2eTSC.ui.pilotingDC"}}</label><strong>{{#if stats.pilotingDC}}{{stats.pilotingDC}}{{else}}—{{/if}}</strong>
         {{#if stats.pilotingDC}}{{#if canRoll}}<span class="tsc-pdc-saves" role="group" aria-label="{{localize 'SF2eTSC.rolls.pilotingSaveGroup'}}">{{#each pilotingSaves}}<button type="button" data-action="pilotingSave" data-save="{{slug}}" title="{{title}}" aria-label="{{title}}">{{short}}</button>{{/each}}</span>{{/if}}{{else}}<small class="tsc-dim">{{localize "SF2eTSC.ui.noPilot"}}</small>{{/if}}
@@ -65,8 +66,8 @@
       <li class="tsc-action-row">
         <button type="button" class="tsc-action-cost" data-action="runAction" data-action-id="{{id}}" data-station-id="{{stationId}}" {{#unless enabled}}disabled{{/unless}} title="{{#if enabled}}{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}{{else}}{{reasons}}{{/if}}" aria-label="{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}"><span class="cost" aria-hidden="true">{{icon}}</span></button>
         <button type="button" class="tsc-action-name" data-action="describeAction" data-action-id="{{id}}" aria-haspopup="dialog" aria-label="{{localize 'SF2eTSC.ui.actionDescription'}}: {{name}}">{{name}}</button>
-        {{#if frequency}}<small class="tsc-action-meta">{{frequency}}</small>{{/if}}
-        {{#if reasons}}<button type="button" class="tsc-action-warning {{#unless enabled}}blocked{{/unless}}" data-action="actionWarning" data-tooltip-text="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}" aria-label="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{else}}{{#if warnings}}<button type="button" class="tsc-action-warning" data-action="actionWarning" data-tooltip-text="{{warnings}}" aria-label="{{warnings}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{/if}}{{/if}}
+        {{#if frequency}}<span class="tsc-action-meta"><small>{{frequency}}</small></span>{{/if}}
+        <span class="tsc-action-tools"><button type="button" class="tsc-action-send" data-action="sendActionDescription" data-action-id="{{id}}" data-station-id="{{stationId}}" title="{{localize 'SF2eTSC.ui.sendDescription'}}" aria-label="{{localize 'SF2eTSC.ui.sendDescription'}}: {{name}}"><i class="fa-solid fa-comment" aria-hidden="true"></i></button>{{#if reasons}}<button type="button" class="tsc-action-warning {{#unless enabled}}blocked{{/unless}}" data-action="actionWarning" data-tooltip-text="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}" aria-label="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{else}}{{#if warnings}}<button type="button" class="tsc-action-warning" data-action="actionWarning" data-tooltip-text="{{warnings}}" aria-label="{{warnings}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{/if}}{{/if}}</span>
         <template class="tsc-description-content"><p>{{costLabel}}{{#if frequency}} · {{frequency}}{{/if}}</p>{{#if traits}}<p>{{traits}}</p>{{/if}}{{#if html}}{{{html}}}{{else}}<p>{{text}}</p>{{/if}}{{#if reasons}}<p>{{reasons}}</p>{{/if}}{{#if warnings}}<p>{{warnings}}</p>{{/if}}</template>
       </li>
     {{/each}}</ul>
@@ -119,8 +120,8 @@
           <li class="tsc-action-row">
             <button type="button" class="tsc-action-cost" data-action="runAction" data-action-id="{{id}}" data-station-id="{{../id}}" {{#unless enabled}}disabled{{/unless}} title="{{#if enabled}}{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}{{else}}{{reasons}}{{/if}}" aria-label="{{localize 'SF2eTSC.ui.execute'}}: {{name}} — {{costLabel}}"><span class="cost" aria-hidden="true">{{icon}}</span></button>
             <button type="button" class="tsc-action-name" data-action="describeAction" data-action-id="{{id}}" data-crew-uuid="{{../helmedBy}}" aria-haspopup="dialog" aria-label="{{localize 'SF2eTSC.ui.actionDescription'}}: {{name}}">{{name}}</button>
-            {{#if frequency}}<small class="tsc-action-meta">{{frequency}}</small>{{/if}}
-            {{#if reasons}}<button type="button" class="tsc-action-warning {{#unless enabled}}blocked{{/unless}}" data-action="actionWarning" data-tooltip-text="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}" aria-label="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{else}}{{#if warnings}}<button type="button" class="tsc-action-warning" data-action="actionWarning" data-tooltip-text="{{warnings}}" aria-label="{{warnings}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{/if}}{{/if}}
+            {{#if frequency}}<span class="tsc-action-meta"><small>{{frequency}}</small></span>{{/if}}
+            <span class="tsc-action-tools"><button type="button" class="tsc-action-send" data-action="sendActionDescription" data-action-id="{{id}}" data-crew-uuid="{{../helmedBy}}" data-station-id="{{../id}}" title="{{localize 'SF2eTSC.ui.sendDescription'}}" aria-label="{{localize 'SF2eTSC.ui.sendDescription'}}: {{name}}"><i class="fa-solid fa-comment" aria-hidden="true"></i></button>{{#if reasons}}<button type="button" class="tsc-action-warning {{#unless enabled}}blocked{{/unless}}" data-action="actionWarning" data-tooltip-text="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}" aria-label="{{reasons}}{{#if warnings}} · {{warnings}}{{/if}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{else}}{{#if warnings}}<button type="button" class="tsc-action-warning" data-action="actionWarning" data-tooltip-text="{{warnings}}" aria-label="{{warnings}}"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></button>{{/if}}{{/if}}</span>
             <template class="tsc-description-content"><p>{{costLabel}}{{#if frequency}} · {{frequency}}{{/if}}</p>{{#if traits}}<p>{{traits}}</p>{{/if}}{{#if html}}{{{html}}}{{else}}<p>{{text}}</p>{{/if}}{{#if reasons}}<p>{{reasons}}</p>{{/if}}{{#if warnings}}<p>{{warnings}}</p>{{/if}}</template>
           </li>
         {{/each}}</ul>

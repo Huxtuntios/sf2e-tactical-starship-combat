@@ -1,7 +1,7 @@
 import { MODULE_ID } from "../constants.mjs";
-import { isActiveGM, T, fromUuidSafe } from "../utils/foundry.mjs";
+import { T } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
-import { getTsc, saveTsc, mutateTsc } from "../combat/tsc-state.mjs";
+import { activeStarshipCombat, getTsc, saveTsc, mutateTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
 import { safeImagePath } from "./appearance.mjs";
@@ -17,35 +17,19 @@ import {
   SENSOR_CONTACT_COMBATANT_IMAGE,
   isWorldActor
 } from "./actor-instance.mjs";
+import { ensurePrivateStore, privateStoreFor, requirePrivateGM } from "./private-store.mjs";
+import { resolveSensorActor } from "./map-object.mjs";
 
-// Отдельный JournalEntry без родительской папки и наследуемых прав; в Combat сохраняется только проекция карты.
-function requireGM() {
-  if (!isActiveGM()) throw new Error(T("SF2eTSC.privateMap.activeGM"));
-}
+const requireGM = requirePrivateGM;
 function storeFor(combatId) {
-  if (!game.user?.isGM) return null;
-  if (!Array.isArray(game.journal?.contents)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-  const docs = game.journal.contents.filter((d) => d.flags?.[MODULE_ID]?.privateSensor?.combatId === combatId);
-  if (docs.length > 1) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-  const doc = docs[0];
+  const doc = privateStoreFor(combatId);
   if (!doc) return null;
-  const ownership = doc.ownership ?? {};
-  const marker = doc.flags?.[MODULE_ID]?.privateSensor;
-  const users = game.users?.contents;
+  const completed = doc.flags?.[MODULE_ID]?.privateSensor?.completedReveals;
   if (
-    doc.folder ||
-    ownership.default !== 0 ||
-    marker?.schema !== 1 ||
-    !Array.isArray(marker.contacts) ||
-    (marker.completedReveals !== undefined &&
-      (!Array.isArray(marker.completedReveals) ||
-        marker.completedReveals.length > COMPLETED_REVEAL_LIMIT ||
-        marker.completedReveals.some((intent) => !validIntent(intent, combatId, intent) || intent.stage !== "consistent") ||
-        new Set(marker.completedReveals.map((intent) => intent.key)).size !== marker.completedReveals.length)) ||
-    typeof doc.testUserPermission !== "function" ||
-    !Array.isArray(users) ||
-    users.some((user) => !user.isGM && doc.testUserPermission(user, "LIMITED")) ||
-    Object.entries(ownership).some(([id, level]) => id !== "default" && Number(level) > 0 && !game.users.get(id)?.isGM)
+    completed !== undefined &&
+    (completed.length > COMPLETED_REVEAL_LIMIT ||
+      completed.some((intent) => !validIntent(intent, combatId, intent) || intent.stage !== "consistent") ||
+      new Set(completed.map((intent) => intent.key)).size !== completed.length)
   )
     throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   return doc;
@@ -58,7 +42,7 @@ export function privateContacts(combatId) {
       (o) =>
         !o ||
         typeof o.key !== "string" ||
-        !o.key.startsWith("private-") ||
+        (!o.key.startsWith("private-") && !(o.mapOnly === true && o.key.startsWith("map-"))) ||
         !(typeof o.actorUuid === "string" || (o.type === "custom" && o.actorUuid === null)) ||
         !Number.isInteger(o.zone) ||
         !["undetected", "hidden", "observed"].includes(o.detection?.party) ||
@@ -70,19 +54,24 @@ export function privateContacts(combatId) {
     throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   return structuredClone(entries).map((contact) => (contact.reveal ? { ...contact, pendingReveal: true } : contact));
 }
+
+export function isPrivateSensorActor(actor, combat = activeStarshipCombat()) {
+  if (!actor) return false;
+  if (actor.flags?.[MODULE_ID]?.sensorContactInstance?.privateContact === true) return true;
+  if (!combat) return false;
+  try {
+    return privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid || contact.key === actor.uuid);
+  } catch {
+    return true;
+  }
+}
+
 async function ensureStore(combatId) {
   const old = storeFor(combatId);
   if (old) return old;
+  const created = await ensurePrivateStore(combatId);
   requireGM();
-  await JournalEntry.create({
-    name: T("SF2eTSC.privateMap.storeName"),
-    folder: null,
-    ownership: { default: 0 },
-    flags: { [MODULE_ID]: { privateSensor: { schema: 1, combatId, contacts: [] } } }
-  });
-  requireGM();
-  const created = storeFor(combatId);
-  if (!created) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+  if (storeFor(combatId)?.id !== created.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   return created;
 }
 function validZone(combat, zone) {
@@ -100,7 +89,13 @@ function assertHiddenActor(actor, combat, options = {}) {
   // Прямой доступ к Actor или Combatant не устраняется скрытием карты.
   if (typeof actor.testUserPermission !== "function" || !Array.isArray(game.users?.contents))
     throw new Error(T("SF2eTSC.privateMap.invalidActor"));
-  const actorCombatants = [...(combat.combatants ?? [])].filter((c) => c.actor?.uuid === actor.uuid || c.actorId === actor.id);
+  const actorCombatants = [...(combat.combatants ?? [])].filter(
+    (c) =>
+      c.actor?.uuid === actor.uuid ||
+      c.actorId === actor.id ||
+      c.flags?.[MODULE_ID]?.sensorMapObject?.key === actor.uuid ||
+      c.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid === actor.uuid
+  );
   const privateInitiative = privateSensorActorCombatant(combat, actor, options);
   if (
     game.users.contents.some((u) => !u.isGM && actor.testUserPermission(u, "LIMITED")) ||
@@ -130,13 +125,14 @@ export async function addPrivateContact(combat, actor, zone, { reuseActor = fals
       await saveProjection(combat, { ...existing, zone });
       existing.zone = zone;
     } else {
-      const key = `private-${foundry.utils.randomID(16)}`;
+      const key = actor.mapOnly ? actor.uuid : `private-${foundry.utils.randomID(16)}`;
       if (contacts.some((o) => o.key === key) || getTsc(combat).objects.some((o) => o.key === key))
         throw new Error(T("SF2eTSC.privateMap.invalidStore"));
       contacts.push({
         key,
         actorUuid: actor.uuid,
         ...(reuseActor ? { reuseActor: true } : {}),
+        ...(actor.mapOnly ? { mapOnly: true } : {}),
         name: actor.name,
         type: actor.type === "hazard" ? "hazard" : "starship",
         zone,
@@ -168,7 +164,7 @@ function contactProjection(contact, actor = null) {
   };
 }
 async function saveProjection(combat, contact, remove = false) {
-  const actor = !remove && contact.actorUuid ? await fromUuidSafe(contact.actorUuid) : null;
+  const actor = !remove && contact.actorUuid ? await resolveSensorActor(combat, contact.actorUuid) : null;
   requireGM();
   await mutateTsc(combat, (state) => {
     requireGM();
@@ -200,7 +196,13 @@ const REVEAL_STAGES = ["intent", "map", "combatant", "actor", "consistent"];
 const COMPLETED_REVEAL_LIMIT = 64;
 const instanceOf = (actor) => actor?.flags?.[MODULE_ID]?.sensorContactInstance;
 const actorEntries = (combat, actor) =>
-  [...(combat.combatants ?? [])].filter((entry) => entry.actorId === actor.id || entry.actor?.uuid === actor.uuid);
+  [...(combat.combatants ?? [])].filter(
+    (entry) =>
+      entry.actorId === actor.id ||
+      entry.actor?.uuid === actor.uuid ||
+      entry.flags?.[MODULE_ID]?.sensorMapObject?.key === actor.uuid ||
+      entry.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid === actor.uuid
+  );
 
 // All intent and receipts live only in the permission-checked JournalEntry, never on Combat.
 function revealError(message) {
@@ -218,9 +220,11 @@ function validIntent(intent, combatId, contact) {
     intent.combatId === combatId &&
     intent.key === contact.key &&
     typeof intent.key === "string" &&
-    intent.key.startsWith("private-") &&
+    (intent.key.startsWith("private-") || (contact.mapOnly === true && intent.key.startsWith("map-"))) &&
     intent.actorUuid === contact.actorUuid &&
     (typeof intent.actorUuid === "string" || intent.actorUuid === null) &&
+    (intent.mapOnly === undefined || typeof intent.mapOnly === "boolean") &&
+    (intent.mapOnly !== true || contact.mapOnly === true) &&
     typeof intent.turnRequired === "boolean" &&
     (intent.reuseActor === undefined || intent.reuseActor === true) &&
     (intent.reuseActor !== true || (contact.reuseActor === true && intent.instance === null)) &&
@@ -250,8 +254,8 @@ function assertNotPending(contact) {
 }
 function assertRevealActor(combat, contact, actor, intent) {
   if (!contact.actorUuid) return;
-  if (!actor || actor.uuid !== contact.actorUuid || game.actors?.get(actor.id) !== actor)
-    revealError("the original world Actor is missing or replaced");
+  if (!actor || actor.uuid !== contact.actorUuid || (!actor.mapOnly && game.actors?.get(actor.id) !== actor))
+    revealError("the original world Actor or map snapshot is missing or replaced");
   if (
     actor.documentName !== "Actor" ||
     actor.pack ||
@@ -323,7 +327,7 @@ function inspectRevealCombatant(combat, actor, intent) {
   const instance = flags.sensorContactInstance;
   if (
     entry.id !== expected.id ||
-    entry.actorId !== actor.id ||
+    (intent.mapOnly ? entry.actorId !== null : entry.actorId !== actor.id) ||
     entry.combat?.id !== combat.id ||
     entry.tokenId ||
     (entry.initiative ?? null) !== expected.initiative ||
@@ -410,6 +414,7 @@ async function beginReveal(combat, contact, actor) {
     combatId: combat.id,
     key: contact.key,
     actorUuid: contact.actorUuid,
+    ...(actor?.mapOnly ? { mapOnly: true } : {}),
     stage: "intent",
     instance: instance ? { combatId: instance.combatId, sourceUuid: instance.sourceUuid } : null,
     ...(contact.reuseActor === true ? { reuseActor: true } : {}),
@@ -533,7 +538,7 @@ async function revealLocked(combat, key) {
   const receipt = contact ? null : completedReveals(combat.id).find((entry) => entry.key === key);
   if (!contact && !receipt) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   const record = contact ?? receipt;
-  const actor = record.actorUuid ? await fromUuidSafe(record.actorUuid) : null;
+  const actor = record.actorUuid ? await resolveSensorActor(combat, record.actorUuid) : null;
   requireGM();
   if (receipt) {
     assertRevealActor(combat, receipt, actor, receipt);

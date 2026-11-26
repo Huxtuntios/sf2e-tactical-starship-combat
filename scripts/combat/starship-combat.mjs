@@ -29,6 +29,8 @@ import { planCrewCombatants } from "../engine/crew-initiative.mjs";
 import { registerHandler, emitClientEvent } from "../socket.mjs";
 import { moduleSetting, isActiveGM, T, fromUuidSafe, fromUuidSync_ } from "../utils/foundry.mjs";
 import { notifyInfo, notifyWarn, log } from "../utils/logging.mjs";
+import { resolveSensorActor } from "../sensor/map-object.mjs";
+import { serialize } from "../utils/serial.mjs";
 
 let startingCombat = false;
 
@@ -527,20 +529,31 @@ export async function setStarshipCombatEnabled(combat, enabled) {
 }
 
 /** Per-turn processing (active GM only). */
-export async function onTurnChange(combat) {
-  if (!isActiveGM()) return;
+export function onTurnChange(combat, changes = {}) {
+  if (!isActiveGM()) return Promise.resolve();
+  return serialize(`turn-processing:${combat.id}`, () => processTurnChange(combat, changes));
+}
+
+async function processTurnChange(combat, changes = {}) {
   const state = foundry.utils.deepClone(getTsc(combat));
   const cb = combat.combatant;
   // Turn-index corrections (e.g. after a compromised ship is inserted before the current combatant) also fire
   // updateCombat with a "turn" change. Only a genuinely new turn (round + combatant) may reset budgets/effects.
   const key = turnKey(combat);
   if (key && state.lastTurnKey === key) return;
+  const resetStations =
+    moduleSetting("resetStationsOnInitiative") === true &&
+    changes.round === 1 &&
+    changes.turn === 0 &&
+    !!key &&
+    state.stationResetEncounter !== combat.id;
+  if (resetStations) state.stationResetEncounter = combat.id;
   const previous = state.lastEffectTurn ?? null;
   state.lastEffectTurn = { id: cb?.id ?? null, round: combat.round, turn: combat.turn };
   state.lastTurnKey = key;
   // expire effects / timed malfunctions / repair lockouts
   for (const uuid of combatShipUuids(combat)) {
-    const ship = await fromUuidSafe(uuid);
+    const ship = await resolveSensorActor(combat, uuid);
     if (!ship || !isStarship(ship)) continue;
     const data = readStarship(ship);
     const expired = pruneExpired(data.effects, combat, previous);
@@ -572,6 +585,15 @@ export async function onTurnChange(combat) {
     );
     const intervalKey = persistentIntervalForShip(combat, ship.uuid, previous);
     if (intervalKey) await processPersistentDamage(ship.uuid, { combat, intervalKey });
+    if (resetStations && data.stations.some((station) => station.helmedBy)) {
+      await patchStarship(
+        ship,
+        (d) => {
+          for (const station of d.stations) station.helmedBy = null;
+        },
+        { history: false, undoable: false }
+      );
+    }
     for (const effect of advanced.reminders) {
       const esc = foundry.utils.escapeHTML;
       await ChatMessage.create({
@@ -580,17 +602,24 @@ export async function onTurnChange(combat) {
       });
     }
   }
-  await saveTsc(combat, state);
+  await mutateTsc(combat, (current) => ({
+    ...current,
+    lastEffectTurn: state.lastEffectTurn,
+    lastTurnKey: state.lastTurnKey,
+    ...(resetStations ? { stationResetEncounter: combat.id } : {})
+  }));
   await HazardEngine.processResets(combat);
   if (!cb) return;
   const mark = cb.flags?.[MODULE_ID];
   if (mark?.compromisedEntry) {
-    const ship = await fromUuidSafe(mark.shipUuid);
+    const ship = await resolveSensorActor(combat, mark.shipUuid);
     if (ship) await runHullIntegrityCheck(ship, combat);
     if (combat.combatant?.id === cb.id) await combat.nextTurn();
     return;
   }
-  if (cb.actor && isStarshipHazard(cb.actor) && hazardFlags(cb.actor)?.isComplex !== false) await HazardEngine.onHazardTurn(cb);
+  const mapHazard = cb.flags?.[MODULE_ID]?.sensorMapObject?.key ?? cb.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid;
+  if ((cb.actor && isStarshipHazard(cb.actor) && hazardFlags(cb.actor)?.isComplex !== false) || mapHazard)
+    await HazardEngine.onHazardTurn(cb);
 }
 
 /** Auto-detect starship combat when a starship/hazard actor joins an encounter (explicit toggle always available). */
@@ -630,7 +659,7 @@ export async function cleanupEndedCombat(combat) {
   if (!isActiveGM()) return;
   const combatBound = (effect) => effect.timing?.combatId === combat.id || (!effect.manual && !!effect.expire);
   for (const uuid of combatShipUuids(combat)) {
-    const ship = await fromUuidSafe(uuid);
+    const ship = await resolveSensorActor(combat, uuid);
     if (!ship || !isStarship(ship)) continue;
     for (const effect of readStarship(ship).effects.filter((e) => e.manual && combatBound(e)))
       await removeManualEffect(ship.uuid, effect.id);
@@ -648,7 +677,7 @@ export async function cleanupEndedCombat(combat) {
 export function registerCombatHooks() {
   Hooks.on("updateCombat", (combat, changes) => {
     if (!isActiveGM() || !isStarshipCombat(combat) || combat.flags?.[MODULE_ID]?.combatSetup) return;
-    if ("turn" in changes || "round" in changes) onTurnChange(combat).catch((err) => log.error("turn processing failed", err));
+    if ("turn" in changes || "round" in changes) onTurnChange(combat, changes).catch((err) => log.error("turn processing failed", err));
   });
   Hooks.on("createCombatant", (c) => onCreateCombatant(c).catch((err) => log.error("auto-detect failed", err)));
   Hooks.on("deleteCombat", (combat) => {

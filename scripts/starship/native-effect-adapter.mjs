@@ -11,20 +11,22 @@ const moduleConditions = [
 
 export function getConditionOptions() {
   const manager = globalThis.game?.pf2e?.ConditionManager;
-  const native = (manager?.conditionsSlugs ?? []).map((slug) => {
-    const condition = manager.getCondition(slug);
-    const rules = condition.system.rules ?? [];
-    return {
-      slug,
-      label: condition.name,
-      valued: condition.system.value.isValued,
-      nativeCrew: true,
-      shipSupported:
-        rules.some((r) => r.key === "FlatModifier") &&
-        rules.every((r) => r.key === "FlatModifier") &&
-        !["doomed", "unconscious", "broken", "prone"].includes(slug)
-    };
-  });
+  const native = (manager?.conditionsSlugs ?? [])
+    .filter((slug) => slug !== "persistent-damage")
+    .map((slug) => {
+      const condition = manager.getCondition(slug);
+      const rules = condition.system.rules ?? [];
+      return {
+        slug,
+        label: condition.name,
+        valued: condition.system.value.isValued,
+        nativeCrew: true,
+        shipSupported:
+          rules.some((r) => r.key === "FlatModifier") &&
+          rules.every((r) => r.key === "FlatModifier") &&
+          !["doomed", "unconscious", "broken", "prone"].includes(slug)
+      };
+    });
   return [
     ...moduleConditions.map((c) => ({
       ...c,

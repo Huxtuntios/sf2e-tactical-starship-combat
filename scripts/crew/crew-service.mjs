@@ -7,6 +7,7 @@ import { randomId } from "../utils/ids.mjs";
 import { CREW_ROLES } from "../constants.mjs";
 import { assignStation, releaseStationIn, normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
 import { sanitizeNewStation } from "../engine/validation.mjs";
+import { nextStationName } from "../engine/station-names.mjs";
 
 /**
  * Role / linked user a requester may set on a crew entry. Only a GM or a user with assignCrew on the ship may grant
@@ -170,6 +171,7 @@ async function addStation({ user, payload }) {
   await patchStarship(ship, (d) => {
     if (d.stations.some((s) => s.id === station.id)) throw new Error(T("SF2eTSC.errors.invalidData"));
     if (d.stations.length >= 50) throw new Error(T("SF2eTSC.errors.invalidData"));
+    station.name = nextStationName(station, d.stations);
     d.stations.push(station);
   });
   return true;

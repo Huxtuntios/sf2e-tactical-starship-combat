@@ -19,8 +19,12 @@ import {
   shipModuleValue,
   shipAreaDC,
   rollNativeCheck,
+  crewClassDC,
   bestSpellStatistic,
-  secretVisibility
+  secretVisibility,
+  targetArmorClass,
+  targetSaveModifier,
+  targetStatistic
 } from "../starship/stats.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { basicSaveMultiplier } from "./dice.mjs";
@@ -32,6 +36,9 @@ import { log } from "../utils/logging.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { manualModifiersFor } from "./manual-modifiers.mjs";
 import { buildWeaponItemData } from "../content/weapon-docs.mjs";
+import { weaponProfileOf } from "./weapon-profile.mjs";
+
+export { weaponProfileOf };
 
 const DEGREE_LABEL = (d) => T(`SF2eTSC.degree.${["criticalFailure", "failure", "success", "criticalSuccess"][d]}`);
 
@@ -51,6 +58,10 @@ export function resolveWeapon(ctx) {
       damageParts: split.immediate,
       persistentParts: split.persistent,
       traits: s.traits ?? [],
+      group: s.group,
+      type: s.type,
+      save: s.save,
+      savingThrow: s.savingThrow,
       range: npcStrikeRange(s, ctx.stats?.sensorRange)
     };
   }
@@ -84,6 +95,12 @@ export function npcDamageParts(text) {
   const first = out.find((p) => p.type)?.type ?? "untyped";
   return out.map((p, i) => ({ ...p, type: p.type ?? (i === 0 ? first : first) }));
 }
+export function splitNPCDamageParts(parts) {
+  return {
+    immediate: parts.filter((part) => part.category !== "persistent"),
+    persistent: parts.filter((part) => part.category === "persistent")
+  };
+}
 /**
  * Maximum range (zones) of an NPC Strike.
  *  - melee Strikes: the starship's own zone (0)
@@ -91,12 +108,6 @@ export function npcDamageParts(text) {
  *  - "range N zones": that range
  *  - otherwise the matching player weapon of the same name (Tech Core p.192 table), else the ship's sensor range.
  */
-export function splitNPCDamageParts(parts) {
-  return {
-    immediate: parts.filter((part) => part.category !== "persistent"),
-    persistent: parts.filter((part) => part.category === "persistent")
-  };
-}
 export function npcStrikeRange(strike, sensorRange = 6) {
   if (strike?.kind === "melee") return 0;
   const traits = strike?.traits ?? [];
@@ -154,13 +165,25 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
   };
   const mods = manualModifiersFor(ctx.manualModifiers, "attack");
   if (row?.tracking) mods.push({ slug: "tsc-tracking", label: modLabel("tracking"), type: "item", value: row.tracking });
-  mods.push(...shipModifiers(ctx.ship, "attack", context));
+  mods.push(
+    ...shipModifiers(ctx.ship, "attack", context).map((modifier) => ({
+      ...modifier,
+      slug: modifier.slug?.startsWith("tsc-") ? modifier.slug : `tsc-${modifier.slug}`
+    }))
+  );
+  if (
+    ctx.stats.offKilter &&
+    !mods.some((modifier) => modifier.type === "circumstance" && modifier.value === -2 && modifier.label === modLabel("offKilter"))
+  )
+    mods.push({ slug: "tsc-off-kilter", label: modLabel("offKilter"), type: "circumstance", value: -2 });
   for (const n of rp.notes) mods.push({ slug: `tsc-${n.key}`, label: modLabel(n.key), type: "untyped", value: n.value });
   if (mapPenalty) mods.push({ slug: "multiple-attack-penalty", label: T("SF2eTSC.ui.map"), type: "untyped", value: mapPenalty });
-  const tstats = computeShipStats(target.actor);
+  const hazard = target.actor?.type === "hazard";
+  const tstats = hazard ? { ac: targetArmorClass(target.actor), offGuard: false } : computeShipStats(target.actor);
   const behind = isAttackFromBehind(me.zone, to.zone, to.heading ?? target.data.heading);
-  const defense = shipAC(target.actor, { data: target.data, againstUuid: ctx.shipUuid, offGuard: behind, statistic: "dc" });
-  const acMods = defense.applied;
+  const defense = hazard
+    ? { value: tstats.ac, applied: [] }
+    : shipAC(target.actor, { data: target.data, againstUuid: ctx.shipUuid, offGuard: behind, statistic: "dc" });
   const consumed = consumedByStrike(target.data.effects, ctx.shipUuid);
   let effectiveAttackBonus = null;
   try {
@@ -180,7 +203,7 @@ export function computeAttackModifiers(ctx, weapon, target, { mapPenalty = ctx.m
   return {
     mods,
     effectiveAttackBonus,
-    acMods,
+    acMods: defense.applied,
     baseAC: tstats.ac,
     ac: defense.value,
     distance,
@@ -222,7 +245,7 @@ async function attackRoll(ctx, weapon, target, { spell = false } = {}) {
     ],
     skipDialog: ctx.options.skipDialog,
     messageMode: ctx.options.messageMode,
-    modifierOnly: base + stackModifiers(mods).total
+    modifierOnly: base + modifierTotal(mods).total
   });
   if (!res) return null;
   ctx.attackResult = {
@@ -491,6 +514,15 @@ export async function resolveStrike(ctx) {
     // bound here on the GM side; the card can only roll/apply damage for exactly this target, once. The weapon/target
     // data is bound even on a miss so a system reroll that hits can build the pending damage.
     const traitsL = (weapon.traits ?? []).map((t) => String(t).toLowerCase());
+    const profile = weaponProfileOf(weapon);
+    const boundTargets = profile.plasma ? ctx.targets : [target];
+    const bindings = boundTargets.map((bound) => ({ targetUuid: bound.uuid, targetKey: bound.key }));
+    const save = profile.save
+      ? {
+          ...profile.save,
+          dc: profile.save.dc ?? crewClassDC(ctx.crew) + (profile.area ? (ctx.stats.areaDCModifier ?? 0) : 0)
+        }
+      : null;
     ctx.boundDamage = {
       damageParts: weapon.npc ? weapon.damageParts : null,
       persistentParts: weapon.persistentParts ?? [],
@@ -499,8 +531,9 @@ export async function resolveStrike(ctx) {
       damageType: weapon.damageType,
       extraTypes: (weapon.damageParts ?? []).slice(1).map((p) => p.type),
       traits: traitsL,
-      targetUuid: target.uuid,
-      targetKey: target.key,
+      targetUuid: bindings[0].targetUuid,
+      targetKey: bindings[0].targetKey,
+      ...(profile.plasma ? { plasma: true, profile, targets: bindings, save } : {}),
       ...(ctx.privateAction ? { privateCombatId: ctx.combat.id } : {}),
       source: weapon.name
     };
@@ -727,10 +760,11 @@ export async function resolveAreaFire(ctx, kind) {
     value: `${T(`SF2eTSC.areaTypes.${area.type}`)} ${area.value} — ${T("SF2eTSC.ui.zone")} ${zones.join(", ")}`
   });
   for (const o of targets) {
-    const entry = await ctx.draft.ship(o.actorUuid ?? o.key);
+    const entry = await ctx.draft.target(o.actorUuid ?? o.key);
     if (entry.data.destroyed) continue;
     const context = { data: entry.data, againstUuid: ctx.shipUuid, area: true, statistic: "check" };
-    const stat = shipStatistic(entry.actor, "reflex", context);
+    const hazard = entry.actor.type === "hazard";
+    const stat = hazard ? targetStatistic(entry.actor, "reflex") : shipStatistic(entry.actor, "reflex", context);
     const res = await rollNativeCheck({
       statistic: stat,
       dc: baseDC,
@@ -739,7 +773,7 @@ export async function resolveAreaFire(ctx, kind) {
       secret: !!ctx.privateAction,
       skipDialog: ctx.options.skipDialog,
       messageMode: ctx.options.messageMode,
-      modifierOnly: shipModuleValue(entry.actor, "reflex", context)
+      modifierOnly: hazard ? targetSaveModifier(entry.actor, "reflex") : shipModuleValue(entry.actor, "reflex", context)
     });
     if (!res) {
       ctx.cancelled = true;

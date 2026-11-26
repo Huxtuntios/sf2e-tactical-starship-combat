@@ -1,6 +1,7 @@
 import { normalizeCrewAssignments } from "./crew-assignments.mjs";
 import { normalizeObjectTransform } from "../sensor/appearance.mjs";
 import { DATA_VERSION, GRADES, HEADINGS, STARSHIP_ROLES, STATION_TYPES } from "../constants.mjs";
+import { resolveBaseSensorRange } from "./sensor-range.mjs";
 
 /** Immunities shared by all "starship immunities" (Tech Core p.172). */
 export const STARSHIP_IMMUNITIES = Object.freeze([
@@ -27,7 +28,7 @@ export function defaultStarship() {
     level: 1,
     frame: "explorer",
     size: "medium",
-    sensorRange: 6,
+    sensorRange: null,
     speed: 3,
     hp: { value: 24, max: 24 },
     sp: { value: 11, max: 11 },
@@ -67,7 +68,7 @@ const isInt = (v) => Number.isInteger(v);
  * Normalize starship data: fill defaults, coerce types.
  * @returns {{data:object, errors:string[], warnings:string[]}}
  */
-export function normalizeStarship(input) {
+export function normalizeStarship(input, { frame = null } = {}) {
   const base = defaultStarship();
   const d = { ...base, ...(input ?? {}) };
   d.hp = { ...base.hp, ...(input?.hp ?? {}) };
@@ -86,7 +87,13 @@ export function normalizeStarship(input) {
   if (!isInt(d.sp.value)) d.sp.value = d.sp.max;
   d.sp.value = Math.min(Math.max(0, d.sp.value), d.sp.max);
   if (!isInt(d.speed) || d.speed < 0) errors.push("speed must be a non-negative integer");
-  if (!isInt(d.sensorRange) || d.sensorRange < 0) errors.push("sensorRange must be a non-negative integer");
+  const rangeInput = Object.hasOwn(input ?? {}, "sensorRange") ? input.sensorRange : undefined;
+  const sizeInput = Object.hasOwn(input ?? {}, "size") ? input.size : undefined;
+  if (sizeInput == null && rangeInput == null) d.size = null;
+  const range = resolveBaseSensorRange({ ...d, sensorRange: rangeInput, size: sizeInput }, frame);
+  d.sensorRange = range.value;
+  if (range.source === "invalid") errors.push(range.warning);
+  else if (range.warning) warnings.push(range.warning);
   if (!HEADINGS.includes(d.heading)) {
     warnings.push(`heading "${d.heading}" invalid, using right`);
     d.heading = "right";
@@ -323,7 +330,7 @@ const SHIP_FIELD_RULES = {
   frame: (v) => toStr("frame", v, { nullable: true }),
   size: (v) => toEnum("size", v, SHIP_SIZES),
   role: (v) => toEnum("role", v, STARSHIP_ROLES),
-  sensorRange: (v) => toInt("sensorRange", v, { min: 0, max: 100 }),
+  sensorRange: (v) => toInt("sensorRange", v, { min: 0, max: 100, nullable: true }),
   speed: (v) => toInt("speed", v, { min: 0, max: 100 }),
   ac: (v) => toInt("ac", v, { min: -10, max: 100 }),
   fort: (v) => toInt("fort", v, { min: -50, max: 100 }),

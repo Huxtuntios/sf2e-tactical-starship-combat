@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { makeCharacter, makeShip } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effect-fixture.mjs";
 import { createNativeEffect } from "../../scripts/starship/native-effect-adapter.mjs";
 import { effectModifiers } from "../../scripts/starship/effects.mjs";
 

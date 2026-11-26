@@ -5,15 +5,18 @@ import { damagePartsFromRoll, rollTypedDamage, typedDamageFormula } from "../../
  */
 import { MODULE_ID } from "../../constants.mjs";
 import { executeAction, sanitizeActionRequest, targetRuleInput, publicActionResult } from "../../actions/action-engine.mjs";
-import { computeAttackModifiers, knownAttackBonus } from "../../actions/strike.mjs";
-import { evaluateTargets, visibleToPlayers } from "../../engine/target-rules.mjs";
-import { findObject } from "../../engine/sensor-ops.mjs";
+import { computeAttackModifiers, knownAttackBonus, weaponProfileOf } from "../../actions/strike.mjs";
+import { evaluateTargets, targetingState, visibleToPlayers } from "../../engine/target-rules.mjs";
+import { effectiveDetection, findObject } from "../../engine/sensor-ops.mjs";
+import { privateContacts } from "../../sensor/private-contacts.mjs";
+import { resolveSensorActor, resolveSensorActorForAction, resolveSensorActorSync } from "../../sensor/map-object.mjs";
 import { readStarship, isStarship } from "../../starship/starship-state.mjs";
-import { bestSpellStatistic } from "../../starship/stats.mjs";
+import { bestSpellStatistic, rollNativeCheck, targetStatistic, targetSaveModifier } from "../../starship/stats.mjs";
+import { basicSaveMultiplier } from "../../actions/dice.mjs";
 import { activeStarshipCombat, getTsc } from "../../combat/tsc-state.mjs";
 import { turnKey } from "../../engine/cost.mjs";
 import { MAP_CHOICES, mapFor } from "../../engine/map.mjs";
-import { T, fromUuidSafe, fromUuidSync_ } from "../../utils/foundry.mjs";
+import { T, fromUuidSafe } from "../../utils/foundry.mjs";
 import { portraitOf } from "../../crew/occupant.mjs";
 import { log } from "../../utils/logging.mjs";
 import { Draft } from "../../actions/draft.mjs";
@@ -29,10 +32,13 @@ import {
   cardRequest,
   cardMapInfo,
   playerTargets,
+  resolutionTargetUUIDs,
   pickMapChoice,
-  canStartResolve
+  canStartResolve,
+  attackCardSaveRecords
 } from "./model.mjs";
 import { renderAttackCard, renderDiag } from "./render.mjs";
+import { withToolbeltTargets } from "../card.mjs";
 
 const resolving = new Set();
 const dmgType = (t) => (t && game.i18n.has(`SF2eTSC.damageTypes.${t}`) ? T(`SF2eTSC.damageTypes.${t}`) : (t ?? ""));
@@ -42,9 +48,11 @@ export async function declareAttack({ user, payload }) {
   const dry = await executeAction({ ...req, options: { ...req.options }, user, userId: user.id, dryRun: true });
   const ctx = dry.ctx;
   if (!isCardAttack(ctx.action)) throw new Error(T("SF2eTSC.attackCard.notAnAttack"));
+  req.shipUuid = ctx.ship.uuid;
   const spell = ctx.action.builtin === "spell-attack";
   const weapon = spell ? { name: ctx.action.name, traits: ["spell"], range: null } : ctx.weapon;
   if (!weapon) throw new Error(T("SF2eTSC.errors.noWeapon"));
+  const profile = spell ? null : weaponProfileOf(weapon);
   const rules = targetRuleInput(ctx);
   const tsc = ctx.tsc;
   const me = findObject(tsc, ctx.shipUuid);
@@ -63,7 +71,7 @@ export async function declareAttack({ user, payload }) {
       ...publicLabel(obj, ctx.shipUuid)
     };
     if (ev.available && !obj.privateContact) {
-      const actor = fromUuidSync_(out.actorUuid);
+      const actor = resolveSensorActorSync(ctx.combat, out.actorUuid);
       if (actor && isStarship(actor)) {
         try {
           const pre = computeAttackModifiers(ctx, weapon, { key: obj.key, actor, data: readStarship(actor) });
@@ -108,7 +116,8 @@ export async function declareAttack({ user, payload }) {
         : weapon.die
           ? `${weapon.die}${ctx.stationRow?.damageDice > 1 ? ` ×${ctx.stationRow.damageDice}` : ""}`
           : null,
-      damageType: weapon.damageType ?? null
+      damageType: weapon.damageType ?? null,
+      ...(profile?.plasma ? { profile } : {})
     },
     attackType: spell ? "spell" : weapon.npc ? (ctx.options.npcStrike?.kind === "melee" ? "melee" : "ranged") : "ranged",
     range: { zones: rules.range, increment: rules.rangeIncrement, fromZone: me?.zone ?? null },
@@ -124,12 +133,17 @@ export async function declareAttack({ user, payload }) {
   const speaker = ctx.crew ? ChatMessage.getSpeaker({ actor: ctx.crew }) : ChatMessage.getSpeaker({ actor: ctx.ship });
   if (!publicCard || !attackerPublic.known) speaker.alias = attackerPublic.label ?? T("SF2eTSC.attackCard.unknownAttacker");
   const gmIds = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
-  const msg = await ChatMessage.create({
+  const messageData = {
     speaker,
     content: renderAttackCard({ id: null, flags: { [MODULE_ID]: { [CARD_FLAG]: card } } }),
     whisper: publicCard ? [] : gmIds,
     flags: { [MODULE_ID]: { card: true, [CARD_FLAG]: card } }
-  });
+  };
+  withToolbeltTargets(
+    messageData,
+    card.targets.map((target) => target.actorUuid ?? target.key)
+  );
+  const msg = await ChatMessage.create(messageData);
   // GM diagnostics: every candidate including hidden / undetected ones and why they are (un)available
   const diag = candidates.filter((c) => !c.available || !c.playerVisible);
   if (diag.length) {
@@ -187,8 +201,8 @@ export async function resolveAttackCard({ user, payload }) {
     await updateCard(message, { status: "void", error: T("SF2eTSC.attackCard.stale") });
     throw new Error(T("SF2eTSC.attackCard.stale"));
   }
-  const targetKey = typeof payload?.targetKey === "string" ? payload.targetKey : null;
-  if (!targetKey) throw new Error(T("SF2eTSC.errors.needTarget"));
+  const targetUUIDs = resolutionTargetUUIDs(payload);
+  if (!targetUUIDs.length) throw new Error(T("SF2eTSC.errors.needTarget"));
   resolving.add(message.id);
   try {
     await updateCard(message, { status: "resolving" });
@@ -197,7 +211,7 @@ export async function resolveAttackCard({ user, payload }) {
       ...card.request,
       options: {
         ...card.request.options,
-        targetKey,
+        ...(Array.isArray(payload?.targetUUIDs) ? { targetUUIDs } : { targetKey: targetUUIDs[0] }),
         mapChoice,
         skipDialog: payload?.skipDialog,
         messageMode: payload?.messageMode,
@@ -216,6 +230,7 @@ export async function resolveAttackCard({ user, payload }) {
       await updateCard(message, { status: "open", error: null });
       return { ok: true, cancelled: true };
     }
+    const targetKey = res.summary?.targetKeys?.[0] ?? targetUUIDs[0];
     const tsc = combat ? getTsc(game.combats.get(combat.id)) : null;
     const tobj = tsc ? findObject(tsc, targetKey) : null;
     const safeSummary = publicActionResult(res).summary;
@@ -247,6 +262,7 @@ export async function resolveAttackCard({ user, payload }) {
       result: {
         ...(gmOnly ? res.summary : safeSummary),
         targetKey,
+        targetUUIDs: res.summary?.privateAction ? res.summary.targetKeys : (res.summary?.targetUUIDs ?? targetUUIDs),
         targetLabel: tl.known ? (tobj?.name ?? res.summary?.targetName) : (tl.label ?? "Contact"),
         resolvedBy: user.id
       }
@@ -268,6 +284,80 @@ function pendingCard(payload) {
   if (card.damageApplied) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
   return { message, card, pd };
 }
+function pendingTargets(pd) {
+  return Array.isArray(pd?.targets)
+    ? pd.targets
+    : pd?.targetUuid
+      ? [{ targetUuid: pd.targetUuid, targetKey: pd.targetKey ?? pd.targetUuid }]
+      : [];
+}
+
+async function currentPlasmaTargets(card, pd) {
+  const combat = activeStarshipCombat();
+  if (pd.privateCombatId && combat?.id !== pd.privateCombatId) throw new Error(T("SF2eTSC.attackCard.stale"));
+  const shipUuid = card.request?.shipUuid;
+  const attacker = shipUuid ? await resolveSensorActorForAction(combat, shipUuid) : null;
+  if (!attacker || !isStarship(attacker)) throw new Error(T("SF2eTSC.attackCard.stale"));
+  const role = readStarship(attacker).role;
+  const tsc = combat ? targetingState(getTsc(combat), shipUuid, privateContacts(combat.id)) : null;
+  const targets = [];
+  const seen = new Set();
+  for (const binding of pendingTargets(pd)) {
+    const actor = await resolveSensorActor(combat, binding.targetUuid);
+    if (!actor || (!isStarship(actor) && actor.type !== "hazard") || seen.has(actor.uuid)) continue;
+    const obj = tsc ? (findObject(tsc, binding.targetKey) ?? tsc.objects.find((candidate) => candidate.actorUuid === actor.uuid)) : null;
+    if (tsc && (!obj || obj.tscPrivateProjection)) continue;
+    if (role === "player" && obj && !obj.alwaysVisible && effectiveDetection(obj, [shipUuid]) === "undetected")
+      throw new Error(T("SF2eTSC.targeting.reason.undetected"));
+    seen.add(actor.uuid);
+    const label = obj ? publicLabel(obj, shipUuid).label : actor.name;
+    targets.push({ uuid: actor.uuid, key: binding.targetKey, actor, obj, label });
+  }
+  return targets;
+}
+
+export async function rollAttackCardSaves({ user, payload }) {
+  const { message, card, pd } = pendingCard(payload);
+  if (!pd.save) throw new Error(T("SF2eTSC.attackCard.noSave"));
+  const crewActor = card.request.crewUuid ? await fromUuidSafe(card.request.crewUuid) : null;
+  if (!mayResolveCard(user, card, crewActor)) throw new Error(T("SF2eTSC.errors.noPermission"));
+  const appId = card.applicationId ?? message.id;
+  if (damaging.has(appId)) throw new Error(T("SF2eTSC.rolls.busy"));
+  damaging.add(appId);
+  try {
+    const targets = await currentPlasmaTargets(card, pd);
+    if (!targets.length) throw new Error(T("SF2eTSC.errors.needTarget"));
+    const saveRolls = [];
+    for (const target of targets) {
+      const res = await rollNativeCheck({
+        statistic: targetStatistic(target.actor, pd.save.type),
+        dc: pd.save.dc,
+        label: `${target.label ?? T("SF2eTSC.detection.contact")}: ${T(`SF2eTSC.ui.${pd.save.type}`)}`,
+        actor: target.actor,
+        secret: !!message.blind || !!message.whisper?.length || !!pd.privateCombatId,
+        skipDialog: card.request.options?.skipDialog,
+        messageMode: card.request.options?.messageMode,
+        modifierOnly: targetSaveModifier(target.actor, pd.save.type)
+      });
+      if (!res) return { ok: true, cancelled: true };
+      saveRolls.push({
+        targetUuid: target.uuid,
+        saveType: pd.save.type,
+        total: res.total,
+        natural: res.natural ?? null,
+        degree: res.degree,
+        multiplier: basicSaveMultiplier(res.degree),
+        label: target.label,
+        by: user.id
+      });
+    }
+    await updateCard(message, { saveRolls, saveTargetUUIDs: targets.map((target) => target.uuid), error: null });
+    return { ok: true, saves: saveRolls };
+  } finally {
+    damaging.delete(appId);
+  }
+}
+
 /** Roll (or re-roll) the damage of a hit from a sheet attack. Nothing is applied; repeat rolls are allowed. */
 export async function rollAttackCardDamage({ user, payload }) {
   const { message, card, pd } = pendingCard(payload);
@@ -300,6 +390,132 @@ export async function rollAttackCardDamage({ user, payload }) {
     damaging.delete(appId);
   }
 }
+function saveAdjustedParts(parts, multiplier) {
+  const scaled = parts.map((part) => ({ ...part, exact: part.amount * multiplier, amount: Math.floor(part.amount * multiplier) }));
+  const target = Math.floor(parts.reduce((sum, part) => sum + part.amount, 0) * multiplier);
+  let remainder = target - scaled.reduce((sum, part) => sum + part.amount, 0);
+  const order = scaled
+    .map((part, index) => ({ index, fraction: part.exact - part.amount }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (const { index } of order) {
+    if (remainder <= 0) break;
+    scaled[index].amount++;
+    remainder--;
+  }
+  return scaled.map(({ exact, ...part }) => part);
+}
+
+async function applyPlasmaCardDamage({ message, card, pd, user }) {
+  const targets = await currentPlasmaTargets(card, pd);
+  if (!targets.length) throw new Error(T("SF2eTSC.attackCard.stale"));
+  const saveRolls = new Map(attackCardSaveRecords(card).map((save) => [save.targetUuid, save]));
+  if (pd.save && targets.some((target) => !saveRolls.has(target.uuid))) throw new Error(T("SF2eTSC.rolls.rollSavesFirst"));
+  const types = new Set(pd.damageParts?.length ? pd.damageParts.map((part) => part.type) : [pd.damageType ?? "untyped"]);
+  if (card.damageRoll.parts == null && types.size > 1) throw new Error(T("SF2eTSC.rolls.invalidDamage"));
+  const parts = damagePartsFromRoll(
+    card.damageRoll.parts == null
+      ? { total: card.damageRoll.total }
+      : {
+          instances: Array.isArray(card.damageRoll.parts)
+            ? card.damageRoll.parts.map((part) => ({ type: part.type, total: part.amount }))
+            : []
+        },
+    card.damageRoll.parts == null ? [...types][0] : null
+  );
+  const traits = (pd.traits ?? []).map((trait) => String(trait).toLowerCase());
+  const combat = activeStarshipCombat();
+  const attacker = await resolveSensorActorForAction(combat, card.request?.shipUuid);
+  const appId = card.applicationId ?? message.id;
+  const results = structuredClone(card.damageResults ?? []);
+  const saveResult = (result) => {
+    const index = results.findIndex((entry) => entry.targetUuid === result.targetUuid);
+    if (index < 0) results.push(result);
+    else results[index] = result;
+  };
+  for (const target of targets) {
+    const save = saveRolls.get(target.uuid) ?? null;
+    const adjustedParts = save ? saveAdjustedParts(parts, save.multiplier) : parts;
+    const amount = adjustedParts.reduce((sum, part) => sum + part.amount, 0);
+    const strikeId = `chat:${appId}:${target.uuid}`;
+    const draft = new Draft(combat ?? null);
+    if (pd.privateCombatId) draft.privateAction = true;
+    const entry = await draft.target(target.uuid);
+    const hazard = target.actor.type === "hazard";
+    const receiptPath = `flags.${MODULE_ID}.starshipHazard.appliedStrikeReceipts`;
+    const receipts = hazard
+      ? (target.actor.flags?.[MODULE_ID]?.starshipHazard?.appliedStrikeReceipts ?? [])
+      : (entry.data.appliedStrikeReceipts ?? []);
+    if (!hazard && !Array.isArray(receipts)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+    if (receipts.includes(strikeId)) continue;
+    if (!hazard) entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
+    const rx =
+      attacker && ["strike", "npc-strike"].includes(card.action?.builtin)
+        ? await Reactions.ask(
+            { draft, combat: draft.combat, tsc: draft.tsc, options: {}, strikeId, ship: attacker, droneBlockOnly: true },
+            { uuid: target.uuid, actor: target.actor, data: entry.data },
+            {
+              amount,
+              traits,
+              crit: !!pd.crit || save?.degree === 0,
+              attackLabel: card.weapon?.name ?? card.action?.name ?? pd.source ?? ""
+            }
+          )
+        : {};
+    if (hazard)
+      draft.hazards.set(target.uuid, {
+        actor: target.actor,
+        patch: { ...(draft.hazards.get(target.uuid)?.patch ?? {}), [receiptPath]: [...receipts, strikeId] }
+      });
+    else entry.data.appliedStrikeReceipts = [...receipts, strikeId];
+    if (rx.manualDamage) {
+      await draft.commit();
+      saveResult({
+        targetUuid: target.uuid,
+        target: target.label,
+        manual: true,
+        rolled: amount,
+        resistance: rx.resistance ?? 0,
+        protocolManual: !!rx.manualDamage.protocolManual
+      });
+    } else {
+      const d =
+        amount > 0 || pd.persistentParts?.length
+          ? await applyDamageInDraft(draft, target.uuid, {
+              amount,
+              parts: adjustedParts,
+              damageType: pd.damageType,
+              persistentParts: pd.persistentParts,
+              persistentSource: { label: pd.source, strikeId, shipUuid: card.request?.shipUuid ?? null },
+              strikeResistance: rx.resistance ?? 0,
+              traits,
+              criticalHit: !!pd.crit || save?.degree === 0,
+              nonlethal: traits.includes("nonlethal"),
+              source: pd.source,
+              silent: true
+            })
+          : { shieldDamage: 0, hullDamage: 0, resistanceReduction: 0, hardnessReduction: 0, weaknessIncrease: 0, destroyed: false };
+      await draft.commit();
+      saveResult({
+        targetUuid: target.uuid,
+        target: target.label,
+        rolled: amount,
+        damageType: pd.damageType,
+        shield: d.shieldDamage,
+        hull: d.hullDamage,
+        resisted: d.resistanceReduction,
+        hardness: d.hardnessReduction,
+        weakness: d.weaknessIncrease,
+        destroyed: d.destroyed,
+        saveDegree: save?.degree ?? null,
+        multiplier: save?.multiplier ?? 1
+      });
+    }
+    await updateCard(message, { damageResults: results, error: null });
+  }
+  await updateCard(message, { damageApplied: true, damageResults: results, error: null });
+  return { ok: true, result: results };
+}
+
 /**
  * Apply the rolled damage once, GM only, to the target bound at resolution time (never to a client-chosen or
  * random target). Shields, hardness, resistances, weaknesses, immunities, hull and conditions go through the
@@ -313,6 +529,7 @@ export async function applyAttackCardDamage({ user, payload }) {
   if (damaging.has(appId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
   damaging.add(appId);
   try {
+    if (pd.plasma && Array.isArray(pd.targets)) return await applyPlasmaCardDamage({ message, card, pd, user });
     const traits = (pd.traits ?? []).map((trait) => String(trait).toLowerCase());
     const types = new Set(pd.damageParts?.length ? pd.damageParts.map((part) => part.type) : [pd.damageType ?? "untyped"]);
     // Old mixed cards contain only an aggregate: require a re-roll instead of assigning it to the first type.
@@ -328,20 +545,24 @@ export async function applyAttackCardDamage({ user, payload }) {
       card.damageRoll.parts == null ? [...types][0] : null
     );
     const amount = parts.reduce((sum, part) => sum + part.amount, 0);
-    const target = await fromUuidSafe(pd.targetUuid);
-    if (!target || !isStarship(target)) throw new Error(T("SF2eTSC.errors.needTarget"));
+    const target = await resolveSensorActor(activeStarshipCombat(), pd.targetUuid);
+    if (!target || (!isStarship(target) && target.type !== "hazard")) throw new Error(T("SF2eTSC.errors.needTarget"));
     const combat = activeStarshipCombat();
     if (pd.privateCombatId && combat?.id !== pd.privateCombatId) throw new Error(T("SF2eTSC.attackCard.stale"));
     const draft = new Draft(combat ?? null);
     if (pd.privateCombatId) draft.privateAction = true;
-    const entry = await draft.ship(pd.targetUuid);
+    const entry = await draft.target(pd.targetUuid);
+    const hazard = target.type === "hazard";
     const strikeId = `chat:${appId}`;
-    if (entry.data.appliedStrikeReceipts != null && !Array.isArray(entry.data.appliedStrikeReceipts))
-      throw new Error(T("SF2eTSC.droneBlock.invalid"));
-    if ((entry.data.appliedStrikeReceipts ?? []).includes(strikeId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
+    const receiptPath = `flags.${MODULE_ID}.starshipHazard.appliedStrikeReceipts`;
+    const receipts = hazard
+      ? (target.flags?.[MODULE_ID]?.starshipHazard?.appliedStrikeReceipts ?? [])
+      : (entry.data.appliedStrikeReceipts ?? []);
+    if (!hazard && !Array.isArray(receipts)) throw new Error(T("SF2eTSC.droneBlock.invalid"));
+    if (receipts.includes(strikeId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
     // A damage receipt and the ship's drone + hull changes are written in the same guarded actor update.
-    entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
-    const attacker = await fromUuidSafe(card.request?.shipUuid);
+    if (!hazard) entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
+    const attacker = await resolveSensorActorForAction(combat, card.request?.shipUuid);
     const rx =
       attacker && (card.native || ["strike", "npc-strike"].includes(card.action?.builtin))
         ? await Reactions.ask(
@@ -355,7 +576,12 @@ export async function applyAttackCardDamage({ user, payload }) {
             }
           )
         : {};
-    entry.data.appliedStrikeReceipts = [...(entry.data.appliedStrikeReceipts ?? []), strikeId];
+    if (hazard)
+      draft.hazards.set(target.uuid, {
+        actor: target,
+        patch: { ...(draft.hazards.get(target.uuid)?.patch ?? {}), [receiptPath]: [...receipts, strikeId] }
+      });
+    else entry.data.appliedStrikeReceipts = [...receipts, strikeId];
     if (rx.manualDamage) {
       await draft.commit();
       await updateCard(message, {

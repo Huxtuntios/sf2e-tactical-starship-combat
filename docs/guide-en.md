@@ -8,7 +8,7 @@
 
 ## Sensor Map contacts
 
-Use the Sensor Map add menu to choose a world Hazard or Starship Actor, a Compendium entry, or a custom contact, then choose its initial detection state. That choice applies immediately without an extra confirmation. Each world or Compendium Actor placement creates an independent world Actor copy; the source entry is unchanged. Actors already accessible to players can only be placed as identified. Detection controls the zone map, while Foundry Actor and JournalEntry ownership continue to govern document access. This workflow is not a guarantee of strict confidentiality, and real multi-client behavior has not been verified.
+Use the Sensor Map add menu to choose a world Hazard or Starship Actor, a Compendium entry, or a custom contact, then choose its initial detection state. That choice applies immediately without an extra confirmation. Each world or Compendium Actor placement creates an independent map-only snapshot; the source entry is unchanged and no Actors Directory document is created. Actors already accessible to players can only be placed as identified. Detection controls the zone map, while Foundry Actor and JournalEntry ownership continue to govern document access. This workflow is not a guarantee of strict confidentiality; verify permissions with your actual players and optional modules.
 
 If no heading is present it is not guessed. The GM can select its initial left/right course in the object's GM tools; this also updates a world ship, but a Compendium Actor is left untouched. The base direction of new ship art starts Unknown; set it explicitly to left or right in the object's image settings for autoMirror. When a course arrow is absent, the artwork is centered within its card.
 

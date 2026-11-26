@@ -1,9 +1,11 @@
 <div class="tsc-map-viewport" {{#if noCombat}}hidden{{/if}}>
 <div class="tsc-map-background" aria-hidden="true"></div>
-<div class="tsc-zones" role="grid" title="{{localize 'SF2eTSC.ui.dragHint'}}" {{#if noCombat}}hidden{{/if}}>
+<div class="tsc-zones" title="{{localize 'SF2eTSC.ui.dragHint'}}" {{#if noCombat}}hidden{{/if}}>
 {{#unless noCombat}}
+<div class="tsc-zone-grid" style="--tsc-zone-count: {{zoneCount}};">
+<div class="tsc-zone-layer" role="grid">
       {{#each zones}}
-      <div class="tsc-zone {{#if cover}}has-cover{{/if}} {{#if concealment}}has-concealment{{/if}} {{#if crowded}}crowded{{/if}}" role="gridcell" data-zone="{{zone}}" data-action="pickZone" aria-label="{{localize 'SF2eTSC.ui.zone'}} {{label}}">
+      <div class="tsc-zone {{#if cover}}has-cover{{/if}} {{#if concealment}}has-concealment{{/if}} {{#if outsideRange}}tsc-outside-range{{/if}} {{#if crowded}}crowded{{/if}}" role="gridcell" data-zone="{{zone}}" data-action="pickZone" aria-label="{{localize 'SF2eTSC.ui.zone'}} {{label}}">
         <div class="tsc-zone-head"><span class="tsc-zone-num">{{label}}</span>
           {{#if cover}}<i class="fa-solid fa-shield" title="{{localize 'SF2eTSC.ui.cover'}}"></i>{{/if}}
           {{#if concealment}}<i class="fa-solid fa-cloud" title="{{localize 'SF2eTSC.ui.concealment'}}"></i>{{/if}}
@@ -13,7 +15,8 @@
         </div>
         <div class="tsc-zone-objects">
         {{#each objects}}
-          <button type="button" class="tsc-obj type-{{type}} {{#if status}}st-{{status}}{{/if}} {{#if selected}}selected{{/if}} {{#if current}}current{{/if}} {{#if target}}tgt-{{target}}{{/if}} {{#if hiddenObj}}gm-hidden{{/if}}" data-action="selectObject" data-object-key="{{key}}" title="{{label}}{{#if statusLabel}} — {{statusLabel}}{{/if}}{{#if hp}} — {{localize 'SF2eTSC.ui.hp'}} {{hp}}{{#if sp}} · {{localize 'SF2eTSC.ui.sp'}} {{sp}}{{/if}}{{/if}}{{#if targetLabel}} — {{targetLabel}}{{/if}}" aria-label="{{label}}{{#if statusLabel}} {{statusLabel}}{{/if}}">
+          <button type="button" class="tsc-obj type-{{type}} {{#if status}}st-{{status}}{{/if}} {{#if selected}}selected{{/if}} {{#if actionSelected}}action-selected{{/if}} {{#if current}}current{{/if}} {{#if target}}tgt-{{target}}{{/if}} {{#if hiddenObj}}gm-hidden{{/if}}" data-action="selectObject" data-object-key="{{key}}" title="{{label}}{{#if statusLabel}} — {{statusLabel}}{{/if}}{{#if hp}} — {{localize 'SF2eTSC.ui.hp'}} {{hp}}{{#if sp}} · {{localize 'SF2eTSC.ui.sp'}} {{sp}}{{/if}}{{/if}}{{#if targetLabel}} — {{targetLabel}}{{/if}}" aria-label="{{label}}{{#if statusLabel}} {{statusLabel}}{{/if}}{{#if targetLabel}} — {{targetLabel}}{{/if}}{{#if actionSelected}} — {{localize 'SF2eTSC.ui.gmActionSelection'}}{{/if}}" data-action-selected="{{#if actionSelected}}true{{else}}false{{/if}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}">
+            {{#if targeted}}<span class="tsc-obj-target-marker" aria-hidden="true"><i class="fa-solid fa-crosshairs"></i></span>{{/if}}
             <span class="tsc-obj-visual {{#if arrow}}has-course-arrow{{else}}no-course-arrow{{/if}} arrow-{{#if arrowPosition}}{{arrowPosition}}{{else}}right{{/if}}" style="--tsc-arrow-size: {{arrowSize}}px; --tsc-arrow-gap: {{arrowGap}}px; --tsc-arrow-opacity: {{arrowOpacity}}">
               <span class="tsc-obj-icon" style="transform: rotate({{transform.rotation}}deg) scale({{transform.scaleX}}, {{transform.scaleY}})">{{#if art}}<img class="tsc-object-art" src="{{art}}" alt="" draggable="false"><span hidden>{{icon}}</span>{{else}}{{icon}}{{/if}}</span>
               {{#if arrow}}<span class="tsc-obj-arrow" aria-label="{{heading}}">{{#if arrowCustom}}<img class="tsc-course-image" src="{{arrowImage}}" alt="" draggable="false" style="transform: rotate({{arrowRotation}}deg)"><span hidden>{{arrow}}</span>{{else}}{{#if arrowEmoji}}<span class="tsc-course-emoji" style="transform: rotate({{arrowRotation}}deg)">➡️</span>{{else}}{{arrow}}{{/if}}{{/if}}</span>{{/if}}
@@ -26,6 +29,22 @@
         </div>
       </div>
       {{/each}}
+</div>
+{{#if showRanges}}
+<div class="tsc-range-layer">
+        {{#each sensorRanges}}
+        <div
+          class="tsc-range-outline"
+          data-range-index="{{index}}"
+          data-start-zone="{{startZone}}"
+          data-end-zone="{{endZone}}"
+          style="--tsc-range-start: {{startZone}}; --tsc-range-end: {{endColumn}}; --tsc-range-color: {{color}};"
+          aria-hidden="true"
+        ></div>
+        {{/each}}
+</div>
+{{/if}}
+</div>
 {{/unless}}
 </div>
 

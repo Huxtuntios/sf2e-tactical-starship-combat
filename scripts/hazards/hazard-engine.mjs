@@ -1,17 +1,19 @@
 import { MODULE_ID, FLAGS, HOOK_EVENTS } from "../constants.mjs";
 import { parseHazardEffect, parseReset, parseRoutineActions, isResetReady } from "../engine/hazard-rules.mjs";
-import { addObject, findObject, objectsInZone } from "../engine/sensor-ops.mjs";
+import { findObject, objectsInZone } from "../engine/sensor-ops.mjs";
 import { calculateEmanationZones } from "../engine/areas.mjs";
-import { activeStarshipCombat, saveTsc, getTsc } from "../combat/tsc-state.mjs";
+import { activeStarshipCombat, saveTsc, getTsc, mutateTsc } from "../combat/tsc-state.mjs";
 import { postHazardCard } from "../chat/chat-cards.mjs";
 import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { shipStatistic, rollNativeCheck, computeShipStats } from "../starship/stats.mjs";
 import { basicSaveMultiplier } from "../actions/dice.mjs";
-import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
+import { T, moduleSetting } from "../utils/foundry.mjs";
 import { DEGREE } from "../constants.mjs";
+import { addSensorContact } from "../sensor/contact-service.mjs";
 import { hazardStealthDC } from "./hazard-stealth.mjs";
-import { addPrivateContact } from "../sensor/private-contacts.mjs";
+import { resolveSensorActor, resolveSensorActorSync } from "../sensor/map-object.mjs";
+import { isPrivateSensorActor } from "../sensor/private-contacts.mjs";
 
 export const hazardFlags = (actor) => actor?.flags?.[MODULE_ID]?.[FLAGS.HAZARD] ?? null;
 export const isStarshipHazard = (actor) => !!hazardFlags(actor)?.isStarshipHazard;
@@ -20,34 +22,40 @@ export const isStarshipHazard = (actor) => !!hazardFlags(actor)?.isStarshipHazar
 export async function placeHazard(hazardActor, { zone = 1, span = 1, map = "sensor", detection = null, publicActor = false } = {}) {
   const combat = activeStarshipCombat();
   if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
-  // Закрытая постановка не публикует UUID в Combat или module socket.
-  // Маркер на Ship Map и автоматизация требуют явного полного раскрытия.
-  if (!publicActor && map === "sensor" && (detection === null || detection === "undetected")) {
-    await addPrivateContact(combat, hazardActor, zone);
-    return true;
-  }
-  if (publicActor !== true || detection !== "identified") throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
-  const flags = hazardFlags(hazardActor) ?? {};
-  const state = foundry.utils.deepClone(getTsc(combat));
-  if (map === "sensor" || map === "both") {
+  if (publicActor !== true && !(map === "sensor" && (detection === null || detection === "undetected")))
+    throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
+  if (publicActor && detection !== "identified") throw new Error(T("SF2eTSC.privateMap.disclosureRequired"));
+  const placement = await addSensorContact(combat, {
+    source: hazardActor.pack ? "compendium" : "world",
+    uuid: hazardActor.uuid,
+    zone,
+    detection: publicActor ? "identified" : "undetected",
+    publicActor
+  });
+  const actor = await resolveSensorActor(combat, placement.key);
+  const flags = hazardFlags(actor) ?? {};
+  if (publicActor && (map === "sensor" || map === "both")) {
     const stealth = hazardStealthDC(hazardActor) ?? flags.stealthDC ?? null;
-    const next = addObject(state, {
-      key: hazardActor.uuid,
-      actorUuid: hazardActor.uuid,
-      type: "hazard",
-      name: hazardActor.name,
-      zone,
-      span,
-      level: hazardActor.system?.details?.level?.value ?? flags.level ?? 0,
-      stealthDC: stealth,
-      icon: "⚠",
-      detection: { party: detection ?? (stealth ? "undetected" : "observed") }
-    });
-    Object.assign(state, next);
+    await mutateTsc(combat, (state) => ({
+      ...state,
+      objects: state.objects.map((object) =>
+        object.key === placement.key
+          ? {
+              ...object,
+              span,
+              level: hazardActor.system?.details?.level?.value ?? flags.level ?? 0,
+              stealthDC: stealth,
+              icon: "⚠"
+            }
+          : object
+      ),
+      hazardState: {
+        ...state.hazardState,
+        [placement.key]: { ...(state.hazardState[placement.key] ?? {}), disabled: false, placement: map }
+      }
+    }));
   }
-  state.hazardState[hazardActor.uuid] = { ...(state.hazardState[hazardActor.uuid] ?? {}), disabled: false, placement: map };
-  await saveTsc(combat, state);
-  await hazardActor.setFlag(MODULE_ID, FLAGS.HAZARD, { ...flags, isStarshipHazard: true, placement: map });
+  await actor.setFlag(MODULE_ID, FLAGS.HAZARD, { ...flags, isStarshipHazard: true, placement: map });
   return true;
 }
 
@@ -61,11 +69,15 @@ function zonesOfHazard(tsc, uuid) {
 async function applyAutomatedEffect(hazardActor, text, draft) {
   const parsed = parseHazardEffect(text);
   if (!parsed.damage) return { applied: false, parsed };
+  if (isPrivateSensorActor(hazardActor, draft.combat)) draft.privateAction = true;
   const zones = zonesOfHazard(draft.tsc, hazardActor.uuid);
   const targets = draft.tsc.objects.filter((o) => o.type === "starship" && zones.includes(o.zone));
   if (!targets.length) return { applied: true, parsed, targets: 0 };
   const roll = await new Roll(parsed.damage).evaluate();
-  await roll.toMessage({ speaker: { alias: hazardActor.name }, flavor: `${hazardActor.name}: ${T("SF2eTSC.chat.damage")}` });
+  await roll.toMessage(
+    { speaker: { alias: hazardActor.name }, flavor: `${hazardActor.name}: ${T("SF2eTSC.chat.damage")}` },
+    draft.privateAction ? { messageMode: "gm", rollMode: "gmroll" } : {}
+  );
   for (const o of targets) {
     const entry = await draft.ship(o.key);
     let amount = roll.total,
@@ -76,6 +88,7 @@ async function applyAutomatedEffect(hazardActor, text, draft) {
         dc: parsed.dc,
         label: `${entry.actor.name}: ${parsed.save}`,
         actor: entry.actor,
+        secret: !!draft.privateAction,
         modifierOnly: computeShipStats(entry.actor, { againstUuid: hazardActor.uuid, area: true, statistic: "check" })[parsed.save]
       });
       if (!res) return { applied: false, cancelled: true, parsed, targets: targets.length };
@@ -91,15 +104,16 @@ async function applyAutomatedEffect(hazardActor, text, draft) {
 export const HazardEngine = {
   /** Trigger: detect -> validate -> execute -> chat -> update state. */
   async trigger(hazardUuid, { reason = null, automate = true } = {}) {
-    const hazard = await fromUuidSafe(hazardUuid);
-    if (!hazard) throw new Error(T("SF2eTSC.errors.actorNotFound"));
     const combat = activeStarshipCombat();
+    const hazard = await resolveSensorActor(combat, hazardUuid);
+    if (!hazard) throw new Error(T("SF2eTSC.errors.actorNotFound"));
     const draft = new Draft(combat);
     if (!draft.tsc) throw new Error(T("SF2eTSC.errors.noCombat"));
     const hs = draft.tsc.hazardState[hazardUuid] ?? {};
     if (hs.disabled) return { skipped: true };
     // Мина дрона — отдельный объект с собственным циклом (Modify, перемещение, детонация); общая автоматизация её не трогает.
     if (findObject(draft.tsc, hazardUuid)?.mineRef) return { skipped: true, reason: "mine" };
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const flags = hazardFlags(hazard) ?? {};
     const effectText = flags.effectText ?? flags.actions?.[0]?.text ?? hazard.system?.details?.routine ?? "";
     const o = findObject(draft.tsc, hazardUuid);
@@ -114,11 +128,12 @@ export const HazardEngine = {
 
   /** Execute a complex hazard's Routine (on its initiative turn). */
   async executeRoutine(hazardUuid) {
-    const hazard = await fromUuidSafe(hazardUuid);
+    const combat = activeStarshipCombat();
+    const hazard = await resolveSensorActor(combat, hazardUuid);
     const flags = hazardFlags(hazard) ?? {};
     const routine = flags.routine ?? { cost: "1 action", text: hazard?.system?.details?.routine ?? "" };
-    const combat = activeStarshipCombat();
     const draft = new Draft(combat);
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const hs = draft.tsc?.hazardState?.[hazardUuid] ?? {};
     if (hs.disabled) return { skipped: true };
     const n = parseRoutineActions(routine.cost);
@@ -140,8 +155,10 @@ export const HazardEngine = {
 
   async disable(hazardUuid, mode = "disable") {
     const combat = activeStarshipCombat();
-    const hazard = await fromUuidSafe(hazardUuid);
+    if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
+    const hazard = await resolveSensorActor(combat, hazardUuid);
     const draft = new Draft(combat);
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const prev = draft.tsc.hazardState[hazardUuid] ?? {};
     draft.tsc.hazardState[hazardUuid] = {
       ...prev,
@@ -156,6 +173,7 @@ export const HazardEngine = {
 
   async enable(hazardUuid) {
     const combat = activeStarshipCombat();
+    if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
     const draft = new Draft(combat);
     draft.tsc.hazardState[hazardUuid] = { ...(draft.tsc.hazardState[hazardUuid] ?? {}), disabled: false, mode: null, disabledAt: null };
     await draft.commit();
@@ -167,7 +185,7 @@ export const HazardEngine = {
     let changed = false;
     for (const [uuid, hs] of Object.entries(tsc.hazardState)) {
       if (!hs.disabled || hs.mode === "permanent" || hs.mode === "destroy") continue;
-      const hazard = fromUuidSync(uuid);
+      const hazard = resolveSensorActorSync(combat, uuid);
       const reset = parseReset(hazardFlags(hazard)?.reset ?? hazard?.system?.details?.reset);
       if (isResetReady(reset, hs.disabledAt, { round: combat.round, time: game.time.worldTime })) {
         tsc.hazardState[uuid] = { ...hs, disabled: false, mode: null, disabledAt: null };
@@ -185,12 +203,14 @@ export const HazardEngine = {
       if (o.type !== "hazard" || o.mineRef) continue;
       const hs = draft.tsc.hazardState[o.key] ?? {};
       if (hs.disabled) continue;
-      const hazard = fromUuidSync(o.key);
+      const hazard = resolveSensorActorSync(draft.combat, o.key);
       if (hazardFlags(hazard)?.isComplex) continue; // complex hazards act on their own turn
       draft.afterCommit(async () => {
         const setting = moduleSetting("autoRoutine");
         if (setting === "automatic")
-          await HazardEngine.trigger(o.key, { reason: T("SF2eTSC.chat.enteredZone", { ship: fromUuidSync(shipUuid)?.name ?? "" }) });
+          await HazardEngine.trigger(o.key, {
+            reason: T("SF2eTSC.chat.enteredZone", { ship: resolveSensorActorSync(draft.combat, shipUuid)?.name ?? "" })
+          });
         else if (setting === "prompt" && game.user.isGM) {
           const go = await foundry.applications.api.DialogV2.confirm({
             classes: ["sf2e-tsc"],
@@ -199,7 +219,9 @@ export const HazardEngine = {
             rejectClose: false
           }).catch(() => false);
           if (go)
-            await HazardEngine.trigger(o.key, { reason: T("SF2eTSC.chat.enteredZone", { ship: fromUuidSync(shipUuid)?.name ?? "" }) });
+            await HazardEngine.trigger(o.key, {
+              reason: T("SF2eTSC.chat.enteredZone", { ship: resolveSensorActorSync(draft.combat, shipUuid)?.name ?? "" })
+            });
         }
       });
     }
@@ -207,8 +229,9 @@ export const HazardEngine = {
 
   /** Complex hazard initiative turn. */
   async onHazardTurn(combatant) {
-    const hazard = combatant.actor;
-    if (!isStarshipHazard(hazard)) return;
+    const key = combatant.flags?.[MODULE_ID]?.sensorMapObject?.key ?? combatant.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid;
+    const hazard = key ? await resolveSensorActor(combatant.combat, key) : combatant.actor;
+    if (!isStarshipHazard(hazard) || !(hazardFlags(hazard)?.isComplex ?? hazard?.system?.details?.isComplex)) return;
     const mode = moduleSetting("autoRoutine");
     if (mode === "off") return;
     if (mode === "automatic") return this.executeRoutine(hazard.uuid);

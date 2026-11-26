@@ -7,18 +7,41 @@ import { registerHandler } from "../socket.mjs";
 import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs";
 import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
-import { dropActorOnMap } from "./actor-drop.mjs";
-import {
-  createSensorActorInstance,
-  deleteSensorActorInstance,
-  deleteSensorActorCombatant,
-  ensureSensorActorCombatant,
-  isWorldActor
-} from "./actor-instance.mjs";
+import { addSensorContact } from "./contact-service.mjs";
+import { markMapObjectCleanup, pendingMapObjectCleanups, resolveSensorActor } from "./map-object.mjs";
+import { deleteSensorActorInstance } from "./actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
 import { pendingPrivateReveals, privateContacts } from "./private-contacts.mjs";
 
+async function dropActorRequest({ user, payload }) {
+  if (!user?.isGM || !isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+  const combat = game.combats.get(payload.combatId);
+  if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
+  if (typeof payload.actorUuid !== "string" || !payload.actorUuid || payload.actorUuid.length > 1024)
+    throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
+  let pending;
+  try {
+    pending = pendingPrivateReveals(combat.id);
+  } catch {
+    throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
+  }
+  if (pending.some((entry) => entry.actorUuid === payload.actorUuid || entry.key === payload.actorUuid))
+    throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
+  if (payload.publicActor !== true) throw new Error(T("SF2eTSC.mapDrop.disclosureRequired"));
+  const actor = await fromUuidSafe(payload.actorUuid);
+  if (!actor || actor.uuid !== payload.actorUuid || actor.documentName !== "Actor") throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
+  const placement = await addSensorContact(combat, {
+    source: actor.pack ? "compendium" : "world",
+    uuid: actor.uuid,
+    zone: payload.zone,
+    detection: "identified",
+    publicActor: true
+  });
+  return placement.result;
+}
+
 export async function sensorUpdate({ user, payload: raw }) {
+  if (raw?.op === "dropActor") return dropActorRequest({ user, payload: raw });
   return serialize(`sensor:${String(raw?.combatId ?? "")}`, async () => {
     const combat = game.combats.get(raw.combatId);
     if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
@@ -26,6 +49,8 @@ export async function sensorUpdate({ user, payload: raw }) {
     const payload = sanitizeSensorPayload(user, getTsc(combat), raw);
     if (!payload) throw new Error(T("SF2eTSC.errors.gmOnly"));
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    for (const cleanup of pendingMapObjectCleanups(combat))
+      await deleteSensorActorInstance(combat, cleanup.key, { deleteActor: cleanup.deleteActor });
     // Non-Actor markers cannot collide with private- contact keys or document UUIDs.
     const independentMarker =
       payload.op === "add" &&
@@ -43,7 +68,6 @@ export async function sensorUpdate({ user, payload: raw }) {
       }
     }
     const targets = [payload.key, findObject(getTsc(combat), payload.key)?.actorUuid];
-    if (payload.op === "dropActor") targets.push(payload.actorUuid);
     if (payload.op === "add") targets.push(payload.object?.key, payload.object?.actorUuid);
     if (
       (payload.op === "resize" && pending.length) ||
@@ -61,61 +85,10 @@ export async function sensorUpdate({ user, payload: raw }) {
     if (payload.key && findObject(getTsc(combat), payload.key)?.tscPrivateProjection) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     if (payload.key && MINE_LOCKED_OPS.includes(payload.op) && findObject(getTsc(combat), payload.key)?.mineRef)
       throw new Error(T("SF2eTSC.mineContact.managed"));
-    if (payload.op === "dropActor") {
-      if (typeof payload.actorUuid !== "string" || !payload.actorUuid || payload.actorUuid.length > 1024)
-        throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
-      const actor = await fromUuidSafe(payload.actorUuid);
-      if (!actor || actor.uuid !== payload.actorUuid || actor.documentName !== "Actor") throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
-      const known = ["invalidActor", "invalidZone", "unsupportedActor", "duplicateActors", "disclosureRequired", "managedMine"];
-      const reuseActor = isWorldActor(actor) && moduleSetting("reuseWorldActorsOnSensorMap");
-      if (reuseActor && privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid))
-        throw new Error(T("SF2eTSC.mapDrop.privateContact"));
-      if (reuseActor && getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid)) {
-        let result;
-        try {
-          await mutateTsc(combat, (state) => {
-            const change = dropActorOnMap(state, actor, payload.zone, { publicActor: payload.publicActor === true });
-            result = change.result;
-            return change.state;
-          });
-        } catch (error) {
-          if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
-          throw error;
-        }
-        return result;
-      }
-      if (!reuseActor && payload.publicActor !== true) throw new Error(T("SF2eTSC.mapDrop.disclosureRequired"));
-      try {
-        dropActorOnMap(getTsc(combat), actor, payload.zone, { publicActor: payload.publicActor === true });
-      } catch (error) {
-        if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
-        throw error;
-      }
-      const instance = reuseActor ? actor : await createSensorActorInstance(actor, combat);
-      const previous = getTsc(combat);
-      const preserveIds = new Set([...(combat.combatants ?? [])].map((entry) => entry.id));
-      let result;
-      try {
-        await mutateTsc(combat, (state) => {
-          const change = dropActorOnMap(state, instance, payload.zone, { publicActor: payload.publicActor === true, reuseActor });
-          result = change.result;
-          return change.state;
-        });
-        await ensureSensorActorCombatant(combat, instance);
-      } catch (error) {
-        if (reuseActor) await deleteSensorActorCombatant(combat, instance.uuid, { preserveIds });
-        if (getTsc(combat).objects.some((o) => o.actorUuid === instance.uuid || o.key === instance.uuid))
-          await mutateTsc(combat, () => previous);
-        if (!reuseActor) await deleteSensorActorInstance(combat, instance.uuid);
-        if (known.includes(error.message)) throw new Error(T(`SF2eTSC.mapDrop.${error.message}`), { cause: error });
-        throw error;
-      }
-      return result;
-    }
     if (payload.op === "setHeading") {
       const o = findObject(getTsc(combat), payload.key);
       if (o?.type !== "starship" || o.heading || !["left", "right"].includes(payload.heading)) return true;
-      const a = await fromUuidSafe(o.actorUuid ?? o.key);
+      const a = await resolveSensorActor(combat, o.actorUuid ?? o.key);
       if (!a || !isStarship(a)) throw new Error(T("SF2eTSC.mapDrop.invalidActor"));
       if (!a.pack) {
         const { patchStarship } = await import("../starship/starship-state.mjs");
@@ -126,7 +99,7 @@ export async function sensorUpdate({ user, payload: raw }) {
     }
     if (payload.op === "flip") {
       const o = findObject(getTsc(combat), payload.key);
-      const a = o ? await fromUuidSafe(o.actorUuid ?? o.key) : null;
+      const a = o ? await resolveSensorActor(combat, o.actorUuid ?? o.key) : null;
       if (o?.heading && a && isStarship(a) && !a.pack) {
         const { patchStarship } = await import("../starship/starship-state.mjs");
         await patchStarship(a, (d) => {
@@ -137,13 +110,19 @@ export async function sensorUpdate({ user, payload: raw }) {
     const designation = moduleSetting("contactDesignation");
     const before = ["move", "shift"].includes(payload.op) ? findObject(getTsc(combat), payload.key)?.zone : null;
     const removing = payload.op === "remove" ? findObject(getTsc(combat), payload.key) : null;
-    if (removing?.actorUuid) await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
+    const sharedActor =
+      removing?.actorUuid && getTsc(combat).objects.filter((object) => object.actorUuid === removing.actorUuid).length > 1;
+    if (removing?.actorUuid && !sharedActor && removing.mapOnly !== true)
+      await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const cleanupKey = removing?.actorUuid ?? removing?.key;
+    if (removing?.mapOnly === true) await markMapObjectCleanup(combat.id, cleanupKey, { deleteActor: removing.reuseActor !== true });
     await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
+    if (removing?.mapOnly === true) await deleteSensorActorInstance(combat, cleanupKey, { deleteActor: removing.reuseActor !== true });
     // Remember the art orientation on the Actor itself so future placements and copies inherit it.
     if (payload.op === "objectVisual" && payload.visual?.transform) {
       const o = findObject(getTsc(combat), payload.key);
-      const a = o?.mapTransform ? await fromUuidSafe(o.actorUuid ?? o.key) : null;
+      const a = o?.mapTransform ? await resolveSensorActor(combat, o.actorUuid ?? o.key) : null;
       if (a && isStarship(a) && !a.pack) {
         const { patchStarship } = await import("../starship/starship-state.mjs");
         await patchStarship(a, (d) => {

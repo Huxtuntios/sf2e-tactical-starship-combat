@@ -1,16 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { makeShip, makeCharacter, loadContentFromDisk } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effect-fixture.mjs";
 import { registerApplicationService } from "../../scripts/starship/application-service.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import fs from "node:fs";
 import Handlebars from "handlebars";
 
+test("native condition menu excludes the separate persistent-damage workflow", async () => {
+  installNativeEffectsFixture();
+  const { getConditionOptions } = await import("../../scripts/starship/native-condition-adapter.mjs");
+  assert.equal(
+    getConditionOptions().some((option) => option.slug === "persistent-damage"),
+    false
+  );
+});
+
 async function setup() {
   installNativeEffectsFixture();
   await loadContentFromDisk();
+  (await import("../../scripts/starship/effect-service.mjs")).registerEffectHandlers();
   registerApplicationService();
   const pc = nativeActor(makeCharacter({ id: "pilot", name: "Pilot" }));
   const ship = nativeActor(
@@ -25,6 +35,39 @@ async function setup() {
   const manager = await import("../../scripts/ui/effect-manager.mjs").catch(() => ({}));
   return { pc, ship, editor, targets, manager };
 }
+
+test("effect manager Add hands its configured input to the target dialog", async () => {
+  const { ship, targets, manager } = await setup();
+  const app = new manager.EffectManager(ship);
+  const input = { kind: "bonus", label: "Handoff", modifiers: [{ selector: "ac", type: "status", value: 2 }], statistic: "check" };
+  let configured;
+  let rendered;
+  const prompt = foundry.applications.api.DialogV2.prompt;
+  const render = targets.EffectTargetDialog.prototype.render;
+  const document = globalThis.document;
+  globalThis.document = { createElement: () => ({ innerHTML: "", querySelector: () => null, querySelectorAll: () => [] }) };
+  foundry.applications.api.DialogV2.prompt = async (options) => {
+    configured = options;
+    return input;
+  };
+  targets.EffectTargetDialog.prototype.render = async function (options) {
+    rendered = { actor: this.actor, input: this.input, options };
+    return this;
+  };
+  try {
+    await manager.EffectManager.DEFAULT_OPTIONS.actions.add.call(app);
+  } finally {
+    foundry.applications.api.DialogV2.prompt = prompt;
+    targets.EffectTargetDialog.prototype.render = render;
+    globalThis.document = document;
+  }
+  assert.equal(configured.window.title, game.i18n.localize("SF2eTSC.effects.configure"));
+  assert.equal(rendered.actor, ship);
+  assert.equal(rendered.input.label, "Handoff");
+  assert.deepEqual(rendered.options, { force: true });
+  assert.equal(app.busy, false);
+});
+
 function form(values = {}, selected = {}) {
   return {
     elements: Object.fromEntries(
@@ -166,6 +209,26 @@ test("target confirmation applies through the real GM service once and closes on
   await dialog.submitSelection(selected);
   assert.equal(readStarship(ship).effects.length, 1);
   assert.equal(closed, 1);
+});
+
+test("manager removal cleans native recipients for manual applications", async () => {
+  const { manager, ship, pc } = await setup();
+  const { applyManualEffect } = await import("../../scripts/starship/application-service.mjs");
+  await applyManualEffect(ship.uuid, {
+    kind: "condition",
+    slug: "frightened",
+    conditionValue: 2,
+    targets: { entire: false, crew: [pc.uuid] }
+  });
+  const effect = readStarship(ship).effects[0];
+  const itemId = effect.nativeTargets[0].itemId;
+  assert.equal(pc.items.has(itemId), true);
+  const app = new manager.EffectManager(ship);
+  app.render = async () => app;
+  await manager.EffectManager.DEFAULT_OPTIONS.actions.remove.call(app, {}, { dataset: { effectId: effect.id } });
+  assert.equal(app.error, "");
+  assert.equal(readStarship(ship).effects.length, 0);
+  assert.equal(pc.items.has(itemId), false);
 });
 
 test("manager is raised only after asynchronous rendering completes", async () => {

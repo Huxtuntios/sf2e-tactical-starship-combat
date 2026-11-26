@@ -1,10 +1,9 @@
 import { sensorDragData } from "../sensor/actor-drop.mjs";
-import { getTsc } from "../combat/tsc-state.mjs";
 import { changePrivateContact } from "../sensor/private-contacts.mjs";
-import { addSensorContact } from "../sensor/contact-service.mjs";
+import { addSensorContact, actorVisibleToPlayers } from "../sensor/contact-service.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
 import { request } from "../socket.mjs";
-import { T, fromUuidSafe, moduleSetting } from "../utils/foundry.mjs";
+import { T, fromUuidSafe } from "../utils/foundry.mjs";
 import { notifyWarn, notifyInfo } from "../utils/logging.mjs";
 
 /** Слушатели добавляются один раз к каждой отрисованной зоне; права проверяет активный GM. */
@@ -54,21 +53,9 @@ export function wireSensorMapDragDrop(element, context, deps = {}) {
         if (!actor || actor.documentName !== "Actor" || actor.uuid !== data.uuid) return warn("SF2eTSC.mapDrop.invalidActor");
         if (!isStarship(actor) && actor.type !== "hazard") return warn("SF2eTSC.mapDrop.unsupportedActor");
         const combat = game.combats.get(context.combatId);
-        const alreadyPresent =
-          moduleSetting("reuseWorldActorsOnSensorMap") &&
-          getTsc(combat).objects.some((o) => o.actorUuid === data.uuid || o.key === data.uuid);
-        if (!alreadyPresent && (actor.type === "hazard" || (isStarship(actor) && readStarship(actor).role === "npc"))) {
-          const result = await addSensorContact(combat, {
-            source: "world",
-            uuid: actor.uuid,
-            zone: zoneNumber,
-            detection: "undetected"
-          });
-          if (result.result === "unchanged") info("SF2eTSC.mapDrop.unchanged");
-          return;
-        }
-        let publicActor = false;
-        if (!alreadyPresent) {
+        const visible = actorVisibleToPlayers(actor);
+        const privateContact = !visible && (actor.type === "hazard" || (isStarship(actor) && readStarship(actor).role === "npc"));
+        if (!privateContact) {
           const accepted = await (
             deps.confirm
               ? deps.confirm()
@@ -80,16 +67,16 @@ export function wireSensorMapDragDrop(element, context, deps = {}) {
                 })
           ).catch(() => false);
           if (!accepted) return;
-          publicActor = true;
         }
-        const result = await send("sensorUpdate", {
-          op: "dropActor",
-          combatId: context.combatId,
-          actorUuid: data.uuid,
+        const result = await addSensorContact(combat, {
+          source: actor.pack ? "compendium" : "world",
+          uuid: actor.uuid,
           zone: zoneNumber,
-          publicActor
+          detection: privateContact ? "undetected" : "identified",
+          publicActor: !privateContact,
+          independent: true
         });
-        if (result === "unchanged") info("SF2eTSC.mapDrop.unchanged");
+        if (result.result === "unchanged") info("SF2eTSC.mapDrop.unchanged");
       } catch (err) {
         warn("SF2eTSC.errors.generic", { message: err.message });
       }

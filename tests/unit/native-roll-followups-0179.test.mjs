@@ -6,9 +6,11 @@ import { dispatchSocketMessage, registerHandler, _trackPending } from "../../scr
 import { executeAction, registerActionHandlers } from "../../scripts/actions/action-engine.mjs";
 import { resolveAreaFire } from "../../scripts/actions/strike.mjs";
 import { executeEffects } from "../../scripts/actions/effects-exec.mjs";
-import { computeShipStats } from "../../scripts/starship/stats.mjs";
+import { computeShipStats, shipStatistic } from "../../scripts/starship/stats.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
+
+const M = "sf2e-tactical-starship-combat";
 
 test("cancelled Seek Starships skips builtin resolution and effects", async () => {
   installFoundryMock();
@@ -57,6 +59,55 @@ test("cancelled Seek Starships skips builtin resolution and effects", async () =
   assert.equal(result.cancelled, true);
   assert.deepEqual(result.summary.manual, []);
   assert.equal(getTsc(game.combat).objects[1].detection.party, "hidden");
+});
+
+test("manual Reflex DC resolves a map-only reaction attacker", async () => {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const { addSensorContact } = await import("../../scripts/sensor/contact-service.mjs");
+  const { levelDC } = await import("../../scripts/utils/foundry.mjs");
+  const combat = makeStarshipCombat();
+  const attackerSource = makeShip({ id: "map-reaction-attacker", name: "Map Attacker", role: "npc", level: 16 });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: attackerSource.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  let passedDC;
+  const crew = makeCharacter({ id: "reaction-crew", name: "Reaction Crew", owners: ["p1"] });
+  crew.skills = {
+    crafting: {
+      check: {
+        roll: async (options) => {
+          passedDC = options.dc.value;
+          return { total: 20, degreeOfSuccess: 2, dice: [{ total: 20 }] };
+        }
+      }
+    }
+  };
+  const defender = makeShip({
+    id: "reaction-defender",
+    name: "Reaction Defender",
+    role: "player",
+    level: 3,
+    sp: 10,
+    stations: [{ id: "generator", type: "generator", grade: "tactical", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "generator" }]
+  });
+  combat.flags[M].tsc.objects.push({ key: defender.uuid, actorUuid: defender.uuid, type: "starship", zone: 1, heading: "right" });
+
+  await executeAction({
+    user: game.users.get("gm"),
+    shipUuid: defender.uuid,
+    crewUuid: crew.uuid,
+    stationId: "generator",
+    actionId: "reposition-shield",
+    options: { pendingStrike: { attackerUuid: placement.key }, reaction: true, skipDialog: true }
+  });
+
+  assert.equal(passedDC, levelDC(16));
 });
 
 test("socket acknowledgement gives a long GM dialog a bounded result deadline", async (t) => {
@@ -148,7 +199,10 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
   });
   const draft = {
     tsc: getTsc(combat),
-    ship: async () => ({ actor: target, data: readStarship(target) })
+    ship: async () => ({ actor: target, data: readStarship(target) }),
+    target(uuid) {
+      return this.ship(uuid);
+    }
   };
   const options = { weaponId: "weapon", skipDialog: true, messageMode: "blind" };
   const ctx = {
@@ -185,6 +239,9 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
     reports: [],
     draft: {
       ship: async () => ({ actor: target, data: readStarship(target) }),
+      target(uuid) {
+        return this.ship(uuid);
+      },
       log() {},
       event() {},
       afterCommit() {}
@@ -194,6 +251,146 @@ test("Area Fire and EXEC damage saves forward click dialog and visibility option
   await executeEffects([{ type: "damage", dice: { count: 1, faces: 6 }, save: { type: "reflex", dcSkill: "crafting" } }], effectCtx);
   assert.equal(effectSave.passed.skipDialog, true);
   assert.equal(effectSave.passed.messageMode, "blind");
+});
+
+async function dcScenario({ level = 3, stationType = "pilot" } = {}) {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const check = saveStatistic();
+  const crew = makeCharacter({ id: "dc-crew", name: "DC Crew", owners: ["p1"] });
+  crew.skills = { crafting: check.statistic, computers: check.statistic };
+  const ship = makeShip({
+    id: "dc-ship",
+    name: "DC Ship",
+    level,
+    owners: ["p1"],
+    stations: [{ id: "dc-station", type: stationType, grade: "tactical", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, name: crew.name, role: "crew", stationId: "dc-station" }]
+  });
+  const combat = makeStarshipCombat({ objects: [{ key: ship.uuid, zone: 1, detection: { party: "identified" } }] });
+  const { Content } = await import("../../scripts/content/loader.mjs");
+  return {
+    ship,
+    crew,
+    check,
+    combat,
+    Content,
+    run: (actionId, options = {}) =>
+      executeAction({
+        user: game.users.get("p1"),
+        shipUuid: ship.uuid,
+        crewUuid: crew.uuid,
+        stationId: "dc-station",
+        actionId,
+        options: { skipDialog: true, ...options }
+      })
+  };
+}
+
+test("Reposition Shield uses the pending attacker's starship level DC instead of its Reflex save", async () => {
+  const scenario = await dcScenario({ stationType: "generator" });
+  const attacker = makeShip({ id: "dc-attacker", name: "Level 10 Attacker", role: "npc", level: 10, extra: { reflex: 0 } });
+
+  await scenario.run("reposition-shield", { skill: "crafting", pendingStrike: { attackerUuid: attacker.uuid } });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("Reposition Shield without a pending Strike uses the acting starship's level DC", async () => {
+  const scenario = await dcScenario({ level: 10, stationType: "generator" });
+
+  await scenario.run("reposition-shield", { skill: "crafting" });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("Reposition Shield falls back to the acting starship's level DC when the attacker cannot be resolved", async () => {
+  const scenario = await dcScenario({ level: 10, stationType: "generator" });
+
+  await scenario.run("reposition-shield", { skill: "crafting", pendingStrike: { attackerUuid: "Actor.missing" } });
+
+  assert.equal(scenario.check.passed.dc.value, 27);
+});
+
+test("manualReflexDC preserves an explicit manual DC with and without a pending Strike", async () => {
+  const scenario = await dcScenario({ stationType: "generator" });
+  const attacker = makeShip({ id: "dc-manual-attacker", name: "Manual DC Attacker", role: "npc", level: 10, extra: { reflex: 0 } });
+
+  await scenario.run("reposition-shield", { skill: "crafting", manualDC: 31 });
+  assert.equal(scenario.check.passed.dc.value, 31);
+
+  await scenario.run("reposition-shield", {
+    skill: "crafting",
+    manualDC: 32,
+    pendingStrike: { attackerUuid: attacker.uuid }
+  });
+  assert.equal(scenario.check.passed.dc.value, 32);
+});
+
+test("target defense DC types keep using the target's actual saves and Perception", async () => {
+  const scenario = await dcScenario();
+  const target = makeShip({
+    id: "dc-target",
+    name: "DC Target",
+    role: "npc",
+    extra: { reflex: 2, will: 3, fort: 4, perception: 5 }
+  });
+  scenario.combat.flags[M].tsc.objects.push({
+    key: target.uuid,
+    actorUuid: target.uuid,
+    type: "starship",
+    zone: 2,
+    detection: { party: "identified" }
+  });
+
+  for (const [type, expected] of [
+    ["targetReflex", 12],
+    ["targetWill", 13],
+    ["targetFortitude", 14],
+    ["targetPerception", 15]
+  ]) {
+    const actionId = `dc-${type}`;
+    scenario.Content.actions.set(actionId, {
+      id: actionId,
+      name: actionId,
+      station: "pilot",
+      cost: 1,
+      targeting: { type: "starship" },
+      check: { kind: "skill", skills: ["computers"], dc: { type } }
+    });
+
+    await scenario.run(actionId, { skill: "computers", targetUUIDs: [target.uuid] });
+
+    assert.equal(scenario.check.passed.dc.value, expected, type);
+  }
+});
+
+test("targetSave keeps using the attacker's skill DC instead of the target defense or level DC", async () => {
+  const scenario = await dcScenario();
+  const target = makeShip({ id: "dc-save-target", name: "DC Save Target", role: "npc", extra: { reflex: 2 } });
+  scenario.combat.flags[M].tsc.objects.push({
+    key: target.uuid,
+    actorUuid: target.uuid,
+    type: "starship",
+    zone: 2,
+    detection: { party: "identified" }
+  });
+  const targetSave = saveStatistic();
+  targetSave.statistic.mod = 2;
+  target.saves = { reflex: targetSave.statistic };
+  scenario.crew.skills.computers.dc = { value: 23 };
+  scenario.Content.actions.set("dc-target-save", {
+    id: "dc-target-save",
+    name: "DC Target Save",
+    station: "pilot",
+    cost: 1,
+    targeting: { type: "starship" },
+    check: { kind: "targetSave", save: "reflex", dcSkill: "computers" }
+  });
+
+  await scenario.run("dc-target-save", { targetUUIDs: [target.uuid] });
+
+  assert.equal(targetSave.passed.dc.value, 23);
 });
 
 test("HUD and both station-item action paths preserve the initiating click options", async () => {
@@ -262,4 +459,59 @@ test("HUD and both station-item action paths preserve the initiating click optio
   assert.match(read("ui/station-hud.mjs"), /runHudAction\(this\.index,\s*target\.dataset\.actionId,\s*event\)/);
   assert.match(read("ui/sensor-map-app.mjs"), /runHudAction\(this\.dockIndex,\s*target\.dataset\.actionId,\s*event\)/);
   assert.match(read("crew/station-items.mjs"), /runStationItemLink\(a,\s*ev\)/);
+});
+
+class NativeConditionStatistic {
+  constructor(actor, data) {
+    this.actor = actor;
+    this.data = data;
+    this.domains = data.domains ?? [];
+    const synthetic = this.domains.flatMap((domain) =>
+      (actor.synthetics.modifiers?.[domain] ?? []).flatMap((factory) => {
+        const modifier = factory({ test: [] });
+        return modifier && !modifier.ignored && modifier.enabled !== false ? [modifier] : [];
+      })
+    );
+    this.mod = [...(data.modifiers ?? []), ...synthetic].reduce((total, modifier) => total + modifier.modifier, 0);
+    this.check = { mod: this.mod };
+  }
+
+  clone(data = {}) {
+    return new NativeConditionStatistic(this.actor, {
+      ...this.data,
+      ...data,
+      modifiers: [...(this.data.modifiers ?? []), ...(data.modifiers ?? [])]
+    });
+  }
+}
+
+test("native condition is counted once in ship checks and direct stats", () => {
+  installFoundryMock();
+  const npcShip = makeShip({ id: "native-condition-count", name: "Native Condition Count", role: "npc", extra: { reflex: 8 } });
+  npcShip.type = "npc";
+  npcShip._source = { system: { saves: { reflex: { value: 8 } } } };
+  const condition = {
+    id: "clumsy-item",
+    uuid: `${npcShip.uuid}.Item.clumsy-item`,
+    type: "condition",
+    slug: "clumsy",
+    active: true
+  };
+  npcShip.items.set(condition.id, condition);
+  npcShip.synthetics.modifiers = {
+    "dex-based": [() => ({ modifier: -4, type: "status", label: "Clumsy", slug: "clumsy", source: condition.uuid })]
+  };
+  npcShip.saves = {
+    reflex: new NativeConditionStatistic(npcShip, {
+      slug: "reflex",
+      domains: ["reflex", "dex-based"],
+      modifiers: [{ slug: "base", modifier: 8, type: "untyped" }]
+    })
+  };
+
+  const direct = computeShipStats(npcShip, { includeNativeConditions: true });
+  const statistic = shipStatistic(npcShip, "reflex", { includeNativeConditions: false });
+  assert.equal(direct.reflex, 4);
+  assert.equal(statistic.check.mod, 4);
+  assert.equal(direct.reflex, statistic.check.mod);
 });

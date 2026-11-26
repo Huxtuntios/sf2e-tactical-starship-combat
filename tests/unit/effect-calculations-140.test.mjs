@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeCharacter } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effect-fixture.mjs";
 import { computeShipStats, shipModuleValue, shipStatistic, stationStatistic, shipAreaDC } from "../../scripts/starship/stats.mjs";
 import {
   computeAttackModifiers,
@@ -430,10 +430,30 @@ test("NPC attack preview preserves native item modifiers and actual roll stacks 
   };
   assert.equal(knownAttackBonus(ctx, resolveWeapon(ctx)).value, 9);
   assert.equal(computeAttackModifiers(ctx, resolveWeapon(ctx), ctx.target).effectiveAttackBonus, 8);
-  ship.flags[M].starship.strikes = [ctx.options.npcStrike];
-  assert.equal(sheetAttackRows(ship).find((r) => r.kind === "strike").bonusText, "+8");
   await resolveStrike(ctx);
   assert.equal(ctx.attackResult.total, 18);
+});
+test("sheet NPC attack preview receives scoped native modifiers", () => {
+  const ship = setup([effect("attack", -2)]);
+  ship.type = "npc";
+  ship.perception = new NativeStatistic(ship, { slug: "perception", modifiers: [] });
+  const nativeMod = (slug, modifier, type) => ({
+    slug,
+    modifier,
+    type,
+    clone() {
+      return { ...this };
+    }
+  });
+  ship.system.actions = [
+    {
+      type: "strike",
+      item: { name: "Laser", _source: { system: { bonus: { value: 10 } } } },
+      modifiers: [nativeMod("base", 10, "untyped"), nativeMod("native-status", -1, "status")]
+    }
+  ];
+  ship.flags[M].starship.strikes = [{ name: "Laser", attack: 10, damage: "1d6 fire" }];
+  assert.equal(sheetAttackRows(ship).find((r) => r.kind === "strike").bonusText, "+8");
 });
 test("NPC native construction failure does not silently roll a statblock fallback", async () => {
   const ship = setup();

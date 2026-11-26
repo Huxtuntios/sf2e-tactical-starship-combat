@@ -19,6 +19,19 @@ const flat = (o, p = "", out = {}) => {
 export const loadLang = (lang) => flat(JSON.parse(fs.readFileSync(path.join(ROOT, "lang", `${lang}.json`), "utf8")));
 
 const getProperty = (o, k) => k.split(".").reduce((a, p) => (a == null ? undefined : a[p]), o);
+class MockForcedDeletion {}
+class MockForcedReplacement {
+  constructor(value) {
+    this.value = value;
+  }
+  static get(operator) {
+    return operator.value;
+  }
+}
+const isPlainObject = (value) =>
+  !!value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+const isForcedDeletion = (value) => value instanceof MockForcedDeletion;
+const isForcedReplacement = (value) => value instanceof MockForcedReplacement;
 function setProperty(o, k, v) {
   const parts = k.split(".");
   let cur = o;
@@ -27,13 +40,17 @@ function setProperty(o, k, v) {
     cur = cur[p];
   }
   const key = parts.at(-1);
-  if (key.startsWith("-=")) delete cur[key.slice(2)];
-  else cur[key] = v;
+  if (isForcedDeletion(v)) delete cur[key];
+  else if (isForcedReplacement(v)) cur[key] = structuredClone(MockForcedReplacement.get(v));
+  else if (key.startsWith("-=")) delete cur[key.slice(2)];
+  else cur[key] = structuredClone(v);
 }
 function applyUpdate(target, changes) {
   for (const [k, v] of Object.entries(changes)) {
-    if (k.includes(".") || k.startsWith("-=")) setProperty(target, k, structuredClone(v));
-    else if (v && typeof v === "object" && !Array.isArray(v) && target[k] && typeof target[k] === "object") applyUpdate(target[k], v);
+    if (k.includes(".") || k.startsWith("-=")) setProperty(target, k, v);
+    else if (isForcedDeletion(v)) delete target[k];
+    else if (isForcedReplacement(v)) target[k] = structuredClone(MockForcedReplacement.get(v));
+    else if (isPlainObject(v)) applyUpdate(isPlainObject(target[k]) ? target[k] : (target[k] = {}), v);
     else target[k] = structuredClone(v);
   }
 }
@@ -395,7 +412,6 @@ const SETTING_DEFAULTS = {
   autoFireConeZones: 0,
   automaticHelming: true,
   sensorMapSize: 12,
-  reuseWorldActorsOnSensorMap: true,
   sensorOrientation: "horizontal",
   showUnknownContacts: true,
   contactDesignation: "greek",
@@ -482,6 +498,7 @@ export function installFoundryMock({ lang = "en", users = null } = {}) {
     }
   };
   globalThis.foundry = {
+    data: { operators: { ForcedDeletion: MockForcedDeletion, ForcedReplacement: MockForcedReplacement } },
     utils: {
       deepClone: (o) => (o === undefined ? undefined : structuredClone(o)),
       randomID: (n = 16) =>

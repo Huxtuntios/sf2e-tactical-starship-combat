@@ -1,21 +1,170 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeShip, makeCharacter, MockRoll, dice, loadContentFromDisk } from "../helpers/foundry-mock.mjs";
-import { installNativeEffectsFixture, nativeActor } from "../helpers/native-effects-fixture.mjs";
+import {
+  makeShip,
+  makeCharacter,
+  makeStarshipCombat,
+  MockRoll,
+  dice,
+  loadContentFromDisk,
+  installFoundryMock
+} from "../helpers/foundry-mock.mjs";
 import { applyManualEffect, removeManualEffect, registerApplicationService } from "../../scripts/starship/application-service.mjs";
-import { readStarship } from "../../scripts/starship/starship-state.mjs";
+import { patchStarship, readStarship } from "../../scripts/starship/starship-state.mjs";
 import { Draft } from "../../scripts/actions/draft.mjs";
 import { applyDamageInDraft } from "../../scripts/damage/damage-service.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
-import { wireToolbeltDamage, registerToolbeltDamage } from "../../scripts/integrations/toolbelt-damage.mjs";
+import { hasDamageReceipt, registerToolbeltDamage } from "../../scripts/integrations/toolbelt-damage.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
-import { makeStarshipCombat } from "../helpers/foundry-mock.mjs";
 import * as combatService from "../../scripts/combat/starship-combat.mjs";
 import { executeAction } from "../../scripts/actions/action-engine.mjs";
 import { Content } from "../../scripts/content/loader.mjs";
 import { applyAttackCardDamage } from "../../scripts/chat/attack-card/service.mjs";
+
+function installNativeEffectsFixture() {
+  installFoundryMock();
+  const definitions = new Map([
+    ["frightened", { valued: true, rules: [{ key: "FlatModifier", selector: "all", type: "status", value: "-@item.badge.value" }] }],
+    ["clumsy", { valued: true, rules: [{ key: "FlatModifier", selector: "dex-based", type: "status", value: "-@item.badge.value" }] }],
+    ["off-guard", { valued: false, rules: [{ key: "FlatModifier", selector: "ac", type: "circumstance", value: -2 }] }],
+    ["unconscious", { valued: false, rules: [{ key: "ActiveEffectLike", path: "system.foo", value: true }] }],
+    ["persistent-damage", { valued: false, rules: [] }]
+  ]);
+  class NativeItem {
+    constructor(source, { parent = null } = {}) {
+      this._source = structuredClone(source);
+      Object.assign(this, structuredClone(source));
+      this.parent = parent;
+      this.actor = parent;
+      this.id = source._id;
+      this.slug = source.system.slug;
+      this.active = true;
+    }
+    get badge() {
+      return { value: this.system.value.value };
+    }
+    isOfType(...types) {
+      return types.includes(this.type);
+    }
+    toObject() {
+      return structuredClone(this._source);
+    }
+    clone(changes = {}) {
+      return new NativeItem({ ...this.toObject(), ...changes });
+    }
+    getRollOptions() {
+      return [`item:type:${this.type}`, `item:slug:${this.slug}`];
+    }
+  }
+  class FlatModifier {
+    constructor(source, { parent }) {
+      this.source = source;
+      this.item = parent;
+      this.actor = parent.actor;
+    }
+    beforePrepareData() {
+      for (const selector of [this.source.selector].flat()) {
+        (this.actor.synthetics.modifiers[selector] ??= []).push(({ test = [] } = {}) => {
+          const modifier = typeof this.source.value === "number" ? this.source.value : -this.item.badge.value;
+          const enabled = (this.source.predicate ?? []).every((option) => test.includes(option));
+          return {
+            modifier,
+            slug: this.source.slug,
+            type: this.source.type,
+            label: this.item.name,
+            predicate: this.source.predicate ?? [],
+            enabled,
+            ignored: !enabled
+          };
+        });
+      }
+    }
+  }
+  game.pf2e.RuleElements = { builtin: { FlatModifier } };
+  game.pf2e.ConditionManager = {
+    conditionsSlugs: [...definitions.keys()],
+    getCondition(slug) {
+      const def = definitions.get(slug);
+      return def
+        ? new NativeItem({
+            type: "condition",
+            name: slug,
+            system: {
+              slug,
+              rules: structuredClone(def.rules),
+              value: { isValued: def.valued, value: def.valued ? 1 : null },
+              traits: { value: [] },
+              references: { children: [], overrides: [], overriddenBy: [] }
+            }
+          })
+        : null;
+    }
+  };
+  CONFIG.Item = { documentClass: NativeItem };
+  CONFIG.PF2E = {
+    Item: { documentClasses: { condition: NativeItem, effect: NativeItem } },
+    damageTypes: { fire: "Fire", bleed: "Bleed", void: "Void", vitality: "Vitality" },
+    skills: { piloting: { attribute: "dex" }, arcana: { attribute: "int" } }
+  };
+  return { definitions, NativeItem };
+}
+
+function nativeActor(actor, { immune = [], unaffected = [] } = {}) {
+  actor.isImmuneTo = function (item) {
+    return immune.includes(typeof item === "string" ? item : item.slug);
+  };
+  actor.isAffectedBy = function (item) {
+    return !unaffected.includes(item.slug);
+  };
+  actor.clone = function () {
+    return { uuid: this.uuid, type: this.type, synthetics: { modifiers: {} }, getRollOptions: () => [], canHostRuleElements: true };
+  };
+  const create = actor.createEmbeddedDocuments.bind(actor);
+  actor.createEmbeddedDocuments = async function (type, sources, options) {
+    const allowed = sources.filter((source) => {
+      const item = new CONFIG.Item.documentClass(source, { parent: actor });
+      return this.isAffectedBy(item) && !this.isImmuneTo(item);
+    });
+    for (const source of allowed.filter((item) => item.type === "effect")) {
+      const sourceId = source._stats?.duplicateSource ?? source._stats?.compendiumSource;
+      const expired = [...this.items.values()].filter(
+        (item) =>
+          item.type === "effect" && item.system?.expired && (item._stats?.duplicateSource ?? item._stats?.compendiumSource) === sourceId
+      );
+      if (expired.length)
+        await this.deleteEmbeddedDocuments(
+          "Item",
+          expired.map((item) => item.id)
+        );
+    }
+    const docs = await create(type, allowed, options);
+    if (options?.keepId)
+      for (let index = 0; index < docs.length; index++) {
+        this.items.delete(docs[index].id);
+        docs[index].id = allowed[index]._id;
+        this.items.set(docs[index].id, docs[index]);
+      }
+    return docs;
+  };
+  return actor;
+}
+
 const service = await import("../../scripts/starship/persistent-damage.mjs").catch(() => ({}));
-const persistentError = (key) => (err) => err.message.startsWith(game.i18n.localize(`SF2eTSC.persistent.errors.${key}`));
+const persistentErrorPatterns = {
+  gmOnly: /Only the active GM|Только активный Мастер/i,
+  invalidPersistentDamage: /Invalid persistent damage|Некорректная формула/i,
+  nativeUnavailable: /native persistent damage|программный интерфейс продолжительного урона/i,
+  operationConflict: /already used with different data|уже использована с другими данными/i,
+  invalidInterval: /Invalid persistent-damage interval|Некорректный интервал/i,
+  staleReceipt: /stale or its effects have changed|устарел или его эффекты изменились/i,
+  alreadyApplied: /already been applied|уже применён/i,
+  invalidRecipient: /not active on the selected application|больше не активна/i,
+  applyFirst: /before attempting recovery|Перед проверкой прекращения примените/i
+};
+const persistentError = (key) => (err) => {
+  const localized = game.i18n.localize(`SF2eTSC.persistent.errors.${key}`);
+  return err.message.startsWith(localized) || persistentErrorPatterns[key]?.test(err.message) === true;
+};
 
 async function setup(extra = {}) {
   installNativeEffectsFixture();
@@ -91,6 +240,8 @@ test("native persistent strongest same type preserves identities and critical ro
   const cold = await add(ship, "1d4", "cold", { persistent: { formula: "1d4", damageType: "cold", dc: 17, criticalHit: true } });
   const receipt = await process(ship);
   assert.equal(receipt.status, "pending");
+  assert.equal(receipt.components.length, 2);
+  assert.deepEqual(receipt.components.map((c) => c.type).sort(), ["cold", "fire"]);
   assert.deepEqual(
     receipt.components.map((c) => c.applicationId),
     [high.applicationId, cold.applicationId]
@@ -112,6 +263,30 @@ test("process interval receipt survives duplicate calls and reload without rerol
   const again = await process(ship);
   assert.equal(again.id, a.id);
   assert.equal(globalThis.__persistentRolls.length, 1);
+});
+test("persistent socket handlers reject every player request before changing state", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const { ship } = await setup();
+  await add(ship);
+  game.user = game.users.get("p1");
+  const requests = [
+    { type: "processPersistentDamage", payload: { shipUuid: ship.uuid, intervalKey: "one" } },
+    { type: "applyPersistentDamage", payload: { shipUuid: ship.uuid, receiptId: "missing" } },
+    { type: "recoverPersistentDamage", payload: { shipUuid: ship.uuid, applicationId: "missing" } }
+  ];
+  for (const [index, request] of requests.entries()) {
+    let response;
+    await dispatchSocketMessage({ kind: "request", requestId: `player-${index}`, ...request }, "p1", {
+      users: game.users,
+      selfId: "gm",
+      isActiveGM: true,
+      emit: (message) => (response = message)
+    });
+    assert.equal(response.ok, false);
+    assert.match(response.error, persistentErrorPatterns.gmOnly);
+  }
+  assert.equal(readStarship(ship).persistentDamageReceipts?.length ?? 0, 0);
+  assert.equal(globalThis.__persistentRolls.length, 0);
 });
 test("typed packet applies IWR hardness shields overflow and one noncritical compromised increment", async () => {
   assert.equal(typeof service.applyPersistentDamage, "function");
@@ -309,42 +484,57 @@ test("cached recovery failure cannot bypass the next same-type pending packet", 
   assert.equal(recovered.receiptId, next.id);
   assert.equal(recovered.status, "recovered");
 });
-test("Toolbelt alternate positive apply routes same persistent receipt and custom repeat rejects", async () => {
+test("persistent chat controls apply and recover the same durable receipt", async () => {
   const { ship } = await setup();
-  await add(ship);
+  const application = await add(ship);
   const receipt = await process(ship);
   const message = { flags: { [MODULE_ID]: { persistentDamage: { shipUuid: ship.uuid, receiptId: receipt.id } } } };
-  globalThis.MutationObserver = class {
-    observe() {}
-    disconnect() {}
-  };
+  const applyButton = { dataset: {}, disabled: false };
+  const recoverButton = { dataset: { tscPersistentRecover: application.applicationId }, disabled: true };
   let listener;
   const root = {
     dataset: {},
-    querySelectorAll: () => [],
+    querySelectorAll: (selector) =>
+      selector === "[data-tsc-persistent-apply]" ? [applyButton] : selector === "[data-tsc-persistent-recover]" ? [recoverButton] : [],
     addEventListener: (type, fn) => (listener = fn),
     removeEventListener() {},
     contains: () => true
   };
   const sent = [];
-  wireToolbeltDamage(message, root, {
+  const binding = service.wirePersistentDamage(message, root, {
     send: async (type, payload) => {
       sent.push(type);
-      return service.applyPersistentDamage(payload.shipUuid, payload.receiptId);
+      return type === "applyPersistentDamage"
+        ? service.applyPersistentDamage(payload.shipUuid, payload.receiptId)
+        : service.recoverPersistentDamage(payload.shipUuid, payload.applicationId);
     }
   });
-  const button = { dataset: { action: "applyDamage", multiplier: "2" }, closest: () => null };
+  await binding.refresh();
+  assert.equal(applyButton.disabled, false);
+  assert.equal(recoverButton.disabled, true);
   let stopped = 0;
-  await listener({
-    target: { closest: () => button },
-    preventDefault() {},
-    stopImmediatePropagation() {
-      stopped++;
-    }
-  });
+  const click = async (button) => {
+    await listener({
+      target: { closest: () => button },
+      preventDefault() {},
+      stopImmediatePropagation() {
+        stopped++;
+      }
+    });
+  };
+  await click(applyButton);
   assert.deepEqual(sent, ["applyPersistentDamage"]);
   assert.equal(stopped, 1);
   await assert.rejects(service.applyPersistentDamage(ship.uuid, receipt.id), persistentError("alreadyApplied"));
+  await binding.refresh();
+  assert.equal(applyButton.disabled, true);
+  assert.equal(recoverButton.disabled, false);
+  dice(20);
+  await click(recoverButton);
+  assert.deepEqual(sent, ["applyPersistentDamage", "recoverPersistentDamage"]);
+  assert.equal(stopped, 2);
+  assert.equal(readStarship(ship).effects.length, 0);
+  binding.close();
 });
 test("Toolbelt socket route also shares receipt and rejects changed target or player", async (t) => {
   t.mock.method(console, "warn", () => {});
@@ -354,6 +544,7 @@ test("Toolbelt socket route also shares receipt and rejects changed target or pl
   await add(ship);
   const receipt = await process(ship);
   const message = game.messages.contents.at(-1);
+  const before = structuredClone(readStarship(ship));
   async function send(targetUuid = ship.uuid, sender = "gm") {
     let response;
     await dispatchSocketMessage(
@@ -368,12 +559,25 @@ test("Toolbelt socket route also shares receipt and rejects changed target or pl
     );
     return response;
   }
-  assert.equal((await send(pc.uuid)).ok, false);
-  assert.equal((await send(ship.uuid, "p1")).ok, false);
+  const changedTarget = await send(pc.uuid);
+  assert.equal(changedTarget.ok, false);
+  assert.match(changedTarget.error, persistentErrorPatterns.invalidRecipient);
+  const player = await send(ship.uuid, "p1");
+  assert.equal(player.ok, false);
+  assert.match(player.error, persistentErrorPatterns.gmOnly);
+  assert.deepEqual(readStarship(ship), before);
   const applied = await send();
   assert.equal(applied.ok, true);
-  assert.equal(applied.payload?.status ?? applied.result?.status, "applied");
+  assert.equal(applied.result?.status, "applied");
+  assert.equal(applied.result?.id, receipt.id);
+  assert.equal(hasDamageReceipt(message, ship, 0), false);
+  const after = structuredClone(readStarship(ship));
+  const repeated = await send();
+  assert.equal(repeated.ok, false);
+  assert.match(repeated.error, persistentErrorPatterns.alreadyApplied);
+  assert.deepEqual(readStarship(ship), after);
   await assert.rejects(service.applyPersistentDamage(ship.uuid, receipt.id), persistentError("alreadyApplied"));
+  assert.deepEqual(readStarship(ship), after);
 });
 test("native creation preparation synchronizes visible suppression state", async () => {
   const { ship, pc } = await setup();
@@ -505,7 +709,15 @@ test("combat cleanup removes timed manual native mirrors but retains indefinite 
   const { ship, pc } = await setup();
   const combat = makeStarshipCombat({ objects: [{ key: ship.uuid }] });
   const [crew] = await combat.createEmbeddedDocuments("Combatant", [{ actorId: pc.id, initiative: 20 }]);
-  await add(ship, "1d6", "fire", { targets: { entire: true, crew: [pc.uuid] } });
+  const persistent = await add(ship, "1d6", "fire", { targets: { entire: true, crew: [pc.uuid] } });
+  const receipt = await process(ship);
+  await applyManualEffect(ship.uuid, {
+    operationId: "indefinite-clean",
+    kind: "condition",
+    slug: "frightened",
+    conditionValue: 1,
+    targets: { entire: false, crew: [pc.uuid] }
+  });
   await applyManualEffect(ship.uuid, {
     operationId: "timed-clean",
     kind: "condition",
@@ -514,11 +726,29 @@ test("combat cleanup removes timed manual native mirrors but retains indefinite 
     targets: { entire: false, crew: [pc.uuid] },
     timing: { mode: "turn-end", combatantId: crew.id }
   });
+  await patchStarship(ship, (data) => {
+    data.effects.push(
+      { id: "legacy-timed", slug: "legacy-timed", label: "Legacy timed", modifiers: [], conditions: [], expire: { round: 1, turn: 0 } },
+      { id: "legacy-indefinite", slug: "legacy-indefinite", label: "Legacy indefinite", modifiers: [], conditions: [], expire: null }
+    );
+  });
   const [foreign] = await pc.createEmbeddedDocuments("Item", [{ type: "condition", name: "Foreign", system: { slug: "clumsy" } }]);
+  const timed = readStarship(ship).effects.find((effect) => effect.id === "manual-timed-clean");
+  const retainedItems = [...pc.items.values()]
+    .filter((item) => item.flags?.[MODULE_ID]?.applicationId !== timed?.id)
+    .map((item) => item.id);
   await combatService.cleanupEndedCombat(combat);
-  assert.equal(pc.items.size, 2);
+  assert.deepEqual(
+    [...pc.items.values()].map((item) => item.id),
+    retainedItems
+  );
   assert.equal(pc.items.has(foreign.id), true);
-  assert.equal(readStarship(ship).effects.length, 1);
+  assert.equal(pc.items.has(timed.nativeTargets[0].itemId), false);
+  assert.deepEqual(
+    readStarship(ship).effects.map((effect) => effect.id),
+    [persistent.applicationId, "manual-indefinite-clean", "legacy-indefinite"]
+  );
+  assert.deepEqual(readStarship(ship).persistentDamageReceipts, [receipt]);
 });
 test("true NPC ship tick occurs at own end only and backwards initiative cannot reroll", async () => {
   const { ship, pc } = await setup();

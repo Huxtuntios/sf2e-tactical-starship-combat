@@ -25,12 +25,6 @@ export function registerSettings() {
   });
   reg("historyStoreId", { config: false, type: String, default: "" });
   reg("sensorMapSize", { name: L("sensorMapSize.name"), hint: L("sensorMapSize.hint"), type: Number, default: 12 });
-  reg("reuseWorldActorsOnSensorMap", {
-    name: L("reuseWorldActorsOnSensorMap.name"),
-    hint: L("reuseWorldActorsOnSensorMap.hint"),
-    type: Boolean,
-    default: true
-  });
   reg("combatPresets", { config: false, type: Object, default: {} });
   reg("ruleEnforcement", {
     name: L("ruleEnforcement.name"),
@@ -92,6 +86,12 @@ export function registerSettings() {
     type: String,
     default: "crew",
     choices: { crew: L("crewInitiativeScope.crew"), stationed: L("crewInitiativeScope.stationed"), off: L("crewInitiativeScope.off") }
+  });
+  reg("resetStationsOnInitiative", {
+    name: L("resetStationsOnInitiative.name"),
+    hint: L("resetStationsOnInitiative.hint"),
+    type: Boolean,
+    default: false
   });
   reg("movementMode", {
     name: L("movementMode.name"),

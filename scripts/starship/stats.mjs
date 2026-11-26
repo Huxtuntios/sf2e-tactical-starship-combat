@@ -1,6 +1,7 @@
 import { stackModifiers } from "../engine/stacking.mjs";
 import { effectModifiers, hasCondition, stationEffects, offGuardAgainst } from "./effects.mjs";
 import { manualModifierSlug } from "./native-effect-adapter.mjs";
+import { nativeConditionModifiers, nativeHasCondition } from "./native-condition-adapter.mjs";
 import { isStarship, readStarship } from "./starship-state.mjs";
 import { Content } from "../content/loader.mjs";
 import { log } from "../utils/logging.mjs";
@@ -171,6 +172,7 @@ export function computeShipStats(actor, context = {}) {
   const data = context.data ?? readStarship(actor);
   const helm = helmedBonuses(data);
   const fx = data.effects ?? [];
+  const includeNativeConditions = context.includeNativeConditions !== false;
   const scope = { ...context, selector: "ac" };
   const inoperable = !!(
     data.inoperable ||
@@ -178,29 +180,66 @@ export function computeShipStats(actor, context = {}) {
     hasCondition(fx, "inoperable", scope) ||
     hasCondition(fx, "compromised", scope)
   );
-  const ac = shipAC(actor, context);
-  const total = (selector) => modifierTotal(shipModifiers(actor, selector, context));
+  const total = (selector) =>
+    modifierTotal([
+      ...shipModifiers(actor, selector, context),
+      ...(includeNativeConditions ? nativeConditionModifiers(actor, selector, context) : [])
+    ]);
+  const aggregate = (slug) => {
+    const base = shipStoredValue(actor, slug, context);
+    if (base == null) return null;
+    const native = slug === "perception" ? actor.perception : SHIP_SAVE_SLUGS.includes(slug) ? actor.saves?.[slug] : actor.skills?.[slug];
+    if (includeNativeConditions && actor.type === "npc" && native) return shipModuleValue(actor, slug, context);
+    return base + total(slug).total;
+  };
+  const acBase = Math.max(data.ac, pilotingDC(data) ?? 0);
+  const nativeAC = actor.armorClass?.dc ?? actor.armorClass ?? actor.getStatistic?.("ac")?.dc;
+  const pilotStation = data.stations.find((station) => station.type === "pilot" && station.helmedBy);
+  const pilot = pilotStation ? fromUuidSync(pilotStation.helmedBy)?.skills?.piloting?.dc : null;
+  const ac =
+    (includeNativeConditions && nativeAC?.modifiers) || (pilot?.modifiers && pilot.value >= data.ac)
+      ? shipAC(actor, context)
+      : (() => {
+          const result = total("ac");
+          return { value: acBase + result.total, base: acBase, applied: result.applied };
+        })();
   const fort = total("fortitude"),
     ref = total("reflex"),
     will = total("will");
   return {
     ac: ac.value,
     pilotingDC: pilotingDC(data),
-    fortitude: shipModuleValue(actor, "fortitude", context),
-    reflex: shipModuleValue(actor, "reflex", context),
-    will: shipModuleValue(actor, "will", context),
-    perception: shipModuleValue(actor, "perception", context),
+    fortitude: aggregate("fortitude"),
+    reflex: aggregate("reflex"),
+    will: aggregate("will"),
+    perception: aggregate("perception"),
     speed: Math.max(0, data.speed + total("speed").total),
-    sensorRange: data.sensorRange + helm.sensorRange,
+    sensorRange: data.sensorRange == null ? null : data.sensorRange + helm.sensorRange,
     attackModifier: total("attack").total,
     areaDCModifier: total("area-dc").total,
-    offGuard: hasCondition(fx, "off-guard", scope) || inoperable,
+    offGuard: hasCondition(fx, "off-guard", scope) || (includeNativeConditions && nativeHasCondition(actor, "off-guard")) || inoperable,
     offKilter: !!(data.offKilter || hasCondition(fx, "off-kilter", { ...context, selector: "attack" })),
     inoperable,
     breakdown: { ac: ac.applied, fortitude: fort.applied, reflex: ref.applied, will: will.applied }
   };
 }
 export const shipDC = (stats, slug) => (slug === "ac" ? stats.ac : 10 + (stats[slug] ?? 0));
+
+export function targetStatistic(actor, slug) {
+  if (actor?.type !== "hazard") return shipStatistic(actor, slug);
+  if (slug === "perception") return actor.perception ?? actor.getStatistic?.("perception") ?? null;
+  return actor.saves?.[slug] ?? actor.getStatistic?.(slug) ?? null;
+}
+
+export function targetSaveModifier(actor, slug) {
+  if (actor?.type !== "hazard") return computeShipStats(actor)[slug];
+  return Number(actor.system?.saves?.[slug]?.value ?? actor.saves?.[slug]?.mod ?? 0);
+}
+
+export function targetArmorClass(actor) {
+  if (actor?.type !== "hazard") return computeShipStats(actor).ac;
+  return Number(actor.system?.attributes?.ac?.value ?? 0);
+}
 
 /* ------------------------------------------------------------------ rolling helpers (native SF2e pipeline first) */
 /**
@@ -294,7 +333,7 @@ export async function rollNativeCheck({
       L("attackCard.nativeRollNotCompleted", "The system attack roll did not complete. Check chat and ship state before retrying.")
     );
   // fallback: plain roll
-  const mod_ = modifierOnly ?? 0;
+  const mod_ = modifierOnly ?? statistic?.check?.mod ?? statistic?.mod ?? 0;
   const roll = await new Roll(`1d20 + ${mod_}`).evaluate();
   const natural = roll.dice[0].total;
   const dcv = typeof dc === "number" ? dc : dc?.value;
@@ -312,7 +351,7 @@ export async function rollNativeCheck({
 }
 
 /** Flat check (hull integrity). Uses the system's flat check pipeline when possible. */
-export async function rollFlatCheck({ actor, dc, label }) {
+export async function rollFlatCheck({ actor, dc, label, secret = false }) {
   const Ctor = statisticCtor(actor);
   if (Ctor) {
     try {
@@ -328,7 +367,8 @@ export async function rollFlatCheck({ actor, dc, label }) {
         createMessage: true,
         skipDialog: true,
         label,
-        extraRollOptions: ["starship", "hull-integrity"]
+        extraRollOptions: ["starship", "hull-integrity"],
+        ...secretVisibility(secret)
       });
       if (roll)
         return {
@@ -343,7 +383,10 @@ export async function rollFlatCheck({ actor, dc, label }) {
   }
   const roll = await new Roll("1d20").evaluate();
   const degree = degreeOfSuccess(roll.total, dc, roll.total);
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label} (${L("ui.dcShort", "DC")} ${dc})` });
+  await roll.toMessage(
+    { speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label} (${L("ui.dcShort", "DC")} ${dc})` },
+    secretVisibility(secret)
+  );
   return { degree, total: roll.total, roll, native: false };
 }
 
@@ -412,12 +455,25 @@ export function shipStatistic(actor, slug, context = {}) {
     const delta = value - (base ?? native.mod ?? 0);
     if (delta)
       modifiers.unshift(newModifier({ slug: "tsc-ship-adjust", label: L("mods.starship", "Starship"), modifier: delta, type: "untyped" }));
+    if (!modifiers.length && !checkModifiers.length) return native;
     return modifiers.length || checkModifiers.length || domains.some((d) => !native.domains?.includes(d))
       ? native.clone({ domains, modifiers, check })
       : native;
   }
-  if (!Ctor) return null;
   const label = isSkill ? L(`skills.${slug}`, slug) : L(`ui.${slug}`, slug.charAt(0).toUpperCase() + slug.slice(1));
+  if (!Ctor) {
+    const fallbackCheck = shipModifiers(actor, slug, { ...context, statistic: "check", includeStationCheck: false });
+    const fallbackDC = shipModifiers(actor, slug, { ...context, statistic: "dc", includeStationCheck: false });
+    const checkMod = value + modifierTotal([...fallbackCheck, ...checkModifiers]).total;
+    return {
+      slug,
+      label,
+      domains,
+      mod: checkMod,
+      check: { mod: checkMod },
+      dc: { value: 10 + value + modifierTotal(fallbackDC).total }
+    };
+  }
   return new Ctor(actor, {
     slug,
     label,

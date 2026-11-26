@@ -35,6 +35,9 @@ import { upgradeCatalog } from "../../content/loader.mjs";
 import { stationUpgradeStatus } from "../../engine/upgrades.mjs";
 import { SHIP_TARGET } from "./sheet-upgrades.mjs";
 import { modulePackId } from "../../utils/system.mjs";
+import { permissionsFor } from "../../crew/permissions.mjs";
+import { addListValue, addMapValue, numericMapFromRows } from "../sheet-edit.mjs";
+import { chooseStrikeTraits } from "../strike-trait-dialog.mjs";
 
 export function switchTab(e, t) {
   this.tab = t.dataset.tab;
@@ -44,22 +47,91 @@ export function switchTab(e, t) {
 export function editImage(e, t) {
   pickActorImage(this.document, t.dataset.target ?? "img");
 }
+
+const DEFENSE_KINDS = new Set(["immunities", "resistances", "weaknesses", "skills"]);
+const defenseCatalog = (kind) => {
+  const config = globalThis.CONFIG?.PF2E;
+  if (kind === "immunities") return config?.immunityTypes;
+  if (kind === "resistances") return config?.resistanceTypes;
+  if (kind === "weaknesses") return config?.weaknessTypes;
+  return config?.skills;
+};
+const defenseKnownKeys = (kind) => Object.keys(defenseCatalog(kind) ?? {}).filter((key) => key !== "custom");
+function assertConfigureShip(sheet) {
+  if (!game.user.isGM && !permissionsFor(game.user, sheet.document).has("configureShip")) {
+    throw new Error(T("SF2eTSC.errors.noPermission"));
+  }
+}
+function assertDefenseKind(kind) {
+  if (!DEFENSE_KINDS.has(kind))
+    throw Object.assign(new Error("SF2eTSC.errors.defenseKindInvalid"), { i18nKey: "SF2eTSC.errors.defenseKindInvalid" });
+}
+
+export async function addDefenseEntry(_e, target) {
+  assertConfigureShip(this);
+  const kind = target.dataset.defenseKind;
+  assertDefenseKind(kind);
+  const selected = this.element.querySelector(`[data-defense-add="${kind}"]`)?.value;
+  if (!selected) return;
+  const data = readStarship(this.document);
+  const options = { knownKeys: defenseKnownKeys(kind) };
+  const patch =
+    kind === "immunities"
+      ? { immunities: addListValue(data.immunities, selected, options) }
+      : { [kind]: addMapValue(data[kind], selected, kind === "skills" ? 0 : 5, options) };
+  await Ship.patch(this.document.uuid, patch);
+}
+
+export async function saveDefenseRows(sheet, kind, rows) {
+  assertConfigureShip(sheet);
+  assertDefenseKind(kind);
+  if (kind === "immunities")
+    throw Object.assign(new Error("SF2eTSC.errors.defenseRowsInvalid"), { i18nKey: "SF2eTSC.errors.defenseRowsInvalid" });
+  const current = readStarship(sheet.document)[kind];
+  const map = numericMapFromRows(rows, { knownKeys: defenseKnownKeys(kind), existingKeys: Object.keys(current ?? {}) });
+  const baseline = sheet.element?.querySelector?.(`[data-defense-editor="${kind}"]`)?.dataset?.defenseBaseline;
+  const expected = baseline ? JSON.parse(baseline) : current;
+  await Ship.replaceDefense(sheet.document.uuid, kind, map, expected);
+}
+
+export async function removeDefenseEntry(_e, target) {
+  assertConfigureShip(this);
+  const kind = target.dataset.defenseKind;
+  assertDefenseKind(kind);
+  if (kind === "immunities") {
+    const data = readStarship(this.document);
+    const key = target.dataset.defenseKey;
+    if (typeof key !== "string" || !key) throw new Error(T("SF2eTSC.errors.invalidData"));
+    await Ship.patch(this.document.uuid, { immunities: data.immunities.filter((value) => value !== key) });
+    return;
+  }
+  const row = target.closest?.("[data-defense-row]");
+  const key = row?.querySelector('[data-defense-property="type"]')?.value ?? target.dataset.defenseKey;
+  await Ship.deleteDefense(this.document.uuid, kind, key);
+}
+
 export async function addListItem(e, t) {
   const list = t.dataset.list;
+  if (list === "strikes") {
+    const traits = await chooseStrikeTraits();
+    if (traits === null) return;
+    await Ship.equipment(this.document.uuid, list, "add", {
+      item: {
+        name: T("SF2eTSC.edit.newStrike"),
+        kind: "ranged",
+        attack: this.document.system?.details?.level?.value + 7 || 7,
+        damage: "2d6 piercing",
+        traits
+      }
+    });
+    return;
+  }
   const item =
-    list === "strikes"
-      ? {
-          name: T("SF2eTSC.edit.newStrike"),
-          kind: "ranged",
-          attack: this.document.system?.details?.level?.value + 7 || 7,
-          damage: "2d6 piercing",
-          traits: ["range increment 4 zones", "tech"]
-        }
-      : list === "npcActions"
-        ? { name: T("SF2eTSC.edit.newAbility"), cost: "one-action", traits: [], text: "" }
-        : list === "expansionBays"
-          ? { id: randomId("bay"), name: null }
-          : null;
+    list === "npcActions"
+      ? { name: T("SF2eTSC.edit.newAbility"), cost: "one-action", traits: [], text: "" }
+      : list === "expansionBays"
+        ? { id: randomId("bay"), name: null }
+        : null;
   if (item) await Ship.equipment(this.document.uuid, list, "add", { item });
 }
 export async function removeListItem(e, t) {

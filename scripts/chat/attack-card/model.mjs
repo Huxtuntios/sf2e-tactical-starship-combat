@@ -34,7 +34,7 @@ export function cardRequest(req) {
     actionId: req.actionId,
     crewUuid: req.crewUuid,
     stationId: req.stationId,
-    options: (({ targetKey, gmOverride, ...o }) => o)(req.options)
+    options: (({ targetKey, targetUUIDs, gmOverride, ...o }) => o)(req.options)
   };
 }
 
@@ -59,6 +59,31 @@ export function playerTargets(candidates) {
     .map(({ gmName, playerVisible, actorUuid, ...rest }) => ({ ...rest, label: rest.known ? gmName : rest.label }));
 }
 
+/** Current target references from a card resolution request; legacy targetKey remains the fallback. */
+export function resolutionTargetUUIDs(payload) {
+  const values = Array.isArray(payload?.targetUUIDs)
+    ? payload.targetUUIDs
+    : typeof payload?.targetKey === "string" && payload.targetKey
+      ? [payload.targetKey]
+      : [];
+  return [
+    ...new Set(
+      values
+        .filter((value) => typeof value === "string" && value)
+        .slice(0, 50)
+        .map((value) => value.slice(0, 300))
+    )
+  ];
+}
+
+/** Candidate keys currently selected in Foundry, deduplicated in card order. */
+export function cardTargetKeys(candidates = [], targetUUIDs) {
+  const selected = new Set(targetUUIDs ?? []);
+  return candidates
+    .filter((candidate) => selected.has(candidate.key) || selected.has(candidate.actorUuid))
+    .map((candidate) => candidate.key);
+}
+
 /** MAP choice for a resolution request: client choice if valid, else the one stored on the card. */
 export function pickMapChoice(payload, card, MAP_CHOICES) {
   return MAP_CHOICES.includes(String(payload?.mapChoice)) ? String(payload.mapChoice) : (card.request.options?.mapChoice ?? "0");
@@ -77,6 +102,37 @@ export function canStartResolve(card, locked) {
  * @param {object|null} card the module attackCard flag
  * @param {string|null} outcomeKey the rerolled degree key from the system context (e.g. "criticalSuccess")
  */
+export function attackCardProfile(card) {
+  return card?.weapon?.profile ?? card?.result?.pendingDamage?.profile ?? null;
+}
+
+export function isPlasmaAttackCard(card) {
+  return !!attackCardProfile(card)?.plasma || !!card?.result?.pendingDamage?.plasma;
+}
+
+export function attackCardSave(card) {
+  return card?.result?.pendingDamage?.save ?? attackCardProfile(card)?.save ?? null;
+}
+
+export function attackCardTargets(card) {
+  const pending = card?.result?.pendingDamage;
+  if (Array.isArray(pending?.targets)) return pending.targets;
+  return pending?.targetUuid ? [{ targetUuid: pending.targetUuid, targetKey: pending.targetKey ?? pending.targetUuid }] : [];
+}
+
+export function attackCardSaveRecords(card) {
+  return Array.isArray(card?.saveRolls) ? card.saveRolls : [];
+}
+
+export function attackCardSavesComplete(card) {
+  if (!attackCardSave(card)) return true;
+  const targets = Array.isArray(card?.saveTargetUUIDs)
+    ? card.saveTargetUUIDs.map((targetUuid) => ({ targetUuid }))
+    : attackCardTargets(card);
+  const saves = attackCardSaveRecords(card);
+  return targets.length > 0 && targets.every((target) => saves.some((save) => save.targetUuid === target.targetUuid));
+}
+
 export function reconcileRerolledCard(card, outcomeKey) {
   if (!card?.native || card.damageApplied) return card;
   const degree = DEGREE_KEYS.indexOf(outcomeKey);

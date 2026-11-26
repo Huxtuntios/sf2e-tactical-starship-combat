@@ -5,6 +5,8 @@ import { DAMAGE_GROUPS, normalizeDamageType, normalizeIwr } from "../engine/dama
 import { linkInline } from "./inline-links.mjs";
 import { schemaStamp } from "./action-docs.mjs";
 import { nativeSystemId } from "../utils/system.mjs";
+import { resolveBaseSensorRange } from "../engine/sensor-range.mjs";
+import { nextStationName } from "../engine/station-names.mjs";
 
 export const ICONS = {
   player: `modules/${MODULE_ID}/assets/icons/starship.svg`,
@@ -96,10 +98,11 @@ export function stationsFromContent(ship) {
   for (const st of ship.stations ?? []) {
     const type = st.type;
     count[type] = (count[type] ?? 0) + 1;
+    const name = nextStationName({ type, name: st.label ?? STATION_NAME[type] ?? type }, out);
     out.push({
       id: `${type}-${count[type]}`,
       type,
-      name: st.label ?? STATION_NAME[type] ?? type,
+      name,
       grade: gradeAt(type, ship.level),
       helmedBy: null,
       malfunctioning: false,
@@ -162,8 +165,8 @@ export function starshipFlagFromContent(ship, role = "npc") {
     sourceId: ship.id,
     level: ship.level,
     frame: null,
-    size: ship.size ?? "medium",
-    sensorRange: ship.sensorRange ?? 4,
+    size: ship.size ?? null,
+    sensorRange: resolveBaseSensorRange({ role, size: ship.size, sensorRange: ship.sensorRange }).value,
     speed: ship.speed ?? 3,
     ac: ship.ac ?? 10 + ship.level,
     fort: ship.fort ?? 0,
@@ -469,17 +472,21 @@ export function buildHazardActorData(h, { i18n = null, levelInName = false } = {
 export function buildPlayerShipData({ name, frame, level = 1, stations = null, crewSize = 4, i18n = null }) {
   const { tr } = docI18n(i18n ?? {});
   const row = frame.table.find((r) => r.level === level) ?? frame.table[0];
-  const defaultStations = (stations ?? frame.defaultStations ?? []).map((s, i) => ({
-    id: `${s.type}-${i + 1}`,
-    type: s.type,
-    name: STATION_NAME[s.type] ?? s.type,
-    grade: s.grade ?? gradeAt(s.type, level),
-    helmedBy: null,
-    malfunctioning: false,
-    location: null,
-    upgrades: s.upgrade ? [s.upgrade] : [],
-    actions: []
-  }));
+  const defaultStations = [];
+  for (const [i, s] of (stations ?? frame.defaultStations ?? []).entries()) {
+    const type = s.type;
+    defaultStations.push({
+      id: `${type}-${i + 1}`,
+      type,
+      name: nextStationName({ type, name: s.name ?? s.label ?? STATION_NAME[type] ?? type }, defaultStations),
+      grade: s.grade ?? gradeAt(type, level),
+      helmedBy: null,
+      malfunctioning: false,
+      location: null,
+      upgrades: s.upgrade ? [s.upgrade] : [],
+      actions: []
+    });
+  }
   const flag = {
     dataVersion: DATA_VERSION,
     isStarship: true,
@@ -487,7 +494,7 @@ export function buildPlayerShipData({ name, frame, level = 1, stations = null, c
     level,
     frame: frame.id,
     size: frame.size,
-    sensorRange: frame.sensorRange,
+    sensorRange: resolveBaseSensorRange({ role: "player", frame: frame.id, sensorRange: frame.sensorRange }, frame).value,
     speed: row.speed,
     ac: row.ac,
     fort: row.fort,

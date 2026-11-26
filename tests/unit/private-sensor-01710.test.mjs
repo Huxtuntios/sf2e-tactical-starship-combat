@@ -9,6 +9,7 @@ import { MODULE_ID } from "../../scripts/constants.mjs";
 import { sensorUpdate } from "../../scripts/sensor/map-handlers.mjs";
 import { createSensorActorInstance, deleteSensorActorInstance } from "../../scripts/sensor/actor-instance.mjs";
 import { addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
+import { loadStarship } from "../../scripts/starship/starship-state.mjs";
 import { T } from "../../scripts/utils/foundry.mjs";
 
 function setup() {
@@ -79,7 +80,7 @@ test("non-GM and inactive GM cannot access or mutate private records", async () 
   assert.equal(privateContacts(combat.id)[0].zone, 3);
 });
 
-test("the actual drop listener reuses the original private Actor without creation or publishing its UUID", async () => {
+test("the actual drop listener creates separate private map snapshots without Actor creation or source identity", async () => {
   const { enemy, combat } = setup();
   const { wireSensorMapDragDrop } = await import("../../scripts/ui/sensor-drop-ui.mjs");
   const handlers = {};
@@ -94,11 +95,20 @@ test("the actual drop listener reuses the original private Actor without creatio
   const drop = () =>
     handlers.drop({ preventDefault() {}, dataTransfer: { getData: () => JSON.stringify({ type: "Actor", uuid: enemy.uuid }) } });
   await drop();
+  zone.dataset.zone = "7";
   await drop();
   assert.equal(calls, 0);
   const contacts = privateContacts(combat.id);
-  assert.equal(contacts.length, 1);
-  assert.equal(contacts[0].actorUuid, enemy.uuid);
+  assert.equal(contacts.length, 2);
+  assert.equal(new Set(contacts.map((contact) => contact.key)).size, 2);
+  assert.equal(
+    contacts.every((contact) => contact.mapOnly && contact.actorUuid === contact.key),
+    true
+  );
+  assert.deepEqual(
+    contacts.map((contact) => contact.zone),
+    [5, 7]
+  );
   assert.equal(game.actors.size, 1);
   assert.equal(game.actors.get(enemy.id), enemy);
   assert.deepEqual(
@@ -118,7 +128,7 @@ test("failed reveal finalization retains durable intent and consistent public in
     zone: 2,
     detection: "undetected"
   });
-  const instance = fromUuidSync(placement.actorUuid);
+  const instance = await loadStarship(placement.actorUuid);
   const [obj] = privateContacts(combat.id),
     doc = game.journal.contents[0];
   const update = doc.update.bind(doc);
@@ -135,17 +145,17 @@ test("failed reveal finalization retains durable intent and consistent public in
   assert.equal(privateContacts(combat.id).length, 1);
   assert.equal(privateContacts(combat.id)[0].pendingReveal, true);
   assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
-  assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
-  const combatantId = combat.combatants.find((c) => c.actorId === instance.id).id;
-  assert.equal(instance, enemy);
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance, undefined);
+  assert.equal(combat.combatants.filter((c) => c.flags[MODULE_ID].sensorMapObject?.key === placement.key).length, 1);
+  const combatantId = combat.combatants.find((c) => c.flags[MODULE_ID].sensorMapObject?.key === placement.key).id;
+  assert.notEqual(instance, enemy);
+  assert.equal((await loadStarship(placement.key)).flags[MODULE_ID].sensorContactInstance.privateContact, false);
   await changePrivateContact(combat, obj.key, "reveal");
   assert.equal(getTsc(combat).objects.length, 1);
   assert.equal(privateContacts(combat.id).length, 0);
-  assert.equal(combat.combatants.filter((c) => c.actorId === instance.id).length, 1);
-  assert.equal(combat.combatants.find((c) => c.actorId === instance.id).id, combatantId);
-  assert.equal(instance, enemy);
-  assert.equal(instance.flags[MODULE_ID].sensorContactInstance, undefined);
+  assert.equal(combat.combatants.filter((c) => c.flags[MODULE_ID].sensorMapObject?.key === placement.key).length, 1);
+  assert.equal(combat.combatants.find((c) => c.flags[MODULE_ID].sensorMapObject?.key === placement.key).id, combatantId);
+  assert.notEqual(instance, enemy);
+  assert.equal((await loadStarship(placement.key)).flags[MODULE_ID].sensorContactInstance.privateContact, false);
 });
 
 test("a newly exposed Actor is not published by the staged reveal", async () => {

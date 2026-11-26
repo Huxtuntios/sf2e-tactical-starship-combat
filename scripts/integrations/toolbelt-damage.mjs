@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../constants.mjs";
 import { request, registerHandler } from "../socket.mjs";
-import { T, moduleActive, fromUuidSync_, fromUuidSafe } from "../utils/foundry.mjs";
+import { T, fromUuidSync_, fromUuidSafe } from "../utils/foundry.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { wirePersistentDamage, applyPersistentDamage } from "../starship/persistent-damage.mjs";
 import { can } from "../crew/permissions.mjs";
@@ -10,7 +10,8 @@ import {
   CHAT_DAMAGE_FLAG,
   damageApplicationKey,
   damageReceiptKey,
-  damageReceiptOf
+  damageReceiptOf,
+  STARSHIP_DAMAGE_ADAPTER
 } from "./toolbelt-damage-service.mjs";
 
 const roots = new Map();
@@ -31,6 +32,7 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
   if (message.flags?.[MODULE_ID]?.persistentDamage) return wirePersistentDamage(message, root, { send });
   if (root.dataset.tscDamageWired) return null;
   root.dataset.tscDamageWired = "1";
+  root.dataset.tscDamageAdapter = STARSHIP_DAMAGE_ADAPTER;
   const targetsFor = (row) => (row.dataset.targetUuid ? [resolve(row.dataset.targetUuid)].filter(Boolean) : selected());
   const busy = new Set();
   // Ранее распознанную цель нельзя тихо передать нативной обработке при потере UUID.
@@ -42,16 +44,26 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       if (row.dataset.targetUuid && shipsOnly) knownShipRows.set(row, row.dataset.targetUuid);
       else if (row.dataset.targetUuid && targets.length) knownShipRows.delete(row);
       let controls = row.querySelector(".tsc-ship-damage-controls");
+      const nativeButtons = row.querySelectorAll(
+        '[data-action="applyDamage"], [data-action="target-applyDamage"], [data-action="shieldBlock"], [data-action="target-shieldBlock"]'
+      );
       if (!shipsOnly) {
         controls?.remove();
+        nativeButtons.forEach((button) => {
+          button.hidden = false;
+        });
         continue;
       }
+      nativeButtons.forEach((button) => {
+        button.hidden = Number(button.dataset.multiplier) >= 0 || !Number.isFinite(Number(button.dataset.multiplier));
+      });
       if (!controls) {
         controls = document.createElement("div");
         controls.className = "tsc-ship-damage-controls";
         const select = document.createElement("select");
         select.className = "tsc-ship-damage-multiplier";
         select.title = T("SF2eTSC.toolbelt.multiplier");
+        select.setAttribute("aria-label", T("SF2eTSC.toolbelt.multiplier"));
         for (const value of [1, 0.5, 2, 3, 0]) {
           const option = document.createElement("option");
           option.value = String(value);
@@ -93,6 +105,13 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       return;
     }
     if (!ships.length) return;
+    const betterChat = message.flags?.["pf2e-toolbelt"]?.betterChat;
+    if (betterChat?.mergeDamage || betterChat?.injected || betterChat?.splitted) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ui.notifications.warn(T("SF2eTSC.toolbelt.mergedUnsupported"));
+      return;
+    }
     const healing = Number(button.dataset.multiplier) < 0;
     if (healing && !button.dataset.tscShipDamage) return;
     event.preventDefault();
@@ -144,6 +163,7 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       observer.disconnect();
       root.removeEventListener("click", onClick, true);
       delete root.dataset.tscDamageWired;
+      delete root.dataset.tscDamageAdapter;
     }
   };
 }
@@ -197,7 +217,6 @@ export function registerToolbeltDamage() {
     if ((target?.actor ?? target)?.uuid !== flag.shipUuid) throw new Error(T("SF2eTSC.persistent.errors.invalidRecipient"));
     return applyPersistentDamage(flag.shipUuid, flag.receiptId);
   });
-  if (!moduleActive("pf2e-toolbelt")) return;
   const sweep = () => {
     for (const [root, entry] of roots)
       if (!root.isConnected) {
