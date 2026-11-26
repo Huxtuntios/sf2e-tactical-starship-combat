@@ -930,6 +930,24 @@ test("map-only native conditions add, increment, persist and remove through embe
   assert.equal(game.actors.size, 1);
 });
 
+test("open map-only effect manager reads conditions saved through another handle", async () => {
+  const combat = setup();
+  installSnapshotConditionFixture();
+  const source = ship("effect-manager-refresh-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const { EffectManager } = await import("../../scripts/ui/effect-manager.mjs");
+  const manager = new EffectManager(actor);
+  assert.deepEqual((await manager._prepareContext()).conditions, []);
+
+  await resolveSensorActorSync(combat, placement.key).increaseCondition("off-guard");
+  const conditions = (await manager._prepareContext()).conditions;
+  assert.deepEqual(
+    conditions.map((condition) => condition.slug),
+    ["off-guard"]
+  );
+});
+
 test("map-only embedded Item create, update and delete persist exact snapshot data", async () => {
   const combat = setup();
   const source = ship("snapshot-item-source");
