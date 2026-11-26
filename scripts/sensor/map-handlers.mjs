@@ -8,7 +8,7 @@ import { T, moduleSetting, fromUuidSafe, isActiveGM } from "../utils/foundry.mjs
 import { sanitizeSensorPayload, applySensorOp, MINE_LOCKED_OPS } from "./map-model.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { addSensorContact } from "./contact-service.mjs";
-import { resolveSensorActor } from "./map-object.mjs";
+import { markMapObjectCleanup, pendingMapObjectCleanups, resolveSensorActor } from "./map-object.mjs";
 import { deleteSensorActorInstance } from "./actor-instance.mjs";
 import { addAllNpcShipsToInitiative, addSensorObjectToInitiative } from "./initiative.mjs";
 import { pendingPrivateReveals, privateContacts } from "./private-contacts.mjs";
@@ -49,6 +49,8 @@ export async function sensorUpdate({ user, payload: raw }) {
     const payload = sanitizeSensorPayload(user, getTsc(combat), raw);
     if (!payload) throw new Error(T("SF2eTSC.errors.gmOnly"));
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    for (const cleanup of pendingMapObjectCleanups(combat))
+      await deleteSensorActorInstance(combat, cleanup.key, { deleteActor: cleanup.deleteActor });
     // Non-Actor markers cannot collide with private- contact keys or document UUIDs.
     const independentMarker =
       payload.op === "add" &&
@@ -113,9 +115,10 @@ export async function sensorUpdate({ user, payload: raw }) {
     if (removing?.actorUuid && !sharedActor && removing.mapOnly !== true)
       await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
     if (!isActiveGM()) throw new Error(T("SF2eTSC.errors.gmOnly"));
+    const cleanupKey = removing?.actorUuid ?? removing?.key;
+    if (removing?.mapOnly === true) await markMapObjectCleanup(combat.id, cleanupKey, { deleteActor: removing.reuseActor !== true });
     await mutateTsc(combat, (s) => applySensorOp(s, payload, { designation }));
-    if (removing?.mapOnly === true)
-      await deleteSensorActorInstance(combat, removing.actorUuid, { deleteActor: removing.reuseActor !== true });
+    if (removing?.mapOnly === true) await deleteSensorActorInstance(combat, cleanupKey, { deleteActor: removing.reuseActor !== true });
     // Remember the art orientation on the Actor itself so future placements and copies inherit it.
     if (payload.op === "objectVisual" && payload.visual?.transform) {
       const o = findObject(getTsc(combat), payload.key);

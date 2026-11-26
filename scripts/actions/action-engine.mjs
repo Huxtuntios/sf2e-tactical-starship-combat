@@ -36,7 +36,7 @@ import { activeStarshipCombat, combatantForActor, turnIndexOf } from "../combat/
 import { can } from "../crew/permissions.mjs";
 import { postActionCard } from "../chat/chat-cards.mjs";
 import { registerHandler } from "../socket.mjs";
-import { fromUuidSafe, fromUuidSync_, T, moduleSetting, levelDC } from "../utils/foundry.mjs";
+import { fromUuidSafe, T, moduleSetting, levelDC } from "../utils/foundry.mjs";
 import { stationRowFor } from "../starship/station-rows.mjs";
 import { executeDroneMovement } from "./drone-actions.mjs";
 import { executeDroneBlockSoft } from "./drone-block.mjs";
@@ -164,7 +164,7 @@ function checkDC(ctx, spec) {
       return ctx.options.manualDC ?? levelDC(ctx.options.dcLevel ?? ctx.data.level);
     case "manualReflexDC": {
       if (ctx.options.manualDC != null) return ctx.options.manualDC;
-      const attacker = ctx.options.pendingStrike ? fromUuidSync_(ctx.options.pendingStrike.attackerUuid) : null;
+      const attacker = ctx.options.pendingStrike ? resolveSensorActorSync(ctx.combat, ctx.options.pendingStrike.attackerUuid) : null;
       return levelDC(attacker ? readStarship(attacker).level : ctx.data.level);
     }
     default:
@@ -225,7 +225,7 @@ async function runCheck(ctx) {
     ...context,
     statistic: "check"
   });
-  let fallbackMod = 0;
+  let fallbackMod = null;
   if (!statistic && ctx.data.role === "npc") {
     fallbackMod = ctx.crew
       ? null
@@ -485,7 +485,12 @@ async function executeActionNow(params) {
   if (ctx.targets.length > 1 && !action.targeting?.multiple && !plasmaSheetAttack) fail("badTarget");
   ctx.target = ctx.targets[0] ?? null;
   if (action.targeting?.multiple) ctx.areaTargets = ctx.targets;
-  ctx.privateAction = !!(ctx.targets.some((target) => target.obj?.privateContact) || findObject(ctx.tsc, shipUuid)?.privateContact);
+  const privateAttacker = !!combat && privateContacts(combat.id).some((contact) => contact.actorUuid === shipUuid);
+  ctx.privateAction = !!(
+    ctx.targets.some((target) => target.obj?.privateContact) ||
+    findObject(ctx.tsc, shipUuid)?.privateContact ||
+    privateAttacker
+  );
   if (ctx.privateAction) draft.privateAction = true;
   const failed = evaluateRequirements(action, ctx, strictRules);
   if (failed.length) rule("requirementFailed", { reqs: failed.map((k) => T(`SF2eTSC.requirements.${k}`)).join(", ") });

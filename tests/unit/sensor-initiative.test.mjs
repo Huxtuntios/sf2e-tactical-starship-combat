@@ -12,6 +12,8 @@ import { loadStarship } from "../../scripts/starship/starship-state.mjs";
 
 const entryFor = (combat, actor, key = actor.uuid) =>
   combat.combatants.find((entry) => entry.actorId === actor.id || entry.flags?.[MODULE_ID]?.sensorMapObject?.key === key);
+const entryMatches = (entry, actor, key = actor.uuid) =>
+  entry.actorId === actor.id || entry.flags?.[MODULE_ID]?.sensorMapObject?.key === key;
 
 function setup() {
   installFoundryMock();
@@ -221,7 +223,7 @@ test("revealing a private NPC reuses and updates its hidden initiative Combatant
 
   await changePrivateContact(combat, placement.key, "reveal");
 
-  const combatants = combat.combatants.filter((entry) => entryFor(combat, actor, placement.key) === entry);
+  const combatants = combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key));
   assert.equal(combatants.length, 1);
   assert.equal(combatants[0].id, original.id);
   assert.equal(combatants[0].hidden, false);
@@ -338,7 +340,7 @@ test("reveal rejects a private Actor Combatant that is not the safe generic hidd
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
 
-  assert.equal(combat.combatants.filter((entry) => entryFor(combat, actor, placement.key) === entry).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(unrelated.hidden, false);
   assert.equal(unrelated.name, actor.name);
   assert.equal(privateContacts(combat.id).length, 1);
@@ -372,7 +374,7 @@ test("reveal rejects a generic hidden Combatant associated with another Combat",
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /already a combatant/);
 
-  assert.equal(combat.combatants.filter((entry) => entryFor(combat, actor, placement.key) === entry).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(unrelated.name, "Contact");
   assert.equal(unrelated.flags[MODULE_ID].sensorMapInitiative.combatId, "another-combat");
   assert.equal(privateContacts(combat.id).length, 1);
@@ -405,7 +407,7 @@ test("failed finalization keeps the same revealed initiative entry pending and c
 
   await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /journal failed/);
 
-  assert.equal(combat.combatants.filter((entry) => entryFor(combat, actor, placement.key) === entry).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(original.hidden, false);
   assert.equal(original.name, actor.name);
   assert.equal(original.flags[MODULE_ID].sensorMapInitiative.contactDesignation, false);
@@ -417,7 +419,7 @@ test("failed finalization keeps the same revealed initiative entry pending and c
   assert.equal(privateContacts(combat.id)[0].reveal.stage, "consistent");
 
   await changePrivateContact(combat, placement.key, "reveal");
-  assert.equal(combat.combatants.filter((entry) => entryFor(combat, actor, placement.key) === entry).length, 1);
+  assert.equal(combat.combatants.filter((entry) => entryMatches(entry, actor, placement.key)).length, 1);
   assert.equal(original.id, entryFor(combat, actor, placement.key).id);
   assert.equal(original.hidden, false);
   assert.notEqual(actor, source);

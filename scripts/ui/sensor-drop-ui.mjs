@@ -73,6 +73,7 @@ export function wireSensorMapDragDrop(element, context, deps = {}) {
           uuid: actor.uuid,
           zone: zoneNumber,
           detection: privateContact ? "undetected" : "identified",
+          publicActor: !privateContact,
           independent: true
         });
         if (result.result === "unchanged") info("SF2eTSC.mapDrop.unchanged");

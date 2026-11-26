@@ -304,6 +304,37 @@ test("production context: own ship retains full details while foreign identifica
   }
 });
 
+test("public projection changes invalidate cached player data while unchanged projections reuse it", async () => {
+  let hp = 24;
+  let resolutions = 0;
+  const actor = { uuid: "map-public", testUserPermission: () => true };
+  const cache = new MapActorCache({
+    resolve: async () => {
+      resolutions++;
+      return actor;
+    },
+    read: () => ({ hp: { value: hp, max: 30 } }),
+    stats: () => ({}),
+    ship: () => true
+  });
+  const view = (version) => [{ known: true, type: "starship", actorUuid: actor.uuid, publicActor: { version } }];
+  cache.setVisible(view(1), user);
+  let entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 24);
+  assert.equal(resolutions, 1);
+
+  hp = 7;
+  cache.setVisible(view(2), user);
+  entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 7);
+  assert.equal(resolutions, 2);
+
+  cache.setVisible(view(2), user);
+  entry = await cache.get(actor.uuid);
+  assert.equal(cache.data(entry).hp.value, 7);
+  assert.equal(resolutions, 2);
+});
+
 test("pending resolutions coalesce; invalidation, pruning and close reject obsolete results", async () => {
   for (const operation of ["invalidate", "prune", "dispose"]) {
     const pending = deferred();

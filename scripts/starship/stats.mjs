@@ -333,7 +333,7 @@ export async function rollNativeCheck({
       L("attackCard.nativeRollNotCompleted", "The system attack roll did not complete. Check chat and ship state before retrying.")
     );
   // fallback: plain roll
-  const mod_ = modifierOnly || statistic?.check?.mod || statistic?.mod || 0;
+  const mod_ = modifierOnly ?? statistic?.check?.mod ?? statistic?.mod ?? 0;
   const roll = await new Roll(`1d20 + ${mod_}`).evaluate();
   const natural = roll.dice[0].total;
   const dcv = typeof dc === "number" ? dc : dc?.value;
@@ -351,7 +351,7 @@ export async function rollNativeCheck({
 }
 
 /** Flat check (hull integrity). Uses the system's flat check pipeline when possible. */
-export async function rollFlatCheck({ actor, dc, label }) {
+export async function rollFlatCheck({ actor, dc, label, secret = false }) {
   const Ctor = statisticCtor(actor);
   if (Ctor) {
     try {
@@ -367,7 +367,8 @@ export async function rollFlatCheck({ actor, dc, label }) {
         createMessage: true,
         skipDialog: true,
         label,
-        extraRollOptions: ["starship", "hull-integrity"]
+        extraRollOptions: ["starship", "hull-integrity"],
+        ...secretVisibility(secret)
       });
       if (roll)
         return {
@@ -382,7 +383,10 @@ export async function rollFlatCheck({ actor, dc, label }) {
   }
   const roll = await new Roll("1d20").evaluate();
   const degree = degreeOfSuccess(roll.total, dc, roll.total);
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label} (${L("ui.dcShort", "DC")} ${dc})` });
+  await roll.toMessage(
+    { speaker: ChatMessage.getSpeaker({ actor }), flavor: `${label} (${L("ui.dcShort", "DC")} ${dc})` },
+    secretVisibility(secret)
+  );
   return { degree, total: roll.total, roll, native: false };
 }
 

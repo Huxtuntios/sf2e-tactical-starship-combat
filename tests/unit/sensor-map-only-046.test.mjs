@@ -23,7 +23,9 @@ import { executeAction } from "../../scripts/actions/action-engine.mjs";
 import { addSensorObjectToInitiative } from "../../scripts/sensor/initiative.mjs";
 import { sensorUpdate } from "../../scripts/sensor/map-handlers.mjs";
 import { HazardEngine, placeHazard } from "../../scripts/hazards/hazard-engine.mjs";
-import { deleteMapObjectSource, mapObjectSources } from "../../scripts/sensor/map-object.mjs";
+import { deleteMapObjectSource, mapObjectSources, resolveSensorActorSync } from "../../scripts/sensor/map-object.mjs";
+import { observerKeys } from "../../scripts/sensor/map-model.mjs";
+import { targetingState } from "../../scripts/engine/target-rules.mjs";
 import { ensurePrivateStore } from "../../scripts/sensor/private-store.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -187,6 +189,284 @@ test("repeated private world drops retain separate GM-private map snapshots", as
   assert.equal((await loadStarship(second.key)).uuid, second.key);
 });
 
+test("hidden map-only contacts keep GM private controls and quick vitals", async () => {
+  const combat = setup();
+  const source = ship("hidden-gm-controls");
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 3,
+    detection: "hidden"
+  });
+  const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
+  const app = new SensorMapApplication();
+  app.selected = placement.key;
+  try {
+    const context = await app._prepareContext({ parts: ["bar", "zones", "detail"] });
+    assert.equal(
+      context.zones.flatMap((zone) => zone.objects).some((object) => object.tscPrivateProjection),
+      false
+    );
+    assert.equal(
+      app._privateObjects.some((contact) => contact.key === placement.key),
+      true
+    );
+    assert.equal(context.detail.privateContact, true);
+    assert.deepEqual(context.detail.vitals, {
+      shipUuid: placement.key,
+      hp: 24,
+      hpMax: 24,
+      sp: 12,
+      spMax: 12
+    });
+  } finally {
+    app._cleanup();
+  }
+});
+
+test("explicit public placement permits a player-role ship without player ownership", async () => {
+  const combat = setup();
+  const source = ship("public-player-role", { role: "player", owners: [] });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 4,
+    detection: "identified",
+    publicActor: true
+  });
+
+  assert.equal(placement.result, "added");
+  assert.equal(getTsc(combat).objects[0].type, "starship");
+  assert.equal(privateContacts(combat.id).length, 0);
+});
+
+test("confirmed public drag/drop passes the public placement contract", async () => {
+  const combat = setup();
+  const source = ship("public-drag-player", { role: "player", owners: [] });
+  const handler = await dropHandler(combat, source, { confirm: async () => true });
+  await handler.drop();
+
+  assert.deepEqual(handler.warnings, []);
+  assert.equal(getTsc(combat).objects[0].type, "starship");
+  assert.equal(privateContacts(combat.id).length, 0);
+});
+
+test("players resolve public player-owned map placements without private snapshot access", async () => {
+  const combat = setup();
+  const source = ship("public-player-source", { role: "player", owners: ["p1"] });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 5,
+    detection: "identified"
+  });
+  assert.equal(getTsc(combat).objects[0].sourceUuid, source.uuid);
+  assert.equal(
+    targetingState(getTsc(combat), source.uuid, []).objects.some((object) => object.key === source.uuid),
+    true
+  );
+  game.user = game.users.get("p1");
+
+  const actor = resolveSensorActorSync(combat, placement.key);
+  assert.equal(actor?.uuid, placement.key);
+  assert.equal(actor?.mapOnly, true);
+  assert.equal(actor?.testUserPermission(game.user, "OBSERVER"), true);
+  assert.equal(readStarship(actor).role, "player");
+  assert.deepEqual(observerKeys(getTsc(combat), game.user), [placement.key]);
+  assert.deepEqual(mapObjectSources(combat.id), {});
+
+  game.user = game.users.get("gm");
+  await patchStarship(actor, (data) => {
+    data.hp.value = 7;
+  });
+  game.user = game.users.get("p1");
+  assert.equal(readStarship(resolveSensorActorSync(combat, placement.key)).hp.value, 7);
+});
+
+test("map-only actors expose a read-only snapshot sheet", async () => {
+  const combat = setup();
+  const source = makeShip({ id: "sheet-source", name: "sheet-source", role: "player", owners: ["p1"], hp: 31, sp: 14 });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified"
+  });
+  const renders = [];
+  class TestActorDocument {
+    constructor(data) {
+      this.data = data;
+      this.system = data.system;
+      this.sheet = { document: this, render: async (...args) => renders.push(args.at(-1)) };
+    }
+  }
+  CONFIG.Actor = { documentClass: TestActorDocument };
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  assert.equal(actor.sheet.document.system.attributes.hp.value, 31);
+  const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
+  await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: placement.key } });
+  assert.deepEqual(renders, [{ editable: false }]);
+
+  const worldRenders = [];
+  source.sheet = { render: async (...args) => worldRenders.push(args.at(-1)) };
+  await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: source.uuid } });
+  assert.deepEqual(worldRenders, [undefined]);
+});
+
+test("concurrent map-only handles apply partial updates to the latest record", async () => {
+  const combat = setup();
+  const source = ship("concurrent-handles");
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified"
+  });
+  const first = await loadStarship(placement.key);
+  const second = await loadStarship(placement.key);
+
+  await first.update({ "system.attributes.hp.value": 5 });
+  await second.update({ "flags.sf2e-tactical-starship-combat.starship.sp.value": 2 });
+
+  const stored = mapObjectSources(combat.id)[placement.key].data;
+  assert.equal(stored.system.attributes.hp.value, 5);
+  assert.equal(stored.flags[MODULE_ID].starship.sp.value, 2);
+});
+
+test("queued map-only patches read fresh state inside the write queue", async () => {
+  const combat = setup();
+  const source = ship("queued-patches");
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified"
+  });
+  const first = await loadStarship(placement.key);
+  const second = await loadStarship(placement.key);
+
+  await Promise.all([
+    patchStarship(first, (data) => {
+      data.notes = "updated notes";
+    }),
+    patchStarship(second, (data) => {
+      data.speed = 9;
+    })
+  ]);
+
+  const data = readStarship(await loadStarship(placement.key));
+  assert.equal(data.notes, "updated notes");
+  assert.equal(data.speed, 9);
+});
+
+test("mixed direct updates and patches reject conflicts instead of overwriting newer map-only data", async () => {
+  const combat = setup();
+  const source = ship("mixed-write-queues");
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified"
+  });
+  const actor = await loadStarship(placement.key);
+  let enter;
+  let release;
+  const entered = new Promise((resolve) => (enter = resolve));
+  const blocked = new Promise((resolve) => (release = resolve));
+  const patch = patchStarship(actor, async (data) => {
+    data.notes = "patched notes";
+    enter();
+    await blocked;
+  });
+  await entered;
+  await actor.update({ "flags.sf2e-tactical-starship-combat.starship.speed": 9 });
+  release();
+  await assert.rejects(patch, /undoConflict|конфликт|Undo refused/i);
+  const data = readStarship(await loadStarship(placement.key));
+  assert.equal(data.speed, 9);
+  assert.notEqual(data.notes, "patched notes");
+});
+
+test("failed post-removal map cleanup completes on a later sensor update", async () => {
+  const combat = setup();
+  const source = ship("cleanup-retry", { role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  const journal = game.journal.contents[0];
+  const update = journal.update.bind(journal);
+  let fail = true;
+  journal.update = async (changes) => {
+    const deletion = Object.entries(changes).some(
+      ([key, value]) => key.includes(`mapObjects.${placement.key}`) && value instanceof foundry.data.operators.ForcedDeletion
+    );
+    if (fail && deletion) {
+      fail = false;
+      throw new Error("injected snapshot cleanup failure");
+    }
+    return update(changes);
+  };
+
+  await assert.rejects(
+    sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: placement.key } }),
+    /injected snapshot cleanup failure/
+  );
+  assert.deepEqual(getTsc(combat).objects, []);
+  assert.ok(mapObjectSources(combat.id)[placement.key]);
+
+  journal.update = update;
+  await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: placement.key } });
+  assert.equal(mapObjectSources(combat.id)[placement.key], undefined);
+  assert.equal(combat.combatants.size, 0);
+});
+
+test("keyed map snapshot reads do not clone unrelated records", async () => {
+  const combat = setup();
+  const firstSource = ship("keyed-first");
+  const secondSource = ship("keyed-second");
+  const first = await addSensorContact(combat, { source: "world", uuid: firstSource.uuid, zone: 2, detection: "hidden" });
+  const second = await addSensorContact(combat, { source: "world", uuid: secondSource.uuid, zone: 3, detection: "hidden" });
+  const raw = game.journal.contents[0].flags[MODULE_ID].privateSensor.mapObjects[second.key];
+  Object.defineProperty(raw.data.system, "uncloneable", {
+    enumerable: true,
+    get() {
+      throw new Error("unrelated record cloned");
+    }
+  });
+  const { mapObjectSource } = await import("../../scripts/sensor/map-object.mjs");
+
+  assert.equal(typeof mapObjectSource, "function");
+  assert.equal(mapObjectSource(combat.id, first.key).key, first.key);
+  assert.throws(() => mapObjectSources(combat.id), /unrelated record cloned/);
+});
+
+test("map-only current combatants highlight their placement", async () => {
+  const combat = setup();
+  const source = ship("current-map-only", { role: "npc" });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  combat.turn = 0;
+  const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
+  const app = new SensorMapApplication();
+  try {
+    const context = await app._prepareContext({ parts: ["zones"] });
+    const object = context.zones.flatMap((zone) => zone.objects).find((entry) => entry.key === placement.key);
+    assert.equal(object.current, true);
+  } finally {
+    app._cleanup();
+  }
+});
+
 test("map-only configuration, heading and vitals edits stay isolated per record and from the source", async () => {
   const combat = setup();
   const source = ship("edit-source", { owners: ["p1"] });
@@ -231,8 +511,8 @@ test("map-only configuration, heading and vitals edits stay isolated per record 
   assert.equal(secondObject.art, undefined);
   assert.equal(readStarship(await loadStarship(second.key)).hp.value, 24);
   assert.equal(readStarship(await loadStarship(second.key)).sp.value, 12);
-  assert.equal(readStarship(firstActor).hp.value, 5);
-  assert.equal(readStarship(firstActor).sp.value, 2);
+  assert.equal(readStarship(await loadStarship(first.key)).hp.value, 5);
+  assert.equal(readStarship(await loadStarship(first.key)).sp.value, 2);
   assert.deepEqual(source.toObject(), before);
 });
 
@@ -660,6 +940,48 @@ test("map-only starship targets participate in action validation and damage with
   assert.equal(result.ok, true);
   assert.ok(readStarship(await loadStarship(target.key)).sp.value < before);
   assert.deepEqual(source.toObject(), sourceBefore);
+});
+
+test("private map-only NPC action cards stay in the GM whisper", async () => {
+  const combat = setup();
+  await loadContentFromDisk();
+  const source = makeShip({
+    id: "private-npc-card",
+    name: "Private NPC",
+    role: "npc",
+    extra: { npcActions: [{ name: "Secret Orders", cost: "one-action", text: "Whisper only." }] }
+  });
+  game.actors.set(source.id, source);
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 3,
+    detection: "hidden"
+  });
+  const before = game.messages.contents.length;
+  assert.equal(privateContacts(combat.id).length, 1);
+  assert.equal(getTsc(combat).objects[0].tscPrivateProjection, true);
+  const dry = await executeAction({
+    shipUuid: placement.key,
+    actionId: "inline:secret-orders",
+    user: game.users.get("gm"),
+    options: { skipDialog: true },
+    dryRun: true
+  });
+  assert.equal(dry.ctx.privateAction, true);
+
+  const result = await executeAction({
+    shipUuid: placement.key,
+    actionId: "inline:secret-orders",
+    user: game.users.get("gm"),
+    options: { skipDialog: true }
+  });
+
+  assert.equal(result.ok, true);
+  const message = game.messages.contents.at(-1);
+  assert.ok(game.messages.contents.length > before);
+  assert.deepEqual(message.whisper, [game.users.activeGM.id]);
+  assert.equal(message.flags[MODULE_ID].cardData.initiator, source.name);
 });
 
 test("map-only complex hazards use their own snapshot state and zone during automation", async () => {

@@ -425,7 +425,12 @@ async function applyPlasmaCardDamage({ message, card, pd, user }) {
   const combat = activeStarshipCombat();
   const attacker = await resolveSensorActor(combat, card.request?.shipUuid);
   const appId = card.applicationId ?? message.id;
-  const results = [];
+  const results = structuredClone(card.damageResults ?? []);
+  const saveResult = (result) => {
+    const index = results.findIndex((entry) => entry.targetUuid === result.targetUuid);
+    if (index < 0) results.push(result);
+    else results[index] = result;
+  };
   for (const target of targets) {
     const save = saveRolls.get(target.uuid) ?? null;
     const adjustedParts = save ? saveAdjustedParts(parts, save.multiplier) : parts;
@@ -463,7 +468,7 @@ async function applyPlasmaCardDamage({ message, card, pd, user }) {
     else entry.data.appliedStrikeReceipts = [...receipts, strikeId];
     if (rx.manualDamage) {
       await draft.commit();
-      results.push({
+      saveResult({
         targetUuid: target.uuid,
         target: target.label,
         manual: true,
@@ -489,7 +494,7 @@ async function applyPlasmaCardDamage({ message, card, pd, user }) {
             })
           : { shieldDamage: 0, hullDamage: 0, resistanceReduction: 0, hardnessReduction: 0, weaknessIncrease: 0, destroyed: false };
       await draft.commit();
-      results.push({
+      saveResult({
         targetUuid: target.uuid,
         target: target.label,
         rolled: amount,

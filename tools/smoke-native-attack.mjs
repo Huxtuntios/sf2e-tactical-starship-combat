@@ -13,7 +13,7 @@ const html = `<!doctype html><meta charset="utf-8">
 const M='sf2e-tactical-starship-combat', hooks={}, calls=[];
 globalThis.Hooks={on:(n,f)=>{(hooks[n]??=[]).push(f);return f;}};
 const render=(...args)=>(hooks.renderChatMessageHTML??[]).forEach(fn=>fn(...args));
-globalThis.foundry={utils:{randomID:()=>String(Math.random())}};
+globalThis.foundry={utils:{randomID:()=>String(Math.random()),cleanHTML:html=>html}};
 const gm={id:'gm',isGM:true,active:true};
 globalThis.game={user:{id:'p1',isGM:false},users:{activeGM:gm,get:id=>id==='gm'?gm:null},i18n:{localize:k=>k,format:(k,data)=>k+':'+(data?.message??'')},socket:{connected:true,emit:(...args)=>calls.push(args)}};
 const errors=[];

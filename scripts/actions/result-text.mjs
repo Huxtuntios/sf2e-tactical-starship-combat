@@ -49,6 +49,6 @@ export function formatActionResultText(result, { localize = keyOnly, translate =
 export function formatActionDescription(action, result, { localize = keyOnly, translate = identity } = {}) {
   return {
     sourceText: String(translate(action?.text ?? "")),
-    resultText: isCompletedActionResult(result) ? formatActionResultText(result, { localize }) : ""
+    resultText: isCompletedActionResult(result) ? formatActionResultText(result, { localize, translate }) : ""
   };
 }

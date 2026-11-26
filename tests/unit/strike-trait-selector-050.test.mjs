@@ -143,9 +143,12 @@ test("Add Strike waits for trait selection, stores chosen slugs and cancellation
   });
 
   const actions = await import("../../scripts/ui/sheet/sheet-actions.mjs");
+  const actorWrites = () => globalThis.__writes.filter((write) => write.doc === actor.uuid).length;
+  const writesBefore = actorWrites();
   const adding = actions.addListItem.call(sheet, null, { dataset: { list: "strikes" } });
   await new Promise(setImmediate);
   assert.equal(dialogs.length, 1, "Add Strike must open the trait selector before writing");
+  assert.equal(actorWrites(), writesBefore, "opening the trait selector must not write the Actor");
   await dialogs[0].close({ result: ["agile", "range increment 4 zones"] });
   await adding;
   assert.deepEqual(actor.flags[M].starship.strikes[0].traits, ["agile", "range increment 4 zones"]);
@@ -155,5 +158,6 @@ test("Add Strike waits for trait selection, stores chosen slugs and cancellation
   assert.equal(dialogs.length, 2);
   await dialogs[1].close();
   await cancelling;
+  assert.equal(actorWrites(), writesBefore + 1, "only the confirmed creation may write the Actor");
   assert.equal(actor.flags[M].starship.strikes.length, 1, "cancelled creation must not add a Strike");
 });

@@ -55,7 +55,7 @@ const settle=async()=>{await wait();await wait();};
 actualDrop();await settle();
 check('world-actor-drop-no-document-creation',actorCreations===0&&game.actors.size===1&&actualErrors.length===0);
 const firstObject=combat.flags[moduleId].tsc.objects[0];
-check('world-actor-drop-map-only-identity',firstObject?.key.startsWith('map-')===true&&firstObject.actorUuid===firstObject.key&&firstObject.mapOnly===true&&firstObject.zone===4&&!JSON.stringify(combat.flags).includes(worldActor.uuid));
+check('world-actor-drop-map-only-identity',firstObject?.key.startsWith('map-')===true&&firstObject.actorUuid===firstObject.key&&firstObject.sourceUuid===worldActor.uuid&&firstObject.mapOnly===true&&firstObject.zone===4&&firstObject.actorUuid!==worldActor.uuid);
 actualDrop();await settle();
 check('repeated-world-drop-adds-distinct-map-only-record',actorCreations===0&&game.actors.size===1&&combat.flags[moduleId].tsc.objects.length===2&&new Set(combat.flags[moduleId].tsc.objects.map(object=>object.key)).size===2&&combat.flags[moduleId].tsc.objects.every(object=>object.mapOnly&&object.actorUuid===object.key)&&combat.flags[moduleId].tsc.objects[0].zone===4&&actualErrors.length===0);
 actualZone.dataset.zone='8';actualDrop();await settle();

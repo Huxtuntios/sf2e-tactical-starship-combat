@@ -3,6 +3,7 @@ import { gradeAtLeast } from "../engine/advancement.mjs";
 import { isFrequencyAvailable, frequencyKey } from "../engine/frequency.mjs";
 import { findObject, effectiveDetection } from "../engine/sensor-ops.mjs";
 import { observerKeys } from "../sensor/map-model.mjs";
+import { resolveSensorActorSync } from "../sensor/map-object.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { computeShipStats, crewStatistic, shipModuleValue } from "../starship/stats.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
@@ -371,12 +372,13 @@ export async function runAction(action, ctx) {
   })();
   const execute = async (targetUUIDs, targetObjs) => {
     const targetKey = targetUUIDs.length === 1 ? targetUUIDs[0] : null;
-    let opts = await promptOptions(action, { ship, crew, station, target: targetObjs[0] ?? null });
+    const target = targetObjs[0] ? { actor: targetObjs[0] } : null;
+    let opts = await promptOptions(action, { ship, crew, station, target });
     while (opts !== null && requiresActionConfirmation(action)) {
       const choice = await confirmActionConsequences(action, ctx);
       if (choice === true || choice === "confirm") break;
       if (choice === "edit") {
-        opts = await promptOptions(action, { ship, crew, station, target: targetObjs[0] ?? null });
+        opts = await promptOptions(action, { ship, crew, station, target });
         continue;
       }
       return;
@@ -418,7 +420,7 @@ export async function runAction(action, ctx) {
   if (currentTargets.length === 1 && !isCardAttack(action))
     return execute(
       currentTargets,
-      currentTargets.map((key) => fromUuidSync_(key))
+      currentTargets.map((key) => resolveSensorActorSync(activeStarshipCombat(), key))
     );
   if (isCardAttack(action) && ["strike", "npc-strike"].includes(action.builtin)) {
     const opts = await promptOptions(action, { ship, crew, station, target: null });
@@ -468,7 +470,7 @@ export async function runAction(action, ctx) {
     onExecute: async (keys) => {
       await execute(
         keys,
-        keys.map((key) => fromUuidSync_(key))
+        keys.map((key) => resolveSensorActorSync(activeStarshipCombat(), key))
       );
     }
   });

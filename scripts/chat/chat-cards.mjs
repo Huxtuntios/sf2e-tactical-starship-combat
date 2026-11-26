@@ -2,6 +2,7 @@ import { DEGREE_KEYS, MODULE_ID } from "../constants.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { T } from "../utils/foundry.mjs";
 import { CARD_DATA_FLAG, actionResultFlag, renderStoredCard, withToolbeltTargets } from "./card.mjs";
+import { isPrivateSensorActor } from "../sensor/private-contacts.mjs";
 
 async function post({ actor = null, content = "", whisperGM = false, flags = {}, cardData = null, targetUUIDs = [] }) {
   const moduleFlags = { card: true, ...flags };
@@ -11,7 +12,7 @@ async function post({ actor = null, content = "", whisperGM = false, flags = {},
     speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
     flags: { [MODULE_ID]: moduleFlags }
   };
-  if (whisperGM) data.whisper = ChatMessage.getWhisperRecipients("GM").map((user) => user.id);
+  if (whisperGM || isPrivateSensorActor(actor)) data.whisper = ChatMessage.getWhisperRecipients("GM").map((user) => user.id);
   withToolbeltTargets(data, targetUUIDs);
   return ChatMessage.create(data);
 }
@@ -78,10 +79,12 @@ export async function postDamageCard({
   undoRef = null,
   targetUUIDs = [],
   damageType = null,
-  parts = null
+  parts = null,
+  whisperGM = false
 }) {
   return post({
     actor,
+    whisperGM,
     targetUUIDs,
     flags: { damage: result },
     cardData: {
@@ -100,6 +103,7 @@ export async function postDamageCard({
 
 export async function postHazardCard({ hazard, zone, effectText, title }) {
   return post({
+    whisperGM: isPrivateSensorActor(hazard),
     cardData: { kind: "hazard", hazardName: hazard?.name ?? "", zone, title, effectText: ct(effectText) }
   });
 }

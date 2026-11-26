@@ -82,6 +82,57 @@ test("0.9.2: sensor detail - crew get the vitals inputs, GM tools exist for the 
   assert.match(gm, /data-action="removeObj"/);
 });
 
+test("private Sensor Map details keep vitals and zone controls together", () => {
+  const render = renderer();
+  const detail = {
+    label: "Private NPC",
+    key: "map-private",
+    privateContact: true,
+    actorUuid: "map-private",
+    zone: 4,
+    zoneChoices: [{ id: 4, selected: true }],
+    vitals: { shipUuid: "map-private", hp: 20, hpMax: 30, sp: 6, spMax: 10 },
+    detection: [],
+    detectionLabel: "Hidden"
+  };
+  const html = render("sensor-map-detail", { noCombat: false, isGM: true, detail, log: [] });
+  assert.match(html, /data-gm-ship="hp"/);
+  assert.match(html, /data-gm-ship="sp"/);
+  assert.match(
+    html,
+    /<div class="tsc-zone-controls">[\s\S]*?data-private-zone="map-private"[\s\S]*?data-action="privateMove"[\s\S]*?data-action="privateMove"[\s\S]*?<\/div>/
+  );
+});
+
+test("normal Sensor Map zone arrows stay on the zone row", () => {
+  const render = renderer();
+  const html = render("sensor-map-detail", {
+    noCombat: false,
+    isGM: true,
+    detail: { label: "Aurora", key: "map-one", rows: [], zone: 4, canMove: true, gm: null },
+    log: []
+  });
+  assert.match(
+    html,
+    /<div class="tsc-zone-controls">[\s\S]*?Зона|zone[\s\S]*?data-action="moveLeft"[\s\S]*?data-action="moveRight"[\s\S]*?<\/div>/
+  );
+});
+
+test("GM action picker includes the position in its options", () => {
+  const render = renderer();
+  const actionObjects = [{ key: "map-one", label: "Aurora", typeLabel: "Starship", positionLabel: "Zone 3 · Position 1", selected: true }];
+  const html = render("sensor-map-bar", {
+    noCombat: false,
+    isGM: true,
+    combat: { round: 1, turn: "Aurora" },
+    zoneCount: 6,
+    actionObjects,
+    actionSelection: actionObjects[0]
+  });
+  assert.match(html, /<option value="map-one" selected>Aurora — Starship — Zone 3 · Position 1<\/option>/);
+  assert.doesNotMatch(html, /class="tsc-pill tsc-action-position"/);
+});
+
 test("0.9.2: ship sheet header - vitals inputs and quick buttons need adjustVitals", () => {
   const render = renderer();
   const ctx = {

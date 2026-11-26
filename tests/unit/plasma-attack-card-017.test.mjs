@@ -266,11 +266,54 @@ test("partial retry skips per-target receipts instead of applying damage twice",
   await service.applyAttackCardDamage({ user: s.gm, payload: { messageId } });
   const before = [state(s.first).sp.value, state(s.second).sp.value];
   const card = cardOf(messageId);
+  const savedResults = structuredClone(card.damageResults);
   card.damageApplied = false;
-  card.damageResults = [];
   await service.applyAttackCardDamage({ user: s.gm, payload: { messageId } });
   assert.deepEqual([state(s.first).sp.value, state(s.second).sp.value], before);
   assert.equal(cardOf(messageId).damageApplied, true);
+  assert.deepEqual(cardOf(messageId).damageResults, savedResults);
+});
+
+test("plasma cards render manual damage and protocol instructions", async () => {
+  const { makeCardRenderer } = await import("../../scripts/chat/attack-card/view.mjs");
+  const { renderAttackCard: render } = makeCardRenderer({
+    t: (key, data) =>
+      key === "SF2eTSC.droneBlock.manualResult"
+        ? `Manual ${data.amount} after resistance ${data.resistance}`
+        : key === "SF2eTSC.droneBlock.protocolManualTitle"
+          ? "Finish protocol damage manually"
+          : key,
+    actionLabel: (action) => action.name,
+    ct: (text) => text,
+    esc: (text) => String(text ?? "")
+  });
+  const html = render({
+    flags: {
+      [M]: {
+        attackCard: {
+          status: "resolved",
+          action: { builtin: "strike", name: "Plasma" },
+          ship: { name: "Attacker", publicName: "Attacker" },
+          crew: null,
+          station: null,
+          attackType: "ranged",
+          range: { zones: 6, increment: null, fromZone: 1 },
+          weapon: {
+            name: "Plasma cannon",
+            traits: [],
+            damage: "1d6",
+            damageType: "fire",
+            profile: { plasma: true, area: true, shape: { type: "burst", value: 1 }, save: null }
+          },
+          result: { targetLabel: "Target" },
+          damageApplied: true,
+          damageResults: [{ target: "Target", manual: true, rolled: 12, resistance: 5, protocolManual: true }]
+        }
+      }
+    }
+  });
+  assert.match(html, /Manual 12 after resistance 5/);
+  assert.match(html, /Finish protocol damage manually/);
 });
 
 test("plasma save records persist without dotted Actor UUID keys", async () => {

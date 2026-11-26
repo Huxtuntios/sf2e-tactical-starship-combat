@@ -36,7 +36,7 @@ import { stationUpgradeStatus } from "../../engine/upgrades.mjs";
 import { SHIP_TARGET } from "./sheet-upgrades.mjs";
 import { modulePackId } from "../../utils/system.mjs";
 import { permissionsFor } from "../../crew/permissions.mjs";
-import { addListValue, addMapValue, numericMapFromRows, removeListValueAt } from "../sheet-edit.mjs";
+import { addListValue, addMapValue, numericMapFromRows } from "../sheet-edit.mjs";
 import { chooseStrikeTraits } from "../strike-trait-dialog.mjs";
 
 export function switchTab(e, t) {
@@ -89,7 +89,9 @@ export async function saveDefenseRows(sheet, kind, rows) {
     throw Object.assign(new Error("SF2eTSC.errors.defenseRowsInvalid"), { i18nKey: "SF2eTSC.errors.defenseRowsInvalid" });
   const current = readStarship(sheet.document)[kind];
   const map = numericMapFromRows(rows, { knownKeys: defenseKnownKeys(kind), existingKeys: Object.keys(current ?? {}) });
-  await Ship.replaceDefense(sheet.document.uuid, kind, map);
+  const baseline = sheet.element?.querySelector?.(`[data-defense-editor="${kind}"]`)?.dataset?.defenseBaseline;
+  const expected = baseline ? JSON.parse(baseline) : current;
+  await Ship.replaceDefense(sheet.document.uuid, kind, map, expected);
 }
 
 export async function removeDefenseEntry(_e, target) {
@@ -98,8 +100,9 @@ export async function removeDefenseEntry(_e, target) {
   assertDefenseKind(kind);
   if (kind === "immunities") {
     const data = readStarship(this.document);
-    const index = Number(target.dataset.defenseIndex);
-    await Ship.patch(this.document.uuid, { immunities: removeListValueAt(data.immunities, index) });
+    const key = target.dataset.defenseKey;
+    if (typeof key !== "string" || !key) throw new Error(T("SF2eTSC.errors.invalidData"));
+    await Ship.patch(this.document.uuid, { immunities: data.immunities.filter((value) => value !== key) });
     return;
   }
   const row = target.closest?.("[data-defense-row]");

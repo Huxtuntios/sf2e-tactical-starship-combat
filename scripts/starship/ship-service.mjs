@@ -122,7 +122,7 @@ export function registerShipHandlers() {
     for (const key of Object.keys(replacement)) {
       if (!isSafeDefenseMapKey(key)) throw new Error(T("SF2eTSC.errors.invalidData"));
     }
-    return replaceStarshipMap(s, kind, replacement);
+    return replaceStarshipMap(s, kind, replacement, { expected: payload.expected ?? null });
   });
 
   registerHandler("setStation", async ({ user, payload }) => {
@@ -812,7 +812,7 @@ export function registerShipHandlers() {
 export const Ship = {
   patch: (shipUuid, patch) => request("patchShip", { shipUuid, patch }),
   deleteDefense: (shipUuid, kind, key) => request("deleteDefense", { shipUuid, kind, key }),
-  replaceDefense: (shipUuid, kind, map) => request("replaceDefense", { shipUuid, kind, map }),
+  replaceDefense: (shipUuid, kind, map, expected = null) => request("replaceDefense", { shipUuid, kind, map, expected }),
   setStation: (shipUuid, stationId, patch) => request("setStation", { shipUuid, stationId, patch }),
   removeStation: (shipUuid, stationId) => request("removeStation", { shipUuid, stationId }),
   equipment: (shipUuid, list, op, extra) => request("equipment", { shipUuid, list, op, ...extra }),

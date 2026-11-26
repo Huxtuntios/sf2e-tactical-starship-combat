@@ -167,6 +167,19 @@ test("normalization derives missing base range without inventing one for unknown
   assert.equal(sanitizeShipField("sensorRange", null), null);
 });
 
+test("normalization preserves missing NPC size but honors explicit medium and zero range", () => {
+  const missing = normalizeStarship({ role: "npc", sensorRange: null });
+  assert.equal(missing.data.size, null);
+  assert.equal(missing.data.sensorRange, null);
+
+  const medium = normalizeStarship({ role: "npc", size: "medium", sensorRange: null });
+  assert.equal(medium.data.size, "medium");
+  assert.equal(medium.data.sensorRange, 4);
+
+  const zero = normalizeStarship({ role: "npc", size: "medium", sensorRange: 0 });
+  assert.equal(zero.data.sensorRange, 0);
+});
+
 test("content and creation paths derive sensor range from explicit data, frame or size", async () => {
   installFoundryMock();
   await loadContentFromDisk();

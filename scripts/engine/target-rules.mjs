@@ -81,7 +81,9 @@ export function targetingState(tsc, shipUuid, contacts = []) {
       : obj;
   });
   if (!objects.some((obj) => obj.key === shipUuid)) {
-    const source = contacts.find((obj) => obj.actorUuid === shipUuid && obj.type === "starship" && !obj.pendingReveal);
+    const source =
+      objects.find((obj) => obj.sourceUuid === shipUuid && obj.type === "starship" && !obj.tscPrivateProjection) ??
+      contacts.find((obj) => obj.actorUuid === shipUuid && obj.type === "starship" && !obj.pendingReveal);
     if (source) {
       const index = objects.findIndex((obj) => obj.key === source.key);
       if (index >= 0) objects.splice(index, 1);

@@ -55,7 +55,7 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
         continue;
       }
       nativeButtons.forEach((button) => {
-        button.hidden = true;
+        button.hidden = Number(button.dataset.multiplier) >= 0 || !Number.isFinite(Number(button.dataset.multiplier));
       });
       if (!controls) {
         controls = document.createElement("div");
@@ -96,13 +96,6 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
     );
     const row = button?.closest(".damage-application");
     if (!row || !root.contains(row)) return;
-    const betterChat = message.flags?.["pf2e-toolbelt"]?.betterChat;
-    if (betterChat?.mergeDamage || betterChat?.injected || betterChat?.splitted) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      ui.notifications.warn(T("SF2eTSC.toolbelt.mergedUnsupported"));
-      return;
-    }
     const targets = targetsFor(row);
     const ships = targets.filter((target) => isStarship(actorOf(target)));
     if (!targets.length && row.dataset.targetUuid && knownShipRows.get(row) === row.dataset.targetUuid) {
@@ -112,6 +105,13 @@ export function wireToolbeltDamage(message, root, { send = request, selected = s
       return;
     }
     if (!ships.length) return;
+    const betterChat = message.flags?.["pf2e-toolbelt"]?.betterChat;
+    if (betterChat?.mergeDamage || betterChat?.injected || betterChat?.splitted) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ui.notifications.warn(T("SF2eTSC.toolbelt.mergedUnsupported"));
+      return;
+    }
     const healing = Number(button.dataset.multiplier) < 0;
     if (healing && !button.dataset.tscShipDamage) return;
     event.preventDefault();

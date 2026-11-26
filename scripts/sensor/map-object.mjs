@@ -1,5 +1,5 @@
 import { MODULE_ID } from "../constants.mjs";
-import { getTsc } from "../combat/tsc-state.mjs";
+import { getTsc, mutateTsc, saveTsc } from "../combat/tsc-state.mjs";
 import { activeGM, fromUuidSafe, fromUuidSync_, T } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { ensurePrivateStore, privateStoreFor, requirePrivateGM } from "./private-store.mjs";
@@ -47,6 +47,99 @@ function validRecord(record, combatId, key) {
   );
 }
 
+function publicEmbeddedData(entry) {
+  if (Number(entry?.ownership?.default) <= 0) return null;
+  const value = clone(entry);
+  delete value._stats;
+  if (value.system?.details) {
+    delete value.system.details.privateNotes;
+    delete value.system.details.gmNotes;
+  }
+  value.flags = value.flags?.[MODULE_ID] ? { [MODULE_ID]: clone(value.flags[MODULE_ID]) } : {};
+  return value;
+}
+
+export function publicMapActorData(data) {
+  const role = data?.flags?.[MODULE_ID]?.starship?.role;
+  const ownership = data?.ownership ?? {};
+  const visible =
+    Number(ownership.default) > 0 ||
+    Object.entries(ownership).some(([id, level]) => id !== "default" && Number(level) > 0 && !game.users?.get(id)?.isGM);
+  if (!["player", "ally"].includes(role) || !visible) return null;
+  const system = clone(data.system ?? {});
+  if (system.details) {
+    delete system.details.privateNotes;
+    delete system.details.gmNotes;
+  }
+  const starship = clone(data.flags?.[MODULE_ID]?.starship ?? {});
+  delete starship.gmNotes;
+  const prototypeToken = data.prototypeToken ? clone(data.prototypeToken) : null;
+  if (prototypeToken) delete prototypeToken.flags;
+  const projection = {
+    _id: data._id,
+    name: data.name,
+    type: data.type,
+    img: data.img,
+    ownership: clone(ownership),
+    system,
+    prototypeToken,
+    flags: { [MODULE_ID]: { starship } },
+    items: (data.items ?? []).map(publicEmbeddedData).filter(Boolean),
+    effects: (data.effects ?? []).map(publicEmbeddedData).filter(Boolean),
+    folder: data.folder ?? null,
+    sort: data.sort ?? null
+  };
+  return projection;
+}
+
+function publicMapObjectRecord(combatId, key) {
+  if (typeof combatId !== "string" || typeof key !== "string") return null;
+  const combat = game.combats?.get(combatId) ?? globalThis.game?.combat;
+  if (!combat) return null;
+  const object = getTsc(combat).objects.find((entry) => entry.key === key && !entry.tscPrivateProjection);
+  const data = publicMapActorData(object?.publicActor);
+  if (!data || data.flags?.[MODULE_ID]?.starship?.isStarship !== true) return null;
+  return { schema: 1, combatId, key, sourceUuid: `public:${key}`, data };
+}
+
+export async function sanitizePublicMapActors(combat) {
+  requirePrivateGM();
+  return serialize(`sensor:${combat.id}`, async () => {
+    requirePrivateGM();
+    const current = getTsc(combat);
+    let changed = false;
+    const objects = current.objects.map((object) => {
+      if (!object.publicActor) return object;
+      const data = publicMapActorData(object.publicActor);
+      if (!data) {
+        changed = true;
+        const { publicActor: _unsafe, ...rest } = object;
+        return rest;
+      }
+      if (same(data, object.publicActor)) return object;
+      changed = true;
+      return { ...object, publicActor: data };
+    });
+    if (changed) await saveTsc(combat, { ...current, objects }, { expected: current });
+  });
+}
+
+async function syncPublicMapActor(record) {
+  const combat = game.combats?.get(record.combatId);
+  if (!combat) return;
+  const current = getTsc(combat).objects.find((object) => object.key === record.key && !object.tscPrivateProjection);
+  if (!current) return;
+  const publicActor = publicMapActorData(record.data);
+  await mutateTsc(combat, (state) => ({
+    ...state,
+    objects: state.objects.map((object) => {
+      if (object.key !== record.key) return object;
+      const { publicActor: _previous, ...rest } = object;
+      return publicActor ? { ...rest, publicActor } : rest;
+    })
+  }));
+}
+
 function withActiveGMOwner(record) {
   const gm = activeGM();
   if (!gm?.id) return record;
@@ -58,13 +151,22 @@ function withActiveGMOwner(record) {
   return { ...record, data };
 }
 
-export function mapObjectSources(combatId) {
+function validatedMapObjectSources(combatId) {
   if (!game.user?.isGM || !Array.isArray(game.journal?.contents)) return {};
   const sources = privateStoreFor(combatId)?.flags?.[MODULE_ID]?.privateSensor?.[MAP_OBJECT_SOURCE] ?? {};
   if (!sources || typeof sources !== "object" || Array.isArray(sources)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   for (const [key, record] of Object.entries(sources))
     if (!validRecord(record, combatId, key)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-  return clone(sources);
+  return sources;
+}
+
+export function mapObjectSources(combatId) {
+  return clone(validatedMapObjectSources(combatId));
+}
+
+export function mapObjectSource(combatId, key) {
+  const record = validatedMapObjectSources(combatId)[key];
+  return record ? clone(record) : null;
 }
 
 async function writeMapObjectSource(combatId, key, record, { create = false } = {}) {
@@ -73,18 +175,70 @@ async function writeMapObjectSource(combatId, key, record, { create = false } = 
     if (!validRecord(record, combatId, key)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     record = withActiveGMOwner(record);
     const doc = await ensurePrivateStore(combatId);
-    const sources = mapObjectSources(combatId);
-    if (create && sources[key]) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
-    if (!create && !sources[key]) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    const current = mapObjectSource(combatId, key);
+    if (create && current) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    if (!create && !current) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     requirePrivateGM();
     if (privateStoreFor(combatId)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     await doc.update({
       [`flags.${MODULE_ID}.privateSensor.${MAP_OBJECT_SOURCE}.${key}`]: new foundry.data.operators.ForcedReplacement(record)
     });
     requirePrivateGM();
-    if (!same(mapObjectSources(combatId)[key], record)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    if (!same(mapObjectSource(combatId, key), record)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     return record;
   });
+}
+
+async function updateMapObjectSource(combatId, key, changes, { expectedSource = null } = {}) {
+  return serialize(`sensor-source:${combatId}`, async () => {
+    requirePrivateGM();
+    const current = mapObjectSource(combatId, key);
+    if (!current) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    if (expectedSource && !same(current.data, expectedSource)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
+    const data = clone(current.data);
+    applyUpdate(data, changes);
+    const record = withActiveGMOwner({ ...current, data });
+    const doc = privateStoreFor(combatId);
+    if (!doc) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    requirePrivateGM();
+    if (privateStoreFor(combatId)?.id !== doc.id) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    await doc.update({
+      [`flags.${MODULE_ID}.privateSensor.${MAP_OBJECT_SOURCE}.${key}`]: new foundry.data.operators.ForcedReplacement(record)
+    });
+    requirePrivateGM();
+    if (!same(mapObjectSource(combatId, key), record)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    return record;
+  });
+}
+
+export async function markMapObjectCleanup(combatId, key, { deleteActor = true } = {}) {
+  return serialize(`sensor-source:${combatId}`, async () => {
+    requirePrivateGM();
+    const current = mapObjectSource(combatId, key);
+    if (!current) return false;
+    const record = withActiveGMOwner({ ...current, pendingCleanup: { deleteActor: deleteActor !== false } });
+    const doc = privateStoreFor(combatId);
+    if (!doc) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    await doc.update({
+      [`flags.${MODULE_ID}.privateSensor.${MAP_OBJECT_SOURCE}.${key}`]: new foundry.data.operators.ForcedReplacement(record)
+    });
+    requirePrivateGM();
+    if (!same(mapObjectSource(combatId, key), record)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    return true;
+  });
+}
+
+export function pendingMapObjectCleanups(combat) {
+  if (!game.user?.isGM || !combat) return [];
+  let sources;
+  try {
+    sources = validatedMapObjectSources(combat.id);
+  } catch {
+    return [];
+  }
+  return Object.values(sources)
+    .filter((record) => record.pendingCleanup && !referencedMapObject(combat, record.key))
+    .map((record) => ({ key: record.key, deleteActor: record.pendingCleanup.deleteActor !== false }));
 }
 
 export async function deleteMapObjectSource(combatId, key) {
@@ -92,13 +246,12 @@ export async function deleteMapObjectSource(combatId, key) {
     requirePrivateGM();
     const doc = privateStoreFor(combatId);
     if (!doc) return false;
-    const sources = mapObjectSources(combatId);
-    if (!sources[key]) return false;
+    if (!mapObjectSource(combatId, key)) return false;
     await doc.update({
       [`flags.${MODULE_ID}.privateSensor.${MAP_OBJECT_SOURCE}.${key}`]: new foundry.data.operators.ForcedDeletion()
     });
     requirePrivateGM();
-    if (mapObjectSources(combatId)[key]) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    if (mapObjectSource(combatId, key)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     return true;
   });
 }
@@ -123,6 +276,8 @@ function applyUpdate(target, changes) {
 }
 
 export class MapObjectActor {
+  #sheet = null;
+
   constructor(record) {
     this._record = clone(record);
     this._data = clone(record.data);
@@ -177,6 +332,21 @@ export class MapObjectActor {
     return this._data.prototypeToken ?? null;
   }
 
+  get sheet() {
+    if (this.#sheet) return this.#sheet;
+    const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
+    if (!ActorClass) return null;
+    const data = clone(this._data);
+    data._id = foundry.utils.randomID();
+    const document = new ActorClass(data);
+    const sheet = document.sheet;
+    if (!sheet) return null;
+    const render = sheet.render.bind(sheet);
+    sheet.render = (force, options = {}) => render(force, { ...options, editable: false });
+    this.#sheet = sheet;
+    return sheet;
+  }
+
   get _source() {
     return this._data;
   }
@@ -224,15 +394,14 @@ export class MapObjectActor {
     return { ...clone(this._data), _id: this.id };
   }
 
-  async update(changes) {
+  async update(changes, { expectedSource = null } = {}) {
     requirePrivateGM();
-    const data = clone(this._data);
-    applyUpdate(data, changes);
-    const record = { ...this._record, data };
-    const stored = await writeMapObjectSource(this.combatId, this.id, record);
+    const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
     this._data = clone(stored.data);
     this._record = stored;
+    this.#sheet = null;
     this.#syncItems();
+    await syncPublicMapActor(stored);
     Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
     return this;
   }
@@ -251,7 +420,7 @@ export function isMapObjectActor(actor) {
 }
 
 export function mapObjectActorFromStore(combatId, key) {
-  const record = mapObjectSources(combatId)?.[key];
+  const record = mapObjectSource(combatId, key);
   return record ? new MapObjectActor(record) : null;
 }
 
@@ -309,8 +478,10 @@ function referencedMapObject(combat, key) {
 export function resolveSensorActorSync(combat, uuid, { resolve = fromUuidSync_ } = {}) {
   if (typeof uuid !== "string" || !uuid) return null;
   if (uuid.startsWith("map-")) {
-    const record = mapObjectSources(combat?.id)?.[uuid];
+    const record = mapObjectSource(combat?.id, uuid);
     if (record && referencedMapObject(combat, uuid)) return new MapObjectActor(record);
+    const publicRecord = publicMapObjectRecord(combat?.id, uuid);
+    if (publicRecord) return new MapObjectActor(publicRecord);
   }
   return resolve(uuid);
 }
@@ -318,8 +489,10 @@ export function resolveSensorActorSync(combat, uuid, { resolve = fromUuidSync_ }
 export async function resolveSensorActor(combat, uuid, { resolve = fromUuidSafe } = {}) {
   if (typeof uuid !== "string" || !uuid) return null;
   if (uuid.startsWith("map-")) {
-    const record = mapObjectSources(combat?.id)?.[uuid];
+    const record = mapObjectSource(combat?.id, uuid);
     if (record && referencedMapObject(combat, uuid)) return new MapObjectActor(record);
+    const publicRecord = publicMapObjectRecord(combat?.id, uuid);
+    if (publicRecord) return new MapObjectActor(publicRecord);
   }
   return resolve(uuid);
 }

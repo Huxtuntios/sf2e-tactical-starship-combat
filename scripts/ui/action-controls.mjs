@@ -4,12 +4,13 @@ import { setActionSheetContext } from "./action-sheet-theme.mjs";
 import { modulePackId } from "../utils/system.mjs";
 import { Content } from "../content/loader.mjs";
 import { buildActionItemData } from "../content/action-docs.mjs";
-import { buildNpcAction, slugifyName } from "../actions/npc-inline.mjs";
+import { buildNpcAction, npcActionDescription, slugifyName } from "../actions/npc-inline.mjs";
 import { readStarship } from "../starship/starship-state.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { linkContextDCs } from "../rolls/context-dc.mjs";
 import { linkInline } from "../content/inline-links.mjs";
 import { formatActionDescription } from "../actions/result-text.mjs";
+import { isPrivateSensorActor } from "../sensor/private-contacts.mjs";
 
 export function actionCostLabel(cost) {
   if (Array.isArray(cost)) return `${Math.min(...cost)}–${Math.max(...cost)} ${T("SF2eTSC.ui.actions")}`;
@@ -31,7 +32,7 @@ export async function sendActionDescriptionToChat({
   crew = null,
   station = null,
   result = null,
-  sourceText = action?.text ?? "",
+  sourceText = action?.inline ? npcActionDescription(action, ct) : (action?.text ?? ""),
   name = action?.name ?? ""
 }) {
   const id = action?.id ?? "";
@@ -52,6 +53,7 @@ export async function sendActionDescriptionToChat({
   return ChatMessage.create({
     content: `<div class="tsc-action-description-message"><header><h3>${escapeHtml(label)}</h3></header><p class="tsc-dim">${info.join(" · ")}</p><div class="tsc-action-source-text">${sourceHtml}</div>${resultHtml}</div>`,
     speaker: ChatMessage.getSpeaker({ actor: ship ?? crew }),
+    ...(isPrivateSensorActor(ship) ? { whisper: ChatMessage.getWhisperRecipients("GM").map((user) => user.id) } : {}),
     flags: {
       [MODULE_ID]: {
         actionDescription: {
@@ -86,7 +88,7 @@ export async function sendActionDescription(event, target, { result = null } = {
     crew,
     station,
     result,
-    sourceText: action?.text ?? fallback,
+    sourceText: action?.inline ? npcActionDescription(action, ct) : (action?.text ?? fallback),
     name: action?.name ?? target.textContent.trim()
   });
 }

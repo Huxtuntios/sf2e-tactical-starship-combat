@@ -1,6 +1,7 @@
 import { DEGREE_KEYS, MODULE_ID } from "../constants.mjs";
 import { escapeHtml as foundryEscapeHtml, T, moduleActive, fromUuidSync_ } from "../utils/foundry.mjs";
-import { linkInline } from "../content/inline-links.mjs";
+import { checkLinksHTML } from "../content/inline-checks.mjs";
+import { wireInlineClicks } from "../ui/inline-clicks.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { actionOutcomeSections, formatActionResultText, isCompletedActionResult } from "../actions/result-text.mjs";
 
@@ -9,7 +10,11 @@ const escapeHtml = (value) =>
   globalThis.foundry?.utils?.escapeHTML
     ? foundryEscapeHtml(value)
     : String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-const rich = (value) => linkInline(escapeHtml(value));
+const rich = (value) => checkLinksHTML(value, { nativeChecks: false });
+const cleanCardHtml = (value) => {
+  const html = String(value ?? "");
+  return globalThis.foundry?.utils?.cleanHTML ? foundry.utils.cleanHTML(html) : escapeHtml(html);
+};
 const row = (label, value) =>
   `<div class="tsc-row"><span class="tsc-label">${escapeHtml(label)}</span><span class="tsc-value">${value}</span></div>`;
 
@@ -64,7 +69,7 @@ export function renderCard({
   return cardShell(
     kind,
     header,
-    `${degreeHtml}${outcomeHtml}${details}${bodyHtml}${consequenceHtml}${alertHtml}${manualHtml}`,
+    `${degreeHtml}${outcomeHtml}${details}${cleanCardHtml(bodyHtml)}${consequenceHtml}${alertHtml}${manualHtml}`,
     footer,
     attributes
   );
@@ -278,6 +283,7 @@ export function registerCardRendering() {
     const template = document.createElement("template");
     template.innerHTML = rendered.trim();
     slot.replaceWith(template.content.firstElementChild);
+    wireInlineClicks(root);
   });
 }
 

@@ -1,4 +1,5 @@
 import { MODULE_ID, FLAGS } from "../constants.mjs";
+import { publicMapActorData } from "./map-object.mjs";
 import { addObject, moveObject } from "../engine/sensor-ops.mjs";
 import { isStarship } from "../starship/starship-state.mjs";
 import { initialShipTransform } from "./appearance.mjs";
@@ -42,11 +43,15 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseA
   if (!publicActor) throw new Error("disclosureRequired");
   const rawHeading = actor.flags?.[MODULE_ID]?.[FLAGS.STARSHIP]?.heading;
   const heading = ship && ["left", "right"].includes(rawHeading) ? rawHeading : null;
+  const publicActorData = ship && typeof actor.toObject === "function" ? publicMapActorData(actor.toObject()) : null;
+  const sourceUuid = publicActorData ? actor.flags?.[MODULE_ID]?.tacticalCopyOf : null;
   const object = {
     key,
     actorUuid: actor.uuid,
     ...(actor.mapOnly ? { mapOnly: true } : {}),
     ...(reuseActor ? { reuseActor: true } : {}),
+    ...(publicActorData ? { publicActor: publicActorData } : {}),
+    ...(typeof sourceUuid === "string" && sourceUuid ? { sourceUuid } : {}),
     type: ship ? "starship" : "hazard",
     name: actor.name,
     zone,

@@ -19,7 +19,7 @@ export function weaponProfileOf(weapon) {
   const explicit = weapon?.save ?? weapon?.savingThrow ?? null;
   const explicitType = String(explicit?.type ?? "").toLowerCase();
   const hasExplicitDC = explicit?.dc != null && explicit.dc !== "";
-  const explicitDC = saveDC(Number(explicit?.dc));
+  const explicitDC = hasExplicitDC ? saveDC(Number(explicit.dc)) : null;
   let save = null;
   if (areaTrait)
     save = {

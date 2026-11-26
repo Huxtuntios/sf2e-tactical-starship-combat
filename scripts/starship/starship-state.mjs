@@ -5,7 +5,7 @@ import { normalizeStarship } from "../engine/validation.mjs";
 import { normalizeCrewAssignments } from "../engine/crew-assignments.mjs";
 import { migrate, needsMigration } from "../engine/migration.mjs";
 import { log } from "../utils/logging.mjs";
-import { resolveSensorActorSync } from "../sensor/map-object.mjs";
+import { isMapObjectActor, mapObjectActorFromStore, resolveSensorActorSync } from "../sensor/map-object.mjs";
 
 /** Only actors carrying the explicit marker are starships. Ordinary vehicles/NPCs are never touched. */
 export function isStarship(actor) {
@@ -75,6 +75,11 @@ function persistable(data) {
 
 const writeQueues = new Map();
 
+function freshStarshipActor(actor) {
+  if (!isMapObjectActor(actor)) return actor;
+  return mapObjectActorFromStore(actor.combatId, actor.uuid) ?? actor;
+}
+
 /** Authoritative write (GM only). Mirrors Hull Points to the system. */
 async function performWrite(
   actor,
@@ -87,13 +92,15 @@ async function performWrite(
     reason = "",
     undoable = true,
     expected = null,
+    expectedSource = null,
     expectedCombat = undefined,
     force = false,
     documentPatch = null
   } = {}
 ) {
+  actor = freshStarshipActor(actor);
   if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
-  const before = readStarship(actor);
+  const before = foundry.utils.deepClone(readStarship(actor));
   const audit = await import("../history/history.mjs");
   if (expected && !audit.equalState(audit.snapshot(before), expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
   if (expectedCombat !== undefined && !audit.equalState(audit.combatGuard(), expectedCombat))
@@ -111,7 +118,7 @@ async function performWrite(
     if (Number.isInteger(hull.value)) updates["system.attributes.hp.value"] = hull.value;
     if (Number.isInteger(hull.max) && hull.max !== actor.system?.attributes?.hp?.max) updates["system.attributes.hp.max"] = hull.max;
   }
-  const result = await actor.update(updates);
+  const result = isMapObjectActor(actor) ? await actor.update(updates, { expectedSource }) : await actor.update(updates);
   if (history) {
     try {
       await audit.recordChange(actor, before, readStarship(actor), { reason, undoable, announce });
@@ -142,9 +149,15 @@ export function writeStarship(actor, data, options = {}) {
 /** Чтение, проверка и изменение выполняются вместе в очереди авторитетного GM. */
 export function patchStarship(actor, mutator, options = {}) {
   return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
+    const expectedSource = isMapObjectActor(actor) ? structuredClone(actor._source) : null;
     const data = foundry.utils.deepClone(readStarship(actor));
     const result = await mutator(data);
-    await performWrite(actor, data, { hullPatch: data.hp, ...options });
+    await performWrite(actor, data, {
+      hullPatch: data.hp,
+      ...options,
+      expectedSource: options.expectedSource ?? expectedSource
+    });
     return result;
   });
 }
@@ -163,6 +176,7 @@ export function isSafeDefenseMapKey(key) {
 
 export function deleteStarshipMapKey(actor, kind, key) {
   return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
     if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
     if (!isSafeDefenseMapKey(key)) throw new Error(game.i18n.localize("SF2eTSC.errors.invalidData"));
     const data = foundry.utils.deepClone(readStarship(actor));
@@ -179,8 +193,9 @@ export function deleteStarshipMapKey(actor, kind, key) {
   });
 }
 
-export function replaceStarshipMap(actor, kind, replacement) {
+export function replaceStarshipMap(actor, kind, replacement, { expected = null } = {}) {
   return enqueueStarship(actor, async () => {
+    actor = freshStarshipActor(actor);
     if (!game.user.isGM) throw new Error("writeStarship must be called by a GM client");
     const data = foundry.utils.deepClone(readStarship(actor));
     const current = data[kind] && typeof data[kind] === "object" && !Array.isArray(data[kind]) ? data[kind] : {};
@@ -189,6 +204,7 @@ export function replaceStarshipMap(actor, kind, replacement) {
       if (!isSafeDefenseMapKey(key)) throw new Error(game.i18n.localize("SF2eTSC.errors.invalidData"));
     }
     const audit = await import("../history/history.mjs");
+    if (expected && !audit.equalState(current, expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
     if (audit.equalState(current, next)) return false;
     const prefix = `flags.${MODULE_ID}.${FLAGS.STARSHIP}.${kind}`;
     const updates = {};

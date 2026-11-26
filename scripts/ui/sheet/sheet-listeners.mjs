@@ -1,6 +1,7 @@
 /** Starship sheet: input listeners. Each element is wired once, so partial re-renders never duplicate handlers. */
 import { Crew } from "../../crew/crew-service.mjs";
 import { Ship } from "../../starship/ship-service.mjs";
+import { readStarship } from "../../starship/starship-state.mjs";
 import { request } from "../../socket.mjs";
 import { notifyError } from "../../utils/logging.mjs";
 import { parseCsv } from "../sheet-edit.mjs";
@@ -18,6 +19,11 @@ const guard = (fn) =>
 
 export function wireSheetInputs(sheet) {
   const el = sheet.element;
+  const data = readStarship(sheet.document);
+  el.querySelectorAll("[data-defense-editor]").forEach((root) => {
+    if (["resistances", "weaknesses", "skills"].includes(root.dataset.defenseEditor))
+      root.dataset.defenseBaseline = JSON.stringify(data[root.dataset.defenseEditor] ?? {});
+  });
   el.querySelectorAll("[data-field]").forEach(
     (i) =>
       wireOnce(i, "Field") &&

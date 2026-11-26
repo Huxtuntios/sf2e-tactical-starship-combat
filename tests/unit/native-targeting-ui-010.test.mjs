@@ -143,6 +143,137 @@ test("English KeyT targets hovered Sensor Map starships and hazards with additiv
   app._cleanup();
 });
 
+test("Sensor Map preserves the hovered placement across rerenders", async () => {
+  installFoundryMock();
+  const { preserveHoveredObject } = await import("../../scripts/ui/targeting.mjs");
+  const element = {
+    querySelector: () => null,
+    querySelectorAll: () => [{ dataset: { objectKey: "map-hovered" } }]
+  };
+  assert.equal(preserveHoveredObject(element, "map-hovered"), "map-hovered");
+  assert.equal(preserveHoveredObject(element, "map-removed"), null);
+});
+
+test("replacing a map-only target with a token clears the old map selection", async () => {
+  const { target, combat } = await mapScenario();
+  Targeting.pick("Contact.ui-map-only", combat.flags[M].tsc, { additive: true });
+  Targeting.pick(target.uuid, combat.flags[M].tsc, { additive: false });
+  assert.deepEqual(Targeting.targetUUIDs(), [target.uuid]);
+});
+
+test("finishing an older targeting session does not clear a newer session", async () => {
+  const { ship, combat } = await mapScenario();
+  let finish;
+  Targeting.begin({ shipUuid: ship.uuid, onExecute: () => new Promise((resolve) => (finish = resolve)) });
+  Targeting.pick("Contact.ui-map-only", combat.flags[M].tsc);
+  const pending = Targeting.execute();
+  Targeting.begin({ shipUuid: ship.uuid, label: "Next", onExecute: async () => true });
+  const next = Targeting.current;
+  finish(true);
+  await pending;
+  assert.equal(Targeting.current, next);
+});
+
+test("players can pre-target tokenless Sensor Map contacts before an action", async () => {
+  const { target, combat } = await mapScenario({ isGM: false });
+  Targeting.end();
+
+  assert.equal(Targeting.pick("Contact.ui-map-only", combat.flags[M].tsc), true);
+  assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
+  assert.equal(Targeting.pick(target.uuid, combat.flags[M].tsc), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [target.uuid]);
+});
+
+test("English KeyT pre-targets for players but not GMs outside an action session", async () => {
+  const { combat } = await mapScenario({ isGM: false });
+  const actions = [];
+  game.keybindings = {
+    register(namespace, action, config) {
+      actions.push({ namespace, action, config });
+    }
+  };
+  globalThis.CONST = { KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 } };
+  registerNativeTargeting();
+  const binding = actions.find((entry) => entry.namespace === M && entry.action === "targetSensorMap");
+  Targeting.end();
+  Targeting.hoverKey = "Contact.ui-map-only";
+  assert.equal(binding.config.onDown({ isShift: false }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
+
+  game.user = game.users.get("gm");
+  Targeting.end();
+  assert.equal(binding.config.onDown({ isShift: false }), false);
+  assert.deepEqual(Targeting.targetUUIDs(), []);
+  assert.ok(combat);
+});
+
+test("player pointer selection pre-targets while GM pointer selection only opens details", async () => {
+  const player = await mapScenario({ isGM: false });
+  let playerRenders = 0;
+  player.app.render = async () => {
+    playerRenders++;
+    return player.app;
+  };
+  Targeting.end();
+  const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
+  await select.call(player.app, { shiftKey: false }, { dataset: { objectKey: "Contact.ui-map-only" } });
+  assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
+  assert.equal(player.app.selected, "Contact.ui-map-only");
+  assert.equal(playerRenders, 1, "player selection refreshes the detail panel for the newly targeted object");
+  player.app._cleanup();
+
+  const gm = await mapScenario({ isGM: true });
+  let gmRenders = 0;
+  gm.app.render = async () => {
+    gmRenders++;
+    return gm.app;
+  };
+  Targeting.end();
+  await select.call(gm.app, { shiftKey: false }, { dataset: { objectKey: "Contact.ui-map-only" } });
+  assert.deepEqual(Targeting.targetUUIDs(), []);
+  assert.equal(gm.app.selected, "Contact.ui-map-only");
+  assert.equal(gmRenders, 1);
+  gm.app._cleanup();
+});
+
+test("runAction consumes a pre-targeted map-only contact without another pick", async () => {
+  installFoundryMock();
+  await loadModules();
+  await loadContentFromDisk();
+  game.user = game.users.get("p1");
+  Targeting.end();
+  const crew = makeCharacter({ id: "pretarget-crew", name: "Pretarget Crew", owners: ["p1"] });
+  const ship = makeShip({
+    id: "pretarget-ship",
+    name: "Pretarget Ship",
+    role: "player",
+    owners: ["p1"],
+    stations: [{ id: "science", name: "Science", type: "science", grade: "commercial", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "science" }]
+  });
+  const combat = makeStarshipCombat({
+    objects: [
+      { key: ship.uuid, zone: 1, alwaysVisible: true, detection: { party: "identified" } },
+      { key: "Contact.pretarget", type: "starship", zone: 2, detection: { party: "identified" } }
+    ]
+  });
+  Targeting.pick("Contact.pretarget", combat.flags[M].tsc);
+  game.user = game.users.get("gm");
+  let captured;
+  registerHandler("executeAction", async ({ payload }) => {
+    captured = payload;
+    return { ok: true };
+  });
+
+  await runAction(
+    { id: "lock-on", name: "Lock On", station: "science", targeting: { type: "starship", range: "sensor" } },
+    { ship, crew, station: ship.flags[M].starship.stations[0] }
+  );
+
+  assert.deepEqual(captured.options.targetUUIDs, ["Contact.pretarget"]);
+  assert.equal(Targeting.current, null);
+});
+
 test("Sensor Map marks targeted starships, hazards and tokenless contacts", async () => {
   const { ship, target, combat, token, app } = await mapScenario();
   const hazard = new MockActor({ id: "marked-hazard", name: "Marked Hazard", type: "hazard" });
@@ -254,6 +385,58 @@ test("runAction sends current targetUUIDs without requiring another map pick", a
 
   assert.deepEqual(captured.options.targetUUIDs, [target.uuid]);
   assert.equal(Targeting.current, null);
+});
+
+test("runAction wraps a resolved target for target-station options", async () => {
+  installFoundryMock();
+  await loadModules();
+  await loadContentFromDisk();
+  game.user = game.users.get("gm");
+  Targeting.end();
+  const crew = makeCharacter({ id: "station-crew", name: "Station Crew", owners: ["p1"] });
+  const ship = makeShip({
+    id: "station-ship",
+    name: "Station Ship",
+    role: "player",
+    owners: ["p1"],
+    stations: [{ id: "science", name: "Science", type: "science", grade: "commercial", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "science" }]
+  });
+  const target = makeShip({
+    id: "station-target",
+    name: "Station Target",
+    role: "npc",
+    stations: [{ id: "target-gun", name: "Target Gunnery", type: "gunnery", grade: "commercial" }]
+  });
+  makeStarshipCombat({
+    objects: [
+      { key: ship.uuid, zone: 1, alwaysVisible: true, detection: { party: "identified" } },
+      { key: target.uuid, zone: 2, detection: { party: "identified" } }
+    ]
+  });
+  const token = nativeToken(target, "station-target-token");
+  game.user.targets = new Set([token]);
+  canvas.tokens.placeables = [token];
+  let promptContent;
+  foundry.utils.flattenObject = (value) => ({ ...value });
+  foundry.applications.api.DialogV2.prompt = async (options) => {
+    promptContent = options.content;
+    return {};
+  };
+  registerHandler("executeAction", async () => ({ ok: true }));
+
+  await runAction(
+    {
+      id: "target-lock",
+      name: "Target Lock",
+      station: "science",
+      targeting: { type: "starship", range: "sensor" },
+      requirements: [{ type: "identifiedStation" }]
+    },
+    { ship, crew, station: ship.flags[M].starship.stations[0] }
+  );
+
+  assert.match(promptContent, /<option value="target-gun">/);
 });
 
 test("attack card request keeps targets mutable and resolution accepts a deduplicated current list", async () => {

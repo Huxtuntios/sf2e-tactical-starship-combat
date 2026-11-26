@@ -366,6 +366,26 @@
   padding: 8px;
   overflow: auto;
 }
+.tsc-zone-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.tsc-zone-controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-inline-size: 0;
+  margin: 0;
+}
+.tsc-zone-controls select {
+  min-inline-size: 3rem;
+}
+.tsc-zone-controls button {
+  flex: 0 0 auto;
+}
 .tsc-detail-actions {
   display: flex;
   flex-wrap: wrap;

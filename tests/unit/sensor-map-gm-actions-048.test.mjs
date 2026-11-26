@@ -185,7 +185,7 @@ test("GM action controls render only for GM and use a distinct action-selection 
     isGM: true,
     combat: { round: 1, turn: "Player Ship" },
     zoneCount: 3,
-    actionObjects: [{ key: "map-ship", label: "Map Ship", typeLabel: "Starship", selected: true }],
+    actionObjects: [{ key: "map-ship", label: "Map Ship", typeLabel: "Starship", positionLabel: "Zone 3 · position 1", selected: true }],
     actionSelection: { positionLabel: "Zone 3 · position 1" }
   });
   assert.match(gmBar, /data-tsc-action-object/);

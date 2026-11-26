@@ -129,6 +129,25 @@ test("ship-specific NPC descriptions use an unsaved native Item with the complet
   assert.equal(game.messages.size, 0);
 });
 
+test("chat action descriptions include NPC family text", async () => {
+  installFoundryMock();
+  const { sendActionDescriptionToChat } = await import("../../scripts/ui/action-controls.mjs");
+  const ship = makeShip({ id: "npc-description-ship", name: "NPC Ship", role: "npc" });
+  await sendActionDescriptionToChat({
+    action: {
+      id: "inline:dc-25",
+      name: "DC 25",
+      inline: true,
+      text: "DC 25",
+      familyText: "Targets attempt a basic Reflex save."
+    },
+    ship
+  });
+  const message = game.messages.contents.at(-1);
+  assert.match(message.flags["sf2e-tactical-starship-combat"].actionDescription.sourceText, /DC 25/);
+  assert.match(message.content, /Targets attempt a basic Reflex save\./);
+});
+
 for (const isGM of [true, false])
   for (const inCombat of [true, false]) {
     test(`PC station availability: GM=${isGM}, strict combat=${inCombat}`, async () => {

@@ -96,6 +96,7 @@ function unrelatedCombatFlags(combat) {
   const tsc = structuredClone(getTsc(combat));
   delete tsc.lastTurnKey;
   delete tsc.lastEffectTurn;
+  delete tsc.stationResetEncounter;
   return {
     unrelated: structuredClone(combat.flags.unrelated),
     module: structuredClone(combat.flags[M].unrelated),
@@ -189,6 +190,17 @@ test("ON reset runs once per encounter and hook reload cannot clear a later clai
   assert.equal(ship.flags[M].starship.crew.find((member) => member.actorUuid === pilot.uuid).stationId, "pilot");
   await combat.update({ round: 2, turn: 0 });
   for (let i = 0; i < 100 && getTsc(combat).lastTurnKey !== `2:${combat.combatant.id}`; i++) await setImmediate();
+  assert.equal(ship.flags[M].starship.stations.find((station) => station.id === "pilot").helmedBy, pilot.uuid);
+});
+
+test("returning to round 1 does not reset stations twice in one encounter", async () => {
+  const { ship, pilot, combat } = await scenario({ reset: true });
+  await beginInitiative(combat);
+  await reclaimPilotStation(ship, pilot);
+  await combat.update({ round: 2, turn: 0 });
+  for (let i = 0; i < 100 && getTsc(combat).lastTurnKey !== `2:${combat.combatant.id}`; i++) await setImmediate();
+  await combat.update({ round: 1, turn: 0 });
+  for (let i = 0; i < 100 && getTsc(combat).lastTurnKey !== `1:${combat.combatant.id}`; i++) await setImmediate();
   assert.equal(ship.flags[M].starship.stations.find((station) => station.id === "pilot").helmedBy, pilot.uuid);
 });
 

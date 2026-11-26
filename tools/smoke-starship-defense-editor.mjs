@@ -68,7 +68,13 @@ for (const lang of ["en", "ru"]) {
     const removeButtons=[...app.querySelectorAll('[data-defense-editor="resistances"] [data-action="removeDefenseEntry"],[data-defense-editor="weaknesses"] [data-action="removeDefenseEntry"],[data-defense-editor="skills"] [data-action="removeDefenseEntry"]')];
     check('numeric-remove-controls-use-current-row-type',removeButtons.length===5&&removeButtons.every(button=>button.closest('[data-defense-row]')?.querySelector('[data-defense-property="type"]')?.value===button.dataset.defenseKey));
     const controls=[...app.querySelectorAll('button,select,input')];
-    check('all-controls-have-accessible-names',controls.every(control=>control.getAttribute('aria-label')||control.textContent.trim()||control.closest('label')));
+    const accessibleName=control=>{
+      const labelledBy=control.getAttribute('aria-labelledby')?.split(' ').filter(Boolean).map(id=>document.getElementById(id)?.textContent??'').join(' ').trim();
+      return control.getAttribute('aria-label')?.trim()||labelledBy||[...(control.labels??[])].map(label=>label.textContent).join(' ').trim()||(control.tagName==='BUTTON'?control.textContent.trim():'');
+    };
+    check('all-controls-have-accessible-names',controls.every(control=>!!accessibleName(control)));
+    const unlabeledSelect=document.createElement('select');unlabeledSelect.innerHTML='<option>Option text is not a name</option>';
+    check('accessible-name-rejects-option-text',!accessibleName(unlabeledSelect));
     for(const width of [1100,600,380]){
       app.style.width=width+'px';
       const bounds=editor.getBoundingClientRect();

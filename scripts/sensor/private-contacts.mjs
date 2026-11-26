@@ -1,7 +1,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { T } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
-import { getTsc, saveTsc, mutateTsc } from "../combat/tsc-state.mjs";
+import { activeStarshipCombat, getTsc, saveTsc, mutateTsc } from "../combat/tsc-state.mjs";
 import { dropActorOnMap } from "./actor-drop.mjs";
 import { addObject } from "../engine/sensor-ops.mjs";
 import { safeImagePath } from "./appearance.mjs";
@@ -54,6 +54,18 @@ export function privateContacts(combatId) {
     throw new Error(T("SF2eTSC.privateMap.invalidStore"));
   return structuredClone(entries).map((contact) => (contact.reveal ? { ...contact, pendingReveal: true } : contact));
 }
+
+export function isPrivateSensorActor(actor, combat = activeStarshipCombat()) {
+  if (!actor) return false;
+  if (actor.flags?.[MODULE_ID]?.sensorContactInstance?.privateContact === true) return true;
+  if (!combat) return false;
+  try {
+    return privateContacts(combat.id).some((contact) => contact.actorUuid === actor.uuid || contact.key === actor.uuid);
+  } catch {
+    return true;
+  }
+}
+
 async function ensureStore(combatId) {
   const old = storeFor(combatId);
   if (old) return old;

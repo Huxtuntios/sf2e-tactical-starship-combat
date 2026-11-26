@@ -21,6 +21,13 @@ const unique = (values) => [...new Set(values.filter((value) => typeof value ===
 const findTargetObject = (tsc, key) => tsc?.objects.find((o) => o.key === key || o.actorUuid === key) ?? null;
 const warn = (key) => ui.notifications.warn(game.i18n.localize(`SF2eTSC.targeting.reason.${key}`));
 
+export function preserveHoveredObject(element, previous) {
+  const hovered = element.querySelector(".tsc-obj:hover")?.dataset.objectKey;
+  if (hovered) return hovered;
+  if (!previous) return null;
+  return [...element.querySelectorAll("[data-object-key]")].some((node) => node.dataset.objectKey === previous) ? previous : null;
+}
+
 function nativeTargetUUIDs(user = game.user) {
   const out = [];
   for (const token of user?.targets ?? []) {
@@ -81,12 +88,25 @@ function validateNativeToken(token) {
 function targetHoveredSensorMap(context) {
   const session = Targeting.current;
   const key = Targeting.hoverKey;
-  if (!session || !key) return false;
+  if (!key) return false;
   const combat = activeStarshipCombat();
   if (!combat) return false;
+  if (!session) {
+    if (game.user.isGM) return false;
+    Targeting.pick(key, getTsc(combat), { additive: !!context.isShift });
+    return true;
+  }
   const tsc = targetingState(getTsc(combat), session.shipUuid, privateContacts(combat.id));
   Targeting.pick(key, tsc, { additive: !!context.isShift });
   return true;
+}
+
+export function pickSensorMapObject(key, { additive = false, privateObjects = [] } = {}) {
+  const session = Targeting.current;
+  const combat = activeStarshipCombat();
+  if (session) return Targeting.pick(key, targetingState(getTsc(combat), session.shipUuid, privateObjects), { additive });
+  if (game.user.isGM) return false;
+  return Targeting.pick(key, getTsc(combat), { additive });
 }
 
 export function registerNativeTargeting() {
@@ -153,12 +173,12 @@ export const Targeting = {
       return false;
     }
     const result = await session.onExecute(keys);
-    if (result !== false) this.end();
+    if (result !== false && this.current === session) this.end();
     return result;
   },
   pick(key, tsc = null, { additive = false } = {}) {
     const session = this.current;
-    if (!session) return false;
+    if (!session && game.user.isGM) return false;
     const obj = tsc ? findTargetObject(tsc, key) : null;
     if (tsc && !obj) {
       warn("notPlaced");
@@ -171,7 +191,7 @@ export const Targeting = {
       if (targeted.length) {
         for (const token of targeted) token.setTarget(false, { releaseOthers: false });
       } else {
-        const classification = tsc && !session.gm ? this.classify(tsc, obj) : null;
+        const classification = tsc && session && !session.gm ? this.classify(tsc, obj) : null;
         if (classification && !classification.available) {
           warn(classification.reason);
           return false;
@@ -182,10 +202,11 @@ export const Targeting = {
           return false;
         }
         token.setTarget(true, { releaseOthers: !additive });
+        if (!additive) mapOnlyTargets.clear();
         selected = true;
       }
     } else {
-      const classification = tsc && !session.gm ? this.classify(tsc, obj) : null;
+      const classification = tsc && session && !session.gm ? this.classify(tsc, obj) : null;
       if (classification && !classification.available) {
         warn(classification.reason);
         return false;
@@ -201,7 +222,7 @@ export const Targeting = {
       }
     }
     refreshApps("targeting");
-    if (session.legacyPick && !additive && selected) {
+    if (session?.legacyPick && !additive && selected) {
       const onPick = session.legacyPick;
       this.end();
       onPick(key);

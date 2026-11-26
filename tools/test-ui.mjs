@@ -5,6 +5,8 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
 import { loadLang } from "../tests/helpers/foundry-mock.mjs";
+import { selectUiFixtures } from "./ui-fixture-filter.mjs";
+import { failedUiChecks, fixtureReady } from "./ui-result-utils.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "dist", "ui-tests");
 fs.mkdirSync(out, { recursive: true });
@@ -35,12 +37,7 @@ const allFixtures = [
   ["smoke-strike-trait-selector.mjs", "strike-traits"],
   [null, "effect-targets"]
 ];
-const fixtures = process.env.TSC_UI_FOLDER
-  ? allFixtures.filter(([, folder]) => fixturesMatch(folder, process.env.TSC_UI_FOLDER))
-  : allFixtures;
-function fixturesMatch(folder, filter) {
-  return filter.split(",").includes(folder);
-}
+const fixtures = selectUiFixtures(allFixtures, process.env.TSC_UI_FOLDER);
 function writeEffectTargetFixtures() {
   const folder = path.join(out, "effect-targets");
   const template = fs.readFileSync(path.join(root, "templates", "effect-targets.hbs"), "utf8");
@@ -208,35 +205,40 @@ try {
         if (folder === "effect-targets") {
           const base = name.replace(/-(\d+)\.html$/, "").replace(/\.html$/, "");
           await page.screenshot({ path: path.join(out, folder, `${base}-${targetWidth}.png`) });
-          const entire = page.locator('[name="entire"]');
-          await entire.focus();
-          const keyboardFocus = await entire.evaluate(
-            (element) => globalThis.document.activeElement === element && globalThis.getComputedStyle(element).outlineStyle !== "none"
-          );
-          await entire.press("Space");
-          const keyboardSummary = await page.evaluate(() => {
-            const fixture = globalThis.effectTargetFixture;
-            return (
-              !globalThis.document.querySelector('[name="entire"]').checked &&
-              globalThis.document.querySelector("[data-target-summary]").textContent === fixture.noTargets
+          if (fixtureReady(result)) {
+            const entire = page.locator('[name="entire"]');
+            await entire.focus();
+            const keyboardFocus = await entire.evaluate(
+              (element) => globalThis.document.activeElement === element && globalThis.getComputedStyle(element).outlineStyle !== "none"
             );
-          });
-          const beforeCancel = await page.evaluate(() => globalThis.effectTargetFixture.requests.length);
-          const cancel = page.locator('[data-action="cancel"]');
-          await cancel.focus();
-          const cancelFocus = await cancel.evaluate(
-            (element) => globalThis.document.activeElement === element && globalThis.getComputedStyle(element).outlineStyle !== "none"
-          );
-          await cancel.press("Enter");
-          await page.waitForFunction(() => !globalThis.document.querySelector("form.tsc-effect-targets"));
-          const cancelWithoutApply = await page.evaluate((count) => globalThis.effectTargetFixture.requests.length === count, beforeCancel);
-          result.checks.push(
-            { name: "keyboard-target-focus", pass: keyboardFocus },
-            { name: "keyboard-target-summary", pass: keyboardSummary },
-            { name: "keyboard-cancel-focus", pass: cancelFocus },
-            { name: "keyboard-cancel-no-application", pass: cancelWithoutApply }
-          );
-          result.passed = result.checks.every((check) => check.pass);
+            await entire.press("Space");
+            const keyboardSummary = await page.evaluate(() => {
+              const fixture = globalThis.effectTargetFixture;
+              return (
+                !globalThis.document.querySelector('[name="entire"]').checked &&
+                globalThis.document.querySelector("[data-target-summary]").textContent === fixture.noTargets
+              );
+            });
+            const beforeCancel = await page.evaluate(() => globalThis.effectTargetFixture.requests.length);
+            const cancel = page.locator('[data-action="cancel"]');
+            await cancel.focus();
+            const cancelFocus = await cancel.evaluate(
+              (element) => globalThis.document.activeElement === element && globalThis.getComputedStyle(element).outlineStyle !== "none"
+            );
+            await cancel.press("Enter");
+            await page.waitForFunction(() => !globalThis.document.querySelector("form.tsc-effect-targets"));
+            const cancelWithoutApply = await page.evaluate(
+              (count) => globalThis.effectTargetFixture.requests.length === count,
+              beforeCancel
+            );
+            result.checks.push(
+              { name: "keyboard-target-focus", pass: keyboardFocus },
+              { name: "keyboard-target-summary", pass: keyboardSummary },
+              { name: "keyboard-cancel-focus", pass: cancelFocus },
+              { name: "keyboard-cancel-no-application", pass: cancelWithoutApply }
+            );
+            result.passed = result.checks.every((check) => check.pass);
+          }
         }
         if (folder === "plasma-attack") {
           for (const lang of ["en", "ru"]) {
@@ -363,16 +365,10 @@ try {
 }
 fs.writeFileSync(path.join(out, "results.json"), `${JSON.stringify(results, null, 2)}\n`);
 const failures = results.filter((r) => !r.passed || r.errors.length);
-const failureDetails = failures.map((result) =>
-  result.measurements
-    ? {
-        file: result.file,
-        errors: result.errors,
-        failedChecks: result.measurements.flatMap((measurement) =>
-          measurement.checks.filter((check) => !check.pass).map((check) => `${measurement.width}: ${check.name}`)
-        )
-      }
-    : result
-);
+const failureDetails = failures.map((result) => ({
+  file: result.file,
+  errors: result.errors,
+  failedChecks: failedUiChecks(result)
+}));
 console.log(JSON.stringify({ total: results.length, passed: results.length - failures.length, failures: failureDetails }, null, 2));
 if (failures.length) process.exitCode = 1;

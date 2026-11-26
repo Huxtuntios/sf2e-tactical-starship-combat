@@ -45,7 +45,8 @@ function conditionSources(actor) {
 }
 
 function compatibilityModifierDomains(selector, context) {
-  const domains = new Set(["all"]);
+  const domains = new Set();
+  if (!["station-damage", "damage", "speed", "sensor-range"].includes(selector)) domains.add("all");
   if (selector === "speed") domains.add("all-speeds");
   if (selector === "will") domains.add("saving-throw");
   if (selector === "station-check" && context.skill) domains.add(context.skill);

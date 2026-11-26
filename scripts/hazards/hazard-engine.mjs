@@ -8,11 +8,12 @@ import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { shipStatistic, rollNativeCheck, computeShipStats } from "../starship/stats.mjs";
 import { basicSaveMultiplier } from "../actions/dice.mjs";
-import { fromUuidSafe, T, moduleSetting } from "../utils/foundry.mjs";
+import { T, moduleSetting } from "../utils/foundry.mjs";
 import { DEGREE } from "../constants.mjs";
 import { addSensorContact } from "../sensor/contact-service.mjs";
 import { hazardStealthDC } from "./hazard-stealth.mjs";
 import { resolveSensorActor, resolveSensorActorSync } from "../sensor/map-object.mjs";
+import { isPrivateSensorActor } from "../sensor/private-contacts.mjs";
 
 export const hazardFlags = (actor) => actor?.flags?.[MODULE_ID]?.[FLAGS.HAZARD] ?? null;
 export const isStarshipHazard = (actor) => !!hazardFlags(actor)?.isStarshipHazard;
@@ -68,11 +69,15 @@ function zonesOfHazard(tsc, uuid) {
 async function applyAutomatedEffect(hazardActor, text, draft) {
   const parsed = parseHazardEffect(text);
   if (!parsed.damage) return { applied: false, parsed };
+  if (isPrivateSensorActor(hazardActor, draft.combat)) draft.privateAction = true;
   const zones = zonesOfHazard(draft.tsc, hazardActor.uuid);
   const targets = draft.tsc.objects.filter((o) => o.type === "starship" && zones.includes(o.zone));
   if (!targets.length) return { applied: true, parsed, targets: 0 };
   const roll = await new Roll(parsed.damage).evaluate();
-  await roll.toMessage({ speaker: { alias: hazardActor.name }, flavor: `${hazardActor.name}: ${T("SF2eTSC.chat.damage")}` });
+  await roll.toMessage(
+    { speaker: { alias: hazardActor.name }, flavor: `${hazardActor.name}: ${T("SF2eTSC.chat.damage")}` },
+    draft.privateAction ? { messageMode: "gm", rollMode: "gmroll" } : {}
+  );
   for (const o of targets) {
     const entry = await draft.ship(o.key);
     let amount = roll.total,
@@ -83,6 +88,7 @@ async function applyAutomatedEffect(hazardActor, text, draft) {
         dc: parsed.dc,
         label: `${entry.actor.name}: ${parsed.save}`,
         actor: entry.actor,
+        secret: !!draft.privateAction,
         modifierOnly: computeShipStats(entry.actor, { againstUuid: hazardActor.uuid, area: true, statistic: "check" })[parsed.save]
       });
       if (!res) return { applied: false, cancelled: true, parsed, targets: targets.length };
@@ -107,6 +113,7 @@ export const HazardEngine = {
     if (hs.disabled) return { skipped: true };
     // Мина дрона — отдельный объект с собственным циклом (Modify, перемещение, детонация); общая автоматизация её не трогает.
     if (findObject(draft.tsc, hazardUuid)?.mineRef) return { skipped: true, reason: "mine" };
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const flags = hazardFlags(hazard) ?? {};
     const effectText = flags.effectText ?? flags.actions?.[0]?.text ?? hazard.system?.details?.routine ?? "";
     const o = findObject(draft.tsc, hazardUuid);
@@ -126,6 +133,7 @@ export const HazardEngine = {
     const flags = hazardFlags(hazard) ?? {};
     const routine = flags.routine ?? { cost: "1 action", text: hazard?.system?.details?.routine ?? "" };
     const draft = new Draft(combat);
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const hs = draft.tsc?.hazardState?.[hazardUuid] ?? {};
     if (hs.disabled) return { skipped: true };
     const n = parseRoutineActions(routine.cost);
@@ -147,8 +155,9 @@ export const HazardEngine = {
 
   async disable(hazardUuid, mode = "disable") {
     const combat = activeStarshipCombat();
-    const hazard = await fromUuidSafe(hazardUuid);
+    const hazard = await resolveSensorActor(combat, hazardUuid);
     const draft = new Draft(combat);
+    if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
     const prev = draft.tsc.hazardState[hazardUuid] ?? {};
     draft.tsc.hazardState[hazardUuid] = {
       ...prev,

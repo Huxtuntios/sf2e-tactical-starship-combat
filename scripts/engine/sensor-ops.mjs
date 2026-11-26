@@ -129,6 +129,7 @@ export function viewFor(state, { isGM = false, observerKeys = [], ownKeys = [], 
       art: hidden ? undefined : o.art || actor?.img,
       size: known ? (o.size ?? actor?.flags?.[MODULE_ID]?.starship?.size ?? actor?.system?.traits?.size?.value) : undefined,
       actorUuid: known ? o.actorUuid : undefined,
+      publicActor: known ? o.publicActor : undefined,
       mapTransform: hidden ? undefined : o.mapTransform,
       autoMirrorOverride: known
         ? o.autoMirrorOverride === true || o.autoMirrorOverride === false

@@ -124,6 +124,7 @@ export async function applyDamageInDraft(
       postDamageCard({
         actor,
         source,
+        whisperGM: !!draft.privateAction,
         result,
         attackLine,
         undoRef,
@@ -143,7 +144,10 @@ async function applyHazardDamageInDraft(
   const actor = entry.actor;
   const attributes = actor.system?.attributes ?? {};
   const immunities = normalizeIwr(attributes.immunities, false);
-  const resistances = { ...normalizeIwr(attributes.resistances), "all-damage": Math.max(0, strikeResistance) };
+  const resistances = {
+    ...normalizeIwr(attributes.resistances),
+    "all-damage": Math.max(normalizeIwr(attributes.resistances)["all-damage"] ?? 0, strikeResistance)
+  };
   const weaknesses = normalizeIwr(attributes.weaknesses);
   const compute = parts ? computeStarshipDamagePacket : computeStarshipDamage;
   const result = compute({
@@ -163,11 +167,14 @@ async function applyHazardDamageInDraft(
     criticalHit,
     nonlethal
   });
-  if (result.newState.hp !== entry.data.hp.value)
+  if (result.newState.hp !== entry.data.hp.value) {
+    const previous = draft.hazards.get(actor.uuid);
     draft.hazards.set(actor.uuid, {
       actor,
-      patch: { ...(draft.hazards.get(actor.uuid)?.patch ?? {}), "system.attributes.hp.value": result.newState.hp }
+      patch: { ...(previous?.patch ?? {}), "system.attributes.hp.value": result.newState.hp },
+      hpDelta: (previous?.hpDelta ?? 0) + result.newState.hp - entry.data.hp.value
     });
+  }
   draft.log(`${actor.name}: HP -${result.hullDamage}`, "damage", { shipUuid: actor.uuid, ...result });
   draft.event(HOOK_EVENTS.damaged, actor, result);
   if (result.destroyed) draft.event(HOOK_EVENTS.destroyed, actor);
@@ -176,6 +183,7 @@ async function applyHazardDamageInDraft(
       postDamageCard({
         actor,
         source,
+        whisperGM: !!draft.privateAction,
         result,
         attackLine,
         undoRef,

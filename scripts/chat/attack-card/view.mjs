@@ -185,15 +185,27 @@ export function makeCardRenderer(labels = {}) {
             )
           );
       if (plasma)
-        for (const d of c.damageResults ?? [])
-          rl.push(
-            row(
-              `${T("SF2eTSC.chat.damage")} — ${escapeHtml(d.target ?? T("SF2eTSC.detection.contact"))}`,
-              escapeHtml(
-                `${d.rolled} ${dmgType(d.damageType)} · ${T("SF2eTSC.ui.sp")} −${d.shield ?? 0} · ${T("SF2eTSC.ui.hp")} −${d.hull ?? 0}`
+        for (const d of c.damageResults ?? []) {
+          const label = `${T("SF2eTSC.chat.damage")} — ${escapeHtml(d.target ?? T("SF2eTSC.detection.contact"))}`;
+          if (d.manual) {
+            rl.push(row(label, escapeHtml(T("SF2eTSC.droneBlock.manualResult", { amount: d.rolled, resistance: d.resistance }))));
+            if (d.protocolManual)
+              rl.push(
+                row(
+                  T("SF2eTSC.droneBlock.protocolManualTitle"),
+                  escapeHtml(T("SF2eTSC.droneBlock.protocolManualResult", { resistance: d.resistance }))
+                )
+              );
+          } else
+            rl.push(
+              row(
+                label,
+                escapeHtml(
+                  `${d.rolled} ${dmgType(d.damageType)} · ${T("SF2eTSC.ui.sp")} −${d.shield ?? 0} · ${T("SF2eTSC.ui.hp")} −${d.hull ?? 0}`
+                )
               )
-            )
-          );
+            );
+        }
       for (const rep of r.reports ?? []) rl.push(`<dt></dt><dd class="tsc-report">${escapeHtml(rep)}</dd>`);
       if (r.map) rl.push(row(T("SF2eTSC.ui.map"), escapeHtml(fmt(r.map.before ?? 0))));
       const pd = r.pendingDamage;

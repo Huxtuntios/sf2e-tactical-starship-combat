@@ -9,9 +9,17 @@
       {{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}
       {{#if detail.canRename}}<button type="button" data-action="privateRename" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.rename"}}</button>{{/if}}
       <div class="tsc-detect" role="group" aria-label="{{localize 'SF2eTSC.ui.detection'}}">{{#each detail.detection}}<button type="button" class="{{#if active}}active{{/if}}" data-action="privateDetect" data-key="{{../detail.key}}" data-level="{{id}}">{{label}}</button>{{/each}}</div>
-      <label>{{localize "SF2eTSC.ui.zone"}} <select data-private-zone="{{detail.key}}">{{#each detail.zoneChoices}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
-      <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="-1">◀</button>
-      <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="1">▶</button>
+      {{#if detail.vitals}}
+      <div class="tsc-vitals-edit">
+        <label>{{localize "SF2eTSC.ui.hullPoints"}} <span><input type="number" min="0" max="{{detail.vitals.hpMax}}" value="{{detail.vitals.hp}}" data-gm-ship="hp" data-ship="{{detail.vitals.shipUuid}}" data-key="{{detail.key}}" data-max="{{detail.vitals.hpMax}}"> / {{detail.vitals.hpMax}}</span></label>
+        <label>{{localize "SF2eTSC.ui.shieldPoints"}} <span><input type="number" min="0" max="{{detail.vitals.spMax}}" value="{{detail.vitals.sp}}" data-gm-ship="sp" data-ship="{{detail.vitals.shipUuid}}" data-key="{{detail.key}}" data-max="{{detail.vitals.spMax}}"> / {{detail.vitals.spMax}}</span></label>
+      </div>
+      {{/if}}
+      <div class="tsc-zone-controls">
+        <label>{{localize "SF2eTSC.ui.zone"}} <select data-private-zone="{{detail.key}}">{{#each detail.zoneChoices}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{id}}</option>{{/each}}</select></label>
+        <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="-1" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
+        <button type="button" data-action="privateMove" data-key="{{detail.key}}" data-by="1" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>
+      </div>
       <button type="button" data-action="privateReveal" data-key="{{detail.key}}">{{localize "SF2eTSC.privateMap.reveal"}}</button>
       <button type="button" data-action="privateRemove" data-key="{{detail.key}}">{{localize "SF2eTSC.ui.removeObject"}}</button>
       {{else}}
@@ -22,13 +30,16 @@
         <label>{{localize "SF2eTSC.ui.shieldPoints"}} <span><input type="number" min="0" max="{{detail.vitals.spMax}}" value="{{detail.vitals.sp}}" data-gm-ship="sp" data-ship="{{detail.vitals.shipUuid}}" data-key="{{detail.key}}" data-max="{{detail.vitals.spMax}}"> / {{detail.vitals.spMax}}</span></label>
       </div>
       {{/if}}
+      {{#if detail.canMove}}
+      <div class="tsc-zone-controls">
+        <span>{{localize "SF2eTSC.ui.zone"}} {{detail.zone}}</span>
+        <button type="button" data-action="moveLeft" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}" title="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
+        <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>
+      </div>
+      {{/if}}
       <div class="tsc-detail-actions">
         {{#if detail.canOpen}}<button type="button" data-action="openSheet" data-key="{{detail.key}}"><i class="fa-solid fa-file-lines"></i> {{localize "SF2eTSC.ui.openSheet"}}</button>{{/if}}
         {{#if @root.isGM}}{{#if detail.canAddToInitiative}}<button type="button" data-action="addInitiative" data-key="{{detail.key}}"><i class="fa-solid fa-list-check"></i> {{localize "SF2eTSC.initiative.addOne"}}</button>{{/if}}{{/if}}
-        {{#if detail.canMove}}
-          <button type="button" data-action="moveLeft" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveLeft'}}" title="{{localize 'SF2eTSC.ui.moveLeft'}}">◀</button>
-          <button type="button" data-action="moveRight" data-key="{{detail.key}}" aria-label="{{localize 'SF2eTSC.ui.moveRight'}}" title="{{localize 'SF2eTSC.ui.moveRight'}}">▶</button>
-        {{/if}}
       </div>
       {{#if detail.mine}}
       <div class="tsc-detail-actions">

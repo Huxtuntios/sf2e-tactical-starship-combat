@@ -310,6 +310,7 @@
       "vitals": "Hull and shield points",
       "maxHull": "Max Hull",
       "maxShield": "Max Shield",
+      "weaponCatalog": "Weapon catalog",
       "remove": "Remove",
       "removeObject": "Remove object",
       "toolbox": "Starship toolbox",

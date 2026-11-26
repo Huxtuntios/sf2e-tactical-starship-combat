@@ -35,23 +35,14 @@ function mergeDocumentObject(current, patch) {
   return merged;
 }
 function installDocumentUpdateMock(actor) {
+  const NativeForcedDeletion = foundry.data.operators.ForcedDeletion;
   foundry.data = { ...foundry.data, operators: { ...foundry.data?.operators, ForcedDeletion } };
   const update = actor.update.bind(actor);
   actor.update = async (changes, options = {}) => {
     const resolved = {};
     for (const [path, value] of Object.entries(changes)) {
       if (value instanceof ForcedDeletion) {
-        const parts = path.split(".");
-        const key = parts.pop();
-        const parentPath = parts.join(".");
-        const parent = valueAtPath(actor, parentPath);
-        if (parent) {
-          const replacement = structuredClone(parent);
-          delete replacement[key];
-          const containerParts = parentPath.split(".");
-          const containerKey = containerParts.pop();
-          valueAtPath(actor, containerParts.join("."))[containerKey] = replacement;
-        }
+        resolved[path] = new NativeForcedDeletion();
       } else {
         const current = valueAtPath(actor, path);
         resolved[path] = isPlainObject(current) && isPlainObject(value) ? mergeDocumentObject(current, value) : value;
@@ -242,7 +233,7 @@ test("defense actions add, edit and remove values through authoritative ship API
   assert.deepEqual(actor.flags[M].starship.skills, { piloting: 0 });
   await actions.saveDefenseRows(sheet, "skills", [{ key: "piloting", value: "-3" }]);
   assert.deepEqual(actor.flags[M].starship.skills, { piloting: -3 });
-  await actions.removeDefenseEntry.call(sheet, null, { dataset: { defenseKind: "immunities", defenseIndex: "0" } });
+  await actions.removeDefenseEntry.call(sheet, null, { dataset: { defenseKind: "immunities", defenseKey: "poison" } });
   assert.deepEqual(actor.flags[M].starship.immunities, []);
 });
 
@@ -338,6 +329,75 @@ test("numeric defense row replacement is exact and atomic under Foundry-style ne
   const [cleared] = historyEntries(actor.uuid);
   assert.deepEqual(cleared.flags[M].history.before.resistances, { cold: 5, "Legacy Resistance": -2 });
   assert.deepEqual(cleared.flags[M].history.after.resistances, {});
+});
+
+test("a rejected Foundry-style deletion leaves the original defense map intact", async () => {
+  installDefenseFoundryMock();
+  CONFIG.PF2E = nativeCatalogs;
+  await loadContentFromDisk();
+  const actor = makeShip({
+    id: "defense-rejected-delete",
+    name: "Defense rejected delete",
+    role: "npc",
+    extra: { resistances: { fire: 5 }, weaknesses: {}, skills: {} }
+  });
+  installDocumentUpdateMock(actor);
+  actor.update = async () => {
+    throw new Error("update rejected");
+  };
+  const { deleteStarshipMapKey } = await import("../../scripts/starship/starship-state.mjs");
+  await assert.rejects(deleteStarshipMapKey(actor, "resistances", "fire"), /update rejected/);
+  assert.deepEqual(actor.flags[M].starship.resistances, { fire: 5 });
+});
+
+test("stale defense row submissions cannot restore concurrently deleted keys", async () => {
+  installDefenseFoundryMock();
+  CONFIG.PF2E = nativeCatalogs;
+  await loadContentFromDisk();
+  (await import("../../scripts/starship/ship-service.mjs")).registerShipHandlers();
+  const actions = await import("../../scripts/ui/sheet/sheet-actions.mjs");
+  const actor = makeShip({
+    id: "defense-stale-replacement",
+    name: "Defense stale replacement",
+    role: "npc",
+    extra: { resistances: { cold: 5 }, weaknesses: {}, skills: {} }
+  });
+  installDocumentUpdateMock(actor);
+  const sheet = {
+    document: actor,
+    element: {
+      querySelector: () => ({ dataset: { defenseBaseline: JSON.stringify({ fire: 7, cold: 5 }) } })
+    }
+  };
+
+  await assert.rejects(
+    () =>
+      actions.saveDefenseRows(sheet, "resistances", [
+        { key: "fire", value: "7" },
+        { key: "cold", value: "5" }
+      ]),
+    /undoConflict|changed|конфликт/i
+  );
+  assert.deepEqual(actor.flags[M].starship.resistances, { cold: 5 });
+});
+
+test("stale immunity buttons remove their key from the latest list", async () => {
+  installDefenseFoundryMock();
+  CONFIG.PF2E = nativeCatalogs;
+  await loadContentFromDisk();
+  (await import("../../scripts/starship/ship-service.mjs")).registerShipHandlers();
+  const actions = await import("../../scripts/ui/sheet/sheet-actions.mjs");
+  const actor = makeShip({
+    id: "defense-stale-immunity",
+    name: "Defense stale immunity",
+    role: "npc",
+    extra: { immunities: ["cold", "poison"], resistances: {}, weaknesses: {}, skills: {} }
+  });
+  installDocumentUpdateMock(actor);
+  const sheet = { document: actor };
+
+  await actions.removeDefenseEntry.call(sheet, null, { dataset: { defenseKind: "immunities", defenseKey: "cold" } });
+  assert.deepEqual(actor.flags[M].starship.immunities, ["poison"]);
 });
 
 test("numeric defense replacement API rejects non-starships, unauthorized users, invalid kinds and invalid maps", async () => {
@@ -460,7 +520,7 @@ test("numeric defense deletion API honors configureShip, records history and ign
 
 test("numeric defense deletion waits for earlier actor writes and removes the latest queued value", async () => {
   const send = await shipSocketFixture();
-  const actor = makeShip({ id: "defense-api-queue", name: "Defense API queue", role: "npc", extra: { resistances: { fire: 5 } } });
+  const actor = makeShip({ id: "defense-api-queue", name: "Defense API queue", role: "npc", extra: { resistances: {} } });
   installDocumentUpdateMock(actor);
   const { patchStarship } = await import("../../scripts/starship/starship-state.mjs");
   let entered;
@@ -483,7 +543,7 @@ test("numeric defense deletion waits for earlier actor writes and removes the la
   await started;
   const deletion = send("gm", "deleteDefense", { shipUuid: actor.uuid, kind: "resistances", key: "fire" });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(actor.flags[M].starship.resistances.fire, 5, "the earlier write must still be pending");
+  assert.deepEqual(actor.flags[M].starship.resistances, {}, "the earlier write must still be pending");
   release();
   await earlier;
   const reply = await deletion;

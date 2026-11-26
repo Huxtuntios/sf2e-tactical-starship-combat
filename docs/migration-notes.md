@@ -13,13 +13,14 @@
 
 ## 2. Current baseline
 
-- `DATA_VERSION = 2`.
+- `DATA_VERSION = 3`; version 2 is the previous baseline.
 - Migration `0 -> 1` adds missing containers and the version stamp.
 - Migration `1 -> 2` folds per-station upgrade IDs into ship-wide upgrade records with `stationId`.
+- Migration `2 -> 3` repairs a missing base `sensorRange` from a verified frame or size source.
 - `readStarship` can apply migrations in memory; active-GM `migrateAll` persists them and stamps the world setting.
 - World repair uses `worldFixVersion = 6`; schema stamping only fills missing module-owned Actor schema stamps.
 
-## 3. Planned `DATA_VERSION = 3`
+## 3. Current `DATA_VERSION = 3` migration
 
 The only actor-data migration is a missing base `sensorRange` repair.
 

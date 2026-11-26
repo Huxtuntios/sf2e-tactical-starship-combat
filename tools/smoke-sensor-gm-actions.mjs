@@ -131,7 +131,8 @@ globalThis.measureGmActions=()=>{
  check('selection-classes-independent',action.classList.contains('action-selected')&&!action.classList.contains('selected')&&ordinary.classList.contains('selected')&&!ordinary.classList.contains('action-selected')&&!target.classList.contains('selected'));
  check('selection-outlines-distinct',actionStyle.outlineStyle==='solid'&&parseFloat(actionStyle.outlineWidth)>=3&&actionStyle.outlineColor!==ordinaryStyle.outlineColor&&actionStyle.outlineColor!==markerStyle.backgroundColor);
  check('target-marker-preserved',!!target.querySelector('.tsc-obj-target-marker'));
- check('zone-order-label',document.querySelector('.tsc-action-position').textContent===labels['SF2eTSC.ui.mapPosition'].replace('{zone}','3').replace('{position}','1'));
+ const positionLabel=labels['SF2eTSC.ui.mapPosition'].replace('{zone}','3').replace('{position}','1');
+ check('zone-order-label',select.selectedOptions[0].textContent.endsWith(positionLabel)&&!document.querySelector('.tsc-action-position'));
  check('effects-entry',document.querySelector('[data-action="manageEffects"]')?.dataset.shipUuid==='map-npc');
  const selectRect=select.getBoundingClientRect(),rootRect=root.getBoundingClientRect();
  check('selector-contained',selectRect.width>=24&&selectRect.height>=24&&selectRect.right<=rootRect.right+1);

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installFoundryMock, makeShip, makeStarshipCombat, MockActor } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
-import { getTsc } from "../../scripts/combat/tsc-state.mjs";
+import { getTsc, mutateTsc } from "../../scripts/combat/tsc-state.mjs";
 import { privateContacts } from "../../scripts/sensor/private-contacts.mjs";
 
 function sourceActor(kind, { visible = false } = {}) {
@@ -135,7 +135,7 @@ for (const kind of ["npc", "hazard"]) {
   });
 }
 
-test("a player starship hidden from players cannot be published by a directory drop", async () => {
+test("a confirmed directory drop can publish a player starship hidden from players", async () => {
   installFoundryMock();
   const actor = sourceActor("player");
   const combat = makeStarshipCombat();
@@ -143,9 +143,10 @@ test("a player starship hidden from players cannot be published by a directory d
 
   await harness.drop();
 
-  assert.equal(harness.warnings.length, 1);
+  assert.equal(harness.warnings.length, 0);
   assert.equal(game.actors.size, 1);
-  assert.deepEqual(getTsc(combat).objects, []);
+  assert.equal(getTsc(combat).objects.length, 1);
+  assert.equal(getTsc(combat).objects[0].type, "starship");
 });
 
 test("dragging an existing Sensor Map object moves only that object without creating an Actor", async () => {
@@ -156,11 +157,18 @@ test("dragging an existing Sensor Map object moves only that object without crea
   await harness.drop();
   harness.zone.dataset.zone = "6";
   await harness.drop();
+  await mutateTsc(combat, (state) => {
+    state.objects[0].mapTransform = { rotation: 37, flipX: true, flipY: false, baseDirection: "right" };
+    state.objects[0].autoMirrorOverride = true;
+    state.objects[1].mapTransform = { rotation: 280, flipX: false, flipY: true, baseDirection: "left" };
+    state.objects[1].autoMirrorOverride = false;
+    return state;
+  });
   const [first, second] = getTsc(combat).objects;
-  first.mapTransform = { rotation: 37, flipX: true, flipY: false, baseDirection: "right" };
-  first.autoMirrorOverride = true;
-  second.mapTransform = { rotation: 280, flipX: false, flipY: true, baseDirection: "left" };
-  second.autoMirrorOverride = false;
+  assert.deepEqual(first.mapTransform, { rotation: 37, flipX: true, flipY: false, baseDirection: "right" });
+  assert.equal(first.autoMirrorOverride, true);
+  assert.deepEqual(second.mapTransform, { rotation: 280, flipX: false, flipY: true, baseDirection: "left" });
+  assert.equal(second.autoMirrorOverride, false);
   const orientation = getTsc(combat).objects.map(({ mapTransform, autoMirrorOverride, heading }) => ({
     mapTransform: structuredClone(mapTransform),
     autoMirrorOverride,

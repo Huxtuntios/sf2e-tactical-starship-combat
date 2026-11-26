@@ -536,7 +536,13 @@ export async function onTurnChange(combat, changes = {}) {
   // updateCombat with a "turn" change. Only a genuinely new turn (round + combatant) may reset budgets/effects.
   const key = turnKey(combat);
   if (key && state.lastTurnKey === key) return;
-  const resetStations = moduleSetting("resetStationsOnInitiative") === true && changes.round === 1 && changes.turn === 0 && !!key;
+  const resetStations =
+    moduleSetting("resetStationsOnInitiative") === true &&
+    changes.round === 1 &&
+    changes.turn === 0 &&
+    !!key &&
+    state.stationResetEncounter !== combat.id;
+  if (resetStations) state.stationResetEncounter = combat.id;
   const previous = state.lastEffectTurn ?? null;
   state.lastEffectTurn = { id: cb?.id ?? null, round: combat.round, turn: combat.turn };
   state.lastTurnKey = key;

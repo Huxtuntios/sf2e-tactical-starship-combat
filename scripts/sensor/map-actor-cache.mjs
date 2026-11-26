@@ -21,6 +21,7 @@ export class MapActorCache {
     this.isShip = ship;
     this.entries = new Map();
     this.active = new Set();
+    this.projections = new Map();
   }
 
   setVisible(view, user) {
@@ -28,14 +29,18 @@ export class MapActorCache {
     if (this.scope !== scope) this.clear();
     this.scope = scope;
     this.user = user;
-    this.active = new Set(
-      view
-        .filter((o) => o.known && ["starship", "hazard"].includes(o.type))
-        .map((o) => o.actorUuid ?? o.key)
-        .filter(validUuid)
-    );
+    this.active = new Set();
+    this.projections.clear();
+    for (const object of view) {
+      if (!object.known || !["starship", "hazard"].includes(object.type)) continue;
+      const uuid = object.actorUuid ?? object.key;
+      if (!validUuid(uuid)) continue;
+      this.active.add(uuid);
+      this.projections.set(uuid, JSON.stringify(object.publicActor ?? null));
+    }
     for (const [uuid, entry] of this.entries) {
-      if (!this.active.has(uuid) || (entry.actor && !permitted(entry.actor, user))) this.entries.delete(uuid);
+      if (!this.active.has(uuid) || entry.projection !== this.projections.get(uuid) || (entry.actor && !permitted(entry.actor, user)))
+        this.entries.delete(uuid);
     }
   }
 
@@ -47,7 +52,7 @@ export class MapActorCache {
       entry = null;
     }
     if (entry) return entry.promise;
-    entry = { uuid, actor: null, data: undefined, stats: undefined };
+    entry = { uuid, actor: null, data: undefined, stats: undefined, projection: this.projections.get(uuid) };
     this.entries.set(uuid, entry);
     // Install the entry before resolving: duplicates and concurrent renders share the promise.
     entry.promise = Promise.resolve().then(async () => {
@@ -101,6 +106,7 @@ export class MapActorCache {
 
   clear() {
     this.entries.clear(); // identity checks prevent stale promises from repopulating
+    this.projections.clear();
   }
 
   dispose() {

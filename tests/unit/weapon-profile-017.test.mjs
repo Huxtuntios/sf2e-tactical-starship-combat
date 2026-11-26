@@ -48,6 +48,22 @@ test("area saves remain basic Reflex while honoring an explicit verified DC", ()
   assert.deepEqual(result.save, { type: "reflex", basic: true, dc: 29, source: "weapon" });
 });
 
+test("absent save DC stays null while explicit zero remains a weapon DC", () => {
+  for (const dc of [undefined, null, ""])
+    assert.deepEqual(profile({ name: "Plasma cannon", save: { type: "reflex", dc } }).save, {
+      type: "reflex",
+      basic: false,
+      dc: null,
+      source: "crew"
+    });
+  assert.deepEqual(profile({ name: "Plasma cannon", save: { type: "reflex", dc: 0 } }).save, {
+    type: "reflex",
+    basic: false,
+    dc: 0,
+    source: "weapon"
+  });
+});
+
 test("non-area plasma without valid save metadata gets no invented save", () => {
   for (const save of [undefined, {}, { type: "mystery", dc: 20 }, { type: "reflex", dc: "not-a-dc" }])
     assert.equal(profile({ name: "Plasma rifle", save }).save, null);

@@ -112,6 +112,18 @@ test("source description and execution result stay separate and immutable", asyn
   assert.deepEqual({ action, result }, before);
 });
 
+test("action descriptions forward the translator to outcome text", async () => {
+  const { formatActionDescription } = await resultTextModule();
+  const translate = (text) => `translated:${text}`;
+  const parts = formatActionDescription(
+    { text: "Source" },
+    { ok: true, degree: 2, outcomes: { success: [{ type: "text", text: "Half damage." }] } },
+    { localize, translate }
+  );
+  assert.equal(parts.sourceText, "translated:Source");
+  assert.match(parts.resultText, /translated:Half damage\./);
+});
+
 test("station action cards expose the shared result text without replacing source text or visuals", async () => {
   installFoundryMock();
   const { postActionCard } = await import("../../scripts/chat/chat-cards.mjs");

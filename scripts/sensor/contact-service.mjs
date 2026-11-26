@@ -192,7 +192,8 @@ export async function addSensorContact(combat, spec, deps = {}) {
     )
       throw new Error(T("SF2eTSC.contactEditor.invalidSource"));
     const visible = actorVisibleToPlayers(source);
-    if (isStarship(source) && readStarship(source).role === "player" && !visible) throw new Error(T("SF2eTSC.privateMap.actorExposed"));
+    if (!forcePublic && isStarship(source) && readStarship(source).role === "player" && !visible)
+      throw new Error(T("SF2eTSC.privateMap.actorExposed"));
     if (!forcePublic && visible && spec.detection !== "identified") throw new Error(T("SF2eTSC.privateMap.actorExposed"));
     const actor = await createMapObjectActor(source, combat, { privateContact: !visible && !forcePublic });
     try {

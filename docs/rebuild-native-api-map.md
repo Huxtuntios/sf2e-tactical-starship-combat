@@ -216,7 +216,7 @@ Current density is already substantial: base font 13 px, map object 11 px, commo
 
 Migrations:
 
-- `DATA_VERSION = 2`; `MIGRATIONS[0]` adds containers/version; `MIGRATIONS[1]` folds station upgrade IDs into ship-wide records (`scripts/engine/migration.mjs`).
+- `DATA_VERSION = 3`; `MIGRATIONS[0]` adds containers/version, `MIGRATIONS[1]` folds station upgrade IDs into ship-wide records, and `MIGRATIONS[2]` repairs a missing base sensor range from a verified frame or size source (`scripts/engine/migration.mjs`).
 - Active GM runs world migration once; `readStarship` also migrates in memory.
 - `worldFixVersion = 6` repairs icons, inline links and `starship` tags.
 - New module Actors receive the current system schema stamp; old module Actors without one are stamped, never downgraded.

@@ -28,8 +28,8 @@
 
   <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.edit.statistics"}}</h4>
     <div class="tsc-row-inputs">
-      <label>{{localize "SF2eTSC.ui.hullPoints"}} <input type="number" data-field="hp.value" value="{{ship.hp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="hp.max" value="{{ship.hp.max}}" min="1" {{#unless isGM}}disabled{{/unless}}></label>
-      <label>{{localize "SF2eTSC.ui.shieldPoints"}} <input type="number" data-field="sp.value" value="{{ship.sp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="sp.max" value="{{ship.sp.max}}" min="0" {{#unless isGM}}disabled{{/unless}}></label>
+      <label>{{localize "SF2eTSC.ui.hullPoints"}} <input type="number" data-field="hp.value" value="{{ship.hp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="hp.max" value="{{ship.hp.max}}" min="1" aria-label="{{localize 'SF2eTSC.ui.maxHull'}}" {{#unless isGM}}disabled{{/unless}}></label>
+      <label>{{localize "SF2eTSC.ui.shieldPoints"}} <input type="number" data-field="sp.value" value="{{ship.sp.value}}" min="0" {{#unless isGM}}disabled{{/unless}}> / <input type="number" data-field="sp.max" value="{{ship.sp.max}}" min="0" aria-label="{{localize 'SF2eTSC.ui.maxShield'}}" {{#unless isGM}}disabled{{/unless}}></label>
       <label>{{localize "SF2eTSC.ui.ac"}} <input type="number" data-field="ac" value="{{ship.ac}}"></label>
       <label>{{localize "SF2eTSC.ui.fortitude"}} <input type="number" data-field="fort" value="{{ship.fort}}"></label>
       <label>{{localize "SF2eTSC.ui.reflex"}} <input type="number" data-field="reflex" value="{{ship.reflex}}"></label>
@@ -53,7 +53,7 @@
         <div class="tsc-defense-tags" role="group" aria-label="{{localize 'SF2eTSC.edit.immunities'}}">
           {{#each edit.defenses.immunities.entries}}<span class="tsc-defense-tag" data-defense-tag="{{key}}">
             <span>{{label}}</span>
-            <button type="button" data-action="removeDefenseEntry" data-defense-kind="immunities" data-defense-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.removeDefense' name=label}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            <button type="button" data-action="removeDefenseEntry" data-defense-kind="immunities" data-defense-key="{{key}}" aria-label="{{localize 'SF2eTSC.edit.removeDefense' name=label}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
           </span>{{/each}}
           {{#unless edit.defenses.immunities.entries}}<span class="tsc-dim">{{localize "SF2eTSC.edit.noDefenses"}}</span>{{/unless}}
         </div>
@@ -118,7 +118,7 @@
       <td><button type="button" class="danger" data-action="removeListItem" data-list="weapons" data-index="{{@index}}" aria-label="{{localize 'SF2eTSC.edit.remove'}}"><i class="fa-solid fa-trash"></i></button></td>
     </tr>{{/each}}</tbody></table>
     </div>
-    <div class="tsc-row-inputs"><select name="weaponCatalog">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>
+    <div class="tsc-row-inputs"><select name="weaponCatalog" aria-label="{{localize 'SF2eTSC.ui.weaponCatalog'}}">{{#each catalog.weapons}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button type="button" data-action="addWeapon"><i class="fa-solid fa-plus"></i> {{localize "SF2eTSC.ui.addWeapon"}}</button></div>
   </div>
 
   <div class="tsc-gm-box"><h4>{{localize "SF2eTSC.ui.strikes"}}</h4>

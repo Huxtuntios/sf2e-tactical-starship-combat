@@ -89,6 +89,7 @@ export function normalizeStarship(input, { frame = null } = {}) {
   if (!isInt(d.speed) || d.speed < 0) errors.push("speed must be a non-negative integer");
   const rangeInput = Object.hasOwn(input ?? {}, "sensorRange") ? input.sensorRange : undefined;
   const sizeInput = Object.hasOwn(input ?? {}, "size") ? input.size : undefined;
+  if (sizeInput == null && rangeInput == null) d.size = null;
   const range = resolveBaseSensorRange({ ...d, sensorRange: rangeInput, size: sizeInput }, frame);
   d.sensorRange = range.value;
   if (range.source === "invalid") errors.push(range.warning);

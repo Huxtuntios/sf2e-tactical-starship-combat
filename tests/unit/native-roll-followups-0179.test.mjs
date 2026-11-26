@@ -61,6 +61,55 @@ test("cancelled Seek Starships skips builtin resolution and effects", async () =
   assert.equal(getTsc(game.combat).objects[1].detection.party, "hidden");
 });
 
+test("manual Reflex DC resolves a map-only reaction attacker", async () => {
+  installFoundryMock();
+  await loadContentFromDisk();
+  const { addSensorContact } = await import("../../scripts/sensor/contact-service.mjs");
+  const { levelDC } = await import("../../scripts/utils/foundry.mjs");
+  const combat = makeStarshipCombat();
+  const attackerSource = makeShip({ id: "map-reaction-attacker", name: "Map Attacker", role: "npc", level: 16 });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: attackerSource.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  let passedDC;
+  const crew = makeCharacter({ id: "reaction-crew", name: "Reaction Crew", owners: ["p1"] });
+  crew.skills = {
+    crafting: {
+      check: {
+        roll: async (options) => {
+          passedDC = options.dc.value;
+          return { total: 20, degreeOfSuccess: 2, dice: [{ total: 20 }] };
+        }
+      }
+    }
+  };
+  const defender = makeShip({
+    id: "reaction-defender",
+    name: "Reaction Defender",
+    role: "player",
+    level: 3,
+    sp: 10,
+    stations: [{ id: "generator", type: "generator", grade: "tactical", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "generator" }]
+  });
+  combat.flags[M].tsc.objects.push({ key: defender.uuid, actorUuid: defender.uuid, type: "starship", zone: 1, heading: "right" });
+
+  await executeAction({
+    user: game.users.get("gm"),
+    shipUuid: defender.uuid,
+    crewUuid: crew.uuid,
+    stationId: "generator",
+    actionId: "reposition-shield",
+    options: { pendingStrike: { attackerUuid: placement.key }, reaction: true, skipDialog: true }
+  });
+
+  assert.equal(passedDC, levelDC(16));
+});
+
 test("socket acknowledgement gives a long GM dialog a bounded result deadline", async (t) => {
   installFoundryMock();
   t.mock.timers.enable({ apis: ["setTimeout"] });

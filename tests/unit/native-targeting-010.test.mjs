@@ -192,6 +192,34 @@ test("action execution consumes targetUUIDs, ignores a conflicting legacy key, a
   assert.equal(game.messages.contents.filter((m) => m.rolls?.some((r) => r.formula.startsWith("1d20"))).length, 1);
 });
 
+test("manually hidden identified targets remain valid while undetected targets are rejected", async () => {
+  const s = await actionScenario();
+  const hidden = makeShip({ id: "target-hidden", name: "Hidden Target", role: "npc", sp: 10, hp: 20 });
+  s.combat.flags[M].tsc.objects.push({
+    key: hidden.uuid,
+    actorUuid: hidden.uuid,
+    type: "starship",
+    zone: 3,
+    hidden: true,
+    detection: { party: "identified" }
+  });
+  dice(19, 5);
+  const result = await executeAction({
+    ...s.payload,
+    user: s.user,
+    options: { targetUUIDs: [hidden.uuid] }
+  });
+  assert.deepEqual(result.summary.targetUUIDs, [hidden.uuid]);
+  await assert.rejects(
+    executeAction({
+      ...s.payload,
+      user: s.user,
+      options: { targetUUIDs: [s.undetected.uuid] }
+    }),
+    /targetUndetected|undetected/i
+  );
+});
+
 test("starship attacks accept a hazard target and damage its native Hull Points", async () => {
   const s = await actionScenario();
   const hazard = new MockActor({

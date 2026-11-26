@@ -42,6 +42,7 @@ import { moduleSetting, isActiveGM, T } from "./utils/foundry.mjs";
 import { systemSupport, missingStarfinderSkills } from "./utils/system.mjs";
 import { syncPrivateProjections } from "./sensor/private-contacts.mjs";
 import { registerNativeTargeting } from "./ui/targeting.mjs";
+import { sanitizePublicMapActors } from "./sensor/map-object.mjs";
 
 let enabled = false;
 
@@ -147,7 +148,10 @@ Hooks.once("ready", async () => {
     await guarded("migration", migrateAll);
     await guarded("world repair", repairWorld);
     await guarded("schema stamp", stampSystemSchema);
-    for (const combat of game.combats) await guarded("sensor projections", () => syncPrivateProjections(combat));
+    for (const combat of game.combats) {
+      await guarded("sensor projections", () => syncPrivateProjections(combat));
+      await guarded("public sensor projections", () => sanitizePublicMapActors(combat));
+    }
   }
   ui.combat?.render();
 });

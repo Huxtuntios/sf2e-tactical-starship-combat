@@ -33,13 +33,16 @@ export class Draft {
     if (isStarship(actor)) return this.ship(uuid);
     if (actor?.type !== "hazard") throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
     const attributes = actor.system?.attributes ?? {};
+    const hp = foundry.utils.deepClone(attributes.hp ?? { value: 0, max: 0 });
+    const stagedDelta = this.hazards.get(actor.uuid)?.hpDelta ?? 0;
+    if (stagedDelta) hp.value = Math.max(0, Math.min(hp.max, hp.value + stagedDelta));
     return {
       actor,
       data: {
         name: actor.name,
         heading: null,
         effects: [],
-        hp: foundry.utils.deepClone(attributes.hp ?? { value: 0, max: 0 }),
+        hp,
         ac: attributes.ac?.value ?? 0,
         hardness: attributes.hardness ?? 0
       }
@@ -93,7 +96,17 @@ export class Draft {
             undoable: undoable && !!this.auditReason
           })
         );
-      for (const { actor, patch } of this.hazards.values()) writes.push(actor.update(patch));
+      for (const entry of this.hazards.values()) {
+        const actor = (await resolveSensorActor(this.combat, entry.actor.uuid)) ?? entry.actor;
+        const patch = { ...entry.patch };
+        if (entry.hpDelta) {
+          const attributes = actor.system?.attributes ?? {};
+          const current = attributes.hp?.value ?? 0;
+          const max = attributes.hp?.max ?? current;
+          patch["system.attributes.hp.value"] = Math.max(0, Math.min(max, current + entry.hpDelta));
+        }
+        writes.push(actor.update(patch));
+      }
       const results = await Promise.allSettled(writes);
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length) {

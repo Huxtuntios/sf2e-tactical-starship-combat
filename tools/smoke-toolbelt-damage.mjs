@@ -15,6 +15,7 @@ const content = `<!doctype html><meta charset="utf-8">
 <section class="damage-application" id="ship" data-target-uuid="Scene.a.Token.ship" data-target-roll-index="0">
 <strong>Звездолёт</strong><button data-action="target-applyDamage" data-multiplier="1">Урон</button><button data-action="target-applyDamage" data-multiplier="0.5">Половина</button><button data-action="target-shieldBlock">Блок щитом</button></section>
 <section class="damage-application" id="ordinary" data-target-uuid="Scene.a.Token.pc" data-target-roll-index="0"><strong>Обычный персонаж</strong><button data-action="target-applyDamage" data-multiplier="1">Урон</button></section>
+<section class="damage-application" id="healing" data-target-uuid="Scene.a.Token.ship" data-target-roll-index="2"><strong>Лечение звездолёта</strong><button data-action="target-applyDamage" data-multiplier="-1">Исцеление</button></section>
 <section class="damage-application" id="base" data-roll-index="0"><strong>Выбранные токены</strong><button data-action="applyDamage" data-multiplier="1">Урон</button></section>
 </main><pre id="result">waiting</pre>
 <script type="module">
@@ -41,6 +42,7 @@ check('ship-controls-on-own-line',layoutControls.top>=shipRow.querySelector('str
 check('ship-native-buttons-hidden',[...shipRow.querySelectorAll('[data-action]')].every(button=>button.hidden));
 check('ship-native-buttons-not-displayed',[...shipRow.querySelectorAll('[data-action]')].every(button=>getComputedStyle(button).display==='none'));
 check('no-visible-competing-damage-buttons',shipRow.querySelectorAll('[data-action]:not([hidden])').length===0);
+check('ship-healing-button-visible',!el.querySelector('#healing [data-multiplier="-1"]').hidden);
 check('multiplier-select-kept',!!shipRow.querySelector('select.tsc-ship-damage-multiplier'));
 check('multiplier-select-labeled',!!shipRow.querySelector('select.tsc-ship-damage-multiplier')?.getAttribute('aria-label'));
 shipRow.querySelector('[data-action="target-applyDamage"]').click();await wait();
@@ -52,18 +54,24 @@ reset();shipRow.querySelector('[data-multiplier="0.5"]').click();await wait();
 check('native-half-through-shields',calls.length===3&&calls[2].mode==='shields'&&calls[2].multiplier===0.5&&nativeClicks===0);
 el.querySelector('#ordinary button').click();await wait();
 check('ordinary-native-listener-preserved',nativeClicks===1&&calls.length===3);
+reset();message.flags['pf2e-toolbelt']={betterChat:{mergeDamage:true}};const beforeBetterNative=nativeClicks;el.querySelector('#ordinary button').click();await wait();
+check('ordinary-betterchat-native-preserved',nativeClicks===beforeBetterNative+1&&calls.length===3);
+const beforeBetterShip=calls.length;shipRow.querySelector('[data-action="target-applyDamage"]').click();await wait();
+check('starship-betterchat-still-rejected',calls.length===beforeBetterShip&&nativeClicks===beforeBetterNative+1&&warnings.length===1);delete message.flags['pf2e-toolbelt'];
 reset();const late=document.createElement('section');late.className='damage-application';late.dataset.targetUuid=shipToken.uuid;late.dataset.targetRollIndex='1';late.innerHTML='<button data-action="target-applyDamage" data-multiplier="1">Урон 2</button>';el.append(late);await wait();
 check('late-toolbelt-row-observed',late.querySelectorAll('[data-tsc-ship-damage]').length===2);
 const beforeLate=calls.length; late.querySelector('[data-action]').addEventListener('click',()=>nativeClicks++); late.querySelector('[data-action]').click();await wait();
-check('late-target-roll-index',calls.length===beforeLate+1&&calls.at(-1).rollIndex===1&&calls.at(-1).targetUuid===shipToken.uuid&&nativeClicks===1);
+check('late-target-roll-index',calls.length===beforeLate+1&&calls.at(-1).rollIndex===1&&calls.at(-1).targetUuid===shipToken.uuid&&nativeClicks===2);
 reset();targets.delete(shipToken.uuid);binding.refresh();const beforeMissing=calls.length;shipRow.querySelector('[data-action="target-applyDamage"]').click();await wait();
-check('known-ship-unresolved-fails-closed',calls.length===beforeMissing&&nativeClicks===1&&warnings.length===1);targets.set(shipToken.uuid,shipToken);binding.refresh();
+check('known-ship-unresolved-fails-closed',calls.length===beforeMissing&&nativeClicks===2&&warnings.length===2);targets.set(shipToken.uuid,shipToken);binding.refresh();
 selection=[shipToken,pcToken];binding.refresh();const before=calls.length;el.querySelector('#base [data-action]').click();await wait();
-check('mixed-base-selection-blocked',calls.length===before&&nativeClicks===1&&warnings.length===2);
+check('mixed-base-selection-blocked',calls.length===before&&nativeClicks===2&&warnings.length===3);
 selection=[shipToken];binding.refresh();el.querySelector('#base [data-action]').click();await wait();
-check('native-base-ship-routed',calls.length===before+1&&nativeClicks===1);
+check('native-base-ship-routed',calls.length===before+1&&nativeClicks===2);
 reset();shipRow.querySelector('[data-action="target-shieldBlock"]').click();await wait();
-check('personal-shield-not-ship-shields',calls.length===before+1&&warnings.length===3);
+check('personal-shield-not-ship-shields',calls.length===before+1&&warnings.length===4);
+const beforeHealingCalls=calls.length;const beforeHealingNative=nativeClicks;el.querySelector('#healing [data-multiplier="-1"]').click();await wait();
+check('native-healing-reachable',calls.length===beforeHealingCalls&&nativeClicks===beforeHealingNative+1);
 binding.close();const closed=document.createElement('section');closed.className='damage-application';closed.dataset.targetUuid=shipToken.uuid;el.append(closed);await wait();
 check('observer-cleanup',!closed.querySelector('.tsc-ship-damage-controls'));
 document.querySelector('#result').textContent=JSON.stringify({checks,passed:checks.every(check=>check.pass)});
