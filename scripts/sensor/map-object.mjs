@@ -505,6 +505,7 @@ export class MapObjectActor {
     const data = clone(this._data);
     data._id = foundry.utils.randomID(16);
     const document = new ActorClass(data, { strict: false });
+    Object.defineProperty(document, "uuid", { configurable: true, get: () => this.uuid });
     const sheet = document.sheet;
     if (!sheet) return null;
     const entry = { actor: this, document, sheet, pending: false };

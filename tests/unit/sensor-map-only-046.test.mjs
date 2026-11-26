@@ -743,6 +743,7 @@ test("repeated map-only sheet opens reuse one stable per-placement document and 
   assert.strictEqual(first.sheet.document, second.sheet.document);
   assert.ok(first.sheet.document.id);
   assert.equal(first.sheet.document.id.length, 16);
+  assert.equal(first.sheet.document.uuid, placement.key);
   const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
   const open = SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet;
   await open.call({}, {}, { dataset: { key: placement.key } });
