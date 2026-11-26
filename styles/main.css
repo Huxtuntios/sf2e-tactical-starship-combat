@@ -160,12 +160,31 @@
   min-block-size: 24px;
   max-inline-size: 100%;
 }
+.tsc-auto-action-object {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  align-items: center;
+  min-block-size: 24px;
+  white-space: nowrap;
+}
+.tsc-auto-action-object input {
+  margin: 0;
+  accent-color: var(--tsc-accent);
+}
+.tsc-auto-action-object input:focus-visible {
+  outline: 2px solid var(--tsc-accent);
+  outline-offset: 2px;
+}
 .tsc-action-position {
   max-inline-size: 100%;
   overflow-wrap: anywhere;
 }
 @media (pointer: coarse) {
   .tsc-action-object-picker select {
+    min-block-size: 44px;
+  }
+  .tsc-auto-action-object {
     min-block-size: 44px;
   }
 }

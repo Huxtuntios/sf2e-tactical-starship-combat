@@ -150,6 +150,8 @@
       "activeEffects": "Активные эффекты",
       "actionObject": "Объект действий",
       "actionObjectHint": "Выберите звездолёт или хазард для действий ГМа.",
+      "autoActionObject": "Автовыбор",
+      "autoActionObjectHint": "Следовать за текущим ходом инициативы.",
       "addObject": "Добавить объект",
       "addStation": "Добавить станцию",
       "addWeapon": "Добавить оружие",

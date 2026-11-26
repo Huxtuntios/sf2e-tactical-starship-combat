@@ -45,6 +45,7 @@ for (const lang of ["en", "ru"]) {
   const context = {
     noCombat: false,
     isGM: true,
+    autoActionSelection: true,
     combat: { round: 2, turn: longName },
     zoneCount: 3,
     showRanges: false,
@@ -120,8 +121,49 @@ const labels=${JSON.stringify(labels)},templates=${JSON.stringify(templates)},co
 Handlebars.registerHelper('localize',key=>labels[key]??key);
 const root=document.querySelector('#app'),content=root.querySelector('.window-content');
 for(const part of ['bar','zones','detail','dock']){const wrapper=document.createElement('template');wrapper.innerHTML=Handlebars.compile(templates[part])(context);const element=wrapper.content.firstElementChild;element.dataset.applicationPart=part;content.append(element);}
-const select=document.querySelector('[data-tsc-action-object]');
+const select=document.querySelector('[data-tsc-action-object]'),toggle=document.querySelector('[data-tsc-auto-action-object]');
 select.addEventListener('change',()=>{globalThis.fixtureSelection=select.value;});
+const M='sf2e-tactical-starship-combat',combatId='fixture-combat';
+const combatants={
+ 'map-npc':{id:'map-turn',flags:{[M]:{sensorMapObject:{combatId,key:'map-npc'}}}},
+ player:{id:'player-turn',flags:{[M]:{sensorMapObject:{combatId,key:'player'}}}},
+ hazard:{id:'hazard-turn',flags:{[M]:{sensorMapObject:{combatId,key:'hazard'}}}}
+};
+const combat={id:combatId,round:1,combatant:combatants['map-npc'],flags:{[M]:{tsc:{enabled:true}}}};
+globalThis.game={system:{id:'sf2e'},user:{isGM:true},combat,combats:[combat],actors:new Map(),users:new Map(),modules:new Map(),time:{worldTime:100},settings:{get:()=>false,set:async()=>{}},socket:{connected:true},i18n:{lang:'${lang}',has:key=>Object.hasOwn(labels,key),localize:key=>labels[key]??key,format:(key,data)=>Object.entries(data??{}).reduce((text,[name,value])=>text.replaceAll('{'+name+'}',value),labels[key]??key)}};
+globalThis.ui={notifications:{info(){},warn(){},error(){}}};
+globalThis.Hooks={on:()=>1,off:()=>{},callAll:()=>{}};
+globalThis.CONFIG={PF2E:{skills:{},damageTypes:{}}};
+globalThis.CONST={DOCUMENT_OWNERSHIP_LEVELS:{NONE:0,LIMITED:1,OBSERVER:2,OWNER:3}};
+globalThis.canvas={tokens:{controlled:[]}};
+globalThis.fromUuidSync=()=>null;globalThis.fromUuid=async()=>null;
+let sequence=0;
+globalThis.foundry={utils:{randomID:()=>String(++sequence),deepClone:structuredClone,escapeHTML:text=>String(text??'')},applications:{api:{ApplicationV2:class{},HandlebarsApplicationMixin:Base=>Base,DialogV2:class{}},ux:{TextEditor:{implementation:{enrichHTML:async text=>text}}}}};
+const gmUi=await import('${rootUrl}/scripts/ui/sensor-gm-ui.mjs');
+const {wireSensorMapDragDrop}=await import('${rootUrl}/scripts/ui/sensor-drop-ui.mjs');
+const fixtureView=context.actionObjects.map(object=>({...object,actorUuid:object.key,name:object.label}));
+const fixture={app:null,combat,combatants,requests:[],clicks:0,contextmenuPropagations:0,renders:0,
+ setTurn(key,round=combat.round){combat.round=round;combat.combatant=combatants[key];},
+ async flush(){for(let index=0;index<12;index++)await Promise.resolve();await new Promise(requestAnimationFrame);},
+ async reset(){game.user.isGM=true;combat.round=1;combat.combatant=combatants['map-npc'];fixture.app.autoActionSelection=true;fixture.app.gmActionOverride=null;fixture.app.actionObjectKey='map-npc';fixture.app.selected='hazard';game.user.targets=new Set(['native-target']);fixture.requests.length=0;fixture.clicks=0;fixture.contextmenuPropagations=0;await fixture.app.render();},
+ render:async()=>fixture.app.render()
+};
+const app={element:root,actionObjectKey:'map-npc',autoActionSelection:true,selected:'hazard',async render(){
+ fixture.renders++;
+ const selection=gmUi.gmActionSelection(fixtureView,app.actionObjectKey,true,app);
+ app.actionObjectKey=selection.actionObjectKey;
+ select.value=app.actionObjectKey??'';
+ toggle.checked=app.autoActionSelection;
+ toggle.setAttribute('aria-checked',String(app.autoActionSelection));
+ root.querySelectorAll('.tsc-obj[data-object-key]').forEach(object=>object.classList.toggle('action-selected',object.dataset.objectKey===app.actionObjectKey));
+}};
+fixture.app=app;globalThis.fixture=fixture;
+game.user.targets=new Set(['native-target']);
+root.addEventListener('click',()=>fixture.clicks++);
+document.addEventListener('contextmenu',()=>fixture.contextmenuPropagations++);
+await app.render();
+gmUi.wireGmActionControls(app);
+wireSensorMapDragDrop(root,{combatId,movableKeys:['player','map-npc','hazard'],privateKeys:[]},{send:async(type,payload)=>fixture.requests.push({type,payload})});
 globalThis.measureGmActions=()=>{
  const checks=[];const check=(name,pass)=>checks.push({name,pass:!!pass});
  const action=document.querySelector('[data-object-key="map-npc"]'),target=document.querySelector('[data-object-key="player"]'),ordinary=document.querySelector('[data-object-key="hazard"]');
@@ -134,8 +176,12 @@ globalThis.measureGmActions=()=>{
  const positionLabel=labels['SF2eTSC.ui.mapPosition'].replace('{zone}','3').replace('{position}','1');
  check('zone-order-label',select.selectedOptions[0].textContent.endsWith(positionLabel)&&!document.querySelector('.tsc-action-position'));
  check('effects-entry',document.querySelector('[data-action="manageEffects"]')?.dataset.shipUuid==='map-npc');
- const selectRect=select.getBoundingClientRect(),rootRect=root.getBoundingClientRect();
+ const selectRect=select.getBoundingClientRect(),rootRect=root.getBoundingClientRect(),toggleLabel=toggle.closest('label'),toggleRect=toggleLabel.getBoundingClientRect();
  check('selector-contained',selectRect.width>=24&&selectRect.height>=24&&selectRect.right<=rootRect.right+1);
+ check('auto-toggle-default',toggle.checked&&toggle.getAttribute('role')==='switch'&&toggle.getAttribute('aria-checked')==='true');
+ check('auto-toggle-label',toggle.labels.length===1&&toggleLabel.textContent.includes(labels['SF2eTSC.ui.autoActionObject']));
+ check('auto-toggle-adjacent',select.closest('.tsc-action-object-picker').nextElementSibling===toggleLabel);
+ check('auto-toggle-contained',toggleRect.height>=24&&toggleRect.right<=rootRect.right+1);
  check('page-no-horizontal-overflow',document.documentElement.scrollWidth<=globalThis.innerWidth+1);
  check('bar-no-horizontal-overflow',document.querySelector('.tsc-map-bar').scrollWidth<=document.querySelector('.tsc-map-bar').clientWidth+1);
  check('dock-no-horizontal-overflow',document.querySelector('.tsc-dock').scrollWidth<=document.querySelector('.tsc-dock').clientWidth+1);

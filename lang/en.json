@@ -145,6 +145,8 @@
       "activeEffects": "Active effects",
       "actionObject": "Action object",
       "actionObjectHint": "Select a starship or hazard for GM actions.",
+      "autoActionObject": "Auto-select",
+      "autoActionObjectHint": "Follow the current initiative turn.",
       "addObject": "Add object",
       "addStation": "Add station",
       "addWeapon": "Add weapon",

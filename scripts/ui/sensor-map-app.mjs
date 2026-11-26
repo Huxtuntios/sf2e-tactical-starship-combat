@@ -34,7 +34,7 @@ import { normalizeMapAppearance, safeImagePath, resolveArrowAppearance, visualTr
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 import { registerSensorHandlers as registerBaseSensorHandlers } from "../sensor/map-handlers.mjs";
-import { gmActionSelection, openGmEffectManager, selectGmActionObject, wireGmActionObject } from "./sensor-gm-ui.mjs";
+import { gmActionSelection, openGmEffectManager, selectGmActionObject, wireGmActionControls } from "./sensor-gm-ui.mjs";
 
 export { PLAYER_SENSOR_OPS, userControlsShip, canMoveKey, observerKeys, applySensorOp } from "../sensor/map-model.mjs";
 
@@ -240,7 +240,12 @@ export class SensorMapApplication extends TscApp {
       ownKeys: own,
       resolve: (uuid) => resolveSensorActorSync(combat, uuid)
     });
-    const { actionObjects, actionSelection, actionObjectKey } = gmActionSelection(view, this.actionObjectKey, isGM);
+    const { actionObjects, actionSelection, actionObjectKey, autoActionSelection } = gmActionSelection(
+      view,
+      this.actionObjectKey,
+      isGM,
+      this
+    );
     this.actionObjectKey = actionObjectKey;
     this.actorCache.setVisible(view, game.user);
     const resolved = new Map();
@@ -286,6 +291,7 @@ export class SensorMapApplication extends TscApp {
       isGM,
       actionObjects,
       actionSelection,
+      autoActionSelection,
       rangeMode: rangePresentation.rangeMode,
       showRanges: this.showRanges,
       sensorRanges: rangePresentation.ranges,
@@ -586,7 +592,7 @@ export class SensorMapApplication extends TscApp {
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
     this.#syncTargetingControls();
-    wireGmActionObject(this, (event, select) => SensorMapApplication.#selectActionObject.call(this, event, select));
+    wireGmActionControls(this);
     this.#wireGmEdit();
     this.#wirePrivateZone();
     this.element.querySelectorAll("details.tsc-gm-tools").forEach((d) => {

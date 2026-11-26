@@ -79,6 +79,7 @@ async function scenario({ isGM = true } = {}) {
     publicActor: true
   });
   const app = new SensorMapApplication();
+  app.autoActionSelection = false;
   if (!isGM) game.user = game.users.get("p1");
   return { app, combat, player, nativeTarget, npcSource, npc, simpleSource, simple, complexSource, complex, Targeting };
 }

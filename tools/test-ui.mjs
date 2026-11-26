@@ -200,6 +200,103 @@ try {
           const keyboardFocus = await select.evaluate((element) => globalThis.document.activeElement !== element);
           result.checks.push({ name: "native-select-keyboard-selection", pass: keyboardSelection });
           result.checks.push({ name: "native-select-keyboard-focus", pass: focusVisible && keyboardFocus });
+          const toggle = page.locator("[data-tsc-auto-action-object]");
+          await toggle.focus();
+          const toggleFocusVisible = await toggle.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+          await toggle.press("Space");
+          await page.waitForFunction(() => globalThis.fixture.app.autoActionSelection === false);
+          const disabledState = await page.evaluate(async () => {
+            globalThis.fixture.setTurn("player");
+            await globalThis.fixture.render();
+            await globalThis.fixture.render();
+            return { auto: globalThis.fixture.app.autoActionSelection, selected: globalThis.fixture.app.actionObjectKey };
+          });
+          await toggle.press("Space");
+          await page.waitForFunction(() => globalThis.fixture.app.autoActionSelection === true);
+          const enabledState = await page.evaluate(() => ({
+            auto: globalThis.fixture.app.autoActionSelection,
+            selected: globalThis.fixture.app.actionObjectKey
+          }));
+          result.checks.push(
+            { name: "auto-toggle-keyboard-focus", pass: toggleFocusVisible },
+            { name: "auto-toggle-off-persists", pass: disabledState.auto === false && disabledState.selected === "hazard" },
+            { name: "auto-toggle-on-synchronizes", pass: enabledState.auto === true && enabledState.selected === "player" }
+          );
+          const interactionChecks = await page.evaluate(async () => {
+            const fixture = globalThis.fixture;
+            const checks = [];
+            const check = (name, pass) => checks.push({ name, pass: !!pass });
+            const rightClick = (key) => {
+              const object = globalThis.document.querySelector(`[data-object-key="${key}"]`);
+              const event = new globalThis.MouseEvent("contextmenu", { button: 2, bubbles: true, cancelable: true });
+              return { object, dispatched: object.dispatchEvent(event) };
+            };
+            await fixture.reset();
+            const before = {
+              selected: fixture.app.selected,
+              targets: [...game.user.targets],
+              requests: fixture.requests.length,
+              clicks: fixture.clicks
+            };
+            const rmb = rightClick("player");
+            await fixture.flush();
+            check("rmb-selects-action-object", rmb.dispatched === false && fixture.app.actionObjectKey === "player");
+            check("rmb-consumes-contextmenu", fixture.contextmenuPropagations === 0);
+            check(
+              "rmb-no-native-side-effects",
+              fixture.app.selected === before.selected && JSON.stringify([...game.user.targets]) === JSON.stringify(before.targets)
+            );
+            check("rmb-no-click-action-or-request", fixture.clicks === before.clicks && fixture.requests.length === before.requests);
+            await fixture.render();
+            check("rmb-override-survives-rerender", fixture.app.actionObjectKey === "player" && fixture.app.autoActionSelection);
+            fixture.setTurn("hazard");
+            await fixture.render();
+            check("rmb-override-resumes-next-turn", fixture.app.actionObjectKey === "hazard");
+            await fixture.reset();
+            rightClick("player");
+            await fixture.flush();
+            fixture.setTurn("hazard", 2);
+            await fixture.render();
+            check("rmb-override-resumes-next-round", fixture.app.actionObjectKey === "hazard");
+            await fixture.reset();
+            const invalid = rightClick("hazard-2");
+            check("rmb-invalid-object-passthrough", invalid.dispatched === true && fixture.app.actionObjectKey === "map-npc");
+            game.user.isGM = false;
+            const player = rightClick("player");
+            check("rmb-non-gm-passthrough", player.dispatched === true && fixture.app.actionObjectKey === "map-npc");
+            await fixture.reset();
+            rightClick("player");
+            await fixture.flush();
+            const object = globalThis.document.querySelector('[data-object-key="player"]');
+            const values = {};
+            const dataTransfer = {
+              effectAllowed: "",
+              setData(type, value) {
+                values[type] = value;
+              },
+              getData(type) {
+                return values[type] ?? "";
+              }
+            };
+            const dragStart = new Event("dragstart", { bubbles: true, cancelable: true });
+            Object.defineProperty(dragStart, "dataTransfer", { value: dataTransfer });
+            const dragAllowed = object.dispatchEvent(dragStart);
+            const drop = new Event("drop", { bubbles: true, cancelable: true });
+            Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+            globalThis.document.querySelector('.tsc-zone[data-zone="2"]').dispatchEvent(drop);
+            await fixture.flush();
+            check("rmb-preserves-drag-start", object.draggable && dragAllowed && dataTransfer.effectAllowed === "move");
+            check(
+              "rmb-preserves-drop",
+              fixture.requests.length === 1 &&
+                fixture.requests[0].type === "sensorUpdate" &&
+                fixture.requests[0].payload.op === "move" &&
+                fixture.requests[0].payload.key === "player" &&
+                fixture.requests[0].payload.zone === 2
+            );
+            return checks;
+          });
+          result.checks.push(...interactionChecks);
           result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "effect-targets") {
