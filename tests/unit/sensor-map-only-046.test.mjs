@@ -707,6 +707,7 @@ test("GM can save map-only sheet edits to the snapshot and refresh the open shee
   app.selected = placement.key;
   try {
     const context = await app._prepareContext({ parts: ["bar", "zones", "detail"] });
+    assert.equal(context.detail.label, "Saved snapshot");
     assert.equal(context.detail.vitals.hp, 7);
     assert.equal(context.detail.rows.find((row) => row.k === game.i18n.localize("SF2eTSC.ui.ac"))?.v, 19);
   } finally {

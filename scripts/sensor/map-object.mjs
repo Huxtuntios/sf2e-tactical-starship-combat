@@ -136,7 +136,7 @@ async function syncPublicMapActor(record) {
     objects: state.objects.map((object) => {
       if (object.key !== record.key) return object;
       const { publicActor: _previous, ...rest } = object;
-      return publicActor ? { ...rest, publicActor } : rest;
+      return { ...rest, name: record.data.name, ...(publicActor ? { publicActor } : {}) };
     })
   }));
 }
