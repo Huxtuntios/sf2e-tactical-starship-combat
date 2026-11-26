@@ -597,7 +597,8 @@ export class MapObjectActor {
   }
 
   isOfType(...types) {
-    return types.includes(this.type);
+    if (types.includes("creature") && ["character", "npc", "familiar"].includes(this.type)) return true;
+    return this.#preparedDocument()?.isOfType?.(...types) ?? types.includes(this.type);
   }
 
   get itemTypes() {

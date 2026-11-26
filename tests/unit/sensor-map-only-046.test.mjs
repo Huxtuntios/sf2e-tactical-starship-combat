@@ -664,7 +664,7 @@ function installSnapshotConditionFixture() {
     async updateConditionValue(itemId, actor, value) {
       const item = actor.items.get(itemId);
       if (value === 0) await item.delete();
-      else await item.update({ "system.value.value": value });
+      else if (actor.isOfType("creature")) await item.update({ "system.value.value": value });
     }
   };
 }
