@@ -339,7 +339,7 @@ class SnapshotItem {
   }
 
   get uuid() {
-    return `Actor.${this.#actor.uuid}.Item.${this.id}`;
+    return this.#actor.preparedItem(this.id)?.uuid ?? `Actor.${this.#actor.uuid}.Item.${this.id}`;
   }
 
   getRollOptions(domains = []) {
@@ -503,7 +503,7 @@ export class MapObjectActor {
     const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
     if (!ActorClass) return null;
     const data = clone(this._data);
-    data._id = this.id;
+    data._id = foundry.utils.randomID(16);
     const document = new ActorClass(data, { strict: false });
     const sheet = document.sheet;
     if (!sheet) return null;

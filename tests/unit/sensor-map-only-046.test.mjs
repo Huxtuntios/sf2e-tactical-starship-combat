@@ -477,8 +477,8 @@ function installSnapshotSheetMock() {
   }
   class TestActorDocument {
     constructor(data) {
-      this.id = data._id;
-      this.uuid = `Actor.${this.id}`;
+      this.id = typeof data._id === "string" && data._id.length === 16 ? data._id : null;
+      this.uuid = this.id ? `Actor.${this.id}` : null;
       this.name = data.name;
       this.type = data.type;
       this._source = structuredClone(data);
@@ -741,6 +741,8 @@ test("repeated map-only sheet opens reuse one stable per-placement document and 
 
   assert.strictEqual(first.sheet, second.sheet);
   assert.strictEqual(first.sheet.document, second.sheet.document);
+  assert.ok(first.sheet.document.id);
+  assert.equal(first.sheet.document.id.length, 16);
   const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
   const open = SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet;
   await open.call({}, {}, { dataset: { key: placement.key } });
