@@ -440,10 +440,10 @@ test("ambiguous source Actor aliases require an explicit placed-copy UUID", asyn
 
 function installSnapshotSheetMock() {
   const renders = [];
-  const submits = [];
   class TestActorSheet {
     constructor(document) {
       this.document = document;
+      this.rendered = false;
     }
 
     get isEditable() {
@@ -455,20 +455,36 @@ function installSnapshotSheetMock() {
     }
 
     async render(...args) {
-      renders.push(args.at(-1));
+      renders.push({ sheet: this, options: args.at(-1) });
+      this.rendered = true;
+      return this;
     }
 
-    async submit() {
-      if (!this.isEditable) return;
-      submits.push(true);
-      throw new Error("Document creation from TestActorSheet is not supported.");
+    async close() {
+      this.rendered = false;
+    }
+
+    async _processSubmitData(_event, _form, submitData) {
+      if (!this.isEditable) return {};
+      if (!this.document.collection?.has(this.document.id)) throw new Error("Document creation from TestActorSheet is not supported.");
+      return { updated: await this.document.update(submitData) };
+    }
+
+    async submit(submitData) {
+      if (!this.isEditable) return {};
+      return this._processSubmitData(null, null, submitData);
     }
   }
   class TestActorDocument {
     constructor(data) {
-      this.data = data;
-      this.system = data.system;
-      this.ownership = data.ownership;
+      this.id = data._id;
+      this.uuid = `Actor.${this.id}`;
+      this.name = data.name;
+      this.type = data.type;
+      this._source = structuredClone(data);
+      this.data = structuredClone(data);
+      this.system = this.data.system;
+      this.ownership = this.data.ownership;
       this.sheet = new TestActorSheet(this);
     }
 
@@ -476,9 +492,18 @@ function installSnapshotSheetMock() {
       const granted = this.ownership?.[user?.id] ?? this.ownership?.default ?? 0;
       return granted >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
     }
+
+    updateSource(data) {
+      this._source = structuredClone(data);
+      this.data = structuredClone(data);
+      this.name = this.data.name;
+      this.type = this.data.type;
+      this.system = this.data.system;
+      this.ownership = this.data.ownership;
+    }
   }
   CONFIG.Actor = { documentClass: TestActorDocument };
-  return { renders, submits };
+  return { renders };
 }
 
 function installSnapshotConditionFixture() {
@@ -510,40 +535,85 @@ function installSnapshotConditionFixture() {
   };
 }
 
-test("map-only actors expose a genuinely read-only snapshot sheet context", async () => {
+test("GM can save map-only sheet edits to the snapshot and refresh the open sheet and Sensor Map", async () => {
   const combat = setup();
   const source = makeShip({ id: "sheet-source", name: "sheet-source", role: "player", owners: ["p1"], hp: 31, sp: 14 });
-  const placement = await addSensorContact(combat, {
-    source: "world",
-    uuid: source.uuid,
-    zone: 2,
-    detection: "identified"
-  });
+  const before = source.toObject();
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "identified" });
   const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
   const actor = resolveSensorActorSync(combat, placement.key);
+  const sheet = actor.sheet;
 
-  assert.equal(actor.sheet.document.system.attributes.hp.value, 31);
-  assert.equal(actor.sheet.isEditable, false);
-  assert.deepEqual(await actor.sheet._prepareContext(), { document: actor.sheet.document, editable: false });
+  assert.equal(sheet.isEditable, true);
+  assert.deepEqual(await sheet._prepareContext(), { document: sheet.document, editable: true });
+  await sheet.render(true);
+  await sheet.submit({
+    name: "Saved snapshot",
+    "system.attributes.hp.value": 7,
+    [`flags.${MODULE_ID}.starship.ac`]: 19,
+    [`flags.${MODULE_ID}.starship.speed`]: 9
+  });
+
+  const stored = mapObjectSources(combat.id)[placement.key].data;
+  assert.equal(stored.name, "Saved snapshot");
+  assert.equal(stored.system.attributes.hp.value, 7);
+  assert.equal(stored.flags[MODULE_ID].starship.ac, 19);
+  assert.equal(stored.flags[MODULE_ID].starship.speed, 9);
+  assert.equal(sheet.document.name, "Saved snapshot");
+  assert.equal(sheet.document.system.attributes.hp.value, 7);
+  assert.equal(renders.filter((entry) => entry.sheet === sheet).length, 2);
+  assert.equal(renders.at(-1).options, true);
+  assert.deepEqual(source.toObject(), before);
+  assert.equal(game.actors.size, 1);
+
   const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
-  await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: placement.key } });
-  assert.deepEqual(renders, [{ editable: false }]);
-
-  const worldRenders = [];
-  source.sheet = { render: async (...args) => worldRenders.push(args.at(-1)) };
-  await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: source.uuid } });
-  assert.deepEqual(worldRenders, [undefined]);
+  const app = new SensorMapApplication();
+  app.selected = placement.key;
+  try {
+    const context = await app._prepareContext({ parts: ["bar", "zones", "detail"] });
+    assert.equal(context.detail.vitals.hp, 7);
+    assert.equal(context.detail.rows.find((row) => row.k === game.i18n.localize("SF2eTSC.ui.ac"))?.v, 19);
+  } finally {
+    app._cleanup();
+  }
 });
 
-test("map-only snapshot sheet submission is a no-op instead of transient Actor creation", async () => {
+test("map-only sheet writes reject non-GM users even when they own the public projection", async () => {
   const combat = setup();
-  const source = ship("sheet-submit-source");
-  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
-  const { submits } = installSnapshotSheetMock();
+  const source = ship("sheet-permission-source", { owners: ["p1"] });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "identified" });
+  installSnapshotSheetMock();
   const actor = resolveSensorActorSync(combat, placement.key);
+  const sheet = actor.sheet;
+  game.user = game.users.get("p1");
 
-  await assert.doesNotReject(actor.sheet.submit());
-  assert.deepEqual(submits, []);
+  assert.equal(sheet.isEditable, false);
+  assert.deepEqual(await sheet.submit({ "system.attributes.hp.value": 1 }), {});
+  assert.equal(typeof sheet.document.update, "function");
+  await assert.rejects(sheet.document.update({ "system.attributes.hp.value": 1 }), /active GM|активн.*GM/i);
+  game.user = game.users.get("gm");
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 24);
+});
+
+test("repeated map-only sheet opens reuse one stable per-placement document and window", async () => {
+  const combat = setup();
+  const source = ship("sheet-registry-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const first = resolveSensorActorSync(combat, placement.key);
+  const second = resolveSensorActorSync(combat, placement.key);
+
+  assert.strictEqual(first.sheet, second.sheet);
+  assert.strictEqual(first.sheet.document, second.sheet.document);
+  const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
+  const open = SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet;
+  await open.call({}, {}, { dataset: { key: placement.key } });
+  await open.call({}, {}, { dataset: { key: placement.key } });
+  assert.equal(new Set(renders.map((entry) => entry.sheet)).size, 1);
+  assert.equal(renders.length, 2);
+  assert.equal(game.actors.size, 1);
 });
 
 test("map-only native conditions add, increment, persist and remove through embedded Items", async () => {

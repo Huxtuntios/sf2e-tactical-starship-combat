@@ -861,7 +861,7 @@ export class SensorMapApplication extends TscApp {
     const obj = this._privateObjects?.find((o) => o.key === t.dataset.key);
     if (!obj) return;
     const actor = await resolveSensorActor(activeStarshipCombat(), obj.actorUuid);
-    actor?.sheet?.render(true, actor.mapOnly ? { editable: false } : undefined);
+    actor?.sheet?.render(true);
   }
   static async #remove(e, t) {
     await request("sensorUpdate", { op: "remove", combatId: activeStarshipCombat().id, key: t.dataset.key });
@@ -889,7 +889,7 @@ export class SensorMapApplication extends TscApp {
   }
   static async #openSheet(e, t) {
     const actor = await resolveSensorActor(activeStarshipCombat(), t.dataset.key);
-    actor?.sheet?.render(true, actor.mapOnly ? { editable: false } : undefined);
+    actor?.sheet?.render(true);
   }
   static async #trigger(e, t) {
     await HazardEngine.trigger(t.dataset.key, { reason: T("SF2eTSC.hazards.manualTrigger") });

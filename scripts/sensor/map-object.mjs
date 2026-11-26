@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../constants.mjs";
 import { getTsc, mutateTsc, saveTsc } from "../combat/tsc-state.mjs";
-import { activeGM, fromUuidSafe, fromUuidSync_, T } from "../utils/foundry.mjs";
+import { activeGM, fromUuidSafe, fromUuidSync_, isActiveGM, T } from "../utils/foundry.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { ensurePrivateStore, privateStoreFor, requirePrivateGM } from "./private-store.mjs";
 
@@ -253,6 +253,12 @@ export async function deleteMapObjectSource(combatId, key) {
     });
     requirePrivateGM();
     if (mapObjectSource(combatId, key)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    const registryKey = snapshotSheetKey(combatId, key);
+    const entry = snapshotSheetRegistry.get(registryKey);
+    if (entry) {
+      await closeSnapshotSheet(entry);
+      snapshotSheetRegistry.delete(registryKey);
+    }
     return true;
   });
 }
@@ -359,6 +365,55 @@ class SnapshotItem {
   }
 }
 
+const snapshotSheetRegistry = new Map();
+let snapshotRegistryHooks = null;
+
+function snapshotSheetKey(combatId, key) {
+  return `${combatId}:${key}`;
+}
+
+function syncSnapshotDocument(entry) {
+  const data = entry.actor.toObject();
+  data._id = entry.document.id;
+  entry.document.updateSource(data, { recursive: false, clean: false });
+}
+
+async function refreshSnapshotSheet(entry) {
+  syncSnapshotDocument(entry);
+  if (entry.sheet.rendered) await entry.sheet.render(true);
+}
+
+async function closeSnapshotSheet(entry) {
+  if (entry.sheet.rendered) await entry.sheet.close();
+}
+
+export function registerSnapshotSheetRegistry() {
+  if (snapshotRegistryHooks === Hooks) return;
+  snapshotRegistryHooks = Hooks;
+  const refresh = async (combatId) => {
+    for (const entry of snapshotSheetRegistry.values()) {
+      if (entry.actor.combatId !== combatId || entry.pending) continue;
+      const record = game.user.isGM ? mapObjectSource(combatId, entry.actor.id) : publicMapObjectRecord(combatId, entry.actor.id);
+      if (record) {
+        entry.actor = new MapObjectActor(record);
+        await refreshSnapshotSheet(entry);
+      }
+    }
+  };
+  Hooks.on("updateJournalEntry", (doc) => {
+    const combatId = doc.flags?.[MODULE_ID]?.privateSensor?.combatId;
+    if (combatId) return refresh(combatId);
+  });
+  Hooks.on("updateCombat", (combat) => refresh(combat.id));
+  Hooks.on("deleteCombat", async (combat) => {
+    for (const [key, entry] of snapshotSheetRegistry) {
+      if (entry.actor.combatId !== combat.id) continue;
+      await closeSnapshotSheet(entry);
+      snapshotSheetRegistry.delete(key);
+    }
+  });
+}
+
 function applyUpdate(target, changes) {
   for (const [key, value] of Object.entries(changes)) {
     const parts = key.split(".");
@@ -433,16 +488,41 @@ export class MapObjectActor {
 
   get sheet() {
     if (this.#sheet) return this.#sheet;
+    const registryKey = snapshotSheetKey(this.combatId, this.id);
+    const existing = snapshotSheetRegistry.get(registryKey);
+    if (existing) {
+      existing.actor = this;
+      syncSnapshotDocument(existing);
+      this.#sheet = existing.sheet;
+      return this.#sheet;
+    }
     const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
     if (!ActorClass) return null;
     const data = clone(this._data);
-    data._id = foundry.utils.randomID();
-    const document = new ActorClass(data);
+    data._id = this.id;
+    const document = new ActorClass(data, { strict: false });
     const sheet = document.sheet;
     if (!sheet) return null;
-    Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => false });
-    const render = sheet.render.bind(sheet);
-    sheet.render = (force, options = {}) => render(force, { ...options, editable: false });
+    const entry = { actor: this, document, sheet, pending: false };
+    snapshotSheetRegistry.set(registryKey, entry);
+    document.update = async (changes, options = {}) => {
+      await entry.actor.update(changes, options);
+      return document;
+    };
+    document.setFlag = (scope, key, value) => entry.actor.setFlag(scope, key, value);
+    document.createEmbeddedDocuments = (type, sources, options) => entry.actor.createEmbeddedDocuments(type, sources, options);
+    document.updateEmbeddedDocuments = (type, updates, options) => entry.actor.updateEmbeddedDocuments(type, updates, options);
+    document.deleteEmbeddedDocuments = (type, ids, options) => entry.actor.deleteEmbeddedDocuments(type, ids, options);
+    document.increaseCondition = (condition, options) => entry.actor.increaseCondition(condition, options);
+    document.decreaseCondition = (condition, options) => entry.actor.decreaseCondition(condition, options);
+    document.toggleCondition = (condition, options) => entry.actor.toggleCondition(condition, options);
+    Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => isActiveGM() && entry.actor.isOwner });
+    sheet._processSubmitData = async (_event, _form, submitData, options = {}) => {
+      if (!sheet.isEditable) return {};
+      requirePrivateGM();
+      await entry.actor.update(submitData, options);
+      return { updated: document };
+    };
     this.#sheet = sheet;
     return sheet;
   }
@@ -584,14 +664,23 @@ export class MapObjectActor {
 
   async update(changes, { expectedSource = null } = {}) {
     this.#requireWritable();
-    const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
-    this._data = clone(stored.data);
-    this._record = stored;
-    this.#sheet = null;
-    this.#syncItems();
-    await syncPublicMapActor(stored);
-    Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
-    return this;
+    const entry = snapshotSheetRegistry.get(snapshotSheetKey(this.combatId, this.id));
+    if (entry) {
+      entry.actor = this;
+      entry.pending = true;
+    }
+    try {
+      const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
+      this._data = clone(stored.data);
+      this._record = stored;
+      this.#syncItems();
+      await syncPublicMapActor(stored);
+      Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
+      if (entry) await refreshSnapshotSheet(entry);
+      return this;
+    } finally {
+      if (entry) entry.pending = false;
+    }
   }
 
   async createEmbeddedDocuments(type, sources = [], { keepId = false } = {}) {

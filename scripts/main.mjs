@@ -42,7 +42,7 @@ import { moduleSetting, isActiveGM, T } from "./utils/foundry.mjs";
 import { systemSupport, missingStarfinderSkills } from "./utils/system.mjs";
 import { syncPrivateProjections } from "./sensor/private-contacts.mjs";
 import { registerNativeTargeting } from "./ui/targeting.mjs";
-import { sanitizePublicMapActors } from "./sensor/map-object.mjs";
+import { registerSnapshotSheetRegistry, sanitizePublicMapActors } from "./sensor/map-object.mjs";
 
 let enabled = false;
 
@@ -193,6 +193,7 @@ async function migrateAll() {
 
 /** Document updates / hooks drive every refresh (no polling). */
 function registerRefreshHooks() {
+  registerSnapshotSheetRegistry();
   const tracker = foundry.utils.debounce(() => ui.combat?.render(), 120);
   Hooks.on("preUpdateActor", (actor, changes, options) => {
     if (!isStarship(actor)) return;
