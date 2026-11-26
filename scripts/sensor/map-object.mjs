@@ -341,6 +341,7 @@ export class MapObjectActor {
     const document = new ActorClass(data);
     const sheet = document.sheet;
     if (!sheet) return null;
+    Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => false });
     const render = sheet.render.bind(sheet);
     sheet.render = (force, options = {}) => render(force, { ...options, editable: false });
     this.#sheet = sheet;

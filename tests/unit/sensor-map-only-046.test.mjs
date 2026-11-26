@@ -436,7 +436,50 @@ test("ambiguous source Actor aliases require an explicit placed-copy UUID", asyn
   assert.equal((await resolveSensorActorForAction(combat, second.key)).uuid, second.key);
 });
 
-test("map-only actors expose a read-only snapshot sheet", async () => {
+function installSnapshotSheetMock() {
+  const renders = [];
+  const submits = [];
+  class TestActorSheet {
+    constructor(document) {
+      this.document = document;
+    }
+
+    get isEditable() {
+      return this.document.testUserPermission(game.user, "OWNER");
+    }
+
+    async _prepareContext() {
+      return { document: this.document, editable: this.isEditable };
+    }
+
+    async render(...args) {
+      renders.push(args.at(-1));
+    }
+
+    async submit() {
+      if (!this.isEditable) return;
+      submits.push(true);
+      throw new Error("Document creation from TestActorSheet is not supported.");
+    }
+  }
+  class TestActorDocument {
+    constructor(data) {
+      this.data = data;
+      this.system = data.system;
+      this.ownership = data.ownership;
+      this.sheet = new TestActorSheet(this);
+    }
+
+    testUserPermission(user, level) {
+      const granted = this.ownership?.[user?.id] ?? this.ownership?.default ?? 0;
+      return granted >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
+    }
+  }
+  CONFIG.Actor = { documentClass: TestActorDocument };
+  return { renders, submits };
+}
+
+test("map-only actors expose a genuinely read-only snapshot sheet context", async () => {
   const combat = setup();
   const source = makeShip({ id: "sheet-source", name: "sheet-source", role: "player", owners: ["p1"], hp: 31, sp: 14 });
   const placement = await addSensorContact(combat, {
@@ -445,18 +488,12 @@ test("map-only actors expose a read-only snapshot sheet", async () => {
     zone: 2,
     detection: "identified"
   });
-  const renders = [];
-  class TestActorDocument {
-    constructor(data) {
-      this.data = data;
-      this.system = data.system;
-      this.sheet = { document: this, render: async (...args) => renders.push(args.at(-1)) };
-    }
-  }
-  CONFIG.Actor = { documentClass: TestActorDocument };
+  const { renders } = installSnapshotSheetMock();
   const actor = resolveSensorActorSync(combat, placement.key);
 
   assert.equal(actor.sheet.document.system.attributes.hp.value, 31);
+  assert.equal(actor.sheet.isEditable, false);
+  assert.deepEqual(await actor.sheet._prepareContext(), { document: actor.sheet.document, editable: false });
   const { SensorMapApplication } = await import("../../scripts/ui/sensor-map-app.mjs");
   await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: placement.key } });
   assert.deepEqual(renders, [{ editable: false }]);
@@ -465,6 +502,17 @@ test("map-only actors expose a read-only snapshot sheet", async () => {
   source.sheet = { render: async (...args) => worldRenders.push(args.at(-1)) };
   await SensorMapApplication.DEFAULT_OPTIONS.actions.openSheet.call({}, {}, { dataset: { key: source.uuid } });
   assert.deepEqual(worldRenders, [undefined]);
+});
+
+test("map-only snapshot sheet submission is a no-op instead of transient Actor creation", async () => {
+  const combat = setup();
+  const source = ship("sheet-submit-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const { submits } = installSnapshotSheetMock();
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  await assert.doesNotReject(actor.sheet.submit());
+  assert.deepEqual(submits, []);
 });
 
 test("concurrent map-only handles apply partial updates to the latest record", async () => {
