@@ -205,6 +205,31 @@ test("publication cleanup attempts both operations and preserves the original er
   assert.equal(stateAttempted, true);
 });
 
+test("snapshot deletion failure does not replace the Combat publication error", async () => {
+  const combat = setup();
+  const source = ship("publication-cleanup-delete-failure", { role: "npc" });
+  let journalDeleteAttempted = false;
+  combat.createEmbeddedDocuments = async () => {
+    const store = await ensurePrivateStore(combat.id);
+    store.update = async () => {
+      journalDeleteAttempted = true;
+      throw new Error("journal deletion failed");
+    };
+    throw new Error("publication failed");
+  };
+  await assert.rejects(
+    addSensorContact(combat, {
+      source: "world",
+      uuid: source.uuid,
+      zone: 3,
+      detection: "identified",
+      publicActor: true
+    }),
+    /publication failed/
+  );
+  assert.equal(journalDeleteAttempted, true);
+});
+
 test("repeated private world drops retain separate GM-private map snapshots", async () => {
   const combat = setup();
   const source = ship("private-source");

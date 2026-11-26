@@ -272,7 +272,23 @@ test("concurrent turn processing cannot roll back a newer turn marker", async ()
   };
   try {
     const first = onTurnChange(combat);
-    await started;
+    let deadline;
+    const waitForStarted = async () => {
+      try {
+        await Promise.race([
+          started.then(() => undefined),
+          first.then(() => {
+            throw new Error("turn processing settled before the gated write");
+          }),
+          new Promise((_, reject) => {
+            deadline = setTimeout(() => reject(new Error("timed out waiting for the gated write")), 5000);
+          })
+        ]);
+      } finally {
+        clearTimeout(deadline);
+      }
+    };
+    await waitForStarted();
     combat.round = 2;
     combat.flags[M].tsc.objects = [];
     const second = onTurnChange(combat);

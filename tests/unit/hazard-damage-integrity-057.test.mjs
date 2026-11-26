@@ -32,6 +32,36 @@ test("hazard damage preserves existing all-damage resistance", async () => {
   assert.equal(hazard.system.attributes.hp.value, 15);
 });
 
+test("hazard damage stages the full mitigated amount beyond remaining HP", async () => {
+  const { combat, hazard } = hazardFixture({ hp: 5 });
+  const draft = new Draft(combat);
+  const result = await applyDamageInDraft(draft, hazard.uuid, { amount: 10, damageType: "fire", silent: true });
+  assert.equal(result.mitigatedDamage, 10);
+  assert.equal(result.hullDamage, 5);
+  assert.equal(draft.hazards.get(hazard.uuid).hpDelta, -10);
+  await draft.commit();
+  assert.equal(hazard.system.attributes.hp.value, 0);
+});
+
+test("zero-HP hazards still stage mitigated damage without destruction", async () => {
+  const { combat, hazard } = hazardFixture({ hp: 0 });
+  const draft = new Draft(combat);
+  const result = await applyDamageInDraft(draft, hazard.uuid, { amount: 10, damageType: "fire", silent: true });
+  assert.equal(result.mitigatedDamage, 10);
+  assert.equal(result.hullDamage, 0);
+  assert.equal(draft.hazards.get(hazard.uuid).hpDelta, -10);
+  const destroyed = [];
+  const listener = (actor) => destroyed.push(actor.uuid);
+  Hooks.on(HOOK_EVENTS.destroyed, listener);
+  try {
+    await draft.commit();
+    assert.equal(hazard.system.attributes.hp.value, 0);
+    assert.deepEqual(destroyed, []);
+  } finally {
+    Hooks.off(HOOK_EVENTS.destroyed, listener);
+  }
+});
+
 test("repeated hazard damage in one draft accumulates", async () => {
   const { combat, hazard } = hazardFixture({ hp: 30 });
   const draft = new Draft(combat);

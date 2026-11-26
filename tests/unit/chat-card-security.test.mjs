@@ -33,6 +33,24 @@ test("stored simple-card HTML is escaped when Foundry sanitization is unavailabl
   assert.match(html, /&lt;img/);
 });
 
+test("stored integrity cards escape DC and compromised-state values", () => {
+  installFoundryMock();
+  const html = renderStoredCard(
+    messageWith({
+      kind: "integrity",
+      initiator: "Ship",
+      dc: '<img src="x" onerror="alert(1)">',
+      degreeLabel: "Success",
+      delta: '<svg onload="alert(2)">',
+      newValue: "<script>alert(3)</script>"
+    })
+  );
+  assert.doesNotMatch(html, /<(?:img|svg|script)\b/i);
+  assert.match(html, /&lt;img/);
+  assert.match(html, /&lt;svg/);
+  assert.match(html, /&lt;script&gt;/);
+});
+
 test("action cards render inline damage and checks as usable controls", () => {
   installFoundryMock();
   const html = renderStoredCard(

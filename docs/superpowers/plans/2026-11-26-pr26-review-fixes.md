@@ -555,6 +555,7 @@
 - [x] **Step 2: Harden hazard and publication flows**
   - Run turn routines only for verified complex hazards and reject missing Combat state.
   - Queue hazard destruction from fulfilled committed HP transitions, including partial failures, and attempt both publication cleanups independently.
+  - Stage full mitigated hazard damage even at zero HP while preserving commit clamps, and preserve the publication error if snapshot cleanup also fails.
 
 - [x] **Step 3: Align map-only authority and latest-state writes**
   - Resolve source Actor UUIDs to one placed copy only for action execution, reject ambiguous aliases, canonicalize action locks/card requests and persist turn markers with `mutateTsc`.
@@ -565,7 +566,8 @@
   - Reuse serialized stamps for unchanged projection objects.
   - Partial commits dispatch destruction hooks only for fulfilled document writes; committed hazard HP transitions still emit destruction when another write fails.
   - Compact UI height budgets allow a 2% cross-platform font-metric tolerance while control counts and containment remain exact.
-  - Full Node **2,016/2,016** and UI **100/100** gates pass.
+  - Escape stored integrity-card values at their call sites and make the concurrency test wait race early settlement against a deadline.
+  - Full Node **2,020/2,020** and UI **100/100** gates pass.
 
 - [x] **Step 5: Live verification, release rebuild and PR update**
 

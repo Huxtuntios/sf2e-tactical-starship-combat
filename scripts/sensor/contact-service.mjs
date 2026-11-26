@@ -22,6 +22,7 @@ import { deleteSensorActorInstance, deleteSensorActorCombatant, ensureSensorActo
 import { createMapObjectActor } from "./map-object.mjs";
 import { MINE_FLAG } from "./mine-contact.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
+import { log } from "../utils/logging.mjs";
 
 export const CONTACT_SOURCES = Object.freeze(["world", "compendium", "custom"]);
 const NONE = 0;
@@ -209,7 +210,13 @@ export async function addSensorContact(combat, spec, deps = {}) {
       const referenced =
         privateContacts(combat.id).some((o) => o.actorUuid === actor.uuid) ||
         getTsc(combat).objects.some((o) => o.actorUuid === actor.uuid || o.key === actor.uuid);
-      if (!referenced) await deleteSensorActorInstance(combat, actor.uuid);
+      if (!referenced) {
+        try {
+          await deleteSensorActorInstance(combat, actor.uuid);
+        } catch (cleanupError) {
+          log.error("sensor actor cleanup failed", cleanupError);
+        }
+      }
       throw err;
     }
   });

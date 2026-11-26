@@ -167,12 +167,12 @@ async function applyHazardDamageInDraft(
     criticalHit,
     nonlethal
   });
-  if (result.newState.hp !== entry.data.hp.value) {
+  if (result.mitigatedDamage > 0) {
     const previous = draft.hazards.get(actor.uuid);
     draft.hazards.set(actor.uuid, {
       actor,
       patch: { ...(previous?.patch ?? {}), "system.attributes.hp.value": result.newState.hp },
-      hpDelta: (previous?.hpDelta ?? 0) + result.newState.hp - entry.data.hp.value
+      hpDelta: (previous?.hpDelta ?? 0) - result.mitigatedDamage
     });
   }
   draft.log(`${actor.name}: HP -${result.hullDamage}`, "damage", { shipUuid: actor.uuid, ...result });

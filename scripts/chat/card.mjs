@@ -245,9 +245,9 @@ export function renderStoredCard(message) {
       title: data.initiator,
       subtitle: T("SF2eTSC.chat.hullIntegrity"),
       rows: [
-        row(T("SF2eTSC.ui.dcShort"), data.dc),
+        row(T("SF2eTSC.ui.dcShort"), escapeHtml(data.dc)),
         row(T("SF2eTSC.chat.result"), escapeHtml(data.degreeLabel)),
-        row(T("SF2eTSC.ui.compromised"), `${data.delta > 0 ? "+" : ""}${data.delta} → ${data.newValue}`)
+        row(T("SF2eTSC.ui.compromised"), escapeHtml(`${data.delta > 0 ? "+" : ""}${data.delta} → ${data.newValue}`))
       ],
       reports: data.outcomeText ? [data.outcomeText] : []
     });
