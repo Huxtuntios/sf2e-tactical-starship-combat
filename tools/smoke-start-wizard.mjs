@@ -86,11 +86,30 @@ root.addEventListener('submit',event=>{event.preventDefault();globalThis.lastAct
 reviewRoot.addEventListener('click',event=>{const target=event.target.closest('[data-action]');if(!target||target.disabled)return;const handler=CombatReviewApp.DEFAULT_OPTIONS.actions[target.dataset.action];if(handler)globalThis.lastAction=Promise.resolve(handler.call(globalThis.reviewApp,event,target));});
 await app.render();
 const tick=async()=>{await globalThis.lastAction;await new Promise(resolve=>setTimeout(resolve,0));};
-const set=async(selector,value)=>{const input=root.querySelector(selector);if(!input)throw new Error('Missing '+selector);if(input.type==='checkbox')input.checked=value;else input.value=value;input.dispatchEvent(new Event(input.type==='search'?'input':'change',{bubbles:true}));await tick();};
+const set=async(selector,value)=>{const input=root.querySelector(selector);if(!input)throw new Error('Missing '+selector);if(['checkbox','radio'].includes(input.type))input.checked=value;else input.value=value;input.dispatchEvent(new Event(input.type==='search'?'input':'change',{bubbles:true}));await tick();};
 const action=async(name)=>{const button=root.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing action '+name);button.click();await tick();};
 const reviewAction=async(name)=>{const button=reviewRoot.querySelector('[data-action="'+name+'"]');if(!button)throw new Error('Missing review action '+name);button.click();await tick();};
 const reviewOpen=()=>!!(globalThis.reviewApp&&globalThis.reviewApp.rendered&&reviewRoot.querySelector('[data-wizard-review]'));
 globalThis.fixture={checks,check,tick,set,action,reviewAction,player,enemy,hazard,packed,crew,root,reviewRoot,originalsOpened};
+globalThis.measureRosterSort=()=>{
+  const group=root.querySelector('.tsc-wizard-roster-sort');
+  const roster=root.querySelector('.tsc-wizard-roster');
+  const labels=[...(group?.querySelectorAll('label')??[])];
+  const groupRect=group?.getBoundingClientRect();
+  const contained=!!groupRect&&labels.every(label=>{
+    const rect=label.getBoundingClientRect();
+    return rect.left>=groupRect.left-1&&rect.right<=groupRect.right+1&&rect.top>=groupRect.top-1&&rect.bottom<=groupRect.bottom+1;
+  });
+  const targets=labels.length===2&&labels.every(label=>{
+    const rect=label.getBoundingClientRect();
+    return rect.width>=24&&rect.height>=24;
+  });
+  return {checks:[
+    {name:'roster-sort-contained',pass:!!group&&group.scrollWidth<=group.clientWidth+1&&contained},
+    {name:'roster-sort-target-size',pass:targets},
+    {name:'roster-sort-inside-roster',pass:!!group&&!!roster&&roster.contains(group)}
+  ]};
+};
 check('production-form',!!root.querySelector('.tsc-wizard'));
 check('one-zone-count',root.querySelectorAll('[name="zones"]').length===1);
 check('no-preconfirmation-document-writes',__writes.length===0);
@@ -249,7 +268,71 @@ globalThis.runWizardChecks=async()=>{
   await app.loadDraft({enemies:[{uuid:enemy.uuid,count:1,detection:'identified'}]});
   check('legacy-preset-defaults-reuse-true',app.getDraft().enemies[0].reuse===true);
 };
+globalThis.runRosterSortChecks=async()=>{
+  await fresh();
+  const writesBefore=__writes.length;
+  const sortRows=[
+    ['sort-high','High',9],
+    ['sort-zulu','Zulu',3],
+    ['sort-missing','Missing',null],
+    ['sort-beta','Бета',3],
+    ['sort-invalid','Invalid','bad'],
+    ['sort-bravo','Bravo',3],
+    ['sort-low','Low',-1],
+    ['sort-zero','Zero',0],
+    ['sort-alpha','Alpha',3],
+    ['same-first','Same',2],
+    ['empty-first','',2],
+    ['same-second','Same',2],
+    ['empty-second','',2]
+  ];
+  for(const [id,name,level] of sortRows)makeShip({id,name,role:'npc',level});
+  const sortPlayer=makeShip({id:'sort-player',name:'Player Ship',role:'player',level:5,stations:[{id:'pilot',name:'Pilot',type:'pilot',helmedBy:null}]});
+  const sortHazard=new MockActor({id:'sort-hazard',name:'Hazard',type:'hazard',system:{details:{level:{value:4}}}});game.actors.set(sortHazard.id,sortHazard);
+  const sourceOrder=sortRows.map(([id])=>'Actor.'+id);
+  await app.loadDraft({playerShips:[{uuid:sortPlayer.uuid,zone:2,stationAssignments:[{stationId:'pilot',actorUuid:crew.uuid}]}],enemies:sourceOrder.map(uuid=>({uuid,detection:'identified'})),hazards:[{uuid:sortHazard.uuid,detection:'identified'}]});
+  const levelExpected=document.documentElement.lang==='ru'
+    ?['Actor.sort-low','Actor.sort-zero','Actor.empty-first','Actor.empty-second','Actor.same-first','Actor.same-second','Actor.sort-beta','Actor.sort-alpha','Actor.sort-bravo','Actor.sort-zulu','Actor.sort-hazard','Actor.sort-player','Actor.sort-high','Actor.sort-invalid','Actor.sort-missing']
+    :['Actor.sort-low','Actor.sort-zero','Actor.empty-first','Actor.empty-second','Actor.same-first','Actor.same-second','Actor.sort-alpha','Actor.sort-bravo','Actor.sort-zulu','Actor.sort-beta','Actor.sort-hazard','Actor.sort-player','Actor.sort-high','Actor.sort-invalid','Actor.sort-missing'];
+  const nameExpected=document.documentElement.lang==='ru'
+    ?['Actor.empty-first','Actor.empty-second','Actor.sort-beta','Actor.sort-alpha','Actor.sort-bravo','Actor.sort-hazard','Actor.sort-high','Actor.sort-invalid','Actor.sort-low','Actor.sort-missing','Actor.sort-player','Actor.same-first','Actor.same-second','Actor.sort-zero','Actor.sort-zulu']
+    :['Actor.empty-first','Actor.empty-second','Actor.sort-alpha','Actor.sort-bravo','Actor.sort-hazard','Actor.sort-high','Actor.sort-invalid','Actor.sort-low','Actor.sort-missing','Actor.sort-player','Actor.same-first','Actor.same-second','Actor.sort-zero','Actor.sort-zulu','Actor.sort-beta'];
+  const order=()=>[...root.querySelectorAll('[data-roster-row]')].map(row=>row.dataset.uuid);
+  check('roster-sort-level-order',JSON.stringify(order())===JSON.stringify(levelExpected));
+  const before=JSON.stringify(app.getDraft());
+  const assignmentBefore=JSON.stringify(app.getDraft().playerShips[0].stationAssignments);
+  await set('[data-candidate][data-uuid="Actor.enemy"]',true);
+  const selectedBefore=root.querySelector('[data-selected-count]').textContent;
+  await field('Actor.sort-alpha','reuse',false);
+  await field('Actor.sort-bravo','count',2);
+  await field('Actor.sort-bravo','zones','7, 8');
+  const edited=JSON.stringify(app.getDraft());
+  const alphaRow=rowFor('Actor.sort-alpha');
+  const bravoRow=rowFor('Actor.sort-bravo');
+  const alphaReuse=alphaRow.querySelector('[data-field="reuse"]');
+  const bravoCount=bravoRow.querySelector('[data-field="count"]');
+  const bravoZones=bravoRow.querySelector('[data-field="zones"]');
+  const sortGroup=root.querySelector('.tsc-wizard-roster-sort');
+  check('roster-sort-native-radio-group',!!sortGroup&&sortGroup.querySelector('legend')?.textContent.trim().length>0&&sortGroup.querySelectorAll('input[type="radio"][name="rosterSort"]').length===2&&[...sortGroup.querySelectorAll('input[type="radio"]')].every(input=>input.labels.length===1));
+  check('roster-sort-default-level',!!sortGroup&&sortGroup.querySelector('[value="level"]').checked&&!sortGroup.querySelector('[value="name"]').checked);
+  if(sortGroup){
+    const nameRadio=sortGroup.querySelector('[value="name"]');
+    nameRadio.focus();
+    await set('[name="rosterSort"][value="name"]',true);
+    check('roster-sort-name-order',JSON.stringify(order())===JSON.stringify(nameExpected));
+    check('roster-sort-mode-state',nameRadio.checked&&!sortGroup.querySelector('[value="level"]').checked&&document.activeElement===nameRadio);
+    check('roster-sort-preserves-selection',root.querySelector('[data-selected-count]').textContent===selectedBefore&&root.querySelector('[data-candidate][data-uuid="Actor.enemy"]').checked);
+    check('roster-sort-preserves-checkboxes-and-copy-settings',alphaReuse.checked===false&&bravoCount.value==='2'&&bravoZones.value==='7, 8'&&JSON.stringify(app.getDraft())===edited);
+    check('roster-sort-preserves-station-assignments',JSON.stringify(app.getDraft().playerShips[0].stationAssignments)===assignmentBefore);
+    check('roster-sort-preserves-authoritative-order',JSON.stringify(app.getDraft().enemies.map(entry=>entry.uuid))===JSON.stringify(sourceOrder));
+    check('roster-sort-no-document-writes',__writes.length===writesBefore);
+    await set('[name="rosterSort"][value="level"]',true);
+    check('roster-sort-switch-back',JSON.stringify(order())===JSON.stringify(levelExpected)&&JSON.stringify(app.getDraft())===edited);
+  }
+  check('roster-sort-only-display-state',JSON.stringify(app.getDraft())===edited&&edited!==before);
+};
 await globalThis.runWizardChecks();
+await globalThis.runRosterSortChecks();
 await fresh();
 await app.loadDraft({playerShips:[{uuid:player.uuid,zone:2,heading:'right'}],enemies:[{uuid:enemy.uuid,count:3,zone:8,zones:[8,7,6],heading:'left',detection:'hidden'}],hazards:[{uuid:hazard.uuid,count:2,zone:5,detection:'observed'}],objects:[{name:'Debris cloud',type:'asteroid',zone:4,art:'moon.webp',detection:'identified'}]});
 await set('[name="filter"]','Corsair');

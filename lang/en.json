@@ -948,6 +948,11 @@
       "choosePreset": "Choose a preset…",
       "zoneHint": "Positions are abstract zones only. Out-of-map zones are clamped in the preview; no map coordinates are used.",
       "roster": "Editable roster",
+      "rosterSort": "Sort roster",
+      "rosterSortModes": {
+        "level": "By level",
+        "name": "By name"
+      },
       "emptyRoster": "Add Actors or a custom object to the roster first.",
       "missingSource": "Source Actor missing or unsupported; remove this row or reload the preset after restoring it",
       "missingSources": "Cannot start: source Actors are missing or unsupported: {names}.",

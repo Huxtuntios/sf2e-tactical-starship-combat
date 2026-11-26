@@ -10,8 +10,8 @@ import { MODULE_ID } from "../../scripts/constants.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const rd = (p) => fs.readFileSync(path.join(root, p), "utf8");
-const loadWizard = async () => {
-  installFoundryMock();
+const loadWizard = async ({ lang = "en" } = {}) => {
+  installFoundryMock({ lang });
   const { StartCombatWizard } = await import("../../scripts/ui/start-wizard.mjs");
   const app = new StartCombatWizard();
   app.render = async () => app;
@@ -353,4 +353,98 @@ test("an unrelated ship update keeps preset station choices; a real source chang
   ship.flags[MODULE_ID].starship.stations[0].helmedBy = null;
   app.wants("actor", ship);
   assert.equal(pilot(), null, "a real station release is adopted into the draft");
+});
+
+for (const [lang, expected] of [
+  [
+    "en",
+    [
+      "sort-low",
+      "sort-zero",
+      "sort-alpha",
+      "sort-bravo",
+      "sort-zulu",
+      "sort-beta",
+      "sort-hazard",
+      "sort-high",
+      "sort-invalid",
+      "sort-missing"
+    ]
+  ],
+  [
+    "ru",
+    [
+      "sort-low",
+      "sort-zero",
+      "sort-beta",
+      "sort-alpha",
+      "sort-bravo",
+      "sort-zulu",
+      "sort-hazard",
+      "sort-high",
+      "sort-invalid",
+      "sort-missing"
+    ]
+  ]
+]) {
+  test(`roster defaults to numeric level order with ${lang} name tie-breaks and invalid levels last`, async () => {
+    const { app } = await loadWizard({ lang });
+    const rows = [
+      ["sort-high", "High", 9],
+      ["sort-zulu", "Zulu", 3],
+      ["sort-missing", "Missing", null],
+      ["sort-beta", "Бета", 3],
+      ["sort-invalid", "Invalid", "bad"],
+      ["sort-bravo", "Bravo", 3],
+      ["sort-low", "Low", -1],
+      ["sort-zero", "Zero", 0],
+      ["sort-alpha", "Alpha", 3]
+    ];
+    for (const [id, name, level] of rows) makeShip({ id, name, role: "npc", level });
+    const hazard = new MockActor({ id: "sort-hazard", name: "Hazard", type: "hazard", system: { details: { level: { value: 4 } } } });
+    game.actors.set(hazard.id, hazard);
+    await app.loadDraft({
+      enemies: rows.map(([id]) => ({ uuid: `Actor.${id}`, detection: "identified" })),
+      hazards: [{ uuid: hazard.uuid, detection: "identified" }]
+    });
+    const before = app.getDraft();
+    const context = await app._prepareContext();
+    assert.equal(context.rosterSort, "level");
+    assert.deepEqual(
+      context.roster.map((row) => row.uuid),
+      expected.map((id) => `Actor.${id}`)
+    );
+    assert.deepEqual(
+      context.rosterSortOptions.map(({ id, selected }) => [id, selected]),
+      [
+        ["level", true],
+        ["name", false]
+      ]
+    );
+    assert.deepEqual(
+      context.rosterSortOptions.map(({ label }) => label),
+      [game.i18n.localize("SF2eTSC.wizard.rosterSortModes.level"), game.i18n.localize("SF2eTSC.wizard.rosterSortModes.name")]
+    );
+    assert.deepEqual(app.getDraft(), before, "display sorting must not reorder the authoritative draft");
+    assert.deepEqual(globalThis.__writes, []);
+  });
+}
+
+test("equal and empty roster names keep their original order in the default level mode", async () => {
+  const { app } = await loadWizard();
+  makeShip({ id: "same-first", name: "Same", role: "npc", level: 2 });
+  makeShip({ id: "empty-first", name: "", role: "npc", level: 2 });
+  makeShip({ id: "same-second", name: "Same", role: "npc", level: 2 });
+  makeShip({ id: "empty-second", name: "", role: "npc", level: 2 });
+  await app.loadDraft({
+    enemies: ["Actor.same-first", "Actor.empty-first", "Actor.same-second", "Actor.empty-second"].map((uuid) => ({
+      uuid,
+      detection: "identified"
+    }))
+  });
+  const context = await app._prepareContext();
+  assert.deepEqual(
+    context.roster.map((row) => row.uuid),
+    ["Actor.empty-first", "Actor.empty-second", "Actor.same-first", "Actor.same-second"]
+  );
 });

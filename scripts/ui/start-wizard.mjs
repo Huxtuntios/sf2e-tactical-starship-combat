@@ -8,7 +8,7 @@ import { notifyError } from "../utils/logging.mjs";
 import { openDashboard, openCrewManager } from "./launchers.mjs";
 import { openCombatReview, CombatReviewApp } from "./combat-review.mjs";
 import { openApps } from "./base-app.mjs";
-import { ZONE_LIMITS, DETECTION_LEVELS } from "../constants.mjs";
+import { ZONE_LIMITS, DETECTION_LEVELS, MODULE_ID } from "../constants.mjs";
 import { listPresets, savePreset, deletePreset, normalizeDetection, clampZones, DEFAULT_ZONES } from "../combat/presets.mjs";
 import { safeImagePath } from "../sensor/appearance.mjs";
 import { OBJECT_TYPES, objectType } from "../sensor/object-types.mjs";
@@ -59,6 +59,7 @@ export class StartCombatWizard extends TscApp {
   #browse = { source: "world", filter: "", kind: "all", pack: "", minLevel: "", maxLevel: "" };
   #presetPick = "";
   #presetName = "";
+  #rosterSort = "level";
   #nextId = 0;
   #review = null;
   #busy = false;
@@ -293,7 +294,7 @@ export class StartCombatWizard extends TscApp {
       row.missing = !actor || (!actor.pack && !worldKeys.has(keyOf(row.uuid, row.kind)));
       if (!this.#canReuse(row)) row.reuse = false;
     }
-    const roster = this.#roster.map((row) => this.#rosterContext(row));
+    const roster = this.#sortedRosterContexts();
     const candidates = (
       this.#browse.source === "world" ? world : this.#browse.source === "compendium" ? compendium : [...world, ...compendium]
     ).map((c) => ({
@@ -323,6 +324,8 @@ export class StartCombatWizard extends TscApp {
       selectedCount: this.#selected.size,
       canAdd: this.#pendingCount() > 0,
       roster,
+      rosterSort: this.#rosterSort,
+      rosterSortOptions: optionsFor(["level", "name"], this.#rosterSort, (id) => T(`SF2eTSC.wizard.rosterSortModes.${id}`)),
       browseOpen: this.#browseOpen ?? this.#roster.length === 0,
       scope: T(`SF2eTSC.settings.crewInitiativeScope.${moduleSetting("crewInitiativeScope")}`),
       objects: this.#objects.map((o) => ({
@@ -337,6 +340,27 @@ export class StartCombatWizard extends TscApp {
       error: this.#error,
       submitLabel: T(this.#busy ? "SF2eTSC.wizard.working" : this.#review ? "SF2eTSC.wizard.confirmStart" : "SF2eTSC.wizard.preview")
     };
+  }
+  #rosterLevel(row) {
+    const choice = this.#choices.get(keyOf(row.uuid, row.kind));
+    const actor = this.#actors.get(row.uuid);
+    const level = choice?.level ?? (isStarship(actor) ? actor.flags[MODULE_ID].starship.level : actor?.system?.details?.level?.value);
+    return Number.isFinite(level) ? level : null;
+  }
+  #sortedRosterContexts() {
+    const locale = game.i18n?.lang;
+    const byName = (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), locale);
+    return this.#roster
+      .map((row, index) => ({ context: this.#rosterContext(row), level: this.#rosterLevel(row), index }))
+      .sort((a, b) => {
+        if (this.#rosterSort === "name") return byName(a.context, b.context) || a.index - b.index;
+        const aValid = Number.isFinite(a.level);
+        const bValid = Number.isFinite(b.level);
+        if (aValid !== bValid) return aValid ? -1 : 1;
+        if (aValid && a.level !== b.level) return a.level - b.level;
+        return byName(a.context, b.context) || a.index - b.index;
+      })
+      .map(({ context }) => context);
   }
   #rosterContext(row) {
     const actor = this.#actors.get(row.uuid);
@@ -391,6 +415,15 @@ export class StartCombatWizard extends TscApp {
     const button = this.element?.querySelector?.('[data-action="addSelected"]');
     if (button) button.disabled = this.#busy || !this.#pendingCount();
   }
+  #sortRosterElements() {
+    const roster = this.element?.querySelector?.(".tsc-wizard-roster");
+    if (!roster) return;
+    const rows = new Map([...roster.querySelectorAll("[data-roster-row]")].map((row) => [row.dataset.rowId, row]));
+    for (const context of this.#sortedRosterContexts()) {
+      const row = rows.get(context.id);
+      if (row) roster.append(row);
+    }
+  }
   #filterCandidates(committed = false) {
     let visible = 0;
     this.element?.querySelectorAll?.("[data-candidate-row]").forEach((row) => {
@@ -424,6 +457,11 @@ export class StartCombatWizard extends TscApp {
     if (this.#busy || this.#completed) return;
     const input = event.target;
     if (!input.matches?.("input, select")) return;
+    if (input.name === "rosterSort") {
+      this.#rosterSort = input.value === "name" ? "name" : "level";
+      this.#sortRosterElements();
+      return;
+    }
     this.#invalidateReview();
     if (input.hasAttribute("data-candidate")) {
       this.selectCandidate(input.dataset.uuid, input.checked, input.dataset.kind);

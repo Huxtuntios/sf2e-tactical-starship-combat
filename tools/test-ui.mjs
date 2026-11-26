@@ -393,6 +393,28 @@ try {
               result.checks.push({ name: `long-candidate-contained-${width}-${theme}`, pass: contained });
             }
           }
+          const levelRadio = page.locator('[name="rosterSort"][value="level"]');
+          if (await levelRadio.count()) {
+            await levelRadio.focus();
+            const sortFocusVisible = await levelRadio.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+            await levelRadio.press("ArrowDown");
+            await page.waitForFunction(() => globalThis.document.querySelector('[name="rosterSort"][value="name"]').checked);
+            const sortKeyboard = await page.evaluate(
+              () => globalThis.document.activeElement === globalThis.document.querySelector('[name="rosterSort"][value="name"]')
+            );
+            result.checks.push({ name: "roster-sort-keyboard-radio", pass: sortFocusVisible && sortKeyboard });
+          } else result.checks.push({ name: "roster-sort-keyboard-radio", pass: false });
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            for (const theme of ["dark", "light"]) {
+              const measurement = await page.evaluate((theme) => {
+                globalThis.document.querySelector("main.application").setAttribute("data-sheet-theme", theme);
+                return globalThis.measureRosterSort();
+              }, theme);
+              result.checks.push(...measurement.checks.map((check) => ({ ...check, name: `${check.name}-${width}-${theme}` })));
+              await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-roster-sort-${width}-${theme}.png`)) });
+            }
+          }
           result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "defense-editor") {
