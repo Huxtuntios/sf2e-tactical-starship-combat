@@ -12,7 +12,6 @@ import { targetingState } from "../engine/target-rules.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { viewFor, findObject } from "../engine/sensor-ops.mjs";
 import { readStarship, statusOf, isStarship } from "../starship/starship-state.mjs";
-import { openEffectManager } from "./effect-manager.mjs";
 import { MapActorCache } from "../sensor/map-actor-cache.mjs";
 import { Content } from "../content/loader.mjs";
 import { openApps, refreshApps } from "./base-app.mjs";
@@ -29,7 +28,7 @@ import { calculateZoneDistance } from "../engine/range.mjs";
 import { HazardEngine } from "../hazards/hazard-engine.mjs";
 import { displayDesignation } from "../utils/designations.mjs";
 import { ICONS, observerKeys, canMoveKey, sensorPartsFor, sensorRangePresentation } from "../sensor/map-model.mjs";
-import { buildHudContext, runHudAction } from "./hud-model.mjs";
+import { buildGmHudContext, buildHudContext, runGmHudAction, runHudAction } from "./hud-model.mjs";
 import { sendActionDescription, showActionDescription, showActionWarning } from "./action-controls.mjs";
 import { openCrewManager } from "./launchers.mjs";
 import { paintMapAppearance } from "./map-appearance-render.mjs";
@@ -38,6 +37,7 @@ import { normalizeMapAppearance, safeImagePath, resolveArrowAppearance, visualTr
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 import { registerSensorHandlers as registerBaseSensorHandlers } from "../sensor/map-handlers.mjs";
+import { gmActionSelection, openGmEffectManager, selectGmActionObject, wireGmActionObject } from "./sensor-gm-ui.mjs";
 
 export { PLAYER_SENSOR_OPS, userControlsShip, canMoveKey, observerKeys, applySensorOp } from "../sensor/map-model.mjs";
 
@@ -105,6 +105,7 @@ export class SensorMapApplication extends TscApp {
       mapAppearance: SensorMapApplication.#appearance,
       objectArt: SensorMapApplication.#objectArt,
       selectObject: SensorMapApplication.#select,
+      selectActionObject: SensorMapApplication.#selectActionObject,
       pickZone: SensorMapApplication.#pickZone,
       addObject: SensorMapApplication.#addContact,
       addPublicObject: SensorMapApplication.#addObject,
@@ -117,9 +118,7 @@ export class SensorMapApplication extends TscApp {
       moveRight: SensorMapApplication.#moveRight,
       setDetect: SensorMapApplication.#detect,
       openSheet: SensorMapApplication.#openSheet,
-      manageEffects: async function (_event, button) {
-        if (game.user.isGM) openEffectManager(await fromUuidSafe(button.dataset.shipUuid));
-      },
+      manageEffects: openGmEffectManager,
       triggerHazard: SensorMapApplication.#trigger,
       toggleHazard: SensorMapApplication.#toggleHazard,
       resizeZones: SensorMapApplication.#resize,
@@ -167,6 +166,7 @@ export class SensorMapApplication extends TscApp {
     super._cleanup?.();
   }
   selected = null;
+  actionObjectKey = null;
   showRanges = true;
   dockIndex = 0;
   gmToolsOpen = false;
@@ -184,10 +184,13 @@ export class SensorMapApplication extends TscApp {
     const combat = activeStarshipCombat();
     const isGM = game.user.isGM;
     if (!combat) {
+      this.actionObjectKey = null;
       this.actorCache.setVisible([], game.user);
       return {
         noCombat: true,
         isGM,
+        actionObjects: isGM ? [] : undefined,
+        actionSelection: null,
         rangeMode: isGM ? "gm" : "player",
         showRanges: this.showRanges,
         sensorRanges: [],
@@ -236,6 +239,8 @@ export class SensorMapApplication extends TscApp {
     const permissions = this._mapPermissions;
     const own = permissions.own;
     const view = viewFor(tsc, { isGM, observerKeys: own, ownKeys: own, resolve: fromUuidSync_ });
+    const { actionObjects, actionSelection, actionObjectKey } = gmActionSelection(view, this.actionObjectKey, isGM);
+    this.actionObjectKey = actionObjectKey;
     this.actorCache.setVisible(view, game.user);
     const resolved = new Map();
     if (includes("zones") || includes("detail")) {
@@ -279,6 +284,8 @@ export class SensorMapApplication extends TscApp {
     const sel = this.selected ? view.find((o) => o.key === this.selected) : null;
     return {
       isGM,
+      actionObjects,
+      actionSelection,
       rangeMode: rangePresentation.rangeMode,
       showRanges: this.showRanges,
       sensorRanges: rangePresentation.ranges,
@@ -300,8 +307,11 @@ export class SensorMapApplication extends TscApp {
       appearance,
       backgroundRevision: this.backgroundRevision,
       combatId: combat.id,
-      // The shared HUD remains unchanged. No consumer uses dock context when that part is not rendered.
-      dock: includes("dock") ? buildHudContext(this.dockIndex) : undefined,
+      dock: includes("dock")
+        ? actionSelection
+          ? await buildGmHudContext(this.actionObjectKey)
+          : buildHudContext(this.dockIndex)
+        : undefined,
       gmToolsOpen: this.gmToolsOpen
     };
   }
@@ -349,7 +359,8 @@ export class SensorMapApplication extends TscApp {
       sp,
       hpPct: hpPct(hp),
       spPct: hpPct(sp),
-      selected: this.selected === o.key || targeted,
+      selected: this.selected === o.key,
+      actionSelected: this.actionObjectKey === o.key,
       targeted,
       target: cls?.status ?? null,
       targetLabel: cls ? T(`SF2eTSC.targeting.${cls.status}`) : null,
@@ -574,6 +585,7 @@ export class SensorMapApplication extends TscApp {
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
     this.#syncTargetingControls();
+    wireGmActionObject(this, (event, select) => SensorMapApplication.#selectActionObject.call(this, event, select));
     this.#wireGmEdit();
     this.#wirePrivateZone();
     this.element.querySelectorAll("details.tsc-gm-tools").forEach((d) => {
@@ -624,6 +636,9 @@ export class SensorMapApplication extends TscApp {
     this.selected = this.selected === key ? null : key;
     this.render({ parts: sensorPartsFor("select") });
   }
+  static async #selectActionObject(_event, target) {
+    return selectGmActionObject(this, target);
+  }
   static #pickZone(event, target) {
     if (Targeting.current?.zonePick) Targeting.current.onPickZone?.(Number(target.dataset.zone));
   }
@@ -642,6 +657,8 @@ export class SensorMapApplication extends TscApp {
     await Targeting.execute();
   }
   static async #dockAct(event, target) {
+    if (game.user.isGM && this.actionObjectKey)
+      return runGmHudAction(this.actionObjectKey, target.dataset.actionKey ?? target.dataset.actionId, event);
     await runHudAction(this.dockIndex, target.dataset.actionId, event);
   }
   static #dockPick(event, target) {

@@ -1,6 +1,6 @@
 import { readStarship, writeStarship, isStarship } from "../starship/starship-state.mjs";
 import { getTsc, saveTsc } from "../combat/tsc-state.mjs";
-import { fromUuidSafe } from "../utils/foundry.mjs";
+import { resolveSensorActor } from "../sensor/map-object.mjs";
 import { log } from "../utils/logging.mjs";
 import { equalState, snapshot } from "../history/history.mjs";
 import { serialize } from "../utils/serial.mjs";
@@ -19,7 +19,7 @@ export class Draft {
   }
   async ship(uuid) {
     if (this.ships.has(uuid)) return this.ships.get(uuid);
-    const actor = await fromUuidSafe(uuid);
+    const actor = await resolveSensorActor(this.combat, uuid);
     if (!actor) throw new Error(game.i18n.localize("SF2eTSC.errors.shipNotFound"));
     // commit() writes starship data for every loaded entry, so non-starship actors are refused here
     if (!isStarship(actor)) throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
@@ -29,7 +29,7 @@ export class Draft {
     return entry;
   }
   async target(uuid) {
-    const actor = await fromUuidSafe(uuid);
+    const actor = await resolveSensorActor(this.combat, uuid);
     if (isStarship(actor)) return this.ship(uuid);
     if (actor?.type !== "hazard") throw new Error(game.i18n.localize("SF2eTSC.errors.notStarship"));
     const attributes = actor.system?.attributes ?? {};

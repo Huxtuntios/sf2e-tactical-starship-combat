@@ -22,6 +22,8 @@ import {
 } from "./appearance.mjs";
 import { readStarship, isStarship } from "../starship/starship-state.mjs";
 import { computeShipStats } from "../starship/stats.mjs";
+import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { resolveSensorActorSync } from "./map-object.mjs";
 
 export const ICONS = {
   starship: "🚀",
@@ -35,7 +37,7 @@ export const ICONS = {
   planet: "◐",
   custom: "◆"
 };
-const defaultResolve = (u) => (u ? globalThis.fromUuidSync?.(u) : null);
+const defaultResolve = (uuid) => (uuid ? (resolveSensorActorSync(activeStarshipCombat(), uuid) ?? globalThis.fromUuidSync?.(uuid)) : null);
 
 /** Операции, которые нельзя применять к контакту мины напрямую: положение и существование задаёт запись мины. */
 export const MINE_LOCKED_OPS = Object.freeze(["move", "shift", "remove", "type", "art"]);

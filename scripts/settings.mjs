@@ -25,12 +25,6 @@ export function registerSettings() {
   });
   reg("historyStoreId", { config: false, type: String, default: "" });
   reg("sensorMapSize", { name: L("sensorMapSize.name"), hint: L("sensorMapSize.hint"), type: Number, default: 12 });
-  reg("reuseWorldActorsOnSensorMap", {
-    name: L("reuseWorldActorsOnSensorMap.name"),
-    hint: L("reuseWorldActorsOnSensorMap.hint"),
-    type: Boolean,
-    default: true
-  });
   reg("combatPresets", { config: false, type: Object, default: {} });
   reg("ruleEnforcement", {
     name: L("ruleEnforcement.name"),

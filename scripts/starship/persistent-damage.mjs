@@ -10,6 +10,7 @@ import { Draft } from "../actions/draft.mjs";
 import { applyDamageInDraft } from "../damage/damage-service.mjs";
 import { activeStarshipCombat, getTsc } from "../combat/tsc-state.mjs";
 import { privateContacts } from "../sensor/private-contacts.mjs";
+import { resolveSensorActor } from "../sensor/map-object.mjs";
 
 const fallbackText = {
   en: {
@@ -438,7 +439,7 @@ export function wirePersistentDamage(message, root, { send = request } = {}) {
   if (!flag || root.dataset.tscPersistentWired) return null;
   root.dataset.tscPersistentWired = "1";
   const refresh = async () => {
-    const actor = await fromUuidSafe(flag.shipUuid);
+    const actor = await resolveSensorActor(activeStarshipCombat(), flag.shipUuid);
     const receipt = actor && readStarship(actor).persistentDamageReceipts?.find((r) => r.id === flag.receiptId);
     for (const button of root.querySelectorAll("[data-tsc-persistent-apply]"))
       button.disabled = !game.user.isGM || receipt?.status !== "pending";

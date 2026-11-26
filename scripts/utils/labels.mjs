@@ -16,7 +16,7 @@ export function traitLabel(t) {
   const cfg = globalThis.CONFIG?.PF2E;
   const sys =
     cfg &&
-    ["weaponTraits", "actionTraits", "featTraits", "equipmentTraits", "creatureTraits", "vehicleTraits"]
+    ["weaponTraits", "npcAttackTraits", "actionTraits", "featTraits", "equipmentTraits", "creatureTraits", "vehicleTraits"]
       .map((d) => cfg[d]?.[base])
       .find(Boolean);
   if (sys) return rest ? `${loc(sys)} ${zonesText(rest)}` : loc(sys);

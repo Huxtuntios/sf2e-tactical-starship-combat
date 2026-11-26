@@ -65,6 +65,8 @@ for (const lang of ["en", "ru"]) {
     check('no-unsupported-exceptions-or-double-vs',!app.querySelector('[data-defense-property="exceptions"],[data-defense-property="doubleVs"]'));
     check('custom-type-not-addable',![...app.querySelectorAll('[data-defense-add] option')].some(option=>option.value==='custom'));
     check('used-type-disabled-in-other-row',app.querySelector('[data-defense-editor="resistances"] [data-defense-row] select option[value="cold"]').disabled);
+    const removeButtons=[...app.querySelectorAll('[data-defense-editor="resistances"] [data-action="removeDefenseEntry"],[data-defense-editor="weaknesses"] [data-action="removeDefenseEntry"],[data-defense-editor="skills"] [data-action="removeDefenseEntry"]')];
+    check('numeric-remove-controls-use-current-row-type',removeButtons.length===5&&removeButtons.every(button=>button.closest('[data-defense-row]')?.querySelector('[data-defense-property="type"]')?.value===button.dataset.defenseKey));
     const controls=[...app.querySelectorAll('button,select,input')];
     check('all-controls-have-accessible-names',controls.every(control=>control.getAttribute('aria-label')||control.textContent.trim()||control.closest('label')));
     for(const width of [1100,600,380]){

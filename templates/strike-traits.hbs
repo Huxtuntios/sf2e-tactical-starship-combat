@@ -1,0 +1,17 @@
+<section class="tsc-strike-trait-body">
+  <header class="tsc-strike-trait-search">
+    <label for="{{uid}}-search">{{localize "SF2eTSC.edit.strikeTraitsSearch"}}</label>
+    <input id="{{uid}}-search" type="search" name="search" data-strike-trait-search aria-controls="{{uid}}-options" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </header>
+  <fieldset class="tsc-strike-trait-fieldset">
+    <legend>{{localize "SF2eTSC.ui.traits"}}</legend>
+    <ul id="{{uid}}-options" class="tsc-strike-trait-options">
+      {{#each choices}}<li data-strike-trait-option="{{value}}"><label for="{{id}}"><input id="{{id}}" type="checkbox" name="strikeTraits" value="{{value}}" {{#if selected}}checked{{/if}}><span>{{label}}</span><small>{{value}}</small></label></li>{{/each}}
+    </ul>
+    <p class="tsc-dim" data-strike-trait-empty aria-live="polite" hidden>{{localize "SF2eTSC.edit.strikeTraitsNone"}}</p>
+  </fieldset>
+  <footer class="tsc-btn-row tsc-strike-trait-footer">
+    <button type="submit">{{localize "SF2eTSC.ui.save"}}</button>
+    <button type="button" data-action="cancel">{{localize "SF2eTSC.attackCard.cancel"}}</button>
+  </footer>
+</section>

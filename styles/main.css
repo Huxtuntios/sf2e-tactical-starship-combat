@@ -143,6 +143,32 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.tsc-action-object-picker {
+  display: flex;
+  flex: 1 1 18rem;
+  gap: 4px;
+  align-items: center;
+  min-inline-size: 0;
+  max-inline-size: 32rem;
+}
+.tsc-action-object-picker > span {
+  white-space: nowrap;
+}
+.tsc-action-object-picker select {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: 24px;
+  max-inline-size: 100%;
+}
+.tsc-action-position {
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse) {
+  .tsc-action-object-picker select {
+    min-block-size: 44px;
+  }
+}
 .tsc-map-body {
   display: flex;
   gap: 8px;
@@ -235,6 +261,10 @@
 }
 .tsc-obj.selected {
   outline: 2px solid var(--tsc-accent);
+}
+.tsc-obj.action-selected {
+  outline: 3px solid var(--tsc-warn);
+  outline-offset: 3px;
 }
 .tsc-obj:focus-visible {
   outline: 2px solid var(--tsc-accent);
@@ -1030,6 +1060,63 @@
 .sf2e-tsc .tsc-defense-editor > .tsc-row-inputs select {
   flex: 1 1 220px;
   min-inline-size: 0;
+}
+.sf2e-tsc .tsc-strike-trait-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.sf2e-tsc .tsc-strike-trait-search {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sf2e-tsc .tsc-strike-trait-search input {
+  width: 100%;
+}
+.sf2e-tsc .tsc-strike-trait-fieldset {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sf2e-tsc .tsc-strike-trait-options {
+  display: grid;
+  gap: 4px;
+  max-height: 360px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.sf2e-tsc .tsc-strike-trait-options li {
+  min-width: 0;
+}
+.sf2e-tsc .tsc-strike-trait-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--tsc-line);
+  border-radius: 4px;
+  background: var(--tsc-sub-surface);
+}
+.sf2e-tsc .tsc-strike-trait-options input {
+  flex: 0 0 auto;
+}
+.sf2e-tsc .tsc-strike-trait-options span,
+.sf2e-tsc .tsc-strike-trait-options small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sf2e-tsc .tsc-strike-trait-options small {
+  margin-inline-start: auto;
+  text-align: end;
+  opacity: 0.65;
+}
+.sf2e-tsc .tsc-strike-trait-footer {
+  margin-top: auto;
 }
 .sf2e-tsc .tsc-action-text {
   font-size: 0.85em;
@@ -1829,6 +1916,10 @@ a.tsc-damage {
   gap: 4px;
   align-items: baseline;
   min-width: 0;
+}
+.tsc-sensor-map .tsc-dock-title small {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 .tsc-sensor-map .tsc-dock-head .tsc-pill {
   max-inline-size: 100%;

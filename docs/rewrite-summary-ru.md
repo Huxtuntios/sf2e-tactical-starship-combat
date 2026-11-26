@@ -141,26 +141,27 @@
 
 | Показатель                          |        Исходно |   Итог |       Изменение |
 | ----------------------------------- | -------------: | -----: | --------------: |
-| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 74,203 |         +15,973 |
-| Runtime `scripts/styles/templates`  |         29,316 | 34,702 | +5,386 (+18.4%) |
+| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 77,243 |         +19,013 |
+| Runtime `scripts/styles/templates`  |         29,316 | 35,485 | +6,169 (+21.0%) |
 | Runtime dependencies                |              0 |      0 |               0 |
 | Dev dependencies                    |              9 |      9 |               0 |
-| Unit/integration/architecture tests | 1,490 baseline |  1,888 |            +398 |
-| Chromium UI fixtures                |    63 baseline |     96 |             +33 |
+| Unit/integration/architecture tests | 1,490 baseline |  1,943 |            +453 |
+| Chromium UI fixtures                |    63 baseline |    100 |             +37 |
 
-Сырой объём runtime-кода вырос примерно на 18.4%, потому что добавлены требуемые функции, интеграция v1.4.0 и тесты. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
+Сырой объём runtime-кода вырос примерно на 21.0%, потому что добавлены требуемые функции, интеграция v1.4.0, map-only identity и post-1.5.0 UI. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
 
 ## 4. Проверки
 
-- `TSC_SYSTEMS_PATH="C:/Program Files/FoundryVTT-WindowsPortable-14/Data/systems" npm run check` — **1888 passed, 0 failed, 0 skipped**.
-- `npm run test:ui` — **96/96**.
+- `TSC_SYSTEMS_PATH="C:/Program Files/FoundryVTT-WindowsPortable-14/Data/systems" npm run check` — **1943 passed, 0 failed, 0 skipped**.
+- `npm run test:ui` — **100/100**.
 - `npm run lint` — чисто; `npm run validate` — 0 errors/warnings.
 - `npm run build:release` и `node tools/verify-release.mjs dist v1.5.0` — успешно; ZIP, manifest, hashes и packs проверены.
 - `git diff --check` — чисто.
 - Merge `origin/main` ec57d50 выполнен commit `55e441d`; после merge сохранены v1.4.0 и native-first поведения.
 - Live environment: Foundry `14.370`, SF2e `1.7.1`, world `sekrety-roya`, GM `Gamemaster2`, module `1.5.0`, Toolbelt `3.62.0`.
 - Финальная live-матрица `1.5.0` — **24/24**: manual ship/crew/scoped effects, replay/conflict, persistent strongest/multi-type/apply-once/recovery, hazard target, Sensor Map range split, native multi-target, plasma controls/one-roll/two-saves/damage/replay, inline HTML, destroyed/operational и card outcomes.
-- Cleanup: owned Actors, Combat, Scene, ChatMessages и макросы удалены; actor/item/combat/scene/message hashes совпали с baseline, остались 3 исходных пользовательских макроса.
+- Post-1.5.0 live: T-045 **4/4**, T-046 **4/4**, T-047 **7/7**, T-048 **5/5**, T-049 **2/2**, T-050 **6/6**, T-051 **1/1**.
+- Cleanup: owned Actors, Combat, Scene, ChatMessages, private journals и макросы удалены; ID-массивы восстановлены, остались 3 исходных пользовательских макроса.
 - Чистый reload после cleanup: module `1.5.0`, API/KeyT загружены, console errors/warnings — **0**, тестовых артефактов — **0**.
 
 Исторические live-результаты реконструкции `1.3.1` сохранены в `dist/live-verification/final-live-results.json` и `plasma-regression-results.json`. Не проверено в реальном Foundry: отдельный подключённый player-client и multi-client синхронизация, PF2e + Anachronism gameplay, live Workbench/HoloDock/Causodes/Toolbelt взаимодействие. GM-проверки не заменяют двухклиентский privacy/gameplay прогон.
@@ -209,6 +210,7 @@
 - Контрольная сумма скриншотов: `dist/ui-screenshots.sha256`.
 - Manifest скриншотов: `dist/ui-screenshots/manifest.json`.
 - Live-результаты `1.5.0`: `dist/live-verification/v1.5.0-baseline.json`, `v1.5.0-results.json`, `v1.5.0-cleanup-results.json`, `v1.5.0-startup-verification.json`.
+- Post-1.5.0 live: `dist/live-verification/post-1.5.0-t045-results.json`, `t046-results.json`, `t047-results.json`, `t048-results.json`, `t049-results.json`, `t050-results.json`, `t051-results.json`.
 - Исторические live-результаты `1.3.1`: `dist/live-verification/final-live-results.json`, `plasma-regression-results.json`, `cleanup-results.json`, `final-startup-verification.json`.
 - Архитектура: `docs/architecture.md`.
 - Миграции: `docs/migration-notes.md`.
@@ -225,9 +227,21 @@
 - Native-first targeting, hazard AC/saves/HP/Hardness/IWR, plasma multi-target и per-target receipts, Sensor Map range/detection/placement, карточки степеней успеха и native Condition Manager остались действующими. Нативные condition modifiers учитываются один раз.
 - Публичный API расширен аддитивно: `applyManualEffect`, `removeManualEffect`, `getEffectTargetCatalog`, `processPersistentDamage`, `applyPersistentDamage`, `recoverPersistentDamage`, `openEffectManager`.
 
-Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). GM live-матрица Foundry для `1.5.0` выполнена — **24/24**, тестовые документы очищены и baseline восстановлен. До завершения post-1.5.0 backlog T-044/T-045–T-050 с live-проверками и очисткой принадлежащих тесту документов запрещены push, PR, merge, tag и публикация.
+Точные локальные команды, счётчики тестов, размеры и проверка release-артефактов записаны в [заметках 1.5.0](releases/1.5.0.md). GM live-матрица Foundry для `1.5.0` выполнена — **24/24**; post-1.5.0 backlog T-045–T-050 и T-051 также прошли live-проверки, тестовые документы очищены и baseline восстановлен. До сохранения завершения T-044/T-048 в Taskflow запрещены push, PR, merge, tag и публикация.
 
-## 9. Источники правил и API
+## 9. Post-1.5.0 backlog
+
+- Редактор защит и навыков теперь точечно удаляет и заменяет числовые карты через `ForcedDeletion`/dotted assignments; custom-ключи и иммунитеты сохранены.
+- Каждое размещение Sensor Map создаёт независимый map-only snapshot без документа в Actors Directory; world и non-first compendium drops изолированы, drag перемещает только выбранную запись.
+- Стрелки и art-трансформы выровнены; rotation, horizontal mirror и heading-aware auto-mirror сохраняются per object.
+- GM header selector позволяет выбирать player/NPC/hazard map objects, видеть zone/order, запускать проверенные NPC/hazard действия и открывать Effects Manager map-only snapshot.
+- GM Combat Tracker показывает истинные имя/арт приватных контактов; player projection остаётся анонимной.
+- Strike trait selector использует локализованные системные/module каталоги, поиск и мультивыбор с сохранением custom traits.
+- T-051 закрыл live-найденные persistence edges: active-GM ownership и JSON-nonpersistable `undefined` embedded Item fields.
+
+Все перечисленные пункты прошли live-проверки и cleanup. Отдельный подключённый player-client по-прежнему не проверялся; player projection проверялась переключением локального user context.
+
+## 10. Источники правил и API
 
 - [Foundry API — Document](https://foundryvtt.wiki/en/development/api/document)
 - [Foundry API — Roll](https://foundryvtt.wiki/en/development/api/roll)

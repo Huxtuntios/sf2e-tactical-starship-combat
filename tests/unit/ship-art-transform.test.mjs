@@ -32,19 +32,18 @@ test("dropping a ship with a stored transform reuses it instead of the heading d
   assert.deepEqual(o.mapTransform, TRANSFORM);
 });
 
-test("editing object art orientation remembers it on the Actor and copies inherit it", async () => {
+test("editing map-only art orientation updates its snapshot and physical copies inherit it", async () => {
   installFoundryMock();
   await loadContentFromDisk();
   const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
   const { getTsc } = await import("../../scripts/combat/tsc-state.mjs");
   const { createActorCopy } = await import("../../scripts/combat/copies.mjs");
-  const { readStarship } = await import("../../scripts/starship/starship-state.mjs");
-  const ship = makeShip({ id: "orient", role: "player" });
+  const { loadStarship, readStarship } = await import("../../scripts/starship/starship-state.mjs");
+  const ship = makeShip({ id: "orient", role: "player", owners: ["p1"] });
   const combat = makeStarshipCombat();
   const user = game.users.get("gm");
   await sensorUpdate({ user, payload: { combatId: combat.id, op: "dropActor", actorUuid: ship.uuid, zone: 2, publicActor: true } });
   const object = getTsc(combat).objects[0];
-  const instance = fromUuidSync(object.actorUuid);
   await sensorUpdate({
     user,
     payload: {
@@ -54,9 +53,10 @@ test("editing object art orientation remembers it on the Actor and copies inheri
       visual: { transform: { rotation: 90, baseDirection: "left", flipX: true } }
     }
   });
-  assert.deepEqual(readStarship(instance).mapTransform, TRANSFORM);
+  const updated = await loadStarship(object.key);
+  assert.deepEqual(readStarship(updated).mapTransform, TRANSFORM);
   assert.deepEqual(getTsc(combat).objects[0].mapTransform, TRANSFORM);
-  const copy = await createActorCopy(instance, { name: "copy" });
+  const copy = await createActorCopy(updated, { name: "copy" });
   assert.deepEqual(readStarship(copy).mapTransform, TRANSFORM);
 });
 

@@ -164,9 +164,11 @@ test("Sensor Map marks targeted starships, hazards and tokenless contacts", asyn
   const context = await app._prepareContext({ parts: ["zones"] });
   const objects = new Map(context.zones.flatMap((zone) => zone.objects).map((object) => [object.key, object]));
   assert.equal(objects.get(ship.uuid).selected, true);
+  assert.equal(objects.get(ship.uuid).actionSelected, false);
   assert.equal(objects.get(ship.uuid).targeted, false, "ordinary detail selection is not a target");
   for (const key of [target.uuid, hazard.uuid, "Contact.ui-map-only"]) {
-    assert.equal(objects.get(key).selected, true);
+    assert.equal(objects.get(key).selected, false, "targeting does not select the detail object");
+    assert.equal(objects.get(key).actionSelected, false, "targeting does not select the GM action object");
     assert.equal(objects.get(key).targeted, true, `${key} has an explicit target marker`);
   }
 
@@ -182,8 +184,8 @@ test("Sensor Map context reflects native Token targets and survives rerender wit
   const first = await app._prepareContext({ parts: ["zones"] });
   const second = await app._prepareContext({ parts: ["zones"] });
 
-  assert.equal(first.zones.flatMap((zone) => zone.objects).find((o) => o.key === target.uuid).selected, true);
-  assert.equal(second.zones.flatMap((zone) => zone.objects).find((o) => o.key === target.uuid).selected, true);
+  assert.equal(first.zones.flatMap((zone) => zone.objects).find((o) => o.key === target.uuid).selected, false);
+  assert.equal(second.zones.flatMap((zone) => zone.objects).find((o) => o.key === target.uuid).selected, false);
   assert.deepEqual([...game.user.targets], [token]);
   app._cleanup();
 });
@@ -195,7 +197,7 @@ test("Sensor Map context reflects tokenless contact selection without creating a
   Targeting.pick("Contact.ui-map-only", combat.flags[M].tsc, { additive: true });
   const context = await app._prepareContext({ parts: ["zones"] });
 
-  assert.equal(context.zones.flatMap((zone) => zone.objects).find((o) => o.key === "Contact.ui-map-only").selected, true);
+  assert.equal(context.zones.flatMap((zone) => zone.objects).find((o) => o.key === "Contact.ui-map-only").selected, false);
   assert.equal(canvas.tokens.placeables.length, tokenCount);
   app._cleanup();
 });

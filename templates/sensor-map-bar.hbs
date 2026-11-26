@@ -14,6 +14,14 @@
         aria-pressed="{{showRanges}}"
       ><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i></button>
       {{#if isGM}}
+        <label class="tsc-action-object-picker" for="tsc-sensor-action-object">
+          <span>{{localize "SF2eTSC.ui.actionObject"}}</span>
+          <select id="tsc-sensor-action-object" name="actionObject" data-tsc-action-object title="{{localize 'SF2eTSC.ui.actionObjectHint'}}">
+            <option value="">{{localize "SF2eTSC.ui.noActionObject"}}</option>
+            {{#each actionObjects}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} — {{typeLabel}}</option>{{/each}}
+          </select>
+        </label>
+        {{#if actionSelection}}<span class="tsc-pill tsc-action-position" title="{{localize 'SF2eTSC.ui.actionObjectHint'}}">{{actionSelection.positionLabel}}</span>{{/if}}
         <span class="tsc-spacer"></span>
         <span class="tsc-map-tools" role="group" aria-label="{{localize 'SF2eTSC.ui.gmTools'}}">
           {{#if pendingRevealCount}}

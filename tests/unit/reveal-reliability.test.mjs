@@ -8,6 +8,8 @@ import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
 import { addSensorObjectToInitiative, addAllNpcShipsToInitiative } from "../../scripts/sensor/initiative.mjs";
 import { registerSensorHandlers } from "../../scripts/sensor/map-handlers.mjs";
 import { registerShipHandlers, Ship } from "../../scripts/starship/ship-service.mjs";
+import { loadStarship } from "../../scripts/starship/starship-state.mjs";
+import { mapObjectSources } from "../../scripts/sensor/map-object.mjs";
 import { serialize } from "../../scripts/utils/serial.mjs";
 import { dispatchSocketMessage } from "../../scripts/socket.mjs";
 import { T } from "../../scripts/utils/foundry.mjs";
@@ -23,7 +25,7 @@ import {
 // Foundry document mocks only: server filtering, network ordering and live failover are not proven.
 const contactsPath = `flags.${MODULE_ID}.privateSensor.contacts`;
 const completedPath = `flags.${MODULE_ID}.privateSensor.completedReveals`;
-async function setup({ anonymous = true, custom = false, direct = false, hazard = false, reuseActor = false } = {}) {
+async function setup({ anonymous = true, custom = false, direct = false, hazard = false, mapOnly = false } = {}) {
   const ctx = installFoundryMock(),
     combat = makeStarshipCombat();
   const source = hazard
@@ -36,10 +38,10 @@ async function setup({ anonymous = true, custom = false, direct = false, hazard 
     actor = source;
     await addPrivateContact(combat, actor, 4);
     key = privateContacts(combat.id)[0].key;
-  } else if (reuseActor) {
+  } else if (mapOnly) {
     const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 4, detection: "undetected" });
     key = placement.key;
-    actor = source;
+    actor = await loadStarship(placement.key);
   } else {
     actor = await createSensorActorInstance(source, combat, { privateContact: true });
     await addPrivateContact(combat, actor, 4);
@@ -48,10 +50,10 @@ async function setup({ anonymous = true, custom = false, direct = false, hazard 
   await changePrivateContact(combat, key, "detect", "observed");
   if (anonymous && actor && !direct && !hazard) {
     await addSensorObjectToInitiative(combat.id, key);
-    const entry = combat.combatants.find((entry) => entry.actorId === actor.id);
+    const entry = combat.combatants.find((entry) => entry.actorId === actor.id || entry.flags[MODULE_ID].sensorMapObject?.key === key);
     entry.initiative = 17;
   }
-  return { ctx, combat, source, actor, key, reuseActor, journal: game.journal.contents[0] };
+  return { ctx, combat, source, actor, key, mapOnly, journal: game.journal.contents[0] };
 }
 
 // Inject before-write rejection, applied-but-rejected acknowledgements, and authority loss
@@ -106,7 +108,7 @@ function inject(env, target, mode) {
   };
 }
 function assertFinished(env, originalId, originalActorCount) {
-  const { combat, actor, key, source } = env;
+  const { combat, actor, key, source, mapOnly } = env;
   assert.deepEqual(privateContacts(combat.id), []);
   assert.deepEqual(pendingPrivateReveals(combat.id), []);
   const objects = getTsc(combat).objects.filter((object) => object.key === (actor?.uuid ?? key));
@@ -116,9 +118,12 @@ function assertFinished(env, originalId, originalActorCount) {
   assert.equal(game.actors.size, originalActorCount);
   assert.equal(game.actors.get(source.id), source);
   if (actor) {
-    assert.equal(game.actors.get(actor.id), actor);
-    const entries = combat.combatants.filter((entry) => entry.actorId === actor.id);
-    if (originalId || ((env.reuseActor || actor.flags[MODULE_ID]?.sensorContactInstance) && actor.type !== "hazard")) {
+    const entries = combat.combatants.filter(
+      (entry) => entry.actorId === actor.id || entry.flags[MODULE_ID].sensorMapObject?.key === actor.uuid
+    );
+    if (mapOnly) assert.equal(game.actors.has(actor.id), false);
+    else assert.equal(game.actors.get(actor.id), actor);
+    if (originalId || ((mapOnly || actor.flags[MODULE_ID]?.sensorContactInstance) && actor.type !== "hazard")) {
       assert.equal(entries.length, 1);
       const [entry] = entries;
       if (originalId) {
@@ -129,8 +134,14 @@ function assertFinished(env, originalId, originalActorCount) {
       assert.equal(entry.name, actor.name);
       assert.equal(entry.img, actor.img);
     } else assert.equal(entries.length, 0);
-    if (actor.flags[MODULE_ID]?.sensorContactInstance) assert.equal(actor.flags[MODULE_ID].sensorContactInstance.privateContact, false);
-    else assert.equal(actor.flags[MODULE_ID]?.sensorContactInstance, undefined);
+    const current = mapOnly ? null : actor;
+    if (mapOnly) {
+      assert.equal(objects[0].mapOnly, true);
+      assert.equal(mapObjectSources(combat.id)[key].data.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+    }
+    if (current?.flags[MODULE_ID]?.sensorContactInstance)
+      assert.equal(current.flags[MODULE_ID].sensorContactInstance.privateContact, false);
+    else if (!mapOnly) assert.equal(current.flags[MODULE_ID]?.sensorContactInstance, undefined);
   }
   const publicText = JSON.stringify(combat.flags);
   for (const secretField of ["pendingReveal", "completedReveals", '"reveal"', '"stage"', "sourceUuid"])
@@ -140,8 +151,8 @@ function assertFinished(env, originalId, originalActorCount) {
 
 for (const mode of ["before", "applied", "lostGM", "noop"]) {
   for (const stage of ["publish", "disclose", "create", "finalize"]) {
-    test(`reused world Actor REVEAL ${stage}: ${mode} failure recovers without copies or Actor writes`, async () => {
-      const env = await setup({ anonymous: stage !== "create", reuseActor: true });
+    test(`map-only snapshot REVEAL ${stage}: ${mode} failure recovers without Actor writes`, async () => {
+      const env = await setup({ anonymous: stage !== "create", mapOnly: true });
       const before = env.actor.toObject();
       const originalId = env.combat.combatants.contents[0]?.id;
       const failure = inject(env, stage, mode);
@@ -724,9 +735,15 @@ for (const mode of ["legacy-update", "public-update", "create", "alias"]) {
 test("bulk initiative skips pending while adding an unrelated independent NPC", async () => {
   const env = await publishedPending();
   const source = makeShip({ id: "unrelated-npc", name: "Other NPC", role: "npc" });
-  const placement = await addSensorContact(env.combat, { source: "world", uuid: source.uuid, zone: 7, detection: "identified" });
+  const placement = await addSensorContact(env.combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 7,
+    detection: "identified",
+    publicActor: true
+  });
   // Public placement already creates its Combatant; remove only that entry to exercise bulk creation.
-  const entry = env.combat.combatants.find((entry) => entry.actor?.uuid === placement.actorUuid);
+  const entry = env.combat.combatants.find((entry) => entry.flags[MODULE_ID].sensorMapObject?.key === placement.key);
   await env.combat.deleteEmbeddedDocuments("Combatant", [entry.id]);
   const writes = watchGuardWrites(env);
   assert.deepEqual(await addAllNpcShipsToInitiative(env.combat.id), {
@@ -738,8 +755,8 @@ test("bulk initiative skips pending while adding an unrelated independent NPC", 
   });
   assert.deepEqual(writes, ["createEmbeddedDocuments"]);
   assert.equal(
-    env.combat.combatants.find((entry) => entry.actor?.uuid === placement.actorUuid).name,
-    fromUuidSync(placement.actorUuid).name
+    env.combat.combatants.find((entry) => entry.flags[MODULE_ID].sensorMapObject?.key === placement.key).name,
+    (await loadStarship(placement.key)).name
   );
 });
 

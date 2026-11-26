@@ -10,6 +10,7 @@ import { isFrequencyAvailable, recordUse, frequencyKey } from "../engine/frequen
 import { findObject } from "../engine/sensor-ops.mjs";
 import { evaluateTarget, targetingState, TARGET_REASON_ERRORS } from "../engine/target-rules.mjs";
 import { privateContacts } from "../sensor/private-contacts.mjs";
+import { resolveSensorActor, resolveSensorActorSync } from "../sensor/map-object.mjs";
 import { Draft } from "./draft.mjs";
 import { buildNpcAction, slugifyName } from "./npc-inline.mjs";
 import { bindNpcStrikeTemplate } from "./npc-rows.mjs";
@@ -86,7 +87,7 @@ export function targetRuleInput(ctx) {
     override: !!ctx.gmOverride,
     soft: !ctx.strictRules,
     isDestroyed: (key) => {
-      const a = fromUuidSync_(findObject(ctx.tsc, key)?.actorUuid ?? key);
+      const a = resolveSensorActorSync(ctx.combat, findObject(ctx.tsc, key)?.actorUuid ?? key);
       if (!a) return false;
       if (isStarship(a)) return readStarship(a).destroyed;
       const hp = a.system?.attributes?.hp;
@@ -110,7 +111,7 @@ async function resolveTargets(ctx) {
     const ev = evaluateTarget({ ...targetRuleInput(ctx), obj });
     if (!ev.available) fail(TARGET_REASON_ERRORS[ev.reason] ?? "badTarget");
     if (ev.warning) ctx.rule(TARGET_REASON_ERRORS[ev.warning] ?? "badTarget");
-    const actor = await fromUuidSafe(obj.actorUuid ?? obj.key);
+    const actor = await resolveSensorActor(ctx.combat, obj.actorUuid ?? obj.key);
     if (!actor || (!isStarship(actor) && actor.type !== "hazard") || seen.has(actor.uuid)) continue;
     const entry = await ctx.draft.target(actor.uuid);
     seen.add(actor.uuid);
@@ -312,7 +313,7 @@ async function executeActionNow(params) {
   let crewUuid = params.crewUuid ?? null;
   const user = params.user ?? game.users.get(userId) ?? null;
   if (!user) fail("noPermission");
-  const ship = await fromUuidSafe(shipUuid);
+  const ship = await resolveSensorActor(activeStarshipCombat(), shipUuid);
   if (!ship || !isStarship(ship)) fail("shipNotFound");
   // catalogue action, or an NPC statblock action rebuilt from the ship's own data (never trusted from the client)
   let action = getAction(params.actionId) ?? buildNpcAction(readStarship(ship), params.actionId);

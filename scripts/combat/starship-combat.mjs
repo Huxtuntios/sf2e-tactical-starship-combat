@@ -29,6 +29,7 @@ import { planCrewCombatants } from "../engine/crew-initiative.mjs";
 import { registerHandler, emitClientEvent } from "../socket.mjs";
 import { moduleSetting, isActiveGM, T, fromUuidSafe, fromUuidSync_ } from "../utils/foundry.mjs";
 import { notifyInfo, notifyWarn, log } from "../utils/logging.mjs";
+import { resolveSensorActor } from "../sensor/map-object.mjs";
 
 let startingCombat = false;
 
@@ -541,7 +542,7 @@ export async function onTurnChange(combat, changes = {}) {
   state.lastTurnKey = key;
   // expire effects / timed malfunctions / repair lockouts
   for (const uuid of combatShipUuids(combat)) {
-    const ship = await fromUuidSafe(uuid);
+    const ship = await resolveSensorActor(combat, uuid);
     if (!ship || !isStarship(ship)) continue;
     const data = readStarship(ship);
     const expired = pruneExpired(data.effects, combat, previous);
@@ -595,12 +596,14 @@ export async function onTurnChange(combat, changes = {}) {
   if (!cb) return;
   const mark = cb.flags?.[MODULE_ID];
   if (mark?.compromisedEntry) {
-    const ship = await fromUuidSafe(mark.shipUuid);
+    const ship = await resolveSensorActor(combat, mark.shipUuid);
     if (ship) await runHullIntegrityCheck(ship, combat);
     if (combat.combatant?.id === cb.id) await combat.nextTurn();
     return;
   }
-  if (cb.actor && isStarshipHazard(cb.actor) && hazardFlags(cb.actor)?.isComplex !== false) await HazardEngine.onHazardTurn(cb);
+  const mapHazard = cb.flags?.[MODULE_ID]?.sensorMapObject?.key ?? cb.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid;
+  if ((cb.actor && isStarshipHazard(cb.actor) && hazardFlags(cb.actor)?.isComplex !== false) || mapHazard)
+    await HazardEngine.onHazardTurn(cb);
 }
 
 /** Auto-detect starship combat when a starship/hazard actor joins an encounter (explicit toggle always available). */
@@ -640,7 +643,7 @@ export async function cleanupEndedCombat(combat) {
   if (!isActiveGM()) return;
   const combatBound = (effect) => effect.timing?.combatId === combat.id || (!effect.manual && !!effect.expire);
   for (const uuid of combatShipUuids(combat)) {
-    const ship = await fromUuidSafe(uuid);
+    const ship = await resolveSensorActor(combat, uuid);
     if (!ship || !isStarship(ship)) continue;
     for (const effect of readStarship(ship).effects.filter((e) => e.manual && combatBound(e)))
       await removeManualEffect(ship.uuid, effect.id);

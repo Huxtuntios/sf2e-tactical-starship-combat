@@ -1,3 +1,7 @@
+import { SYSTEM_WEAPON_TRAITS } from "../content/weapon-docs.mjs";
+import { PACK_ACTION_TRAITS } from "../content/action-docs.mjs";
+import { traitLabel } from "../utils/labels.mjs";
+
 /** Pure parsing helpers for the starship editor (unit-tested). */
 export const NPC_COSTS = ["one-action", "two-actions", "three-actions", "reaction", "free-action", "passive"];
 export const parseCsv = (s) =>
@@ -147,4 +151,98 @@ export function buildDefenseEditorContext(data, catalogs, localize = (key) => ke
     },
     numeric
   };
+}
+
+const STRIKE_TRAIT_CATALOGS = ["weaponTraits", "npcAttackTraits", "actionTraits", "vehicleTraits"];
+const MODULE_STRIKE_TRAITS = new Set([
+  "area",
+  "area (burst 1 zone)",
+  "area (cone)",
+  "area (line)",
+  "boost",
+  "boost d8",
+  "boost 1d4",
+  "boost 2d6",
+  "boost 2d8",
+  "boost 2d10",
+  "boost 3d8",
+  "boost 4d8",
+  "ordnance",
+  "razing",
+  "starship",
+  "tech",
+  "volley 2 zones",
+  ...Array.from({ length: 10 }, (_, index) => `range increment ${index + 1} ${index === 0 ? "zone" : "zones"}`)
+]);
+const STRIKE_TRAIT_ALIASES = { ordnance: ["ordinance"] };
+
+function addStrikeCatalogKeys(values, catalog) {
+  if (!catalog || typeof catalog !== "object") return;
+  for (const key of Object.keys(catalog)) if (key !== "custom") values.add(key);
+}
+
+export function strikeTraitCatalog(config = globalThis.CONFIG?.PF2E) {
+  const values = new Set();
+  for (const name of STRIKE_TRAIT_CATALOGS) {
+    const catalog = config?.[name];
+    if (catalog && typeof catalog === "object") addStrikeCatalogKeys(values, catalog);
+    else if (name === "actionTraits") for (const key of PACK_ACTION_TRAITS) values.add(key);
+    else if (name === "vehicleTraits") values.add("starship");
+    else for (const key of SYSTEM_WEAPON_TRAITS) values.add(key);
+  }
+  for (const key of MODULE_STRIKE_TRAITS) values.add(key);
+  return [...values]
+    .map((value) => {
+      const label = traitLabel(value);
+      const aliases = STRIKE_TRAIT_ALIASES[value] ?? [];
+      return { value, label, search: [value, label, ...aliases].join(" ").toLowerCase() };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label) || a.value.localeCompare(b.value));
+}
+
+export function filterStrikeTraits(catalog, query) {
+  const search = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  if (!search) return catalog;
+  return catalog.filter((entry) =>
+    [entry.value, entry.label, entry.search].some((value) =>
+      String(value ?? "")
+        .toLowerCase()
+        .includes(search)
+    )
+  );
+}
+
+const strikeTraitKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+export function uniqueStrikeTraits(values) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of Array.isArray(values) ? values : []) {
+    const value = String(raw ?? "").trim();
+    const key = strikeTraitKey(value);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
+export function toggleStrikeTrait(selected, value, checked) {
+  const current = uniqueStrikeTraits(selected);
+  const trait = String(value ?? "").trim();
+  const key = strikeTraitKey(trait);
+  if (!key) return current;
+  const exists = current.some((entry) => strikeTraitKey(entry) === key);
+  if (checked) return exists ? current : [...current, trait];
+  return current.filter((entry) => strikeTraitKey(entry) !== key);
+}
+
+export function readStrikeTraits(form) {
+  return uniqueStrikeTraits([...form.querySelectorAll('[name="strikeTraits"]:checked')].map((input) => input.value));
 }

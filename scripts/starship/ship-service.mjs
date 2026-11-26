@@ -11,7 +11,17 @@ import { moveOwnedMine, uniqueOwnedMine } from "../actions/mine-resolution.mjs";
 import { getTsc } from "../combat/tsc-state.mjs";
 import { findObject } from "../engine/sensor-ops.mjs";
 import { computeShipStats } from "./stats.mjs";
-import { patchStarship, stationOf, writeStarship, isStarship, loadStarship, readStarship } from "./starship-state.mjs";
+import {
+  patchStarship,
+  stationOf,
+  writeStarship,
+  isStarship,
+  loadStarship,
+  readStarship,
+  deleteStarshipMapKey,
+  replaceStarshipMap,
+  isSafeDefenseMapKey
+} from "./starship-state.mjs";
 import { registerHandler, request } from "../socket.mjs";
 import { can } from "../crew/permissions.mjs";
 import { fromUuidSafe, T } from "../utils/foundry.mjs";
@@ -35,6 +45,7 @@ import { changeDrone } from "../engine/drone-state.mjs";
 import { log } from "../utils/logging.mjs";
 
 const EDITABLE_LISTS = ["weapons", "upgrades", "expansionBays", "effects", "strikes", "npcActions", "drones"];
+const NUMERIC_DEFENSE_KINDS = new Set(["resistances", "weaknesses", "skills"]);
 
 /** State flags a crew member may flip by hand (everything else in STATE_KEYS is GM only). */
 const CREW_STATE_KEYS = ["offKilter"];
@@ -92,6 +103,26 @@ export function registerShipHandlers() {
       }
     });
     return true;
+  });
+
+  registerHandler("deleteDefense", async ({ user, payload }) => {
+    const s = await ship(payload.shipUuid);
+    if (!(user.isGM || can(user, s, "configureShip"))) throw new Error(T("SF2eTSC.errors.noPermission"));
+    const { kind, key } = payload;
+    if (!NUMERIC_DEFENSE_KINDS.has(kind) || !isSafeDefenseMapKey(key)) throw new Error(T("SF2eTSC.errors.invalidData"));
+    return deleteStarshipMapKey(s, kind, key);
+  });
+
+  registerHandler("replaceDefense", async ({ user, payload }) => {
+    const s = await ship(payload.shipUuid);
+    if (!(user.isGM || can(user, s, "configureShip"))) throw new Error(T("SF2eTSC.errors.noPermission"));
+    const { kind, map } = payload;
+    if (!NUMERIC_DEFENSE_KINDS.has(kind)) throw new Error(T("SF2eTSC.errors.invalidData"));
+    const replacement = sanitizeShipField(kind, map);
+    for (const key of Object.keys(replacement)) {
+      if (!isSafeDefenseMapKey(key)) throw new Error(T("SF2eTSC.errors.invalidData"));
+    }
+    return replaceStarshipMap(s, kind, replacement);
   });
 
   registerHandler("setStation", async ({ user, payload }) => {
@@ -780,6 +811,8 @@ export function registerShipHandlers() {
 
 export const Ship = {
   patch: (shipUuid, patch) => request("patchShip", { shipUuid, patch }),
+  deleteDefense: (shipUuid, kind, key) => request("deleteDefense", { shipUuid, kind, key }),
+  replaceDefense: (shipUuid, kind, map) => request("replaceDefense", { shipUuid, kind, map }),
   setStation: (shipUuid, stationId, patch) => request("setStation", { shipUuid, stationId, patch }),
   removeStation: (shipUuid, stationId) => request("removeStation", { shipUuid, stationId }),
   equipment: (shipUuid, list, op, extra) => request("equipment", { shipUuid, list, op, ...extra }),

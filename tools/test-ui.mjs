@@ -19,6 +19,7 @@ const allFixtures = [
   ["smoke-environment-object.mjs", "environment-object"],
   ["smoke-sensor-drop.mjs", "sensor-drop"],
   ["smoke-sensor-performance.mjs", "sensor-performance"],
+  ["smoke-sensor-gm-actions.mjs", "sensor-gm-actions"],
   ["smoke-contact-editor.mjs", "contact-editor"],
   ["smoke-start-wizard.mjs", "start-wizard"],
   ["smoke-crew-stations.mjs", "crew-stations"],
@@ -31,6 +32,7 @@ const allFixtures = [
   ["smoke-description-links.mjs", "description-links"],
   ["smoke-compact-ui.mjs", "compact-ui"],
   ["smoke-starship-defense-editor.mjs", "defense-editor"],
+  ["smoke-strike-trait-selector.mjs", "strike-traits"],
   [null, "effect-targets"]
 ];
 const fixtures = process.env.TSC_UI_FOLDER
@@ -182,6 +184,27 @@ try {
           { timeout: 10000 }
         );
         const result = JSON.parse(await page.locator("#result").innerText());
+        if (folder === "sensor-gm-actions") {
+          const measurements = [];
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            const measurement = await page.evaluate(() => globalThis.measureGmActions());
+            measurements.push({ width, ...measurement });
+            await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-${width}.png`)) });
+          }
+          result.measurements = measurements;
+          result.checks.push(...measurements.flatMap((measurement) => measurement.checks));
+          const select = page.locator("[data-tsc-action-object]");
+          await select.focus();
+          const focusVisible = await select.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+          await select.press("ArrowDown");
+          const keyboardSelection = await page.evaluate(() => globalThis.fixtureSelection === "hazard");
+          await select.press("Tab");
+          const keyboardFocus = await select.evaluate((element) => globalThis.document.activeElement !== element);
+          result.checks.push({ name: "native-select-keyboard-selection", pass: keyboardSelection });
+          result.checks.push({ name: "native-select-keyboard-focus", pass: focusVisible && keyboardFocus });
+          result.passed = result.checks.every((check) => check.pass);
+        }
         if (folder === "effect-targets") {
           const base = name.replace(/-(\d+)\.html$/, "").replace(/\.html$/, "");
           await page.screenshot({ path: path.join(out, folder, `${base}-${targetWidth}.png`) });

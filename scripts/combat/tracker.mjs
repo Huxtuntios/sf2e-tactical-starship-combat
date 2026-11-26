@@ -7,6 +7,7 @@ import { displayDesignation } from "../utils/designations.mjs";
 import { syncCrewCombatants } from "./crew-sync.mjs";
 import { openSensorMap, openStartWizard } from "../ui/launchers.mjs";
 import { can } from "../crew/permissions.mjs";
+import { resolveSensorActorSync } from "../sensor/map-object.mjs";
 
 const ICON = { ship: "🚀", compromised: "⚠🚀", hazard: "⚠" };
 const CONTACT_ICON = "icons/svg/mystery-man.svg";
@@ -42,9 +43,10 @@ export function decorateTracker(app, element) {
   for (const li of root.querySelectorAll("li.combatant[data-combatant-id]")) {
     li.querySelector(".tsc-badge")?.remove();
     const c = combat.combatants.get(li.dataset.combatantId);
-    if (!c?.actor) continue;
+    if (!c) continue;
     if (c.flags?.[MODULE_ID]?.sensorMapInitiative?.contactDesignation) {
-      const label = displayDesignation(c.name ?? "Contact");
+      const actor = game.user?.isGM ? (c.actor ?? resolveSensorActorSync(combat, c.flags[MODULE_ID].sensorMapObject?.key)) : null;
+      const label = actor?.name || displayDesignation(c.name ?? "Contact");
       const name = li.querySelector(".token-name, .combatant-name, .name");
       if (name) {
         name.textContent = label;
@@ -53,12 +55,13 @@ export function decorateTracker(app, element) {
       }
       const image = li.querySelector("img.token-image, img");
       if (image) {
-        image.src = CONTACT_ICON;
+        image.src = actor?.img || CONTACT_ICON;
         image.alt = label;
         image.removeAttribute("title");
       }
       continue;
     }
+    if (!c.actor) continue;
     const kind = Initiative.kindOf(c);
     let html = "";
     if (kind === "ship" || kind === "compromised") {

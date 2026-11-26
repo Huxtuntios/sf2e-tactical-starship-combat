@@ -45,6 +45,7 @@ export function dropActorOnMap(state, actor, zone, { publicActor = false, reuseA
   const object = {
     key,
     actorUuid: actor.uuid,
+    ...(actor.mapOnly ? { mapOnly: true } : {}),
     ...(reuseActor ? { reuseActor: true } : {}),
     type: ship ? "starship" : "hazard",
     name: actor.name,

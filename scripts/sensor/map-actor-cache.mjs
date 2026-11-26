@@ -1,14 +1,20 @@
-import { fromUuidSafe } from "../utils/foundry.mjs";
 import { isStarship, readStarship } from "../starship/starship-state.mjs";
 import { computeShipStats } from "../starship/stats.mjs";
 import { safeImagePath } from "./appearance.mjs";
+import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { resolveSensorActor } from "./map-object.mjs";
 
 const permitted = (actor, user) => !!actor && (user?.isGM || actor.testUserPermission?.(user, "OBSERVER") === true);
 const validUuid = (uuid) => typeof uuid === "string" && uuid.trim().length > 0;
 
 /** Read-only, per-window cache. Only UUIDs from the redacted known view may enter it. */
 export class MapActorCache {
-  constructor({ resolve = fromUuidSafe, read = readStarship, stats = computeShipStats, ship = isStarship } = {}) {
+  constructor({
+    resolve = (uuid) => resolveSensorActor(activeStarshipCombat(), uuid),
+    read = readStarship,
+    stats = computeShipStats,
+    ship = isStarship
+  } = {}) {
     this.resolve = resolve;
     this.read = read;
     this.compute = stats;

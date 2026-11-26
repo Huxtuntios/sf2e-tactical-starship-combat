@@ -69,7 +69,7 @@ export function wireSensorMapDragDrop(element, context, deps = {}) {
           if (!accepted) return;
         }
         const result = await addSensorContact(combat, {
-          source: "world",
+          source: actor.pack ? "compendium" : "world",
           uuid: actor.uuid,
           zone: zoneNumber,
           detection: privateContact ? "undetected" : "identified",

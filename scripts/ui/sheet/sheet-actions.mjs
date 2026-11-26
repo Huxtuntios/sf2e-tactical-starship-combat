@@ -36,7 +36,8 @@ import { stationUpgradeStatus } from "../../engine/upgrades.mjs";
 import { SHIP_TARGET } from "./sheet-upgrades.mjs";
 import { modulePackId } from "../../utils/system.mjs";
 import { permissionsFor } from "../../crew/permissions.mjs";
-import { addListValue, addMapValue, numericMapFromRows, removeListValueAt, removeMapValue } from "../sheet-edit.mjs";
+import { addListValue, addMapValue, numericMapFromRows, removeListValueAt } from "../sheet-edit.mjs";
+import { chooseStrikeTraits } from "../strike-trait-dialog.mjs";
 
 export function switchTab(e, t) {
   this.tab = t.dataset.tab;
@@ -88,40 +89,46 @@ export async function saveDefenseRows(sheet, kind, rows) {
     throw Object.assign(new Error("SF2eTSC.errors.defenseRowsInvalid"), { i18nKey: "SF2eTSC.errors.defenseRowsInvalid" });
   const current = readStarship(sheet.document)[kind];
   const map = numericMapFromRows(rows, { knownKeys: defenseKnownKeys(kind), existingKeys: Object.keys(current ?? {}) });
-  await Ship.patch(sheet.document.uuid, { [kind]: map });
+  await Ship.replaceDefense(sheet.document.uuid, kind, map);
 }
 
 export async function removeDefenseEntry(_e, target) {
   assertConfigureShip(this);
   const kind = target.dataset.defenseKind;
   assertDefenseKind(kind);
-  const data = readStarship(this.document);
   if (kind === "immunities") {
+    const data = readStarship(this.document);
     const index = Number(target.dataset.defenseIndex);
     await Ship.patch(this.document.uuid, { immunities: removeListValueAt(data.immunities, index) });
     return;
   }
-  const key = target.dataset.defenseKey;
-  if (!Object.hasOwn(data[kind] ?? {}, key)) return;
-  await Ship.patch(this.document.uuid, { [kind]: removeMapValue(data[kind], key) });
+  const row = target.closest?.("[data-defense-row]");
+  const key = row?.querySelector('[data-defense-property="type"]')?.value ?? target.dataset.defenseKey;
+  await Ship.deleteDefense(this.document.uuid, kind, key);
 }
 
 export async function addListItem(e, t) {
   const list = t.dataset.list;
+  if (list === "strikes") {
+    const traits = await chooseStrikeTraits();
+    if (traits === null) return;
+    await Ship.equipment(this.document.uuid, list, "add", {
+      item: {
+        name: T("SF2eTSC.edit.newStrike"),
+        kind: "ranged",
+        attack: this.document.system?.details?.level?.value + 7 || 7,
+        damage: "2d6 piercing",
+        traits
+      }
+    });
+    return;
+  }
   const item =
-    list === "strikes"
-      ? {
-          name: T("SF2eTSC.edit.newStrike"),
-          kind: "ranged",
-          attack: this.document.system?.details?.level?.value + 7 || 7,
-          damage: "2d6 piercing",
-          traits: ["range increment 4 zones", "tech"]
-        }
-      : list === "npcActions"
-        ? { name: T("SF2eTSC.edit.newAbility"), cost: "one-action", traits: [], text: "" }
-        : list === "expansionBays"
-          ? { id: randomId("bay"), name: null }
-          : null;
+    list === "npcActions"
+      ? { name: T("SF2eTSC.edit.newAbility"), cost: "one-action", traits: [], text: "" }
+      : list === "expansionBays"
+        ? { id: randomId("bay"), name: null }
+        : null;
   if (item) await Ship.equipment(this.document.uuid, list, "add", { item });
 }
 export async function removeListItem(e, t) {

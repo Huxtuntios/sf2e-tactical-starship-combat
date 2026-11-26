@@ -124,7 +124,7 @@ const state={enabled:true,zones:12,objects:Array.from({length:360},(_,i)=>({key:
 const combat={id:'combat',round:1,flags:{[MODULE]:{tsc:state}},combatants:[]};
 let savedUiState={};
 const settings={get:(module,key)=>key==='starshipSheetTheme'?'dark':key==='uiState'?savedUiState:key==='showUnknownContacts'?true:undefined,set:async(module,key,value)=>{if(key==='uiState')savedUiState=value;}};
-globalThis.game={user:{id:'gm',role:4,isGM:true},actors,combat,combats:[combat],journal:{contents:[]},settings,i18n:{localize:key=>key,has:()=>false}};
+globalThis.game={user:{id:'gm',role:4,isGM:true},actors,combat,combats:[combat],journal:{contents:[]},settings,i18n:{localize:key=>key,has:()=>false,format:(key,data)=>Object.entries(data??{}).reduce((text,[name,value])=>text.replaceAll('{'+name+'}',value),key)}};
 globalThis.ui={notifications:{error:message=>{throw new Error(message);}}};
 globalThis.fromUuidSync=uuid=>actors.find(a=>a.uuid===uuid)??null;
 globalThis.fromUuid=async uuid=>{metrics.resolve++;return fromUuidSync(uuid);};

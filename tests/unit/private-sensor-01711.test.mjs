@@ -812,7 +812,9 @@ test("hazard API places unopened Actor privately; unsafe public modes fail", asy
   const hazard = new MockActor({ id: "h", type: "hazard", name: "Secret hazard" });
   game.actors.set(hazard.id, hazard);
   await placeHazard(hazard, { zone: 3 });
-  assert.equal(privateContacts(combat.id)[0].actorUuid, hazard.uuid);
+  assert.equal(privateContacts(combat.id)[0].actorUuid, privateContacts(combat.id)[0].key);
+  assert.notEqual(privateContacts(combat.id)[0].actorUuid, hazard.uuid);
+  assert.equal(privateContacts(combat.id)[0].mapOnly, true);
   assert.equal(JSON.stringify(combat.flags).includes(hazard.uuid), false);
   await assert.rejects(placeHazard(hazard, { map: "both" }));
   await assert.rejects(placeHazard(hazard, { detection: "observed", publicActor: true }));

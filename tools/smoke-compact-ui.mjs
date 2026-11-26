@@ -24,7 +24,7 @@ const { buildSheetContext } = await import("../scripts/ui/sheet/sheet-context.mj
 const render = (name, context) => h.compile(fs.readFileSync(path.join(root, "templates", `${name}.hbs`), "utf8"))(context);
 
 const controlCounts = {
-  "sensor-gm": 93,
+  "sensor-gm": 94,
   "sensor-player": 62,
   "npc-actions": 36,
   "npc-config": 85,
@@ -118,14 +118,14 @@ function sheetBudgets(role, tab) {
 function sensorBudgets() {
   return {
     1100: { "mapTop.height": 24, "dock.height": 150, "dockActions.height": 100, actionRowMaxHeight: 28, contentScrollHeight: 490 },
-    600: { "mapTop.height": 24, "dock.height": 210, "dockActions.height": 140, actionRowMaxHeight: 28, contentScrollHeight: 490 },
-    380: { "mapTop.height": 46, "dock.height": 145, "dockActions.height": 40, actionRowMaxHeight: 28, contentScrollHeight: 490 }
+    600: { "mapTop.height": 48, "dock.height": 210, "dockActions.height": 140, actionRowMaxHeight: 28, contentScrollHeight: 490 },
+    380: { "mapTop.height": 74, "dock.height": 145, "dockActions.height": 40, actionRowMaxHeight: 28, contentScrollHeight: 490 }
   };
 }
 const sensorMinimums = {
   1100: { "zones.height": 199 },
   600: { "zones.height": 100 },
-  380: { "zones.height": 160, "detail.height": 80 }
+  380: { "zones.height": 160, "detail.height": 78 }
 };
 
 const measure = `

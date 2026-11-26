@@ -52,7 +52,7 @@ async function dropHarness(actor, combat, { confirm = async () => true, movableK
 }
 
 for (const kind of ["npc", "player", "hazard"]) {
-  test(`repeated visible ${kind} directory drops add map references to the same Actor`, async () => {
+  test(`repeated visible ${kind} directory drops add independent map-only objects`, async () => {
     installFoundryMock();
     const actor = sourceActor(kind, { visible: true });
     const before = actor.toObject();
@@ -79,11 +79,15 @@ for (const kind of ["npc", "player", "hazard"]) {
       objects.map((object) => object.zone),
       [2, 6]
     );
-    assert.equal(objects[0].key, actor.uuid);
+    assert.notEqual(objects[0].key, actor.uuid);
     assert.notEqual(objects[1].key, objects[0].key);
     assert.deepEqual(
       objects.map((object) => object.actorUuid),
-      [actor.uuid, actor.uuid]
+      [objects[0].key, objects[1].key]
+    );
+    assert.equal(
+      objects.every((object) => object.mapOnly === true),
+      true
     );
     assert.equal(actor.flags[MODULE_ID]?.sensorContactInstance, undefined);
     assert.deepEqual(actor.toObject(), before);
@@ -99,7 +103,7 @@ for (const kind of ["npc", "player", "hazard"]) {
 }
 
 for (const kind of ["npc", "hazard"]) {
-  test(`repeated private ${kind} directory drops keep one private contact without creating an Actor`, async () => {
+  test(`repeated private ${kind} directory drops keep separate private map snapshots without creating an Actor`, async () => {
     installFoundryMock();
     const actor = sourceActor(kind);
     const combat = makeStarshipCombat();
@@ -116,9 +120,16 @@ for (const kind of ["npc", "hazard"]) {
     assert.equal(harness.warnings.length, 0);
     assert.equal(game.actors.size, 1);
     const contacts = privateContacts(combat.id);
-    assert.equal(contacts.length, 1);
-    assert.equal(contacts[0].actorUuid, actor.uuid);
-    assert.equal(contacts[0].zone, 6);
+    assert.equal(contacts.length, 2);
+    assert.equal(new Set(contacts.map((contact) => contact.key)).size, 2);
+    assert.equal(
+      contacts.every((contact) => contact.mapOnly && contact.actorUuid === contact.key),
+      true
+    );
+    assert.deepEqual(
+      contacts.map((contact) => contact.zone),
+      [2, 6]
+    );
     assert.deepEqual(getTsc(combat).objects, []);
     assert.equal(globalThis.__writes.filter((write) => write.doc.startsWith("Actor.") && write.create).length, 0);
   });
@@ -222,7 +233,7 @@ test("a failed repeated map-reference placement rolls back without creating an A
   combat.update = update;
 });
 
-test("removing one shared map reference preserves the Actor and Combatant until the last reference is removed", async () => {
+test("removing one map-only object preserves the source Actor and the other object's Combatant", async () => {
   installFoundryMock();
   const actor = sourceActor("npc", { visible: true });
   const combat = makeStarshipCombat();
@@ -232,13 +243,14 @@ test("removing one shared map reference preserves the Actor and Combatant until 
   await harness.drop();
   const [first, second] = getTsc(combat).objects;
   const { sensorUpdate } = await import("../../scripts/sensor/map-handlers.mjs");
-  assert.equal(combat.combatants.size, 1);
+  assert.equal(combat.combatants.size, 2);
 
   await sensorUpdate({ user: game.user, payload: { combatId: combat.id, op: "remove", key: first.key } });
 
   assert.equal(game.actors.size, 1);
   assert.equal(game.actors.get(actor.id), actor);
   assert.equal(combat.combatants.size, 1);
+  assert.equal(combat.combatants.contents[0].flags[MODULE_ID].sensorMapObject.key, second.key);
   assert.deepEqual(
     getTsc(combat).objects.map((object) => object.key),
     [second.key]
