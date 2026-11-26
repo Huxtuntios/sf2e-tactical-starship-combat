@@ -6,6 +6,7 @@ import { ensurePrivateStore, privateStoreFor, requirePrivateGM } from "./private
 
 const MAP_OBJECT_SOURCE = "mapObjects";
 const clone = (value) => structuredClone(value);
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const isPlainObject = (value) =>
   !!value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 const isForcedDeletion = (value) => {
@@ -262,6 +263,102 @@ class SnapshotItems extends Map {
   }
 }
 
+class SnapshotItem {
+  #actor;
+  #source;
+
+  constructor(actor, source) {
+    this.#actor = actor;
+    this.#source = clone(source);
+    this.id = this.#source._id;
+    this.documentName = "Item";
+    this.isEmbedded = true;
+    this.pack = null;
+  }
+
+  get _id() {
+    return this.id;
+  }
+
+  get _source() {
+    return this.#source;
+  }
+
+  get _stats() {
+    return this.#source._stats ?? {};
+  }
+
+  get type() {
+    return this.#source.type;
+  }
+
+  get name() {
+    return this.#source.name;
+  }
+
+  get img() {
+    return this.#source.img;
+  }
+
+  get system() {
+    return (this.#source.system ??= {});
+  }
+
+  get flags() {
+    return (this.#source.flags ??= {});
+  }
+
+  get slug() {
+    return this.system.slug ?? this.#source.slug;
+  }
+
+  get active() {
+    return this.#source.active !== false;
+  }
+
+  set active(value) {
+    this.#source.active = value !== false;
+  }
+
+  get isLocked() {
+    return this.#source.isLocked === true || this.system.references?.parent != null;
+  }
+
+  get parent() {
+    return this.#actor;
+  }
+
+  get actor() {
+    return this.#actor;
+  }
+
+  get uuid() {
+    return `${this.#actor.uuid}.Item.${this.id}`;
+  }
+
+  isOfType(...types) {
+    return types.includes(this.type);
+  }
+
+  toObject() {
+    return clone(this.#source);
+  }
+
+  clone(changes = {}) {
+    return new SnapshotItem(this.#actor, { ...this.toObject(), ...clone(changes) });
+  }
+
+  async update(changes) {
+    const [updated] = await this.#actor.updateEmbeddedDocuments("Item", [{ _id: this.id, ...changes }]);
+    return updated ?? null;
+  }
+
+  async delete() {
+    const [deleted] = await this.#actor.deleteEmbeddedDocuments("Item", [this.id]);
+    return deleted ?? null;
+  }
+}
+
 function applyUpdate(target, changes) {
   for (const [key, value] of Object.entries(changes)) {
     const parts = key.split(".");
@@ -277,10 +374,12 @@ function applyUpdate(target, changes) {
 
 export class MapObjectActor {
   #sheet = null;
+  #persist = true;
 
-  constructor(record) {
+  constructor(record, { persist = true } = {}) {
     this._record = clone(record);
     this._data = clone(record.data);
+    this.#persist = persist !== false;
     this.id = record.key;
     this.uuid = record.key;
     this.documentName = "Actor";
@@ -364,8 +463,27 @@ export class MapObjectActor {
     this.items = new SnapshotItems();
     for (const item of this._data.items ?? []) {
       const id = item._id ?? item.id;
-      if (id) this.items.set(id, item);
+      if (id) this.items.set(id, new SnapshotItem(this, { ...clone(item), _id: id }));
     }
+  }
+
+  #requireWritable() {
+    requirePrivateGM();
+    if (!this.#persist) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+  }
+
+  get canHostRuleElements() {
+    return true;
+  }
+
+  isOfType(...types) {
+    return types.includes(this.type);
+  }
+
+  get itemTypes() {
+    const types = {};
+    for (const item of this.items.values()) (types[item.type] ??= []).push(item);
+    return types;
   }
 
   testUserPermission(user, level) {
@@ -378,8 +496,21 @@ export class MapObjectActor {
     return [];
   }
 
-  hasCondition(slug) {
-    return [...this.items.values()].some((item) => item.active !== false && item.type === "condition" && item.slug === slug);
+  getCondition(slug, { all = false } = {}) {
+    const conditions = [...this.items.values()].filter(
+      (item) => item.type === "condition" && (all || item.active) && (item.slug === slug || item.id === slug)
+    );
+    if (all)
+      conditions.sort((a, b) => {
+        const aValue = a.system.value?.value ?? 0;
+        const bValue = b.system.value?.value ?? 0;
+        return aValue > bValue ? -1 : +(aValue < bValue);
+      });
+    return conditions[0] ?? null;
+  }
+
+  hasCondition(...slugs) {
+    return slugs.some((slug) => !!this.getCondition(slug));
   }
 
   isAffectedBy(condition) {
@@ -391,12 +522,68 @@ export class MapObjectActor {
     return false;
   }
 
+  async increaseCondition(condition, { max = Number.MAX_SAFE_INTEGER, value } = {}) {
+    this.#requireWritable();
+    if (condition === "persistent-damage") return null;
+    const existing =
+      typeof condition === "string"
+        ? (this.itemTypes.condition ?? []).find((item) =>
+            value ? item.slug === condition && !item.isLocked : item.slug === condition && item.active
+          )
+        : condition;
+    if (existing) {
+      const current = existing._source.system?.value?.value;
+      if (current === null) return null;
+      const next = clamp(current + (value ?? 1), 1, max);
+      await game.pf2e.ConditionManager.updateConditionValue(existing.id, this, next);
+      return this.items.get(existing.id) ?? existing;
+    }
+    if (typeof condition !== "string") return null;
+    const template = game.pf2e.ConditionManager.getCondition(condition);
+    if (!template) return null;
+    const source = template.toObject();
+    const initial = typeof source.system.value.value === "number" && max ? clamp(source.system.value.value, value ?? 1, max) : null;
+    source.system.value.value = initial;
+    return (await this.createEmbeddedDocuments("Item", [source])).shift() ?? null;
+  }
+
+  async decreaseCondition(condition, { forceRemove = false } = {}) {
+    this.#requireWritable();
+    const item = typeof condition === "string" ? this.getCondition(condition) : condition;
+    if (!item) return;
+    if (item.slug === "persistent-damage") {
+      const ids = [...this.items.values()].filter((entry) => entry.slug === item.slug).map((entry) => entry.id);
+      await this.deleteEmbeddedDocuments("Item", ids);
+      return;
+    }
+    const current = item._source.system?.value?.value;
+    const next = typeof current === "number" ? Math.max(current - 1, 0) : null;
+    if (next !== null && !forceRemove) await game.pf2e.ConditionManager.updateConditionValue(item.id, this, next);
+    else await this.deleteEmbeddedDocuments("Item", [item.id]);
+  }
+
+  async toggleCondition(condition, { active } = {}) {
+    const enabled = active ?? !this.hasCondition(condition);
+    if (enabled && !this.hasCondition(condition)) await this.increaseCondition(condition);
+    else if (enabled) return true;
+    else if (!enabled && this.hasCondition(condition)) {
+      await this.decreaseCondition(condition, { forceRemove: true });
+      return false;
+    }
+  }
+
+  clone(changes = {}) {
+    const data = clone(this._data);
+    applyUpdate(data, changes);
+    return new MapObjectActor({ ...this._record, data }, { persist: false });
+  }
+
   toObject() {
     return { ...clone(this._data), _id: this.id };
   }
 
   async update(changes, { expectedSource = null } = {}) {
-    requirePrivateGM();
+    this.#requireWritable();
     const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
     this._data = clone(stored.data);
     this._record = stored;
@@ -405,6 +592,58 @@ export class MapObjectActor {
     await syncPublicMapActor(stored);
     Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
     return this;
+  }
+
+  async createEmbeddedDocuments(type, sources = [], { keepId = false } = {}) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(sources)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const items = clone(this._data.items ?? []);
+    const created = [];
+    for (const source of sources) {
+      const id = keepId && source._id ? source._id : foundry.utils.randomID(16);
+      if (items.some((item) => (item._id ?? item.id) === id)) throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
+      const data = { ...clone(source), _id: id };
+      const item = new SnapshotItem(this, data);
+      if (this.isImmuneTo(item)) continue;
+      items.push(data);
+      created.push(item);
+    }
+    if (!created.length) return [];
+    await this.update({ items: new foundry.data.operators.ForcedReplacement(items) }, { expectedSource: clone(this._source) });
+    return created.map((item) => this.items.get(item.id)).filter(Boolean);
+  }
+
+  async updateEmbeddedDocuments(type, updates = []) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(updates)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const items = clone(this._data.items ?? []);
+    const changed = [];
+    for (const update of updates) {
+      const id = update._id;
+      const index = items.findIndex((item) => (item._id ?? item.id) === id);
+      if (index < 0) throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
+      const { _id: _ignored, ...changes } = update;
+      applyUpdate(items[index], changes);
+      changed.push(id);
+    }
+    if (!changed.length) return [];
+    await this.update({ items: new foundry.data.operators.ForcedReplacement(items) }, { expectedSource: clone(this._source) });
+    return changed.map((id) => this.items.get(id)).filter(Boolean);
+  }
+
+  async deleteEmbeddedDocuments(type, ids = []) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(ids)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const removed = new Set(ids);
+    const items = clone(this._data.items ?? []);
+    const deleted = items
+      .filter((item) => removed.has(item._id ?? item.id))
+      .map((item) => this.items.get(item._id ?? item.id))
+      .filter(Boolean);
+    const next = items.filter((item) => !removed.has(item._id ?? item.id));
+    if (deleted.length)
+      await this.update({ items: new foundry.data.operators.ForcedReplacement(next) }, { expectedSource: clone(this._source) });
+    return deleted;
   }
 
   async setFlag(scope, key, value) {

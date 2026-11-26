@@ -32,6 +32,8 @@ import { Draft } from "../../scripts/actions/draft.mjs";
 import { observerKeys } from "../../scripts/sensor/map-model.mjs";
 import { targetingState } from "../../scripts/engine/target-rules.mjs";
 import { ensurePrivateStore } from "../../scripts/sensor/private-store.mjs";
+import { addNativeCondition, removeNativeCondition } from "../../scripts/starship/native-condition-adapter.mjs";
+import { installNativeEffectsFixture } from "../helpers/native-effect-fixture.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const setup = () => {
@@ -479,6 +481,35 @@ function installSnapshotSheetMock() {
   return { renders, submits };
 }
 
+function installSnapshotConditionFixture() {
+  const definitions = new Map([
+    ["clumsy", { name: "Clumsy", valued: true }],
+    ["off-guard", { name: "Off-Guard", valued: false }]
+  ]);
+  game.pf2e.ConditionManager = {
+    conditionsSlugs: [...definitions.keys()],
+    getCondition(slug) {
+      const definition = definitions.get(slug);
+      if (!definition) return null;
+      return {
+        name: definition.name,
+        system: { rules: [], value: { isValued: definition.valued, value: definition.valued ? 1 : null } },
+        toObject: () => ({
+          _id: `${slug}-template`,
+          type: "condition",
+          name: definition.name,
+          system: { slug, rules: [], value: { isValued: definition.valued, value: definition.valued ? 1 : null } }
+        })
+      };
+    },
+    async updateConditionValue(itemId, actor, value) {
+      const item = actor.items.get(itemId);
+      if (value === 0) await item.delete();
+      else await item.update({ "system.value.value": value });
+    }
+  };
+}
+
 test("map-only actors expose a genuinely read-only snapshot sheet context", async () => {
   const combat = setup();
   const source = makeShip({ id: "sheet-source", name: "sheet-source", role: "player", owners: ["p1"], hp: 31, sp: 14 });
@@ -513,6 +544,86 @@ test("map-only snapshot sheet submission is a no-op instead of transient Actor c
 
   await assert.doesNotReject(actor.sheet.submit());
   assert.deepEqual(submits, []);
+});
+
+test("map-only native conditions add, increment, persist and remove through embedded Items", async () => {
+  const combat = setup();
+  installSnapshotConditionFixture();
+  const source = ship("snapshot-condition-source");
+  const before = source.toObject();
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  assert.equal(typeof actor.increaseCondition, "function");
+  const clumsy = await addNativeCondition(actor, "clumsy", 2);
+  assert.notEqual(clumsy.id, "clumsy-template");
+  assert.equal(clumsy.system.value.value, 2);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items.find((item) => item._id === clumsy.id).system.value.value, 2);
+
+  const increased = await addNativeCondition(actor, "clumsy", 3);
+  assert.equal(increased.id, clumsy.id);
+  assert.equal(actor.items.get(clumsy.id).system.value.value, 5);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items.find((item) => item._id === clumsy.id).system.value.value, 5);
+
+  const offGuard = await addNativeCondition(actor, "off-guard", 99);
+  assert.equal(offGuard.system.value.value, null);
+  assert.notEqual(offGuard.id, "off-guard-template");
+  assert.equal(await removeNativeCondition(actor, clumsy.id), true);
+  assert.equal(actor.items.has(clumsy.id), false);
+  assert.equal(actor.items.has(offGuard.id), true);
+  assert.deepEqual(
+    mapObjectSources(combat.id)[placement.key].data.items.map((item) => item.system.slug),
+    ["off-guard"]
+  );
+  assert.deepEqual(source.toObject(), before);
+  assert.equal(game.actors.size, 1);
+});
+
+test("map-only embedded Item create, update and delete persist exact snapshot data", async () => {
+  const combat = setup();
+  const source = ship("snapshot-item-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  assert.equal(typeof actor.createEmbeddedDocuments, "function");
+  const [created] = await actor.createEmbeddedDocuments(
+    "Item",
+    [{ _id: "snapshot-effect", type: "effect", name: "Snapshot effect", system: { slug: "snapshot-effect", value: 1 } }],
+    { keepId: true }
+  );
+  assert.equal(created.id, "snapshot-effect");
+  assert.equal(created.parent, actor);
+  assert.equal(created.isOfType("effect"), true);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value, 1);
+
+  const [updated] = await actor.updateEmbeddedDocuments("Item", [{ _id: created.id, system: { value: 4 } }]);
+  assert.equal(updated.system.value, 4);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value, 4);
+
+  const [deleted] = await actor.deleteEmbeddedDocuments("Item", [created.id]);
+  assert.equal(deleted.id, created.id);
+  assert.equal(actor.items.has(created.id), false);
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items, []);
+});
+
+test("map-only native modifier derivation uses a detached clone and never persists prepared data", async () => {
+  installNativeEffectsFixture();
+  const combat = makeStarshipCombat();
+  const source = makeShip({ id: "snapshot-modifier-source", name: "Snapshot modifier source", role: "npc" });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const { deriveConditionModifiers } = await import("../../scripts/starship/native-effect-adapter.mjs");
+
+  assert.equal(typeof actor.clone, "function");
+  const modifiers = deriveConditionModifiers("clumsy", 4, { actor, selector: "ac" });
+  assert.equal(modifiers[0].value, -4);
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items ?? [], []);
+  const clone = actor.clone({ items: [] });
+  clone.synthetics.modifiers.ac = [];
+  await assert.rejects(clone.update({ "system.attributes.hp.value": 1 }), {
+    message: game.i18n.localize("SF2eTSC.effects.errors.nativeUnavailable")
+  });
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 30);
 });
 
 test("concurrent map-only handles apply partial updates to the latest record", async () => {
