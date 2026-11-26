@@ -616,6 +616,66 @@ test("repeated map-only sheet opens reuse one stable per-placement document and 
   assert.equal(game.actors.size, 1);
 });
 
+test("closed map-only sheets reopen as the same per-placement window", async () => {
+  const combat = setup();
+  const source = ship("sheet-close-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const sheet = actor.sheet;
+
+  await sheet.render(true);
+  await sheet.close();
+  assert.equal(sheet.rendered, false);
+  const reopened = resolveSensorActorSync(combat, placement.key).sheet;
+  assert.strictEqual(reopened, sheet);
+  await reopened.render(true);
+  assert.equal(new Set(renders.map((entry) => entry.sheet)).size, 1);
+});
+
+test("independent placements keep distinct sheets and snapshot values", async () => {
+  const combat = setup();
+  const source = ship("sheet-independent-source");
+  const before = source.toObject();
+  const first = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const second = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 5, detection: "hidden" });
+  installSnapshotSheetMock();
+  const firstSheet = resolveSensorActorSync(combat, first.key).sheet;
+  const secondSheet = resolveSensorActorSync(combat, second.key).sheet;
+
+  assert.notStrictEqual(firstSheet, secondSheet);
+  assert.notStrictEqual(firstSheet.document, secondSheet.document);
+  await firstSheet.submit({ "system.attributes.hp.value": 5 });
+  assert.equal(firstSheet.document.system.attributes.hp.value, 5);
+  assert.equal(secondSheet.document.system.attributes.hp.value, 24);
+  assert.equal(mapObjectSources(combat.id)[second.key].data.system.attributes.hp.value, 24);
+  assert.deepEqual(source.toObject(), before);
+});
+
+test("direct snapshot store updates refresh an open sheet and deletion closes it", async () => {
+  const combat = setup();
+  const source = ship("sheet-external-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  const journal = game.journal.contents[0];
+  installFoundryJournalUpdateMock(journal);
+  const record = mapObjectSources(combat.id)[placement.key];
+  record.data.system.attributes.hp.value = 6;
+  await journal.update({
+    [`flags.${MODULE_ID}.privateSensor.mapObjects.${placement.key}`]: new foundry.data.operators.ForcedReplacement(record)
+  });
+
+  assert.equal(sheet.document.system.attributes.hp.value, 6);
+  assert.equal(renders.length, 2);
+  await deleteMapObjectSource(combat.id, placement.key);
+  assert.equal(sheet.rendered, false);
+  assert.equal(resolveSensorActorSync(combat, placement.key), null);
+});
+
 test("map-only native conditions add, increment, persist and remove through embedded Items", async () => {
   const combat = setup();
   installSnapshotConditionFixture();
