@@ -24,6 +24,7 @@ const allFixtures = [
   ["smoke-sensor-gm-actions.mjs", "sensor-gm-actions"],
   ["smoke-contact-editor.mjs", "contact-editor"],
   ["smoke-start-wizard.mjs", "start-wizard"],
+  ["smoke-onboarding.mjs", "onboarding"],
   ["smoke-crew-stations.mjs", "crew-stations"],
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
@@ -342,6 +343,41 @@ try {
             await page.evaluate((language) => globalThis.showPlasmaLanguage(language), lang);
             await page.locator("#chat").screenshot({ path: path.join(out, folder, `plasma-attack-${lang}.png`) });
           }
+        }
+        if (folder === "onboarding") {
+          const measurements = [];
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            const measurement = await page.evaluate(() => globalThis.measureOnboarding());
+            measurements.push({ width, ...measurement });
+            await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-${width}.png`)) });
+          }
+          result.measurements = measurements;
+          result.checks.push(...measurements.flatMap((measurement) => measurement.checks));
+          await page.evaluate(() => globalThis.onboardingFixture.showSection(0));
+          const quickJump = page.locator("[data-onboarding-nav] button").nth(1);
+          await quickJump.focus();
+          await quickJump.press("Enter");
+          await page.waitForFunction(() => globalThis.onboardingFixture.app().currentIndex === 1);
+          result.checks.push({
+            name: "keyboard-quick-jump",
+            pass: await page.evaluate(() => {
+              const active = globalThis.document.activeElement;
+              return active?.matches("[data-onboarding-title]") && globalThis.getComputedStyle(active).outlineStyle !== "none";
+            })
+          });
+          const autoOpen = page.locator("[data-auto-open]");
+          await autoOpen.focus();
+          await autoOpen.press("Space");
+          await page.waitForFunction(() => globalThis.document.querySelector("[data-auto-open]").checked);
+          result.checks.push({
+            name: "keyboard-auto-open-toggle",
+            pass: await page.evaluate(() => {
+              const active = globalThis.document.activeElement;
+              return active?.matches("[data-auto-open]") && globalThis.getComputedStyle(active).outlineStyle !== "none";
+            })
+          });
+          result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "start-wizard") {
           const before = await page.evaluate(() => {

@@ -1,5 +1,148 @@
 {
   "SF2eTSC": {
+    "onboarding": {
+      "title": "Tactical Starship Combat Guide",
+      "kicker": "SF2e Tactical Starship Combat",
+      "subtitle": "An optional tour of the tools you use before, during and after a starship encounter.",
+      "windowActions": "Guide window actions",
+      "navigation": "Guide sections",
+      "progress": "Section {current} of {total}",
+      "progressLabel": "Guide progress",
+      "dontShowAgain": "Don't show again on future launches",
+      "minimize": "Minimize guide",
+      "close": "Close guide",
+      "skip": "Skip guide",
+      "previous": "Previous",
+      "next": "Next",
+      "sections": {
+        "intro": {
+          "title": "Meet the module",
+          "content": {
+            "summary": "SF2e Tactical Starship Combat adds tactical starship encounters to Foundry and SF2e. It connects crew, battle stations, hazards, a zone-based Sensor Map, effects and starship damage without replacing the native system sheets or combat tracker.",
+            "features": {
+              "ships": "Player and NPC starships with native Actor sheets, stations, weapons, upgrades and crew.",
+              "stations": "Station actions, crew assignments, native checks, attack cards and target selection.",
+              "sensorMap": "Abstract space zones with range, heading, detection, movement and independent contact placements.",
+              "effects": "Scoped conditions, bonuses and penalties, persistent damage and Shield/Hull Point handling."
+            },
+            "native": "The module uses native Foundry and SF2e actors, items, checks and initiative. Each character keeps their normal turn; the player ship does not gain an extra turn by default.",
+            "player": "Players can open the Sensor Map and Station HUD, claim permitted stations and use their crew actions. The GM starts the encounter and manages world-level changes.",
+            "gm": "The GM can prepare the roster, place contacts, choose the GM action object, manage effects and apply starship damage."
+          }
+        },
+        "quickStart": {
+          "title": "Quick start",
+          "content": {
+            "prepare": "Prepare a player starship and any NPC ships or hazards. Create them with the module, convert an eligible vehicle/NPC, or import them from the matching compendiums.",
+            "crew": "Open the player ship's Stations tab, add characters as crew and assign or claim battle stations.",
+            "wizard": "The GM opens Start Tactical Starship Combat from the Token controls or the button above the Combat Tracker.",
+            "roster": "Choose ships, hazards and custom objects. Set zones, detection, heading and copies, then review the roster and crew assignments.",
+            "start": "Preview or review the encounter and start it. The module creates the combat and opens the Sensor Map; the GM also gets the Crew Manager.",
+            "initiative": "Roll initiative normally. Open the Sensor Map and use the station-action dock or Station HUD during each character's turn.",
+            "gmNote": "Start Tactical Starship Combat and the Toolbox are GM-only. Players do not need to complete this guide before using their ship or station.",
+            "playerNote": "If your station is not assigned, ask the GM to prepare the encounter or use Crew Stations on your character sheet when an accessible combat ship is available."
+          }
+        },
+        "wizard": {
+          "title": "Combat Setup Wizard",
+          "content": {
+            "open": "The GM can open the wizard from the Token controls or from Start Tactical Starship Combat above the Combat Tracker. Browse World and compendium actors, filter by type, pack and level, and preview an original without importing it.",
+            "add": "Add selected ships or hazards to the roster; custom map objects can be added separately.",
+            "edit": "Edit role, start zone, detection, heading, count, copy zones and eligible World Actor reuse. Player-ship station assignments use the same crew data as the ship sheet.",
+            "remove": "Remove a roster entry without deleting its source Actor. Missing sources are reported instead of silently replaced.",
+            "sorting": "The Level and Name sort controls apply to the Start Tactical Combat roster. Level starts ascending, name breaks ties using the current locale, and missing or invalid levels sort last. Sorting does not change selection or copy behavior.",
+            "copies": "A World player ship remains the same Actor. An eligible single, identified World NPC or hazard can be reused when the wizard offers it; otherwise the module creates an independent copy. Compendium sources are never modified.",
+            "gmNote": "The preview checks the current draft. If automatic pre-combat review is disabled, the GM can still open the review manually before confirming the start."
+          }
+        },
+        "sensorMap": {
+          "title": "Sensor Map",
+          "content": {
+            "summary": "The Sensor Map is the abstract space view for an active tactical encounter. The normal scene remains the ship interior; the Sensor Map tracks zones, range, heading, detection and contacts.",
+            "zones": "Use the zone display and sensor-range control to read distances and firing arcs.",
+            "move": "Drag a ship or use the detail panel's zone buttons. The GM can move any ship; a player can move their own ship. Nothing moves automatically.",
+            "sheets": "Select a contact and use Open Sheet in its detail panel to inspect the associated actor or map-only snapshot.",
+            "appearance": "The GM can add contacts, resize zones, change map appearance and manage detection from the map toolbar and detail tools.",
+            "identity": "Each new World or compendium Actor placement is an independent map-only snapshot. The source Actor is unchanged and no Actors Directory document is created, so the same source can appear in several placements with different map state.",
+            "privacy": "Detection controls the zone-map projection; Foundry document ownership still controls access to actors and journals. Unknown contacts must not be treated as a guarantee of secrecy.",
+            "gmNote": "Private contact tools, appearance, detection and GM action selection are GM-only. Players see only the projected contacts and details available to them."
+          }
+        },
+        "actionSelection": {
+          "title": "Action object and initiative",
+          "content": {
+            "gmSummary": "The GM action object is the starship or hazard whose actions appear in the GM Sensor Map dock. It is separate from Foundry token selection and native targeting.",
+            "auto": "Automatic action-object selection is on by default. While the Sensor Map is open it follows the current initiative and round changes.",
+            "manual": "Use the action-object dropdown to choose a valid starship or hazard manually.",
+            "rmb": "Right-click a valid GM starship or hazard on the Sensor Map to assign it as the action object without changing native targeting or opening its sheet.",
+            "resume": "A manual dropdown or right-click assignment is a temporary override for the current turn. Automatic selection resumes on the next turn while the toggle remains on.",
+            "targeting": "Selecting an action object does not target an attack. Use the normal target controls on the attack card or Sensor Map when an action asks for a target.",
+            "initiative": "Crew keep their own initiative. Crew participation is controlled by the Crew initiative scope setting; player ships normally have no separate turn, with the rules-specific compromised-ship exception.",
+            "playerNote": "Players use the actions of the station they helm. The GM action-object selector and right-click override are not player controls."
+          }
+        },
+        "actions": {
+          "title": "Crew and ship actions",
+          "content": {
+            "stations": "A player ship's statistics and station actions use the characters assigned to its stations. Assign crew on the Stations tab or let an authorized player claim a free station.",
+            "claim": "Use Crew Stations on a character sheet during an active encounter, or claim/release the station on the ship sheet.",
+            "dock": "The Sensor Map dock and Station HUD show the station's available actions, costs, frequency and warnings.",
+            "execute": "Use the action-cost button to execute. The action-name button opens the description without executing it; the chat button sends that description.",
+            "describe": "Warnings explain unsupported or blocked cases. Warn mode allows the existing workflow with a warning; Strict mode can refuse it, with the GM override preserved.",
+            "attacks": "For a supported attack, choose the target on the attack card or Sensor Map and use the native roll flow. Turn, range and visibility are checked again before the roll.",
+            "economy": "SF2e and the players track actions, reactions and the multiple attack penalty. The module checks station requirements and frequency but does not spend those resources for you.",
+            "playerNote": "If no station actions appear, confirm that your character is assigned to an accessible station on the active player ship. Observers do not gain station actions."
+          }
+        },
+        "effects": {
+          "title": "Conditions, effects and damage",
+          "content": {
+            "gmSummary": "The GM opens Starship effects from the ship sheet or Sensor Map detail. Players may inspect effects when their document permissions allow it, but only the GM changes them.",
+            "conditions": "Apply supported native conditions or module ship states with a value when required. Incompatible ship/crew combinations are rejected instead of becoming display-only effects.",
+            "modifiers": "Apply a bonus or penalty to a supported statistic with its native stacking type and choose checks, DCs or both.",
+            "targets": "Target the whole ship, individual mechanics, stations, actions, weapons or crew. Entire Starship is selected by default and does not automatically include crew.",
+            "timing": "Managed effects can use turn anchors, round durations or manual conditions. Sustain reminders do not spend actions or extend an effect automatically.",
+            "damage": "Use the module's starship damage tools. Damage types, immunities, resistances, weaknesses and Hardness are processed before Shield Points and then Hull Points; bypass-shields damage goes directly to Hull Points after defenses.",
+            "persistent": "Persistent damage creates a durable receipt. The GM explicitly applies the packet before attempting recovery; crew use their native persistent-damage recovery.",
+            "nativeDamage": "Native SF2e damage buttons do not account for module Shield Points. Do not apply the same damage through both the native and module paths.",
+            "playerNote": "Players can use supported station attacks and view permitted effect information. Applying ship effects, overriding immunities and applying persistent-damage receipts are GM-only."
+          }
+        },
+        "faq": {
+          "title": "Frequently asked questions",
+          "content": {
+            "missing": {
+              "question": "Why is an object missing from the list?",
+              "answer": "Check the wizard source, type, pack and level filters. The entry must be a valid starship or hazard, and a missing World source must be restored before the encounter can start."
+            },
+            "switch": {
+              "question": "Why did the GM action object not switch?",
+              "answer": "Automatic selection may be off, there may be no active encounter, or the current combatant may not map to one actionable object. A manual override also lasts for the current turn."
+            },
+            "placements": {
+              "question": "Why can one Actor have several Sensor Map placements?",
+              "answer": "Each new placement is an independent map-only snapshot with its own key and map state. Several placements may share the same source Actor UUID without sharing damage, detection or position."
+            },
+            "world": {
+              "question": "How is a World Actor different from a map-only object?",
+              "answer": "A World Actor is a persistent document in the Actors directory. A new map-only placement is a combat-owned snapshot that leaves its source unchanged; older wizard-created copies can still be World Actors."
+            },
+            "manual": {
+              "question": "How do I select an action object manually?",
+              "answer": "The GM uses the action-object dropdown or right-clicks a valid starship or hazard on the Sensor Map. Players use their assigned station instead."
+            },
+            "initiative": {
+              "question": "How does initiative work?",
+              "answer": "Characters keep their native initiative and turns. Crew scope controls which crew enter initiative; the player ship normally has no extra turn, except for the compromised-ship rules entry."
+            },
+            "reopen": {
+              "question": "How do I reopen this guide?",
+              "answer": "Use the question-mark Tactical Starship Combat Guide button in the Token scene controls. It is available to every user even after automatic opening is disabled."
+            }
+          }
+        }
+      }
+    },
     "conditions": {
       "off-kilter": "Off-Kilter",
       "inoperable": "Inoperable",
@@ -246,6 +389,7 @@
       "search": "Search…",
       "selectObject": "Select an object on the map.",
       "sensorMap": "Sensor Map",
+      "onboarding": "Module guide",
       "sensorRange": "Sensor range",
       "setMalfunction": "Set malfunction",
       "shieldPoints": "Shield Points",
@@ -1147,6 +1291,10 @@
       "autoOpenCombatReview": {
         "name": "Auto-open the pre-combat review (this client)",
         "hint": "Open the review dialog automatically when previewing a combat. Validation always runs; the review can also be opened manually."
+      },
+      "showOnboarding": {
+        "name": "Show the module guide on future launches (this client)",
+        "hint": "When disabled, the guide stays available from the Token scene controls but does not open automatically."
       }
     },
     "edit": {

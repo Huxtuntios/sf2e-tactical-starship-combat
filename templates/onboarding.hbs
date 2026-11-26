@@ -1,0 +1,49 @@
+<section class="tsc-onboarding" lang="{{locale}}">
+  <header class="tsc-onboarding-header">
+    <div>
+      <p class="tsc-onboarding-kicker">{{localize "SF2eTSC.onboarding.kicker"}}</p>
+      <h1 data-onboarding-title tabindex="-1">{{localize "SF2eTSC.onboarding.title"}}</h1>
+      <p class="tsc-onboarding-subtitle">{{localize "SF2eTSC.onboarding.subtitle"}}</p>
+    </div>
+    <div class="tsc-onboarding-header-actions" role="group" aria-label="{{localize 'SF2eTSC.onboarding.windowActions'}}">
+      <button type="button" data-action="toggleMinimize" aria-label="{{localize 'SF2eTSC.onboarding.minimize'}}" data-tooltip="{{localize 'SF2eTSC.onboarding.minimize'}}"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button type="button" data-action="close" aria-label="{{localize 'SF2eTSC.onboarding.close'}}" data-tooltip="{{localize 'SF2eTSC.onboarding.close'}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+  </header>
+  <div class="tsc-onboarding-body">
+    <nav class="tsc-onboarding-nav" data-onboarding-nav aria-label="{{localize 'SF2eTSC.onboarding.navigation'}}">
+      <ol role="list">
+        {{#each sections}}
+          <li><button type="button" class="{{#if current}}active{{/if}}" data-action="goToSection" data-index="{{index}}" {{#if current}}aria-current="step"{{/if}}><span class="tsc-onboarding-number" aria-hidden="true">{{number}}</span><span>{{title}}</span>{{#if visited}}<i class="fa-solid fa-check" aria-hidden="true"></i>{{/if}}</button></li>
+        {{/each}}
+      </ol>
+    </nav>
+    <section class="tsc-onboarding-main" aria-labelledby="tsc-onboarding-section-title">
+      <div class="tsc-onboarding-progress">
+        <progress id="tsc-onboarding-progress" max="{{total}}" value="{{progress}}" aria-label="{{localize 'SF2eTSC.onboarding.progressLabel'}}">{{localize "SF2eTSC.onboarding.progress" current=currentNumber total=total}}</progress>
+        <span id="tsc-onboarding-progress-text">{{localize "SF2eTSC.onboarding.progress" current=currentNumber total=total}}</span>
+      </div>
+      <article class="tsc-onboarding-content" data-onboarding-content data-current-index="{{currentIndex}}" tabindex="-1" aria-labelledby="tsc-onboarding-section-title">
+        <h2 id="tsc-onboarding-section-title">{{current.title}}</h2>
+        {{#each current.blocks}}
+          {{#if isParagraph}}<p {{#if audience}}data-onboarding-audience="{{audience}}"{{/if}}>{{text}}</p>{{/if}}
+          {{#if isList}}<ul>{{#each items}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
+          {{#if isSteps}}<ol>{{#each items}}<li>{{this}}</li>{{/each}}</ol>{{/if}}
+          {{#if isNote}}<aside class="tsc-onboarding-note" data-onboarding-audience="{{audience}}"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><p>{{text}}</p></aside>{{/if}}
+          {{#if isQa}}<dl class="tsc-onboarding-faq">{{#each pairs}}<dt>{{question}}</dt><dd>{{answer}}</dd>{{/each}}</dl>{{/if}}
+        {{/each}}
+      </article>
+    </section>
+  </div>
+  <footer class="tsc-onboarding-footer">
+    <label class="tsc-onboarding-auto" for="tsc-onboarding-auto-open">
+      <input id="tsc-onboarding-auto-open" type="checkbox" data-action="toggleAutoOpen" data-auto-open {{#if disableAutoOpen}}checked{{/if}}>
+      <span>{{localize "SF2eTSC.onboarding.dontShowAgain"}}</span>
+    </label>
+    <div class="tsc-onboarding-footer-actions">
+      <button type="button" data-action="skip">{{localize "SF2eTSC.onboarding.skip"}}</button>
+      <button type="button" data-action="previous" {{#unless canPrevious}}disabled{{/unless}}>{{localize "SF2eTSC.onboarding.previous"}}</button>
+      <button type="button" data-action="next" {{#unless canNext}}disabled{{/unless}}>{{localize "SF2eTSC.onboarding.next"}}</button>
+    </div>
+  </footer>
+</section>

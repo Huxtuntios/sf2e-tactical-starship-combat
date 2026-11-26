@@ -25,7 +25,7 @@ import { decorateTracker } from "./combat/tracker.mjs";
 import { registerControls } from "./ui/controls.mjs";
 import { StarshipSheet, NPCStarshipSheet } from "./ui/starship-sheet.mjs";
 import { refreshApps } from "./ui/base-app.mjs";
-import { openSensorMap } from "./ui/launchers.mjs";
+import { openSensorMap, autoOpenOnboarding } from "./ui/launchers.mjs";
 import { isStarship, readStarship } from "./starship/starship-state.mjs";
 import { migrateStarships } from "./engine/migration.mjs";
 import { checkCausodesConflict } from "./integrations/causodes.mjs";
@@ -63,6 +63,7 @@ const TEMPLATES = [
   "crew-ship",
   "hazard-browser",
   "start-wizard",
+  "onboarding",
   "starship-builder",
   "encounter-builder",
   "ship-editor"
@@ -154,6 +155,7 @@ Hooks.once("ready", async () => {
     }
   }
   ui.combat?.render();
+  autoOpenOnboarding();
 });
 
 /**

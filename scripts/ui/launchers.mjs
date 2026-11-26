@@ -1,4 +1,52 @@
 /** Lazy window launchers (avoid import cycles between combat code and UI). */
+import { moduleSetting } from "../utils/foundry.mjs";
+import { log } from "../utils/logging.mjs";
+
+let onboarding = null;
+let onboardingOpening = null;
+
+export async function openOnboarding() {
+  if (onboardingOpening) return onboardingOpening;
+  if (onboarding) {
+    if (onboarding.minimized) await onboarding.maximize();
+    onboarding.bringToFront?.();
+    return onboarding;
+  }
+  onboardingOpening = (async () => {
+    const { OnboardingGuide } = await import("./onboarding.mjs");
+    const app = new OnboardingGuide();
+    onboarding = app;
+    app.onClosed = () => {
+      if (onboarding === app) onboarding = null;
+    };
+    try {
+      await app.render(true);
+      return app;
+    } catch (error) {
+      if (onboarding === app) onboarding = null;
+      throw error;
+    }
+  })();
+  try {
+    return await onboardingOpening;
+  } finally {
+    onboardingOpening = null;
+  }
+}
+
+export async function toggleOnboarding() {
+  if (onboardingOpening) {
+    const app = await onboardingOpening;
+    return app.close();
+  }
+  return onboarding ? onboarding.close() : openOnboarding();
+}
+
+export function autoOpenOnboarding() {
+  if (moduleSetting("showOnboarding") === false) return;
+  openOnboarding().catch((error) => log.warn("onboarding guide could not be opened", error));
+}
+
 export async function openSensorMap() {
   const { SensorMapApplication } = await import("./sensor-map-app.mjs");
   const { openApps } = await import("./base-app.mjs");

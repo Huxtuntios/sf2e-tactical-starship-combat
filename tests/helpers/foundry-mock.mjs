@@ -418,6 +418,8 @@ const SETTING_DEFAULTS = {
   customContent: { actions: [], weapons: [], stations: [], upgrades: [], ships: [], hazards: [] },
   smallCrewWarning: false,
   autoOpenSensorMap: false,
+  showOnboarding: true,
+  uiState: {},
   movementMode: "clamp"
 };
 

@@ -2168,6 +2168,266 @@ a.tsc-damage {
 .tsc-diag.warn i {
   color: var(--tsc-warn);
 }
+
+/* Interactive onboarding guide */
+.tsc-onboarding-window .window-content {
+  padding: 0;
+  overflow: hidden;
+}
+.tsc-onboarding {
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  block-size: 100%;
+  min-block-size: 0;
+  background: var(--tsc-bg);
+  color: var(--tsc-text);
+}
+.tsc-onboarding-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: clamp(12px, 2.5cqi, 20px);
+  border-block-end: 1px solid var(--tsc-line);
+  background: color-mix(in srgb, var(--tsc-panel) 82%, transparent);
+}
+.tsc-onboarding-header h1 {
+  margin: 0;
+  font-size: clamp(1.25rem, 1rem + 2cqi, 1.65rem);
+  line-height: 1.2;
+}
+.tsc-onboarding-kicker {
+  margin: 0 0 4px;
+  color: var(--tsc-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tsc-onboarding-subtitle {
+  max-inline-size: 62ch;
+  margin: 6px 0 0;
+  color: var(--tsc-dim);
+  line-height: 1.45;
+}
+.tsc-onboarding-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+.tsc-onboarding-header-actions button {
+  min-inline-size: 32px;
+  min-block-size: 32px;
+}
+.tsc-onboarding-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+  min-block-size: 0;
+}
+.tsc-onboarding-nav {
+  min-block-size: 0;
+  overflow: auto;
+  padding: 10px;
+  border-inline-end: 1px solid var(--tsc-line);
+  background: color-mix(in srgb, var(--tsc-panel) 55%, transparent);
+  overscroll-behavior: contain;
+}
+.tsc-onboarding-nav ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tsc-onboarding-nav button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  inline-size: 100%;
+  min-block-size: 36px;
+  padding: 7px 9px;
+  text-align: start;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tsc-onboarding-nav button.active {
+  border-color: var(--tsc-accent);
+  background: color-mix(in srgb, var(--tsc-accent) 16%, var(--tsc-panel));
+}
+.tsc-onboarding-nav button i {
+  color: var(--tsc-ok);
+}
+.tsc-onboarding-number {
+  display: grid;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  border: 1px solid var(--tsc-line);
+  border-radius: 50%;
+  color: var(--tsc-dim);
+  font-size: 0.76rem;
+}
+.tsc-onboarding-main {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+  padding: clamp(12px, 2.5cqi, 20px);
+}
+.tsc-onboarding-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-block-end: 12px;
+  color: var(--tsc-dim);
+  font-size: 0.86rem;
+}
+.tsc-onboarding-progress progress {
+  flex: 1 1 160px;
+  inline-size: 100%;
+  block-size: 8px;
+  accent-color: var(--tsc-accent);
+}
+.tsc-onboarding-content {
+  min-block-size: 0;
+  overflow-y: auto;
+  padding-inline-end: 6px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+.tsc-onboarding-content h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.15rem, 1rem + 1.5cqi, 1.4rem);
+  line-height: 1.25;
+}
+.tsc-onboarding-content p {
+  margin: 0 0 12px;
+}
+.tsc-onboarding-content ul,
+.tsc-onboarding-content ol {
+  margin: 0 0 14px;
+  padding-inline-start: 1.4rem;
+}
+.tsc-onboarding-content li + li {
+  margin-block-start: 6px;
+}
+.tsc-onboarding-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--tsc-accent) 45%, var(--tsc-line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tsc-accent) 9%, var(--tsc-panel));
+}
+.tsc-onboarding-note i {
+  flex: 0 0 auto;
+  margin-block-start: 0.2em;
+  color: var(--tsc-accent);
+}
+.tsc-onboarding-note p {
+  margin: 0;
+}
+.tsc-onboarding .tsc-onboarding-faq {
+  display: block;
+  margin: 0;
+}
+.tsc-onboarding-faq dt {
+  margin: 14px 0 4px;
+  color: var(--tsc-text);
+  font-weight: 700;
+}
+.tsc-onboarding-faq dd {
+  margin: 0;
+  color: var(--tsc-dim);
+}
+.tsc-onboarding-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 12px clamp(12px, 2.5cqi, 20px);
+  border-block-start: 1px solid var(--tsc-line);
+  background: color-mix(in srgb, var(--tsc-panel) 82%, transparent);
+}
+.tsc-onboarding-auto {
+  display: flex;
+  flex: 1 1 260px;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.tsc-onboarding-auto input {
+  flex: 0 0 auto;
+  inline-size: 18px;
+  block-size: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--tsc-accent);
+}
+.tsc-onboarding-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+.tsc-onboarding-footer-actions button {
+  min-block-size: 32px;
+}
+@container (max-width: 680px) {
+  .tsc-onboarding-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .tsc-onboarding-nav {
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--tsc-line);
+  }
+  .tsc-onboarding-nav ol {
+    display: flex;
+    overflow-x: auto;
+    padding-block-end: 4px;
+  }
+  .tsc-onboarding-nav li {
+    flex: 0 0 auto;
+  }
+  .tsc-onboarding-nav button {
+    grid-template-columns: auto minmax(0, 1fr);
+    inline-size: auto;
+    max-inline-size: 210px;
+  }
+  .tsc-onboarding-nav button i {
+    display: none;
+  }
+}
+@container (max-width: 460px) {
+  .tsc-onboarding-header-actions {
+    margin-inline-start: 0;
+  }
+  .tsc-onboarding-footer-actions {
+    flex: 1 1 100%;
+    margin-inline-start: 0;
+  }
+  .tsc-onboarding-footer-actions button {
+    flex: 1 1 auto;
+  }
+}
+@media (pointer: coarse) {
+  .tsc-onboarding button,
+  .tsc-onboarding-auto {
+    min-block-size: 40px;
+  }
+  .tsc-onboarding-auto {
+    align-items: center;
+  }
+}
 .tsc-diag.bad i {
   color: var(--tsc-bad, #e5484d);
 }
