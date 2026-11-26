@@ -676,8 +676,10 @@ export function registerShipHandlers() {
 
   /** Actor-level fields (name / portrait / token image). */
   registerHandler("actorBasics", async ({ user, payload }) => {
-    const a = await fromUuidSafe(payload.actorUuid);
+    let a = await fromUuidSafe(payload.actorUuid);
+    if (!a) a = await ship(payload.actorUuid).catch(() => null);
     if (!a) throw new Error(T("SF2eTSC.errors.shipNotFound"));
+    if (a.mapOnly && !user.isGM) throw new Error(T("SF2eTSC.errors.noPermission"));
     if (!(user.isGM || a.testUserPermission?.(user, "OWNER") || (isStarship(a) && can(user, a, "configureShip"))))
       throw new Error(T("SF2eTSC.errors.noPermission"));
     const upd = {};

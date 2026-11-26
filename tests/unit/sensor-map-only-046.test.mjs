@@ -866,6 +866,36 @@ test("snapshot saves refresh the cached prepared ActorClass view in place", asyn
   assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 7);
 });
 
+test("map-only sheet actor basics save through the snapshot and reject non-GM writers", async () => {
+  const combat = setup();
+  const source = ship("sheet-basics-source");
+  const before = source.toObject();
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const socket = await import("../../scripts/socket.mjs");
+  (await import("../../scripts/starship/ship-service.mjs")).registerShipHandlers();
+  const emitted = [];
+  let requestNumber = 0;
+  const send = async (senderId, payload) => {
+    const requestId = `basics-${requestNumber++}`;
+    await socket.dispatchSocketMessage({ kind: "request", type: "actorBasics", requestId, payload }, senderId, {
+      users: game.users,
+      selfId: "gm",
+      isActiveGM: true,
+      clientEvents: new Map(),
+      emit: (message) => emitted.push(message)
+    });
+    return emitted.find((message) => message.requestId === requestId);
+  };
+
+  const saved = await send("gm", { actorUuid: placement.key, name: "Renamed snapshot" });
+  assert.equal(saved.ok, true);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.name, "Renamed snapshot");
+  const denied = await send("p1", { actorUuid: placement.key, name: "Player rename" });
+  assert.equal(denied.ok, false);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.name, "Renamed snapshot");
+  assert.deepEqual(source.toObject(), before);
+});
+
 test("map-only native conditions add, increment, persist and remove through embedded Items", async () => {
   const combat = setup();
   installSnapshotConditionFixture();
