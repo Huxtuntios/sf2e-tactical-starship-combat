@@ -155,6 +155,7 @@ export const HazardEngine = {
 
   async disable(hazardUuid, mode = "disable") {
     const combat = activeStarshipCombat();
+    if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
     const hazard = await resolveSensorActor(combat, hazardUuid);
     const draft = new Draft(combat);
     if (isPrivateSensorActor(hazard, combat)) draft.privateAction = true;
@@ -172,6 +173,7 @@ export const HazardEngine = {
 
   async enable(hazardUuid) {
     const combat = activeStarshipCombat();
+    if (!combat) throw new Error(T("SF2eTSC.errors.noCombat"));
     const draft = new Draft(combat);
     draft.tsc.hazardState[hazardUuid] = { ...(draft.tsc.hazardState[hazardUuid] ?? {}), disabled: false, mode: null, disabledAt: null };
     await draft.commit();
@@ -229,7 +231,7 @@ export const HazardEngine = {
   async onHazardTurn(combatant) {
     const key = combatant.flags?.[MODULE_ID]?.sensorMapObject?.key ?? combatant.flags?.[MODULE_ID]?.sensorContactInstance?.actorUuid;
     const hazard = key ? await resolveSensorActor(combatant.combat, key) : combatant.actor;
-    if (!isStarshipHazard(hazard)) return;
+    if (!isStarshipHazard(hazard) || !(hazardFlags(hazard)?.isComplex ?? hazard?.system?.details?.isComplex)) return;
     const mode = moduleSetting("autoRoutine");
     if (mode === "off") return;
     if (mode === "automatic") return this.executeRoutine(hazard.uuid);

@@ -141,14 +141,14 @@
 
 | Показатель                          |        Исходно |   Итог |       Изменение |
 | ----------------------------------- | -------------: | -----: | --------------: |
-| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 78,843 |         +20,613 |
-| Runtime `scripts/styles/templates`  |         29,316 | 36,084 | +6,768 (+23.1%) |
+| JS/MJS/CSS/HBS, всё рабочее дерево  |         58,230 | 78,870 |         +20,640 |
+| Runtime `scripts/styles/templates`  |         29,316 | 35,939 | +6,623 (+22.6%) |
 | Runtime dependencies                |              0 |      0 |               0 |
 | Dev dependencies                    |              9 |      9 |               0 |
-| Unit/integration/architecture tests | 1,490 baseline |  2,002 |            +512 |
+| Unit/integration/architecture tests | 1,490 baseline |  2,016 |            +526 |
 | Chromium UI fixtures                |    63 baseline |    100 |             +37 |
 
-Сырой объём runtime-кода вырос примерно на 23.1%, потому что добавлены требуемые функции, интеграция v1.4.0, map-only identity, post-1.5.0 UI и privacy/concurrency guards. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
+Сырой объём runtime-кода вырос примерно на 22.6%, потому что добавлены требуемые функции, интеграция v1.4.0, map-only identity, post-1.5.0 UI и privacy/concurrency guards. При этом устранено дублирование targeting/card/damage/sensor-default логики и увеличено использование нативных Foundry/SF2e/Toolbelt контрактов. Сокращение общего числа строк не заявляется.
 
 ## 4. Проверки
 

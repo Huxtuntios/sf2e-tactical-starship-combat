@@ -9,7 +9,7 @@ import { computeAttackModifiers, knownAttackBonus, weaponProfileOf } from "../..
 import { evaluateTargets, targetingState, visibleToPlayers } from "../../engine/target-rules.mjs";
 import { effectiveDetection, findObject } from "../../engine/sensor-ops.mjs";
 import { privateContacts } from "../../sensor/private-contacts.mjs";
-import { resolveSensorActor, resolveSensorActorSync } from "../../sensor/map-object.mjs";
+import { resolveSensorActor, resolveSensorActorForAction, resolveSensorActorSync } from "../../sensor/map-object.mjs";
 import { readStarship, isStarship } from "../../starship/starship-state.mjs";
 import { bestSpellStatistic, rollNativeCheck, targetStatistic, targetSaveModifier } from "../../starship/stats.mjs";
 import { basicSaveMultiplier } from "../../actions/dice.mjs";
@@ -48,6 +48,7 @@ export async function declareAttack({ user, payload }) {
   const dry = await executeAction({ ...req, options: { ...req.options }, user, userId: user.id, dryRun: true });
   const ctx = dry.ctx;
   if (!isCardAttack(ctx.action)) throw new Error(T("SF2eTSC.attackCard.notAnAttack"));
+  req.shipUuid = ctx.ship.uuid;
   const spell = ctx.action.builtin === "spell-attack";
   const weapon = spell ? { name: ctx.action.name, traits: ["spell"], range: null } : ctx.weapon;
   if (!weapon) throw new Error(T("SF2eTSC.errors.noWeapon"));
@@ -295,7 +296,7 @@ async function currentPlasmaTargets(card, pd) {
   const combat = activeStarshipCombat();
   if (pd.privateCombatId && combat?.id !== pd.privateCombatId) throw new Error(T("SF2eTSC.attackCard.stale"));
   const shipUuid = card.request?.shipUuid;
-  const attacker = shipUuid ? await resolveSensorActor(combat, shipUuid) : null;
+  const attacker = shipUuid ? await resolveSensorActorForAction(combat, shipUuid) : null;
   if (!attacker || !isStarship(attacker)) throw new Error(T("SF2eTSC.attackCard.stale"));
   const role = readStarship(attacker).role;
   const tsc = combat ? targetingState(getTsc(combat), shipUuid, privateContacts(combat.id)) : null;
@@ -423,7 +424,7 @@ async function applyPlasmaCardDamage({ message, card, pd, user }) {
   );
   const traits = (pd.traits ?? []).map((trait) => String(trait).toLowerCase());
   const combat = activeStarshipCombat();
-  const attacker = await resolveSensorActor(combat, card.request?.shipUuid);
+  const attacker = await resolveSensorActorForAction(combat, card.request?.shipUuid);
   const appId = card.applicationId ?? message.id;
   const results = structuredClone(card.damageResults ?? []);
   const saveResult = (result) => {
@@ -561,7 +562,7 @@ export async function applyAttackCardDamage({ user, payload }) {
     if (receipts.includes(strikeId)) throw new Error(T("SF2eTSC.rolls.alreadyApplied"));
     // A damage receipt and the ship's drone + hull changes are written in the same guarded actor update.
     if (!hazard) entry.writeOptions = { ...(entry.writeOptions ?? {}), expected: snapshot(entry.before) };
-    const attacker = await resolveSensorActor(combat, card.request?.shipUuid);
+    const attacker = await resolveSensorActorForAction(combat, card.request?.shipUuid);
     const rx =
       attacker && (card.native || ["strike", "npc-strike"].includes(card.action?.builtin))
         ? await Reactions.ask(

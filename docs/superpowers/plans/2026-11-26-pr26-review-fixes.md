@@ -531,6 +531,44 @@
 
 - [x] **Step 5: Re-run focused/full gates and live privacy checks**
 
+### Task T-066: Resolve new inline review findings
+
+**Files:**
+
+- Modify: `docs/migration-notes.md`
+- Modify: `scripts/combat/starship-combat.mjs`, `scripts/actions/draft.mjs`, `scripts/actions/action-engine.mjs`
+- Modify: `scripts/chat/attack-card/service.mjs`, `lang/en.json`, `lang/ru.json`
+- Modify: `scripts/damage/damage-service.mjs`, `scripts/hazards/hazard-engine.mjs`
+- Modify: `scripts/sensor/contact-service.mjs`, `scripts/sensor/map-object.mjs`, `scripts/sensor/map-actor-cache.mjs`
+- Modify: `scripts/starship/starship-state.mjs`, `tests/unit/templates-092.test.mjs`
+- Modify: focused hazard, station, map-only, performance and template regressions
+
+**Interfaces:**
+
+- Produces: complex-hazard-only routines, committed-transition destruction hooks, action-only placed-copy aliases and safer publication/turn/replacement flows.
+- Consumes: current map-only snapshots, Combat projections and native Foundry update semantics.
+
+- [x] **Step 1: Correct migration safety and template containment**
+  - Require a world backup before live migration.
+  - Group zone-label alternatives and require both movement controls inside the container.
+
+- [x] **Step 2: Harden hazard and publication flows**
+  - Run turn routines only for verified complex hazards and reject missing Combat state.
+  - Queue hazard destruction from fulfilled committed HP transitions, including partial failures, and attempt both publication cleanups independently.
+
+- [x] **Step 3: Align map-only authority and latest-state writes**
+  - Resolve source Actor UUIDs to one placed copy only for action execution, reject ambiguous aliases, canonicalize action locks/card requests and persist turn markers with `mutateTsc`.
+  - Keep non-action Draft calls on exact Actor identity, prefer direct placements over source aliases and serialize per-Combat turn processing.
+  - Capture `expectedSource` for defense replacement.
+
+- [x] **Step 4: Cache projection stamps and run full gates**
+  - Reuse serialized stamps for unchanged projection objects.
+  - Partial commits dispatch destruction hooks only for fulfilled document writes; committed hazard HP transitions still emit destruction when another write fails.
+  - Compact UI height budgets allow a 2% cross-platform font-metric tolerance while control counts and containment remain exact.
+  - Full Node **2,016/2,016** and UI **100/100** gates pass.
+
+- [x] **Step 5: Live verification, release rebuild and PR update**
+
 ### Task T-063: Full gates, live Foundry verification and PR update
 
 **Files:**
@@ -541,7 +579,7 @@
 **Interfaces:**
 
 - Produces: verified package, live evidence and an updated PR head.
-- Consumes: completed T-053 through T-062, T-064 and T-065.
+- Consumes: completed T-053 through T-062, T-064, T-065 and T-066.
 
 - [x] **Step 1: Run full static/unit gates**
   - Run: `TSC_SYSTEMS_PATH="C:/Program Files/FoundryVTT-WindowsPortable-14/Data/systems" npm run check`

@@ -112,9 +112,16 @@ test("normal Sensor Map zone arrows stay on the zone row", () => {
     detail: { label: "Aurora", key: "map-one", rows: [], zone: 4, canMove: true, gm: null },
     log: []
   });
-  assert.match(
-    html,
-    /<div class="tsc-zone-controls">[\s\S]*?Зона|zone[\s\S]*?data-action="moveLeft"[\s\S]*?data-action="moveRight"[\s\S]*?<\/div>/
+  const containment =
+    /<div class="tsc-zone-controls">[\s\S]*?(?:Зона|zone)[\s\S]*?data-action="moveLeft"[\s\S]*?data-action="moveRight"[\s\S]*?<\/div>/;
+  assert.match(html, containment);
+  assert.doesNotMatch(
+    '<div class="tsc-zone-controls">Зона 4<button data-action="moveLeft"></button></div><button data-action="moveRight"></button>',
+    containment
+  );
+  assert.doesNotMatch(
+    '<div class="tsc-zone-controls">Зона 4<button data-action="moveRight"></button></div><button data-action="moveLeft"></button>',
+    containment
   );
 });
 

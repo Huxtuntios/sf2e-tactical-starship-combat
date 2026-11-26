@@ -231,7 +231,9 @@ globalThis.measureCompact = () => {
   const budgets = globalThis.fixtureBudgets?.[innerWidth] ?? {};
   for (const [key, maximum] of Object.entries(budgets)) {
     const value = key.split('.').reduce((object, part) => object?.[part], metrics);
-    checks.push({ name: 'compact-' + key + '-' + innerWidth, pass: value != null && value <= maximum });
+    // Text wrapping differs slightly between Windows Arial and Ubuntu fallback fonts.
+    const tolerance = key === 'bodyContentHeight' ? Math.ceil(maximum * 0.02) : 0;
+    checks.push({ name: 'compact-' + key + '-' + innerWidth, pass: value != null && value <= maximum + tolerance });
   }
   for (const [key, minimum] of Object.entries(globalThis.fixtureMinimums?.[innerWidth] ?? {})) {
     const value = key.split('.').reduce((object, part) => object?.[part], metrics);

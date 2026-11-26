@@ -475,6 +475,15 @@ function referencedMapObject(combat, key) {
   return stateObject || contact;
 }
 
+function mapOnlyKeyForSource(combat, uuid) {
+  if (!combat || typeof uuid !== "string" || !uuid || uuid.startsWith("map-")) return null;
+  const objects = getTsc(combat).objects;
+  if (objects.some((object) => !object.mapOnly && (object.key === uuid || object.actorUuid === uuid))) return null;
+  const matches = objects.filter((object) => object.mapOnly && object.sourceUuid === uuid && !object.tscPrivateProjection);
+  if (matches.length > 1) throw new Error(game.i18n.localize("SF2eTSC.errors.ambiguousSource"));
+  return matches[0]?.key ?? null;
+}
+
 export function resolveSensorActorSync(combat, uuid, { resolve = fromUuidSync_ } = {}) {
   if (typeof uuid !== "string" || !uuid) return null;
   if (uuid.startsWith("map-")) {
@@ -495,4 +504,14 @@ export async function resolveSensorActor(combat, uuid, { resolve = fromUuidSafe 
     if (publicRecord) return new MapObjectActor(publicRecord);
   }
   return resolve(uuid);
+}
+
+export function resolveSensorActorForActionSync(combat, uuid, { resolve = fromUuidSync_ } = {}) {
+  const sourceKey = mapOnlyKeyForSource(combat, uuid);
+  return resolveSensorActorSync(combat, sourceKey ?? uuid, { resolve });
+}
+
+export async function resolveSensorActorForAction(combat, uuid, { resolve = fromUuidSafe } = {}) {
+  const sourceKey = mapOnlyKeyForSource(combat, uuid);
+  return resolveSensorActor(combat, sourceKey ?? uuid, { resolve });
 }

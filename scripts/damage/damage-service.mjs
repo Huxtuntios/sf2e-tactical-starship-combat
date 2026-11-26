@@ -177,7 +177,6 @@ async function applyHazardDamageInDraft(
   }
   draft.log(`${actor.name}: HP -${result.hullDamage}`, "damage", { shipUuid: actor.uuid, ...result });
   draft.event(HOOK_EVENTS.damaged, actor, result);
-  if (result.destroyed) draft.event(HOOK_EVENTS.destroyed, actor);
   if (!silent && !privateTarget)
     draft.afterCommit(() =>
       postDamageCard({

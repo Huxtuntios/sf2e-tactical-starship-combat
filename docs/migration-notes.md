@@ -55,7 +55,7 @@ No new Actor provenance field is added. The migration log/history records that t
 
 1. Add unit tests for explicit value, player frame, every NPC size, invalid size, repeated migration and partial failure.
 2. Run migration against cloned fixtures, not the live world.
-3. Before any live deployment, back up the installed module and obtain scoped approval for world migration/deployment.
+3. Before any live deployment, back up the world and installed module, then obtain scoped approval for world migration/deployment.
 4. Run active-GM migration, verify document counts/values, reload, then verify again.
 5. If verification fails, restore the backed-up module/world state; do not delete Actors or flags.
 

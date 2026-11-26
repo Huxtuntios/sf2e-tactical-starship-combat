@@ -30,6 +30,7 @@ import { registerHandler, emitClientEvent } from "../socket.mjs";
 import { moduleSetting, isActiveGM, T, fromUuidSafe, fromUuidSync_ } from "../utils/foundry.mjs";
 import { notifyInfo, notifyWarn, log } from "../utils/logging.mjs";
 import { resolveSensorActor } from "../sensor/map-object.mjs";
+import { serialize } from "../utils/serial.mjs";
 
 let startingCombat = false;
 
@@ -528,8 +529,12 @@ export async function setStarshipCombatEnabled(combat, enabled) {
 }
 
 /** Per-turn processing (active GM only). */
-export async function onTurnChange(combat, changes = {}) {
-  if (!isActiveGM()) return;
+export function onTurnChange(combat, changes = {}) {
+  if (!isActiveGM()) return Promise.resolve();
+  return serialize(`turn-processing:${combat.id}`, () => processTurnChange(combat, changes));
+}
+
+async function processTurnChange(combat, changes = {}) {
   const state = foundry.utils.deepClone(getTsc(combat));
   const cb = combat.combatant;
   // Turn-index corrections (e.g. after a compromised ship is inserted before the current combatant) also fire
@@ -597,7 +602,12 @@ export async function onTurnChange(combat, changes = {}) {
       });
     }
   }
-  await saveTsc(combat, state);
+  await mutateTsc(combat, (current) => ({
+    ...current,
+    lastEffectTurn: state.lastEffectTurn,
+    lastTurnKey: state.lastTurnKey,
+    ...(resetStations ? { stationResetEncounter: combat.id } : {})
+  }));
   await HazardEngine.processResets(combat);
   if (!cb) return;
   const mark = cb.flags?.[MODULE_ID];

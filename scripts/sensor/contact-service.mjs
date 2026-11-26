@@ -159,8 +159,8 @@ async function publishActorContact(combat, actor, zone, key = actor.uuid) {
     });
     await ensureSensorActorCombatant(combat, actor);
   } catch (error) {
-    await deleteSensorActorCombatant(combat, actor.uuid, { preserveIds });
-    await mutateTsc(combat, (state) => ({ ...state, objects: state.objects.filter((object) => object.key !== key) }));
+    await deleteSensorActorCombatant(combat, actor.uuid, { preserveIds }).catch(() => {});
+    await mutateTsc(combat, (state) => ({ ...state, objects: state.objects.filter((object) => object.key !== key) })).catch(() => {});
     throw error;
   }
   return result;

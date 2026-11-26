@@ -6,7 +6,7 @@ import { MODULE_ID as M } from "../../scripts/constants.mjs";
 import { registerSettings } from "../../scripts/settings.mjs";
 import { readStarship } from "../../scripts/starship/starship-state.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
-import { registerCombatHooks, startStarshipCombat } from "../../scripts/combat/starship-combat.mjs";
+import { registerCombatHooks, startStarshipCombat, onTurnChange } from "../../scripts/combat/starship-combat.mjs";
 import { registerPersistentDamageService } from "../../scripts/starship/persistent-damage.mjs";
 
 const SETTING = "resetStationsOnInitiative";
@@ -218,6 +218,71 @@ test("turn-index correction for the same combatant preserves the existing 8.1 gu
   assert.equal(combat.combatant.id, current.id);
   assert.equal(ship.flags[M].starship.stations.find((station) => station.id === "pilot").helmedBy, pilot.uuid);
   assert.equal(ship.flags[M].starship.crew.find((member) => member.actorUuid === pilot.uuid).stationId, "pilot");
+});
+
+test("turn processing preserves concurrent Combat projection updates", async () => {
+  const { ship, combat } = await scenario();
+  ship.flags[M].starship.effects[0].timing = {
+    combatId: combat.id,
+    combatantId: combat.combatant.id,
+    mode: "turn-start",
+    round: 1
+  };
+  let injected = false;
+  const listener = (actor) => {
+    if (actor !== ship || injected) return;
+    injected = true;
+    combat.flags[M].tsc.concurrentProjection = { retain: true };
+  };
+  Hooks.on("updateActor", listener);
+  try {
+    await beginInitiative(combat);
+    assert.equal(injected, true);
+    assert.deepEqual(getTsc(combat).concurrentProjection, { retain: true });
+  } finally {
+    Hooks.off("updateActor", listener);
+  }
+});
+
+test("concurrent turn processing cannot roll back a newer turn marker", async () => {
+  const { ship, pilot, combat } = await scenario();
+  combat.round = 1;
+  combat.turn = 0;
+  const station = ship.flags[M].starship.stations.find((entry) => entry.id === "gunner");
+  station.malfunctioning = true;
+  station.malfunctionUntilTurnOf = pilot.uuid;
+
+  let releaseFirst;
+  let markStarted;
+  const gate = new Promise((resolve) => {
+    releaseFirst = resolve;
+  });
+  const started = new Promise((resolve) => {
+    markStarted = resolve;
+  });
+  const update = ship.update.bind(ship);
+  let blocked = false;
+  ship.update = async (...args) => {
+    if (!blocked) {
+      blocked = true;
+      markStarted();
+      await gate;
+    }
+    return update(...args);
+  };
+  try {
+    const first = onTurnChange(combat);
+    await started;
+    combat.round = 2;
+    combat.flags[M].tsc.objects = [];
+    const second = onTurnChange(combat);
+    releaseFirst();
+    await Promise.all([first, second]);
+    assert.equal(getTsc(combat).lastTurnKey, `2:${combat.combatant.id}`);
+  } finally {
+    releaseFirst();
+    ship.update = update;
+  }
 });
 
 test("ON repeated encounter start resets occupancy again without accumulating unrelated changes", async () => {

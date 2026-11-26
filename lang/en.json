@@ -413,6 +413,7 @@
     },
     "errors": {
       "actorNotFound": "Actor not found.",
+      "ambiguousSource": "This source Actor has multiple Sensor Map placements. Use a specific map object.",
       "badActorType": "Only vehicle or NPC actors can become starships.",
       "badImport": "This is not a valid starship file.",
       "contentLoad": "Starship content failed to load. See the console.",

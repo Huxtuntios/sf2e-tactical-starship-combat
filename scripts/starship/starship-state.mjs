@@ -203,6 +203,7 @@ export function replaceStarshipMap(actor, kind, replacement, { expected = null }
     for (const key of [...Object.keys(current), ...Object.keys(next)]) {
       if (!isSafeDefenseMapKey(key)) throw new Error(game.i18n.localize("SF2eTSC.errors.invalidData"));
     }
+    const expectedSource = isMapObjectActor(actor) ? structuredClone(actor._source) : null;
     const audit = await import("../history/history.mjs");
     if (expected && !audit.equalState(current, expected)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
     if (audit.equalState(current, next)) return false;
@@ -213,7 +214,7 @@ export function replaceStarshipMap(actor, kind, replacement, { expected = null }
     }
     for (const [key, value] of Object.entries(next)) updates[`${prefix}.${key}`] = value;
     data[kind] = next;
-    await performWrite(actor, data, { hullPatch: false, documentPatch: updates });
+    await performWrite(actor, data, { hullPatch: false, documentPatch: updates, expectedSource });
     return true;
   });
 }

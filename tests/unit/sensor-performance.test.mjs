@@ -335,6 +335,25 @@ test("public projection changes invalidate cached player data while unchanged pr
   assert.equal(resolutions, 2);
 });
 
+test("unchanged public projection objects reuse their serialized cache stamp", () => {
+  const cache = new MapActorCache();
+  const projection = { flags: { ship: { hp: 24 } } };
+  const view = [{ known: true, type: "starship", actorUuid: "map-cached", publicActor: projection }];
+  const original = JSON.stringify;
+  let serializations = 0;
+  JSON.stringify = function (value, ...args) {
+    if (value === projection) serializations++;
+    return original.call(this, value, ...args);
+  };
+  try {
+    cache.setVisible(view, user);
+    cache.setVisible(view, user);
+    assert.equal(serializations, 1);
+  } finally {
+    JSON.stringify = original;
+  }
+});
+
 test("pending resolutions coalesce; invalidation, pruning and close reject obsolete results", async () => {
   for (const operation of ["invalidate", "prune", "dispose"]) {
     const pending = deferred();

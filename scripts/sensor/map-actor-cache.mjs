@@ -22,6 +22,7 @@ export class MapActorCache {
     this.entries = new Map();
     this.active = new Set();
     this.projections = new Map();
+    this.projectionCache = new WeakMap();
   }
 
   setVisible(view, user) {
@@ -36,12 +37,18 @@ export class MapActorCache {
       const uuid = object.actorUuid ?? object.key;
       if (!validUuid(uuid)) continue;
       this.active.add(uuid);
-      this.projections.set(uuid, JSON.stringify(object.publicActor ?? null));
+      this.projections.set(uuid, this.projectionStamp(object.publicActor));
     }
     for (const [uuid, entry] of this.entries) {
       if (!this.active.has(uuid) || entry.projection !== this.projections.get(uuid) || (entry.actor && !permitted(entry.actor, user)))
         this.entries.delete(uuid);
     }
+  }
+
+  projectionStamp(value) {
+    if (!value || typeof value !== "object") return "null";
+    if (!this.projectionCache.has(value)) this.projectionCache.set(value, JSON.stringify(value));
+    return this.projectionCache.get(value);
   }
 
   async get(uuid) {
@@ -107,6 +114,7 @@ export class MapActorCache {
   clear() {
     this.entries.clear(); // identity checks prevent stale promises from repopulating
     this.projections.clear();
+    this.projectionCache = new WeakMap();
   }
 
   dispose() {
