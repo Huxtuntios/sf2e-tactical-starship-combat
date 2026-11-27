@@ -399,6 +399,12 @@ function configureSnapshotSheet(entry) {
   data._id = foundry.utils.randomID(16);
   const document = new ActorClass(data, { strict: false });
   Object.defineProperty(document, "uuid", { configurable: true, get: () => entry.actor.uuid });
+  for (const snapshotItem of entry.actor.items.values()) {
+    const item = document.items.get(snapshotItem.id);
+    if (!item) continue;
+    item.update = (changes, options) => snapshotItem.update(changes, options);
+    item.delete = (options) => snapshotItem.delete(options);
+  }
   const sheet = document.sheet;
   if (!sheet) return false;
   entry.document = document;
@@ -444,7 +450,15 @@ export function registerSnapshotSheetRegistry() {
     for (const entry of snapshotSheetRegistry.values()) {
       if (entry.actor.combatId !== combatId || entry.pending) continue;
       const record = game.user.isGM ? mapObjectSource(combatId, entry.actor.id) : publicMapObjectRecord(combatId, entry.actor.id);
-      if (record && !same(entry.actor._record.data, record.data)) {
+      if (!record) {
+        const registryKey = snapshotSheetKey(combatId, entry.actor.id);
+        if (snapshotSheetRegistry.get(registryKey) === entry) snapshotSheetRegistry.delete(registryKey);
+        try {
+          await closeSnapshotSheet(entry);
+        } catch (error) {
+          log.warn("snapshot sheet close failed after its record disappeared", error);
+        }
+      } else if (!same(entry.actor._record.data, record.data)) {
         entry.actor = new MapObjectActor(record);
         await refreshSnapshotSheet(entry);
       }
@@ -456,10 +470,18 @@ export function registerSnapshotSheetRegistry() {
   });
   Hooks.on("updateCombat", (combat) => refresh(combat.id));
   Hooks.on("deleteCombat", async (combat) => {
+    const closing = [];
     for (const [key, entry] of snapshotSheetRegistry) {
       if (entry.actor.combatId !== combat.id) continue;
-      await closeSnapshotSheet(entry);
       snapshotSheetRegistry.delete(key);
+      closing.push(entry);
+    }
+    for (const entry of closing) {
+      try {
+        await closeSnapshotSheet(entry);
+      } catch (error) {
+        log.warn("snapshot sheet close failed during combat deletion", error);
+      }
     }
   });
 }
@@ -777,6 +799,10 @@ export class MapObjectActor {
       const id = keepId && source._id ? source._id : foundry.utils.randomID(16);
       if (items.some((item) => (item._id ?? item.id) === id)) throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
       const data = { ...clone(source), _id: id };
+      if (data.type === "effect") {
+        data.system ??= {};
+        data.system.start = { value: game.time.worldTime, initiative: game.combat?.combatant?.initiative ?? null };
+      }
       const item = new SnapshotItem(this, data);
       if (this.isImmuneTo(item)) continue;
       items.push(data);

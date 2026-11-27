@@ -475,6 +475,32 @@ function installSnapshotSheetMock() {
       return this._processSubmitData(null, null, submitData);
     }
   }
+  class TestNativeItem {
+    constructor(data, parent) {
+      this.id = data._id;
+      this._source = structuredClone(data);
+      this.system = structuredClone(data.system ?? {});
+      this.parent = parent;
+    }
+
+    async update(changes) {
+      const [updated] = await this.constructor.updateDocuments([{ _id: this.id, ...changes }], { parent: this.parent });
+      return updated;
+    }
+
+    async delete() {
+      const [deleted] = await this.constructor.deleteDocuments([this.id], { parent: this.parent });
+      return deleted;
+    }
+
+    static async updateDocuments() {
+      return [];
+    }
+
+    static async deleteDocuments() {
+      return [];
+    }
+  }
   class TestActorDocument {
     constructor(data) {
       this.id = typeof data._id === "string" && data._id.length === 16 ? data._id : null;
@@ -485,6 +511,7 @@ function installSnapshotSheetMock() {
       this.data = structuredClone(data);
       this.system = this.data.system;
       this.ownership = this.data.ownership;
+      this.items = new Map((data.items ?? []).map((item) => [item._id, new TestNativeItem(item, this)]));
       this.sheet = new TestActorSheet(this);
     }
 
@@ -503,7 +530,7 @@ function installSnapshotSheetMock() {
     }
   }
   CONFIG.Actor = { documentClass: TestActorDocument };
-  return { renders };
+  return { renders, nativeUpdate: TestNativeItem.prototype.update };
 }
 
 function installPreparedSnapshotMock() {
@@ -912,6 +939,74 @@ test("a snapshot refresh does not reopen a sheet removed while close was pending
   assert.equal(sheet.rendered, false);
 });
 
+test("deleting a combat unregisters its sheets before any close can race a refresh", async () => {
+  const combat = setup();
+  const source = ship("sheet-delete-order-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  let releaseClose;
+  let closeStarted;
+  const blocked = new Promise((resolve) => (releaseClose = resolve));
+  const entered = new Promise((resolve) => (closeStarted = resolve));
+  const close = sheet.close.bind(sheet);
+  let first = true;
+  sheet.close = async () => {
+    if (first) {
+      first = false;
+      closeStarted();
+      await blocked;
+    }
+    return close();
+  };
+  const journal = game.journal.contents[0];
+  installFoundryJournalUpdateMock(journal);
+  const record = mapObjectSources(combat.id)[placement.key];
+  record.data.system.attributes.hp.value = 6;
+
+  const deleting = Hooks.callAll("deleteCombat", combat);
+  await entered;
+  await journal.update({
+    [`flags.${MODULE_ID}.privateSensor.mapObjects.${placement.key}`]: new foundry.data.operators.ForcedReplacement(record)
+  });
+  await new Promise(setImmediate);
+  releaseClose();
+  await deleting;
+  await new Promise(setImmediate);
+
+  assert.equal(renders.length, 1);
+  assert.equal(sheet.rendered, false);
+});
+
+test("a public snapshot sheet closes when its projected record disappears", async () => {
+  const combat = setup();
+  const source = ship("sheet-missing-record-source", { role: "player", owners: ["p1"] });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  game.user = game.users.get("p1");
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  combat.flags[MODULE_ID].tsc.objects = [];
+
+  await Hooks.callAll("updateCombat", combat);
+  await new Promise(setImmediate);
+
+  assert.equal(sheet.rendered, false);
+  assert.equal(renders.length, 1);
+  assert.equal(resolveSensorActorSync(combat, placement.key), null);
+});
+
 test("an unchanged combat update preserves unsaved snapshot sheet input", async () => {
   const combat = setup();
   const source = ship("sheet-unchanged-source");
@@ -1287,6 +1382,59 @@ test("map-only embedded Item create, update and delete persist exact snapshot da
   assert.equal(deleted.id, created.id);
   assert.equal(actor.items.has(created.id), false);
   assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items, []);
+});
+
+test("native Item controls on the snapshot clone persist through the snapshot store", async () => {
+  const combat = setup();
+  const source = ship("snapshot-native-item-source");
+  source.items.set("native-effect", {
+    _id: "native-effect",
+    type: "effect",
+    name: "Native effect",
+    system: { value: 1 }
+  });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { nativeUpdate } = installSnapshotSheetMock();
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const sheet = actor.sheet;
+
+  assert.equal(actor.items.has("native-effect"), true);
+  assert.equal(sheet.document.items.get("native-effect").id, "native-effect");
+  assert.equal(Object.hasOwn(sheet.document.items.get("native-effect"), "update"), true);
+  assert.notStrictEqual(sheet.document.items.get("native-effect").update, nativeUpdate);
+  await sheet.document.items.get("native-effect").update({ system: { value: 4 } });
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value, 4);
+
+  await actor.sheet.document.items.get("native-effect").delete();
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items, []);
+});
+
+test("new timed effects start at the current world time and initiative", async () => {
+  const combat = setup();
+  const source = ship("snapshot-effect-start-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  game.time.worldTime = 3600;
+  game.combat = { combatant: { initiative: 11 } };
+
+  await actor.createEmbeddedDocuments("Item", [
+    {
+      type: "effect",
+      name: "One minute",
+      system: { start: { value: 0, initiative: null }, duration: { unit: "minutes", value: 1, expiry: "turn-start" } }
+    },
+    {
+      type: "effect",
+      name: "Unlimited",
+      system: { start: { value: 0, initiative: null }, duration: { unit: "unlimited", value: -1, expiry: null } }
+    }
+  ]);
+
+  const [timed, unlimited] = mapObjectSources(combat.id)[placement.key].data.items;
+  assert.deepEqual(timed.system.start, { value: 3600, initiative: 11 });
+  assert.deepEqual(timed.system.duration, { unit: "minutes", value: 1, expiry: "turn-start" });
+  assert.deepEqual(unlimited.system.start, { value: 3600, initiative: 11 });
+  assert.deepEqual(unlimited.system.duration, { unit: "unlimited", value: -1, expiry: null });
 });
 
 test("map-only native modifier derivation uses a detached clone and never persists prepared data", async () => {
