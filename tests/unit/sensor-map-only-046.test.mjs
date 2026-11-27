@@ -1007,6 +1007,76 @@ test("a public snapshot sheet closes when its projected record disappears", asyn
   assert.equal(resolveSensorActorSync(combat, placement.key), null);
 });
 
+test("overlapping snapshot refreshes close replaced windows and keep the latest record", async () => {
+  const combat = setup();
+  const source = ship("sheet-overlap-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  let releaseClose;
+  let closeStarted;
+  const blocked = new Promise((resolve) => (releaseClose = resolve));
+  const entered = new Promise((resolve) => (closeStarted = resolve));
+  const close = sheet.close.bind(sheet);
+  let first = true;
+  sheet.close = async () => {
+    if (first) {
+      first = false;
+      closeStarted();
+      await blocked;
+    }
+    return close();
+  };
+  const journal = game.journal.contents[0];
+  const refreshHook = Hooks._hooks.get("updateJournalEntry")[0];
+  const record = journal.flags[MODULE_ID].privateSensor.mapObjects[placement.key];
+  record.data.system.attributes.hp.value = 6;
+  const firstRefresh = refreshHook(journal);
+  await entered;
+  record.data.system.attributes.hp.value = 7;
+  const secondRefresh = refreshHook(journal);
+  releaseClose();
+  await Promise.all([firstRefresh, secondRefresh]);
+
+  assert.equal(resolveSensorActorSync(combat, placement.key).sheet.document.system.attributes.hp.value, 7);
+  assert.equal(renders.at(-1).sheet.rendered, true);
+  assert.equal(
+    renders.slice(0, -1).every((entry) => !entry.sheet.rendered),
+    true
+  );
+});
+
+test("one snapshot refresh failure does not prevent another sheet from closing", async () => {
+  const combat = setup();
+  const firstSource = ship("sheet-failure-first");
+  const secondSource = ship("sheet-failure-second");
+  const first = await addSensorContact(combat, { source: "world", uuid: firstSource.uuid, zone: 2, detection: "hidden" });
+  const second = await addSensorContact(combat, { source: "world", uuid: secondSource.uuid, zone: 4, detection: "hidden" });
+  installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const firstSheet = resolveSensorActorSync(combat, first.key).sheet;
+  const secondSheet = resolveSensorActorSync(combat, second.key).sheet;
+  await firstSheet.render(true);
+  await secondSheet.render(true);
+  firstSheet.close = async () => {
+    firstSheet.rendered = false;
+    throw new Error("injected first sheet refresh failure");
+  };
+  const journal = game.journal.contents[0];
+  const sources = journal.flags[MODULE_ID].privateSensor.mapObjects;
+  sources[first.key].data.system.attributes.hp.value = 6;
+  delete sources[second.key];
+
+  await Hooks._hooks.get("updateJournalEntry")[0](journal);
+
+  assert.equal(secondSheet.rendered, false);
+  assert.equal(resolveSensorActorSync(combat, second.key), null);
+});
+
 test("an unchanged combat update preserves unsaved snapshot sheet input", async () => {
   const combat = setup();
   const source = ship("sheet-unchanged-source");
@@ -1409,6 +1479,25 @@ test("native Item controls on the snapshot clone persist through the snapshot st
   assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items, []);
 });
 
+test("snapshot counter effects delete when a native update falls below the minimum", async () => {
+  const combat = setup();
+  const source = ship("snapshot-counter-source");
+  source.items.set("counter-effect", {
+    _id: "counter-effect",
+    type: "effect",
+    name: "Counter",
+    system: { badge: { type: "counter", min: 1, max: 3, value: 1 } }
+  });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  installSnapshotSheetMock();
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  await actor.sheet.document.items.get("counter-effect").update({ system: { badge: { value: 0 } } });
+
+  assert.equal(actor.items.has("counter-effect"), false);
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items, []);
+});
+
 test("new timed effects start at the current world time and initiative", async () => {
   const combat = setup();
   const source = ship("snapshot-effect-start-source");
@@ -1435,6 +1524,31 @@ test("new timed effects start at the current world time and initiative", async (
   assert.deepEqual(timed.system.duration, { unit: "minutes", value: 1, expiry: "turn-start" });
   assert.deepEqual(unlimited.system.start, { value: 3600, initiative: 11 });
   assert.deepEqual(unlimited.system.duration, { unit: "unlimited", value: -1, expiry: null });
+});
+
+test("new timed effects prefer their origin combatant initiative", async () => {
+  const combat = setup();
+  const origin = ship("effect-origin-source");
+  origin.combatant = { initiative: 10 };
+  const source = ship("snapshot-effect-origin-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  game.time.worldTime = 3600;
+  game.combat = { combatant: { initiative: 20 } };
+
+  await actor.createEmbeddedDocuments("Item", [
+    {
+      type: "effect",
+      name: "Origin timed",
+      system: {
+        context: { origin: { actor: origin.uuid } },
+        start: { value: 0, initiative: null },
+        duration: { unit: "minutes", value: 1, expiry: "turn-start" }
+      }
+    }
+  ]);
+
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items[0].system.start, { value: 3600, initiative: 10 });
 });
 
 test("map-only native modifier derivation uses a detached clone and never persists prepared data", async () => {

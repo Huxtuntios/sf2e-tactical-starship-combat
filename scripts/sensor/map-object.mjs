@@ -402,7 +402,13 @@ function configureSnapshotSheet(entry) {
   for (const snapshotItem of entry.actor.items.values()) {
     const item = document.items.get(snapshotItem.id);
     if (!item) continue;
-    item.update = (changes, options) => snapshotItem.update(changes, options);
+    item.update = (changes, options) => {
+      const badge = snapshotItem.system?.badge;
+      const value = changes?.system?.badge?.value ?? changes?.["system.badge.value"];
+      const min = badge?.labels ? 1 : (badge?.min ?? 1);
+      if (badge?.type === "counter" && typeof value === "number" && value < min) return snapshotItem.delete(options);
+      return snapshotItem.update(changes, options);
+    };
     item.delete = (options) => snapshotItem.delete(options);
   }
   const sheet = document.sheet;
@@ -430,13 +436,18 @@ function configureSnapshotSheet(entry) {
   return true;
 }
 
-async function refreshSnapshotSheet(entry) {
-  const registryKey = snapshotSheetKey(entry.actor.combatId, entry.actor.id);
-  const rendered = entry.sheet.rendered;
-  await closeSnapshotSheet(entry);
-  if (snapshotSheetRegistry.get(registryKey) !== entry) return;
-  configureSnapshotSheet(entry);
-  if (rendered) await entry.sheet.render(true);
+function refreshSnapshotSheet(entry) {
+  entry.refreshQueue = (entry.refreshQueue ?? Promise.resolve())
+    .catch(() => {})
+    .then(async () => {
+      const registryKey = snapshotSheetKey(entry.actor.combatId, entry.actor.id);
+      const rendered = entry.sheet.rendered;
+      await closeSnapshotSheet(entry);
+      if (snapshotSheetRegistry.get(registryKey) !== entry) return;
+      configureSnapshotSheet(entry);
+      if (rendered) await entry.sheet.render(true);
+    });
+  return entry.refreshQueue;
 }
 
 async function closeSnapshotSheet(entry) {
@@ -449,18 +460,22 @@ export function registerSnapshotSheetRegistry() {
   const refresh = async (combatId) => {
     for (const entry of snapshotSheetRegistry.values()) {
       if (entry.actor.combatId !== combatId || entry.pending) continue;
-      const record = game.user.isGM ? mapObjectSource(combatId, entry.actor.id) : publicMapObjectRecord(combatId, entry.actor.id);
-      if (!record) {
-        const registryKey = snapshotSheetKey(combatId, entry.actor.id);
-        if (snapshotSheetRegistry.get(registryKey) === entry) snapshotSheetRegistry.delete(registryKey);
-        try {
-          await closeSnapshotSheet(entry);
-        } catch (error) {
-          log.warn("snapshot sheet close failed after its record disappeared", error);
+      try {
+        const record = game.user.isGM ? mapObjectSource(combatId, entry.actor.id) : publicMapObjectRecord(combatId, entry.actor.id);
+        if (!record) {
+          const registryKey = snapshotSheetKey(combatId, entry.actor.id);
+          if (snapshotSheetRegistry.get(registryKey) === entry) snapshotSheetRegistry.delete(registryKey);
+          try {
+            await closeSnapshotSheet(entry);
+          } catch (error) {
+            log.warn("snapshot sheet close failed after its record disappeared", error);
+          }
+        } else if (!same(entry.actor._record.data, record.data)) {
+          entry.actor = new MapObjectActor(record);
+          await refreshSnapshotSheet(entry);
         }
-      } else if (!same(entry.actor._record.data, record.data)) {
-        entry.actor = new MapObjectActor(record);
-        await refreshSnapshotSheet(entry);
+      } catch (error) {
+        log.warn("snapshot sheet refresh failed", error);
       }
     }
   };
@@ -801,7 +816,13 @@ export class MapObjectActor {
       const data = { ...clone(source), _id: id };
       if (data.type === "effect") {
         data.system ??= {};
-        data.system.start = { value: game.time.worldTime, initiative: game.combat?.combatant?.initiative ?? null };
+        const originUuid = data.system.context?.origin?.actor;
+        const origin = originUuid && originUuid !== this.uuid ? fromUuidSync_(originUuid) : this;
+        const originCombatant = origin?.combatant ?? origin?.actor?.combatant;
+        data.system.start = {
+          value: game.time.worldTime,
+          initiative: originCombatant?.initiative ?? game.combat?.combatant?.initiative ?? null
+        };
       }
       const item = new SnapshotItem(this, data);
       if (this.isImmuneTo(item)) continue;
