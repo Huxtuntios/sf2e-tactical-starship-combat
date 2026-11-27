@@ -13,7 +13,7 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **1.5.0 integrated build.** Unified scoped starship effects, native crew effects and persistent-damage receipts are included. Final live Foundry verification is still pending; local tests and browser fixtures are not live compatibility certification.
+> **1.5.1 tactical enhancements.** Adds automatic/right-click Sensor Map action-object selection, combat-roster sorting, interactive onboarding and GM-editable map-only snapshot sheets with native conditions and prepared statistics. The A–K live matrix passed 47/47 in Foundry 14.370.0 / SF2e 1.7.1 with an independent GM and player client; see [1.5.1 release notes](docs/releases/1.5.1.md) for evidence and limitations. This preparation does not tag, publish or merge a release.
 
 ## Requirements
 
@@ -69,10 +69,10 @@ Current source review covered Toolbelt **3.60.0**; earlier notes covered **3.59.
 2. Enable **SF2e Tactical Starship Combat** in a Starfinder 2e world.
 3. Open **Guide / Руководство** in the compendiums or follow [Setup](#setup).
 
-The `latest` address works after a **regular, non-prerelease** GitHub release is published. This preparation does not publish 1.5.0. After an authorized publication, a version-specific manifest can be installed with:
+The `latest` address works after a **regular, non-prerelease** GitHub release is published. This preparation does not publish 1.5.1. After an authorized publication, a version-specific manifest can be installed with:
 
 ```text
-https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v1.5.0/module.json
+https://github.com/Huxtuntios/sf2e-tactical-starship-combat/releases/download/v1.5.1/module.json
 ```
 
 For manual installation, create `Data/modules/sf2e-tactical-starship-combat/` and extract **`module.zip`** into it. `module.json` must be directly inside that directory. GitHub's automatic **Source code** archives are development sources, not installable module packages.

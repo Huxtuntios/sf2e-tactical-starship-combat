@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.1 — 2026-11-27
+
+Tactical Sensor Map, combat-setup and onboarding enhancements, with map-only snapshot sheets brought into native condition, prepared-data and window-lifecycle behavior. The live A–K matrix passed 47/47 in Foundry 14.370.0 / SF2e 1.7.1 with an independent GM and player client.
+
+- Sensor Map action-object selection follows the exact current world, map-only or hazard combatant and clears for crew or missing objects. The automatic-selection toggle and right-click manual override preserve explicit GM selection while automatic tracking is disabled.
+- Start Tactical Combat supports display-only level/name roster sorting without changing selections, source Actors or the encounter draft.
+- An interactive eight-section onboarding guide opens once after initialization, supports per-user auto-open suppression and manual reopen, and provides English/Russian content with English fallback.
+- D1/D4 map-only snapshot sheets use a stable per-placement document/window registry. The active GM can edit supported basics and Save through the serialized private snapshot store, refreshing the same sheet and Sensor Map without creating a World Actor; non-GM writes are rejected.
+- D2/D3 snapshot-backed embedded Items preserve exact native condition values, while a cached prepared ActorClass view is rebuilt after writes so native statistics, roll options and immunities recalculate without persisting derived data. Effect Manager state and public snapshot labels stay synchronized.
+- Live fixes cover valid transient Actor IDs, exact placement UUIDs, map-only actor basics, public label synchronization, Effect Manager refresh, prepared-sheet rebuilds and valued-condition creature semantics.
+- Verification passed 2,068/2,068 Node tests, 102/102 Chromium fixtures, release packaging/verification and live A–K 47/47. Cleanup restored 186 Actors / 1 Combat / 11 Journals. PF2e + Anachronism live testing was not run; details and limitations are in `docs/releases/1.5.1.md`.
+- Module, package and lockfile versions are synchronized at 1.5.1. `DATA_VERSION`, compatibility declarations, module/pack/document IDs and existing world-data formats are unchanged; no migration is required. This preparation does not tag, publish or merge a release.
+
 ## 1.5.0 — 2026-11-25
 
 Integrated native-first build with unified GM-controlled starship effects and persistent damage. Module and pack/document IDs are unchanged; existing world data remains valid without a destructive migration.
