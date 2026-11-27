@@ -444,8 +444,10 @@ function refreshSnapshotSheet(entry) {
       const rendered = entry.sheet.rendered;
       await closeSnapshotSheet(entry);
       if (snapshotSheetRegistry.get(registryKey) !== entry) return;
-      configureSnapshotSheet(entry);
+      const configuredData = clone(entry.actor._record.data);
+      if (!configureSnapshotSheet(entry)) return;
       if (rendered) await entry.sheet.render(true);
+      entry.configuredData = configuredData;
     });
   return entry.refreshQueue;
 }
@@ -470,7 +472,7 @@ export function registerSnapshotSheetRegistry() {
           } catch (error) {
             log.warn("snapshot sheet close failed after its record disappeared", error);
           }
-        } else if (!same(entry.actor._record.data, record.data)) {
+        } else if (!same(entry.configuredData, record.data)) {
           entry.actor = new MapObjectActor(record);
           await refreshSnapshotSheet(entry);
         }
@@ -576,8 +578,9 @@ export class MapObjectActor {
     const registryKey = snapshotSheetKey(this.combatId, this.id);
     const existing = snapshotSheetRegistry.get(registryKey);
     if (existing) return existing.sheet;
-    const entry = { actor: this, document: null, sheet: null, pending: false };
+    const entry = { actor: this, document: null, sheet: null, pending: false, configuredData: null };
     if (!configureSnapshotSheet(entry)) return null;
+    entry.configuredData = clone(this._record.data);
     snapshotSheetRegistry.set(registryKey, entry);
     return entry.sheet;
   }

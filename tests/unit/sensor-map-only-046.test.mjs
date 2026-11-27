@@ -1077,6 +1077,31 @@ test("one snapshot refresh failure does not prevent another sheet from closing",
   assert.equal(resolveSensorActorSync(combat, second.key), null);
 });
 
+test("a failed snapshot refresh remains eligible for a later retry", async () => {
+  const combat = setup();
+  const source = ship("sheet-refresh-retry-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  const close = sheet.close.bind(sheet);
+  sheet.close = async () => {
+    sheet.rendered = false;
+    throw new Error("injected retryable close failure");
+  };
+  const journal = game.journal.contents[0];
+  const refreshHook = Hooks._hooks.get("updateJournalEntry")[0];
+  journal.flags[MODULE_ID].privateSensor.mapObjects[placement.key].data.system.attributes.hp.value = 6;
+  await refreshHook(journal);
+  sheet.close = close;
+
+  await refreshHook(journal);
+
+  assert.equal(resolveSensorActorSync(combat, placement.key).sheet.document.system.attributes.hp.value, 6);
+});
+
 test("an unchanged combat update preserves unsaved snapshot sheet input", async () => {
   const combat = setup();
   const source = ship("sheet-unchanged-source");

@@ -10,6 +10,8 @@ import {
   makeStarshipCombat,
   MockActor
 } from "../helpers/foundry-mock.mjs";
+import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
+import { privateContacts } from "../../scripts/sensor/private-contacts.mjs";
 const M = "sf2e-tactical-starship-combat";
 let cardRequest;
 let cardTargetKeys;
@@ -230,6 +232,37 @@ test("player and GM pointer selection pre-target and open details", async () => 
     assert.equal(renders, 1, "selection refreshes the detail panel for the newly targeted object");
     scenario.app._cleanup();
   }
+});
+
+test("GM pointer and KeyT pre-target private-only contacts outside a session", async () => {
+  const { combat, app } = await mapScenario({ isGM: true });
+  const secret = makeShip({ id: "private-pretarget", name: "Private target", role: "npc" });
+  await addSensorContact(combat, { source: "world", uuid: secret.uuid, zone: 4, detection: "hidden" });
+  const [privateObject] = privateContacts(combat.id);
+  combat.flags[M].tsc.objects = combat.flags[M].tsc.objects.filter((object) => object.key !== privateObject.key);
+  app._privateObjects = [privateObject];
+  app.render = async () => app;
+  Targeting.end();
+  const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
+
+  await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } });
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+  assert.equal(app.selected, privateObject.key);
+
+  const actions = [];
+  game.keybindings = {
+    register(namespace, action, config) {
+      actions.push({ namespace, action, config });
+    }
+  };
+  globalThis.CONST = { KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 } };
+  registerNativeTargeting();
+  const binding = actions.find((entry) => entry.namespace === M && entry.action === "targetSensorMap");
+  Targeting.end();
+  Targeting.hoverKey = privateObject.key;
+  assert.equal(binding.config.onDown({ isShift: false }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+  app._cleanup();
 });
 
 test("runAction consumes a pre-targeted map-only contact without another pick", async () => {

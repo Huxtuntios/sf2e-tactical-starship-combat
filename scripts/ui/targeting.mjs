@@ -85,6 +85,15 @@ function validateNativeToken(token) {
   return true;
 }
 
+function preTargetState(combat, privateObjects) {
+  const tsc = getTsc(combat);
+  const privateKeys = new Set(privateObjects.map((object) => object.key));
+  return {
+    ...tsc,
+    objects: [...tsc.objects.filter((object) => !privateKeys.has(object.key)), ...privateObjects]
+  };
+}
+
 function targetHoveredSensorMap(context) {
   const session = Targeting.current;
   const key = Targeting.hoverKey;
@@ -92,7 +101,7 @@ function targetHoveredSensorMap(context) {
   const combat = activeStarshipCombat();
   if (!combat) return false;
   if (!session) {
-    Targeting.pick(key, getTsc(combat), { additive: !!context.isShift });
+    Targeting.pick(key, preTargetState(combat, privateContacts(combat.id)), { additive: !!context.isShift });
     return true;
   }
   const tsc = targetingState(getTsc(combat), session.shipUuid, privateContacts(combat.id));
@@ -104,7 +113,7 @@ export function pickSensorMapObject(key, { additive = false, privateObjects = []
   const session = Targeting.current;
   const combat = activeStarshipCombat();
   if (session) return Targeting.pick(key, targetingState(getTsc(combat), session.shipUuid, privateObjects), { additive });
-  return Targeting.pick(key, getTsc(combat), { additive });
+  return Targeting.pick(key, preTargetState(combat, privateObjects), { additive });
 }
 
 export function registerNativeTargeting() {
