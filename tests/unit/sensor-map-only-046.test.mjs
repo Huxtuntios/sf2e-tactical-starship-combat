@@ -1102,6 +1102,36 @@ test("a failed snapshot refresh remains eligible for a later retry", async () =>
   assert.equal(resolveSensorActorSync(combat, placement.key).sheet.document.system.attributes.hp.value, 6);
 });
 
+test("snapshot reconciliation restores the actor when stored data returns to the configured record", async () => {
+  const combat = setup();
+  const source = ship("sheet-actor-reconcile-source");
+  source.items.set("reconcile-item", { _id: "reconcile-item", type: "effect", name: "Reconcile", system: { value: 1 } });
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  sheet.close = async () => {
+    sheet.rendered = false;
+    throw new Error("injected reconciliation close failure");
+  };
+  const journal = game.journal.contents[0];
+  const refreshHook = Hooks._hooks.get("updateJournalEntry")[0];
+  const record = journal.flags[MODULE_ID].privateSensor.mapObjects[placement.key];
+  record.data.system.attributes.hp.value = 6;
+  await refreshHook(journal);
+  record.data.system.attributes.hp.value = 24;
+  sheet.document.name = "Unsaved name";
+
+  await refreshHook(journal);
+
+  assert.strictEqual(resolveSensorActorSync(combat, placement.key).sheet, sheet);
+  assert.equal(sheet.document.name, "Unsaved name");
+  await sheet.document.updateEmbeddedDocuments("Item", [{ _id: "reconcile-item", system: { value: 4 } }]);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value, 4);
+});
+
 test("an unchanged combat update preserves unsaved snapshot sheet input", async () => {
   const combat = setup();
   const source = ship("sheet-unchanged-source");

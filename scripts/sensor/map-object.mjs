@@ -472,9 +472,9 @@ export function registerSnapshotSheetRegistry() {
           } catch (error) {
             log.warn("snapshot sheet close failed after its record disappeared", error);
           }
-        } else if (!same(entry.configuredData, record.data)) {
-          entry.actor = new MapObjectActor(record);
-          await refreshSnapshotSheet(entry);
+        } else {
+          if (!same(entry.actor._record.data, record.data)) entry.actor = new MapObjectActor(record);
+          if (!same(entry.configuredData, record.data)) await refreshSnapshotSheet(entry);
         }
       } catch (error) {
         log.warn("snapshot sheet refresh failed", error);

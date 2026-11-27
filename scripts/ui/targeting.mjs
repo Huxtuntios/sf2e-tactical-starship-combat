@@ -87,11 +87,20 @@ function validateNativeToken(token) {
 
 function preTargetState(combat, privateObjects) {
   const tsc = getTsc(combat);
-  const privateKeys = new Set(privateObjects.map((object) => object.key));
-  return {
-    ...tsc,
-    objects: [...tsc.objects.filter((object) => !privateKeys.has(object.key)), ...privateObjects]
-  };
+  const objects = tsc.objects.flatMap((object) => {
+    if (!object.tscPrivateProjection) return [object];
+    const contact = privateObjects.find((candidate) => candidate.key === object.key);
+    const eligible =
+      contact &&
+      ["starship", "hazard"].includes(contact.type) &&
+      contact.actorUuid &&
+      !contact.pendingReveal &&
+      ["hidden", "observed"].includes(contact.detection?.party) &&
+      object.detection?.party === contact.detection.party &&
+      contact.zone === object.zone;
+    return eligible ? [{ ...contact, designation: object.designation ?? "Contact" }] : [];
+  });
+  return { ...tsc, objects };
 }
 
 function targetHoveredSensorMap(context) {

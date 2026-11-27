@@ -234,12 +234,11 @@ test("player and GM pointer selection pre-target and open details", async () => 
   }
 });
 
-test("GM pointer and KeyT pre-target private-only contacts outside a session", async () => {
+test("GM pointer and KeyT pre-target projected private contacts outside a session", async () => {
   const { combat, app } = await mapScenario({ isGM: true });
   const secret = makeShip({ id: "private-pretarget", name: "Private target", role: "npc" });
   await addSensorContact(combat, { source: "world", uuid: secret.uuid, zone: 4, detection: "hidden" });
   const [privateObject] = privateContacts(combat.id);
-  combat.flags[M].tsc.objects = combat.flags[M].tsc.objects.filter((object) => object.key !== privateObject.key);
   app._privateObjects = [privateObject];
   app.render = async () => app;
   Targeting.end();
@@ -262,6 +261,32 @@ test("GM pointer and KeyT pre-target private-only contacts outside a session", a
   Targeting.hoverKey = privateObject.key;
   assert.equal(binding.config.onDown({ isShift: false }), true);
   assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+  app._cleanup();
+});
+
+test("GM pre-target rejects private contacts that execution cannot resolve", async () => {
+  const { combat, app } = await mapScenario({ isGM: true });
+  const secret = makeShip({ id: "invalid-private-pretarget", name: "Invalid private target", role: "npc" });
+  await addSensorContact(combat, { source: "world", uuid: secret.uuid, zone: 4, detection: "undetected" });
+  const [privateObject] = privateContacts(combat.id);
+  app._privateObjects = [privateObject];
+  app.render = async () => app;
+  Targeting.end();
+  const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
+
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), false);
+  assert.deepEqual(Targeting.targetUUIDs(), []);
+
+  privateObject.pendingReveal = true;
+  Targeting.end();
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), false);
+  assert.deepEqual(Targeting.targetUUIDs(), []);
+
+  privateObject.pendingReveal = false;
+  combat.flags[M].tsc.objects = combat.flags[M].tsc.objects.filter((object) => object.key !== privateObject.key);
+  Targeting.end();
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), false);
+  assert.deepEqual(Targeting.targetUUIDs(), []);
   app._cleanup();
 });
 
