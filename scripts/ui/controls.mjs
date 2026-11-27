@@ -7,6 +7,7 @@ import {
   toggleStationHUD,
   toggleStartWizard,
   toggleToolbox,
+  toggleOnboarding,
   openStarshipSheet,
   openNPCStarshipSheet
 } from "./launchers.mjs";
@@ -59,6 +60,7 @@ export function registerControls() {
       if (Array.isArray(group.tools)) group.tools.push(tool);
       else group.tools[name] = tool;
     };
+    add("tscOnboarding", "fa-solid fa-circle-question", "SF2eTSC.ui.onboarding", toggleOnboarding, false, 100);
     add("tscSensorMap", "fa-solid fa-satellite", "SF2eTSC.ui.sensorMap", toggleSensorMap, false, 101);
     add("tscStationHud", "fa-solid fa-gamepad", "SF2eTSC.ui.stationHud", toggleStationHUD, false, 102);
     add("tscStart", "fa-solid fa-jet-fighter", "SF2eTSC.ui.startCombat", toggleStartWizard, true, 103);

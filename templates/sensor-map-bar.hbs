@@ -21,6 +21,20 @@
             {{#each actionObjects}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} — {{typeLabel}}{{#if positionLabel}} — {{positionLabel}}{{/if}}</option>{{/each}}
           </select>
         </label>
+        <label class="tsc-auto-action-object" for="tsc-sensor-auto-action-object">
+          <input
+            id="tsc-sensor-auto-action-object"
+            name="autoActionObject"
+            type="checkbox"
+            switch
+            role="switch"
+            data-tsc-auto-action-object
+            title="{{localize 'SF2eTSC.ui.autoActionObjectHint'}}"
+            {{#if autoActionSelection}}checked{{/if}}
+            aria-checked="{{autoActionSelection}}"
+          >
+          <span>{{localize "SF2eTSC.ui.autoActionObject"}}</span>
+        </label>
         <span class="tsc-spacer"></span>
         <span class="tsc-map-tools" role="group" aria-label="{{localize 'SF2eTSC.ui.gmTools'}}">
           {{#if pendingRevealCount}}

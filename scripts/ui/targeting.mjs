@@ -85,6 +85,24 @@ function validateNativeToken(token) {
   return true;
 }
 
+function preTargetState(combat, privateObjects) {
+  const tsc = getTsc(combat);
+  const objects = tsc.objects.flatMap((object) => {
+    if (!object.tscPrivateProjection) return [object];
+    const contact = privateObjects.find((candidate) => candidate.key === object.key);
+    const eligible =
+      contact &&
+      ["starship", "hazard"].includes(contact.type) &&
+      contact.actorUuid &&
+      !contact.pendingReveal &&
+      ["hidden", "observed"].includes(contact.detection?.party) &&
+      object.detection?.party === contact.detection.party &&
+      contact.zone === object.zone;
+    return eligible ? [{ ...contact, designation: object.designation ?? "Contact" }] : [];
+  });
+  return { ...tsc, objects };
+}
+
 function targetHoveredSensorMap(context) {
   const session = Targeting.current;
   const key = Targeting.hoverKey;
@@ -92,8 +110,7 @@ function targetHoveredSensorMap(context) {
   const combat = activeStarshipCombat();
   if (!combat) return false;
   if (!session) {
-    if (game.user.isGM) return false;
-    Targeting.pick(key, getTsc(combat), { additive: !!context.isShift });
+    Targeting.pick(key, preTargetState(combat, privateContacts(combat.id)), { additive: !!context.isShift });
     return true;
   }
   const tsc = targetingState(getTsc(combat), session.shipUuid, privateContacts(combat.id));
@@ -105,8 +122,7 @@ export function pickSensorMapObject(key, { additive = false, privateObjects = []
   const session = Targeting.current;
   const combat = activeStarshipCombat();
   if (session) return Targeting.pick(key, targetingState(getTsc(combat), session.shipUuid, privateObjects), { additive });
-  if (game.user.isGM) return false;
-  return Targeting.pick(key, getTsc(combat), { additive });
+  return Targeting.pick(key, preTargetState(combat, privateObjects), { additive });
 }
 
 export function registerNativeTargeting() {
@@ -178,7 +194,6 @@ export const Targeting = {
   },
   pick(key, tsc = null, { additive = false } = {}) {
     const session = this.current;
-    if (!session && game.user.isGM) return false;
     const obj = tsc ? findTargetObject(tsc, key) : null;
     if (tsc && !obj) {
       warn("notPlaced");

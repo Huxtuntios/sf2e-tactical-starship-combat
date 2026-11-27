@@ -10,6 +10,8 @@ import {
   makeStarshipCombat,
   MockActor
 } from "../helpers/foundry-mock.mjs";
+import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
+import { privateContacts } from "../../scripts/sensor/private-contacts.mjs";
 const M = "sf2e-tactical-starship-combat";
 let cardRequest;
 let cardTargetKeys;
@@ -184,8 +186,8 @@ test("players can pre-target tokenless Sensor Map contacts before an action", as
   assert.deepEqual(Targeting.targetUUIDs(), [target.uuid]);
 });
 
-test("English KeyT pre-targets for players but not GMs outside an action session", async () => {
-  const { combat } = await mapScenario({ isGM: false });
+test("English KeyT pre-targets for players and GMs outside an action session", async () => {
+  const { target, combat, token } = await mapScenario({ isGM: false });
   const actions = [];
   game.keybindings = {
     register(namespace, action, config) {
@@ -201,39 +203,95 @@ test("English KeyT pre-targets for players but not GMs outside an action session
   assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
 
   game.user = game.users.get("gm");
+  game.user.targets = new Set();
   Targeting.end();
-  assert.equal(binding.config.onDown({ isShift: false }), false);
-  assert.deepEqual(Targeting.targetUUIDs(), []);
+  Targeting.hoverKey = target.uuid;
+  assert.equal(binding.config.onDown({ isShift: false }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [target.uuid]);
+  assert.deepEqual([...game.user.targets], [token]);
+
+  Targeting.hoverKey = "Contact.ui-map-only";
+  assert.equal(binding.config.onDown({ isShift: true }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [target.uuid, "Contact.ui-map-only"]);
   assert.ok(combat);
 });
 
-test("player pointer selection pre-targets while GM pointer selection only opens details", async () => {
-  const player = await mapScenario({ isGM: false });
-  let playerRenders = 0;
-  player.app.render = async () => {
-    playerRenders++;
-    return player.app;
-  };
+test("player and GM pointer selection pre-target and open details", async () => {
+  const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
+  for (const isGM of [false, true]) {
+    const scenario = await mapScenario({ isGM });
+    let renders = 0;
+    scenario.app.render = async () => {
+      renders++;
+      return scenario.app;
+    };
+    Targeting.end();
+    await select.call(scenario.app, { shiftKey: false }, { dataset: { objectKey: "Contact.ui-map-only" } });
+    assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
+    assert.equal(scenario.app.selected, "Contact.ui-map-only");
+    assert.equal(renders, 1, "selection refreshes the detail panel for the newly targeted object");
+    scenario.app._cleanup();
+  }
+});
+
+test("GM pointer and KeyT pre-target projected private contacts outside a session", async () => {
+  const { combat, app } = await mapScenario({ isGM: true });
+  const secret = makeShip({ id: "private-pretarget", name: "Private target", role: "npc" });
+  await addSensorContact(combat, { source: "world", uuid: secret.uuid, zone: 4, detection: "hidden" });
+  const [privateObject] = privateContacts(combat.id);
+  app._privateObjects = [privateObject];
+  app.render = async () => app;
   Targeting.end();
   const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
-  await select.call(player.app, { shiftKey: false }, { dataset: { objectKey: "Contact.ui-map-only" } });
-  assert.deepEqual(Targeting.targetUUIDs(), ["Contact.ui-map-only"]);
-  assert.equal(player.app.selected, "Contact.ui-map-only");
-  assert.equal(playerRenders, 1, "player selection refreshes the detail panel for the newly targeted object");
-  player.app._cleanup();
 
-  const gm = await mapScenario({ isGM: true });
-  let gmRenders = 0;
-  gm.app.render = async () => {
-    gmRenders++;
-    return gm.app;
+  await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } });
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+  assert.equal(app.selected, privateObject.key);
+
+  const actions = [];
+  game.keybindings = {
+    register(namespace, action, config) {
+      actions.push({ namespace, action, config });
+    }
   };
+  globalThis.CONST = { KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 } };
+  registerNativeTargeting();
+  const binding = actions.find((entry) => entry.namespace === M && entry.action === "targetSensorMap");
   Targeting.end();
-  await select.call(gm.app, { shiftKey: false }, { dataset: { objectKey: "Contact.ui-map-only" } });
+  Targeting.hoverKey = privateObject.key;
+  assert.equal(binding.config.onDown({ isShift: false }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+  app._cleanup();
+});
+
+test("GM pre-target rejects private contacts that execution cannot resolve", async () => {
+  const { combat, app } = await mapScenario({ isGM: true });
+  const secret = makeShip({ id: "invalid-private-pretarget", name: "Invalid private target", role: "npc" });
+  await addSensorContact(combat, { source: "world", uuid: secret.uuid, zone: 4, detection: "hidden" });
+  const [privateObject] = privateContacts(combat.id);
+  app._privateObjects = [privateObject];
+  app.render = async () => app;
+  Targeting.end();
+  const select = SensorMapApplication.DEFAULT_OPTIONS.actions.selectObject;
+
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+
+  privateObject.pendingReveal = true;
+  Targeting.end();
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), false);
   assert.deepEqual(Targeting.targetUUIDs(), []);
-  assert.equal(gm.app.selected, "Contact.ui-map-only");
-  assert.equal(gmRenders, 1);
-  gm.app._cleanup();
+
+  privateObject.pendingReveal = false;
+  Targeting.end();
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), true);
+  assert.deepEqual(Targeting.targetUUIDs(), [privateObject.key]);
+
+  combat.flags[M].tsc.objects = combat.flags[M].tsc.objects.filter((object) => object.key !== privateObject.key);
+  Targeting.end();
+  assert.equal(await select.call(app, { shiftKey: false }, { dataset: { objectKey: privateObject.key } }), false);
+  assert.deepEqual(Targeting.targetUUIDs(), []);
+  app._cleanup();
 });
 
 test("runAction consumes a pre-targeted map-only contact without another pick", async () => {
@@ -271,6 +329,43 @@ test("runAction consumes a pre-targeted map-only contact without another pick", 
   );
 
   assert.deepEqual(captured.options.targetUUIDs, ["Contact.pretarget"]);
+  assert.equal(Targeting.current, null);
+});
+
+test("GM pre-targeted map-only contact is consumed by runAction without another pick", async () => {
+  installFoundryMock();
+  await loadModules();
+  await loadContentFromDisk();
+  game.user = game.users.get("gm");
+  Targeting.end();
+  const crew = makeCharacter({ id: "gm-pretarget-crew", name: "GM Pretarget Crew", owners: ["p1"] });
+  const ship = makeShip({
+    id: "gm-pretarget-ship",
+    name: "GM Pretarget Ship",
+    role: "player",
+    owners: ["p1"],
+    stations: [{ id: "science", name: "Science", type: "science", grade: "commercial", helmedBy: crew.uuid }],
+    crew: [{ actorUuid: crew.uuid, role: "crew", stationId: "science" }]
+  });
+  const combat = makeStarshipCombat({
+    objects: [
+      { key: ship.uuid, zone: 1, alwaysVisible: true, detection: { party: "identified" } },
+      { key: "Contact.gm-pretarget", type: "starship", zone: 2, detection: { party: "identified" } }
+    ]
+  });
+  assert.equal(Targeting.pick("Contact.gm-pretarget", combat.flags[M].tsc), true);
+  let captured;
+  registerHandler("executeAction", async ({ payload }) => {
+    captured = payload;
+    return { ok: true };
+  });
+
+  await runAction(
+    { id: "lock-on", name: "Lock On", station: "science", targeting: { type: "starship", range: "sensor" } },
+    { ship, crew, station: ship.flags[M].starship.stations[0] }
+  );
+
+  assert.deepEqual(captured.options.targetUUIDs, ["Contact.gm-pretarget"]);
   assert.equal(Targeting.current, null);
 });
 

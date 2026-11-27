@@ -25,7 +25,7 @@ import { decorateTracker } from "./combat/tracker.mjs";
 import { registerControls } from "./ui/controls.mjs";
 import { StarshipSheet, NPCStarshipSheet } from "./ui/starship-sheet.mjs";
 import { refreshApps } from "./ui/base-app.mjs";
-import { openSensorMap } from "./ui/launchers.mjs";
+import { openSensorMap, autoOpenOnboarding } from "./ui/launchers.mjs";
 import { isStarship, readStarship } from "./starship/starship-state.mjs";
 import { migrateStarships } from "./engine/migration.mjs";
 import { checkCausodesConflict } from "./integrations/causodes.mjs";
@@ -42,7 +42,7 @@ import { moduleSetting, isActiveGM, T } from "./utils/foundry.mjs";
 import { systemSupport, missingStarfinderSkills } from "./utils/system.mjs";
 import { syncPrivateProjections } from "./sensor/private-contacts.mjs";
 import { registerNativeTargeting } from "./ui/targeting.mjs";
-import { sanitizePublicMapActors } from "./sensor/map-object.mjs";
+import { registerSnapshotSheetRegistry, sanitizePublicMapActors } from "./sensor/map-object.mjs";
 
 let enabled = false;
 
@@ -63,6 +63,7 @@ const TEMPLATES = [
   "crew-ship",
   "hazard-browser",
   "start-wizard",
+  "onboarding",
   "starship-builder",
   "encounter-builder",
   "ship-editor"
@@ -154,6 +155,7 @@ Hooks.once("ready", async () => {
     }
   }
   ui.combat?.render();
+  autoOpenOnboarding();
 });
 
 /**
@@ -191,6 +193,7 @@ async function migrateAll() {
 
 /** Document updates / hooks drive every refresh (no polling). */
 function registerRefreshHooks() {
+  registerSnapshotSheetRegistry();
   const tracker = foundry.utils.debounce(() => ui.combat?.render(), 120);
   Hooks.on("preUpdateActor", (actor, changes, options) => {
     if (!isStarship(actor)) return;

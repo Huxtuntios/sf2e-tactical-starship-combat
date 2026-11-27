@@ -7,6 +7,7 @@ import { request } from "../socket.mjs";
 import { T, fromUuidSync_ } from "../utils/foundry.mjs";
 import { ct } from "../content/content-i18n.mjs";
 import { activeStarshipCombat } from "../combat/tsc-state.mjs";
+import { mapObjectActorFromStore } from "../sensor/map-object.mjs";
 import { configureEffect, editEffect, effectCaption, effectDetails } from "./effect-editor.mjs";
 import { EffectTargetDialog, effectTargetSummary } from "./effect-target-dialog.mjs";
 
@@ -89,6 +90,7 @@ export class EffectManager extends TscApp {
     return readStarship(this.actor).effects.some((effect) => effect.nativeTargets?.some((target) => target.actorUuid === document.uuid));
   }
   async _prepareContext() {
+    if (this.actor.mapOnly) this.actor = mapObjectActorFromStore(this.actor.combatId, this.actor.id) ?? this.actor;
     const data = readStarship(this.actor);
     const catalog = getEffectTargetCatalog(this.actor);
     const conditions = [...(this.actor.items?.values?.() ?? [])]

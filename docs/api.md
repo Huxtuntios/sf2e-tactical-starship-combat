@@ -31,7 +31,7 @@ Hooks (`Hooks.on(name, fn)`): `sf2eTsc.starshipCombatStarted`, `…CombatEnded`,
 
 ## 1.4.0 — GM effects and persistent damage
 
-The 1.5.0 native-first build integrates these additive methods without changing their public signatures. All mutations below require the authenticated active GM. These methods do not grant player permission through a socket payload. `openEffectManager` is a GM-only shared UI; `getEffectTargetCatalog` reads the ship's actual installed stations/actions/weapons and registered/assigned crew.
+The 1.5.1 build integrates these additive methods without changing their public signatures. All mutations below require the authenticated active GM. These methods do not grant player permission through a socket payload. `openEffectManager` is a GM-only shared UI; `getEffectTargetCatalog` reads the ship's actual installed stations/actions/weapons and registered/assigned crew.
 
 ```js
 api.openEffectManager(actor);

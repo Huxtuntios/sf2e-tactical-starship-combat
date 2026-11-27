@@ -1,11 +1,13 @@
 import { MODULE_ID } from "../constants.mjs";
 import { getTsc, mutateTsc, saveTsc } from "../combat/tsc-state.mjs";
-import { activeGM, fromUuidSafe, fromUuidSync_, T } from "../utils/foundry.mjs";
+import { activeGM, fromUuidSafe, fromUuidSync_, isActiveGM, T } from "../utils/foundry.mjs";
+import { log } from "../utils/logging.mjs";
 import { serialize } from "../utils/serial.mjs";
 import { ensurePrivateStore, privateStoreFor, requirePrivateGM } from "./private-store.mjs";
 
 const MAP_OBJECT_SOURCE = "mapObjects";
 const clone = (value) => structuredClone(value);
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const isPlainObject = (value) =>
   !!value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 const isForcedDeletion = (value) => {
@@ -135,7 +137,7 @@ async function syncPublicMapActor(record) {
     objects: state.objects.map((object) => {
       if (object.key !== record.key) return object;
       const { publicActor: _previous, ...rest } = object;
-      return publicActor ? { ...rest, publicActor } : rest;
+      return { ...rest, name: record.data.name, ...(publicActor ? { publicActor } : {}) };
     })
   }));
 }
@@ -189,12 +191,19 @@ async function writeMapObjectSource(combatId, key, record, { create = false } = 
   });
 }
 
+function hasPendingReveal(combatId, key) {
+  const contacts = privateStoreFor(combatId)?.flags?.[MODULE_ID]?.privateSensor?.contacts;
+  return Array.isArray(contacts) && contacts.some((contact) => contact?.reveal && (contact.key === key || contact.actorUuid === key));
+}
+
 async function updateMapObjectSource(combatId, key, changes, { expectedSource = null } = {}) {
   return serialize(`sensor-source:${combatId}`, async () => {
     requirePrivateGM();
     const current = mapObjectSource(combatId, key);
     if (!current) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
     if (expectedSource && !same(current.data, expectedSource)) throw new Error(game.i18n.localize("SF2eTSC.qol.undoConflict"));
+    if ((Object.hasOwn(changes, "name") || Object.hasOwn(changes, "img")) && hasPendingReveal(combatId, key))
+      throw new Error(T("SF2eTSC.privateMap.recoveryRequired"));
     const data = clone(current.data);
     applyUpdate(data, changes);
     const record = withActiveGMOwner({ ...current, data });
@@ -252,6 +261,16 @@ export async function deleteMapObjectSource(combatId, key) {
     });
     requirePrivateGM();
     if (mapObjectSource(combatId, key)) throw new Error(T("SF2eTSC.privateMap.invalidStore"));
+    const registryKey = snapshotSheetKey(combatId, key);
+    const entry = snapshotSheetRegistry.get(registryKey);
+    if (entry) {
+      snapshotSheetRegistry.delete(registryKey);
+      try {
+        await closeSnapshotSheet(entry);
+      } catch (error) {
+        log.warn("snapshot sheet close failed during contact removal", error);
+      }
+    }
     return true;
   });
 }
@@ -260,6 +279,228 @@ class SnapshotItems extends Map {
   get contents() {
     return [...this.values()];
   }
+}
+
+class SnapshotItem {
+  #actor;
+  #source;
+
+  constructor(actor, source) {
+    this.#actor = actor;
+    this.#source = clone(source);
+    this.id = this.#source._id;
+    this.documentName = "Item";
+    this.isEmbedded = true;
+    this.pack = null;
+  }
+
+  get _id() {
+    return this.id;
+  }
+
+  get _source() {
+    return this.#source;
+  }
+
+  get _stats() {
+    return this.#source._stats ?? {};
+  }
+
+  get type() {
+    return this.#source.type;
+  }
+
+  get name() {
+    return this.#source.name;
+  }
+
+  get img() {
+    return this.#source.img;
+  }
+
+  get system() {
+    return (this.#source.system ??= {});
+  }
+
+  get flags() {
+    return (this.#source.flags ??= {});
+  }
+
+  get slug() {
+    return this.system.slug ?? this.#source.slug;
+  }
+
+  get key() {
+    return this.system.persistent?.damageType ? `persistent-damage-${this.system.persistent.damageType}` : this.slug;
+  }
+
+  get active() {
+    return this.#source.active !== false;
+  }
+
+  set active(value) {
+    this.#source.active = value !== false;
+  }
+
+  get isLocked() {
+    return this.#source.isLocked === true || this.system.references?.parent != null;
+  }
+
+  get parent() {
+    return this.#actor;
+  }
+
+  get actor() {
+    return this.#actor;
+  }
+
+  get uuid() {
+    return this.#actor.preparedItem(this.id)?.uuid ?? `Actor.${this.#actor.uuid}.Item.${this.id}`;
+  }
+
+  getRollOptions(domains = []) {
+    return this.#actor.preparedItem(this.id)?.getRollOptions?.(domains) ?? [`item:type:${this.type}`, `item:slug:${this.slug}`];
+  }
+
+  isOfType(...types) {
+    return types.includes(this.type);
+  }
+
+  toObject() {
+    return clone(this.#source);
+  }
+
+  clone(changes = {}) {
+    return new SnapshotItem(this.#actor, { ...this.toObject(), ...clone(changes) });
+  }
+
+  async update(changes) {
+    const [updated] = await this.#actor.updateEmbeddedDocuments("Item", [{ _id: this.id, ...changes }]);
+    return updated ?? null;
+  }
+
+  async delete() {
+    const [deleted] = await this.#actor.deleteEmbeddedDocuments("Item", [this.id]);
+    return deleted ?? null;
+  }
+}
+
+const snapshotSheetRegistry = new Map();
+let snapshotRegistryHooks = null;
+
+function snapshotSheetKey(combatId, key) {
+  return `${combatId}:${key}`;
+}
+
+function configureSnapshotSheet(entry) {
+  const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
+  if (!ActorClass) return false;
+  const data = clone(entry.actor._data);
+  data._id = foundry.utils.randomID(16);
+  const document = new ActorClass(data, { strict: false });
+  Object.defineProperty(document, "uuid", { configurable: true, get: () => entry.actor.uuid });
+  for (const snapshotItem of entry.actor.items.values()) {
+    const item = document.items.get(snapshotItem.id);
+    if (!item) continue;
+    item.update = (changes, options) => {
+      const badge = snapshotItem.system?.badge;
+      const value = changes?.system?.badge?.value ?? changes?.["system.badge.value"];
+      const min = badge?.labels ? 1 : (badge?.min ?? 1);
+      if (badge?.type === "counter" && typeof value === "number" && value < min) return snapshotItem.delete(options);
+      return snapshotItem.update(changes, options);
+    };
+    item.delete = (options) => snapshotItem.delete(options);
+  }
+  const sheet = document.sheet;
+  if (!sheet) return false;
+  entry.document = document;
+  entry.sheet = sheet;
+  document.update = async (changes, options = {}) => {
+    await entry.actor.update(changes, options);
+    return document;
+  };
+  document.setFlag = (scope, key, value) => entry.actor.setFlag(scope, key, value);
+  document.createEmbeddedDocuments = (type, sources, options) => entry.actor.createEmbeddedDocuments(type, sources, options);
+  document.updateEmbeddedDocuments = (type, updates, options) => entry.actor.updateEmbeddedDocuments(type, updates, options);
+  document.deleteEmbeddedDocuments = (type, ids, options) => entry.actor.deleteEmbeddedDocuments(type, ids, options);
+  document.increaseCondition = (condition, options) => entry.actor.increaseCondition(condition, options);
+  document.decreaseCondition = (condition, options) => entry.actor.decreaseCondition(condition, options);
+  document.toggleCondition = (condition, options) => entry.actor.toggleCondition(condition, options);
+  Object.defineProperty(sheet, "isEditable", { configurable: true, get: () => isActiveGM() && entry.actor.isOwner });
+  sheet._processSubmitData = async (_event, _form, submitData, options = {}) => {
+    if (!sheet.isEditable) return {};
+    requirePrivateGM();
+    await entry.actor.update(submitData, options);
+    return { updated: document };
+  };
+  return true;
+}
+
+function refreshSnapshotSheet(entry) {
+  entry.refreshQueue = (entry.refreshQueue ?? Promise.resolve())
+    .catch(() => {})
+    .then(async () => {
+      const registryKey = snapshotSheetKey(entry.actor.combatId, entry.actor.id);
+      const rendered = entry.sheet.rendered;
+      await closeSnapshotSheet(entry);
+      if (snapshotSheetRegistry.get(registryKey) !== entry) return;
+      const configuredData = clone(entry.actor._record.data);
+      if (!configureSnapshotSheet(entry)) return;
+      if (rendered) await entry.sheet.render(true);
+      entry.configuredData = configuredData;
+    });
+  return entry.refreshQueue;
+}
+
+async function closeSnapshotSheet(entry) {
+  if (entry.sheet.rendered) await entry.sheet.close();
+}
+
+export function registerSnapshotSheetRegistry() {
+  if (snapshotRegistryHooks === Hooks) return;
+  snapshotRegistryHooks = Hooks;
+  const refresh = async (combatId) => {
+    for (const entry of snapshotSheetRegistry.values()) {
+      if (entry.actor.combatId !== combatId || entry.pending) continue;
+      try {
+        const record = game.user.isGM ? mapObjectSource(combatId, entry.actor.id) : publicMapObjectRecord(combatId, entry.actor.id);
+        if (!record) {
+          const registryKey = snapshotSheetKey(combatId, entry.actor.id);
+          if (snapshotSheetRegistry.get(registryKey) === entry) snapshotSheetRegistry.delete(registryKey);
+          try {
+            await closeSnapshotSheet(entry);
+          } catch (error) {
+            log.warn("snapshot sheet close failed after its record disappeared", error);
+          }
+        } else {
+          if (!same(entry.actor._record.data, record.data)) entry.actor = new MapObjectActor(record);
+          if (!same(entry.configuredData, record.data)) await refreshSnapshotSheet(entry);
+        }
+      } catch (error) {
+        log.warn("snapshot sheet refresh failed", error);
+      }
+    }
+  };
+  Hooks.on("updateJournalEntry", (doc) => {
+    const combatId = doc.flags?.[MODULE_ID]?.privateSensor?.combatId;
+    if (combatId) return refresh(combatId);
+  });
+  Hooks.on("updateCombat", (combat) => refresh(combat.id));
+  Hooks.on("deleteCombat", async (combat) => {
+    const closing = [];
+    for (const [key, entry] of snapshotSheetRegistry) {
+      if (entry.actor.combatId !== combat.id) continue;
+      snapshotSheetRegistry.delete(key);
+      closing.push(entry);
+    }
+    for (const entry of closing) {
+      try {
+        await closeSnapshotSheet(entry);
+      } catch (error) {
+        log.warn("snapshot sheet close failed during combat deletion", error);
+      }
+    }
+  });
 }
 
 function applyUpdate(target, changes) {
@@ -276,11 +517,13 @@ function applyUpdate(target, changes) {
 }
 
 export class MapObjectActor {
-  #sheet = null;
+  #persist = true;
+  #synthetics = { modifiers: {}, modifierAdjustments: {}, rollTwice: {}, rollSubstitutions: {}, degreeOfSuccessAdjustments: {} };
 
-  constructor(record) {
+  constructor(record, { persist = true } = {}) {
     this._record = clone(record);
     this._data = clone(record.data);
+    this.#persist = persist !== false;
     this.id = record.key;
     this.uuid = record.key;
     this.documentName = "Actor";
@@ -288,7 +531,6 @@ export class MapObjectActor {
     this.isMapObject = true;
     this.pack = null;
     this.isToken = false;
-    this.synthetics = { modifiers: {}, modifierAdjustments: {}, rollTwice: {}, rollSubstitutions: {}, degreeOfSuccessAdjustments: {} };
     this.#syncItems();
   }
 
@@ -333,18 +575,14 @@ export class MapObjectActor {
   }
 
   get sheet() {
-    if (this.#sheet) return this.#sheet;
-    const ActorClass = globalThis.CONFIG?.Actor?.documentClass;
-    if (!ActorClass) return null;
-    const data = clone(this._data);
-    data._id = foundry.utils.randomID();
-    const document = new ActorClass(data);
-    const sheet = document.sheet;
-    if (!sheet) return null;
-    const render = sheet.render.bind(sheet);
-    sheet.render = (force, options = {}) => render(force, { ...options, editable: false });
-    this.#sheet = sheet;
-    return sheet;
+    const registryKey = snapshotSheetKey(this.combatId, this.id);
+    const existing = snapshotSheetRegistry.get(registryKey);
+    if (existing) return existing.sheet;
+    const entry = { actor: this, document: null, sheet: null, pending: false, configuredData: null };
+    if (!configureSnapshotSheet(entry)) return null;
+    entry.configuredData = clone(this._record.data);
+    snapshotSheetRegistry.set(registryKey, entry);
+    return entry.sheet;
   }
 
   get _source() {
@@ -363,8 +601,68 @@ export class MapObjectActor {
     this.items = new SnapshotItems();
     for (const item of this._data.items ?? []) {
       const id = item._id ?? item.id;
-      if (id) this.items.set(id, item);
+      if (id) this.items.set(id, new SnapshotItem(this, { ...clone(item), _id: id }));
     }
+  }
+
+  #requireWritable() {
+    requirePrivateGM();
+    if (!this.#persist) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+  }
+
+  #preparedDocument() {
+    return this.#persist ? (this.sheet?.document ?? null) : null;
+  }
+
+  preparedItem(id) {
+    return this.#preparedDocument()?.items?.get(id) ?? null;
+  }
+
+  get synthetics() {
+    return this.#preparedDocument()?.synthetics ?? this.#synthetics;
+  }
+
+  set synthetics(value) {
+    this.#synthetics = value;
+  }
+
+  get saves() {
+    return this.#preparedDocument()?.saves ?? null;
+  }
+
+  get skills() {
+    return this.#preparedDocument()?.skills ?? null;
+  }
+
+  get perception() {
+    return this.#preparedDocument()?.perception ?? null;
+  }
+
+  get armorClass() {
+    return this.#preparedDocument()?.armorClass ?? null;
+  }
+
+  get attributes() {
+    return this.#preparedDocument()?.attributes ?? this.system.attributes;
+  }
+
+  get rollOptions() {
+    return this.#preparedDocument()?.rollOptions ?? this.flags.sf2e?.rollOptions ?? {};
+  }
+
+  get canHostRuleElements() {
+    return true;
+  }
+
+  isOfType(...types) {
+    if (types.includes("creature") && ["character", "npc", "familiar"].includes(this.type)) return true;
+    return this.#preparedDocument()?.isOfType?.(...types) ?? types.includes(this.type);
+  }
+
+  get itemTypes() {
+    const types = {};
+    for (const item of this.items.values()) (types[item.type] ??= []).push(item);
+    return types;
   }
 
   testUserPermission(user, level) {
@@ -373,21 +671,112 @@ export class MapObjectActor {
     return granted >= ({ LIMITED: 1, OBSERVER: 2, OWNER: 3 }[level] ?? Infinity);
   }
 
-  getRollOptions() {
-    return [];
+  getRollOptions(domains = []) {
+    return this.#preparedDocument()?.getRollOptions?.(domains) ?? [];
   }
 
-  hasCondition(slug) {
-    return [...this.items.values()].some((item) => item.active !== false && item.type === "condition" && item.slug === slug);
+  getStatistic(slug) {
+    return this.#preparedDocument()?.getStatistic?.(slug) ?? null;
+  }
+
+  getCondition(slug, { all = false } = {}) {
+    const prepared = this.#preparedDocument()?.getCondition?.(slug, { all });
+    if (prepared) return prepared;
+    const conditions = [...this.items.values()].filter(
+      (item) => item.type === "condition" && (all || item.active) && (item.slug === slug || item.key === slug || item.id === slug)
+    );
+    if (all)
+      conditions.sort((a, b) => {
+        const aValue = a.system.value?.value ?? 0;
+        const bValue = b.system.value?.value ?? 0;
+        return aValue > bValue ? -1 : +(aValue < bValue);
+      });
+    return conditions[0] ?? null;
+  }
+
+  hasCondition(...slugs) {
+    const prepared = this.#preparedDocument();
+    if (prepared?.hasCondition) return prepared.hasCondition(...slugs);
+    return slugs.some((slug) => !!this.getCondition(slug));
   }
 
   isAffectedBy(condition) {
+    const prepared = this.#preparedDocument();
+    if (prepared?.isAffectedBy) return prepared.isAffectedBy(condition);
     const slug = typeof condition === "string" ? condition : condition?.slug;
     return slug ? this.hasCondition(slug) : false;
   }
 
-  isImmuneTo() {
-    return false;
+  isImmuneTo(condition) {
+    const prepared = this.#preparedDocument();
+    if (!prepared?.isImmuneTo) return false;
+    if (typeof condition === "string" || !condition || typeof condition !== "object") return prepared.isImmuneTo(condition);
+    const ItemClass = globalThis.CONFIG?.PF2E?.Item?.documentClasses?.[condition.type];
+    if (!ItemClass) return prepared.isImmuneTo(condition);
+    const source = typeof condition.toObject === "function" ? condition.toObject() : clone(condition._source ?? condition);
+    return prepared.isImmuneTo(new ItemClass(source, { parent: prepared }));
+  }
+
+  async increaseCondition(condition, { max = Number.MAX_SAFE_INTEGER, value } = {}) {
+    this.#requireWritable();
+    if (condition === "persistent-damage") return null;
+    const conditions = this.#preparedDocument()?.itemTypes?.condition ?? this.itemTypes.condition ?? [];
+    const existing =
+      typeof condition === "string"
+        ? conditions.find((item) => (value ? item.slug === condition && !item.isLocked : item.slug === condition && item.active))
+        : condition;
+    if (existing) {
+      const current = existing._source.system?.value?.value;
+      if (current === null) return null;
+      const next = clamp(current + (value ?? 1), 1, max);
+      if (this.isOfType("creature")) await game.pf2e.ConditionManager.updateConditionValue(existing.id, this, next);
+      else await this.updateEmbeddedDocuments("Item", [{ _id: existing.id, "system.value.value": next }]);
+      const updated = this.items.get(existing.id) ?? existing;
+      if (!this.isOfType("creature") && updated._source.system?.value?.value !== next)
+        throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
+      return updated;
+    }
+    if (typeof condition !== "string") return null;
+    const template = game.pf2e.ConditionManager.getCondition(condition);
+    if (!template) return null;
+    const source = template.toObject();
+    const initial = typeof source.system.value.value === "number" && max ? clamp(source.system.value.value, value ?? 1, max) : null;
+    source.system.value.value = initial;
+    return (await this.createEmbeddedDocuments("Item", [source])).shift() ?? null;
+  }
+
+  async decreaseCondition(condition, { forceRemove = false } = {}) {
+    this.#requireWritable();
+    const item = typeof condition === "string" ? this.getCondition(condition) : condition;
+    if (!item) return;
+    if (item.slug === "persistent-damage") {
+      const ids = [...this.items.values()].filter((entry) => entry.key === item.key).map((entry) => entry.id);
+      await this.deleteEmbeddedDocuments("Item", ids);
+      return;
+    }
+    const current = item._source.system?.value?.value;
+    const next = typeof current === "number" ? Math.max(current - 1, 0) : null;
+    if (next !== null && !forceRemove) {
+      if (this.isOfType("creature")) await game.pf2e.ConditionManager.updateConditionValue(item.id, this, next);
+      else if (next === 0) await this.deleteEmbeddedDocuments("Item", [item.id]);
+      else await this.updateEmbeddedDocuments("Item", [{ _id: item.id, "system.value.value": next }]);
+    } else await this.deleteEmbeddedDocuments("Item", [item.id]);
+  }
+
+  async toggleCondition(condition, { active } = {}) {
+    const enabled = active ?? !this.hasCondition(condition);
+    if (enabled && !this.hasCondition(condition)) await this.increaseCondition(condition);
+    else if (enabled) return true;
+    else if (!enabled && this.hasCondition(condition)) {
+      await this.decreaseCondition(condition, { forceRemove: true });
+      return false;
+    }
+  }
+
+  clone(changes = {}) {
+    const data = clone(this._data);
+    applyUpdate(data, changes);
+    return new MapObjectActor({ ...this._record, data }, { persist: false });
   }
 
   toObject() {
@@ -395,15 +784,90 @@ export class MapObjectActor {
   }
 
   async update(changes, { expectedSource = null } = {}) {
-    requirePrivateGM();
-    const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
-    this._data = clone(stored.data);
-    this._record = stored;
-    this.#sheet = null;
-    this.#syncItems();
-    await syncPublicMapActor(stored);
-    Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
-    return this;
+    return serialize(`snapshot-sheet:${this.combatId}:${this.id}`, async () => {
+      this.#requireWritable();
+      const entry = snapshotSheetRegistry.get(snapshotSheetKey(this.combatId, this.id));
+      const previousActor = entry?.actor;
+      let committed = false;
+      if (entry) entry.pending = true;
+      try {
+        const stored = await updateMapObjectSource(this.combatId, this.id, changes, { expectedSource });
+        committed = true;
+        this._data = clone(stored.data);
+        this._record = stored;
+        this.#syncItems();
+        if (entry) entry.actor = this;
+        await syncPublicMapActor(stored);
+        Hooks.callAll("sf2e-tactical-starship-combat.invalidateSensorMapActors", this);
+        if (entry) await refreshSnapshotSheet(entry);
+        return this;
+      } finally {
+        if (entry && !committed) entry.actor = previousActor;
+        if (entry) entry.pending = false;
+      }
+    });
+  }
+
+  async createEmbeddedDocuments(type, sources = [], { keepId = false } = {}) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(sources)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const items = clone(this._data.items ?? []);
+    const created = [];
+    for (const source of sources) {
+      const id = keepId && source._id ? source._id : foundry.utils.randomID(16);
+      if (items.some((item) => (item._id ?? item.id) === id)) throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
+      const data = { ...clone(source), _id: id };
+      if (data.type === "effect") {
+        data.system ??= {};
+        const originUuid = data.system.context?.origin?.actor;
+        const origin = originUuid && originUuid !== this.uuid ? fromUuidSync_(originUuid) : this;
+        const originCombatant = origin?.combatant ?? origin?.actor?.combatant;
+        data.system.start = {
+          value: game.time.worldTime,
+          initiative: originCombatant?.initiative ?? game.combat?.combatant?.initiative ?? null
+        };
+      }
+      const item = new SnapshotItem(this, data);
+      if (this.isImmuneTo(item)) continue;
+      items.push(data);
+      created.push(item);
+    }
+    if (!created.length) return [];
+    await this.update({ items: new foundry.data.operators.ForcedReplacement(items) }, { expectedSource: clone(this._source) });
+    return created.map((item) => this.items.get(item.id)).filter(Boolean);
+  }
+
+  async updateEmbeddedDocuments(type, updates = []) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(updates)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const items = clone(this._data.items ?? []);
+    const changed = [];
+    for (const update of updates) {
+      const id = update._id;
+      const index = items.findIndex((item) => (item._id ?? item.id) === id);
+      if (index < 0) throw new Error(T("SF2eTSC.effects.errors.nativeRejected"));
+      const { _id: _ignored, ...changes } = update;
+      applyUpdate(items[index], changes);
+      changed.push(id);
+    }
+    if (!changed.length) return [];
+    await this.update({ items: new foundry.data.operators.ForcedReplacement(items) }, { expectedSource: clone(this._source) });
+    return changed.map((id) => this.items.get(id)).filter(Boolean);
+  }
+
+  async deleteEmbeddedDocuments(type, ids = []) {
+    this.#requireWritable();
+    if (type !== "Item" || !Array.isArray(ids)) throw new Error(T("SF2eTSC.effects.errors.nativeUnavailable"));
+    const removed = new Set(ids);
+    const items = clone(this._data.items ?? []);
+    const deleted = items
+      .filter((item) => removed.has(item._id ?? item.id))
+      .map((item) => this.items.get(item._id ?? item.id))
+      .filter(Boolean);
+    const next = items.filter((item) => !removed.has(item._id ?? item.id));
+    if (deleted.length)
+      await this.update({ items: new foundry.data.operators.ForcedReplacement(next) }, { expectedSource: clone(this._source) });
+    return deleted;
   }
 
   async setFlag(scope, key, value) {

@@ -24,6 +24,7 @@ const allFixtures = [
   ["smoke-sensor-gm-actions.mjs", "sensor-gm-actions"],
   ["smoke-contact-editor.mjs", "contact-editor"],
   ["smoke-start-wizard.mjs", "start-wizard"],
+  ["smoke-onboarding.mjs", "onboarding"],
   ["smoke-crew-stations.mjs", "crew-stations"],
   ["smoke-builder-history.mjs", "builder-history"],
   ["smoke-toolbelt-damage.mjs", "toolbelt"],
@@ -200,6 +201,103 @@ try {
           const keyboardFocus = await select.evaluate((element) => globalThis.document.activeElement !== element);
           result.checks.push({ name: "native-select-keyboard-selection", pass: keyboardSelection });
           result.checks.push({ name: "native-select-keyboard-focus", pass: focusVisible && keyboardFocus });
+          const toggle = page.locator("[data-tsc-auto-action-object]");
+          await toggle.focus();
+          const toggleFocusVisible = await toggle.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+          await toggle.press("Space");
+          await page.waitForFunction(() => globalThis.fixture.app.autoActionSelection === false);
+          const disabledState = await page.evaluate(async () => {
+            globalThis.fixture.setTurn("player");
+            await globalThis.fixture.render();
+            await globalThis.fixture.render();
+            return { auto: globalThis.fixture.app.autoActionSelection, selected: globalThis.fixture.app.actionObjectKey };
+          });
+          await toggle.press("Space");
+          await page.waitForFunction(() => globalThis.fixture.app.autoActionSelection === true);
+          const enabledState = await page.evaluate(() => ({
+            auto: globalThis.fixture.app.autoActionSelection,
+            selected: globalThis.fixture.app.actionObjectKey
+          }));
+          result.checks.push(
+            { name: "auto-toggle-keyboard-focus", pass: toggleFocusVisible },
+            { name: "auto-toggle-off-persists", pass: disabledState.auto === false && disabledState.selected === "hazard" },
+            { name: "auto-toggle-on-synchronizes", pass: enabledState.auto === true && enabledState.selected === "player" }
+          );
+          const interactionChecks = await page.evaluate(async () => {
+            const fixture = globalThis.fixture;
+            const checks = [];
+            const check = (name, pass) => checks.push({ name, pass: !!pass });
+            const rightClick = (key) => {
+              const object = globalThis.document.querySelector(`[data-object-key="${key}"]`);
+              const event = new globalThis.MouseEvent("contextmenu", { button: 2, bubbles: true, cancelable: true });
+              return { object, dispatched: object.dispatchEvent(event) };
+            };
+            await fixture.reset();
+            const before = {
+              selected: fixture.app.selected,
+              targets: [...game.user.targets],
+              requests: fixture.requests.length,
+              clicks: fixture.clicks
+            };
+            const rmb = rightClick("player");
+            await fixture.flush();
+            check("rmb-selects-action-object", rmb.dispatched === false && fixture.app.actionObjectKey === "player");
+            check("rmb-consumes-contextmenu", fixture.contextmenuPropagations === 0);
+            check(
+              "rmb-no-native-side-effects",
+              fixture.app.selected === before.selected && JSON.stringify([...game.user.targets]) === JSON.stringify(before.targets)
+            );
+            check("rmb-no-click-action-or-request", fixture.clicks === before.clicks && fixture.requests.length === before.requests);
+            await fixture.render();
+            check("rmb-override-survives-rerender", fixture.app.actionObjectKey === "player" && fixture.app.autoActionSelection);
+            fixture.setTurn("hazard");
+            await fixture.render();
+            check("rmb-override-resumes-next-turn", fixture.app.actionObjectKey === "hazard");
+            await fixture.reset();
+            rightClick("player");
+            await fixture.flush();
+            fixture.setTurn("hazard", 2);
+            await fixture.render();
+            check("rmb-override-resumes-next-round", fixture.app.actionObjectKey === "hazard");
+            await fixture.reset();
+            const invalid = rightClick("hazard-2");
+            check("rmb-invalid-object-passthrough", invalid.dispatched === true && fixture.app.actionObjectKey === "map-npc");
+            game.user.isGM = false;
+            const player = rightClick("player");
+            check("rmb-non-gm-passthrough", player.dispatched === true && fixture.app.actionObjectKey === "map-npc");
+            await fixture.reset();
+            rightClick("player");
+            await fixture.flush();
+            const object = globalThis.document.querySelector('[data-object-key="player"]');
+            const values = {};
+            const dataTransfer = {
+              effectAllowed: "",
+              setData(type, value) {
+                values[type] = value;
+              },
+              getData(type) {
+                return values[type] ?? "";
+              }
+            };
+            const dragStart = new Event("dragstart", { bubbles: true, cancelable: true });
+            Object.defineProperty(dragStart, "dataTransfer", { value: dataTransfer });
+            const dragAllowed = object.dispatchEvent(dragStart);
+            const drop = new Event("drop", { bubbles: true, cancelable: true });
+            Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+            globalThis.document.querySelector('.tsc-zone[data-zone="2"]').dispatchEvent(drop);
+            await fixture.flush();
+            check("rmb-preserves-drag-start", object.draggable && dragAllowed && dataTransfer.effectAllowed === "move");
+            check(
+              "rmb-preserves-drop",
+              fixture.requests.length === 1 &&
+                fixture.requests[0].type === "sensorUpdate" &&
+                fixture.requests[0].payload.op === "move" &&
+                fixture.requests[0].payload.key === "player" &&
+                fixture.requests[0].payload.zone === 2
+            );
+            return checks;
+          });
+          result.checks.push(...interactionChecks);
           result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "effect-targets") {
@@ -245,6 +343,41 @@ try {
             await page.evaluate((language) => globalThis.showPlasmaLanguage(language), lang);
             await page.locator("#chat").screenshot({ path: path.join(out, folder, `plasma-attack-${lang}.png`) });
           }
+        }
+        if (folder === "onboarding") {
+          const measurements = [];
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            const measurement = await page.evaluate(() => globalThis.measureOnboarding());
+            measurements.push({ width, ...measurement });
+            await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-${width}.png`)) });
+          }
+          result.measurements = measurements;
+          result.checks.push(...measurements.flatMap((measurement) => measurement.checks));
+          await page.evaluate(() => globalThis.onboardingFixture.showSection(0));
+          const quickJump = page.locator("[data-onboarding-nav] button").nth(1);
+          await quickJump.focus();
+          await quickJump.press("Enter");
+          await page.waitForFunction(() => globalThis.onboardingFixture.app().currentIndex === 1);
+          result.checks.push({
+            name: "keyboard-quick-jump",
+            pass: await page.evaluate(() => {
+              const active = globalThis.document.activeElement;
+              return active?.matches("[data-onboarding-title]") && globalThis.getComputedStyle(active).outlineStyle !== "none";
+            })
+          });
+          const autoOpen = page.locator("[data-auto-open]");
+          await autoOpen.focus();
+          await autoOpen.press("Space");
+          await page.waitForFunction(() => globalThis.document.querySelector("[data-auto-open]").checked);
+          result.checks.push({
+            name: "keyboard-auto-open-toggle",
+            pass: await page.evaluate(() => {
+              const active = globalThis.document.activeElement;
+              return active?.matches("[data-auto-open]") && globalThis.getComputedStyle(active).outlineStyle !== "none";
+            })
+          });
+          result.passed = result.checks.every((check) => check.pass);
         }
         if (folder === "start-wizard") {
           const before = await page.evaluate(() => {
@@ -294,6 +427,28 @@ try {
                 );
               }, theme);
               result.checks.push({ name: `long-candidate-contained-${width}-${theme}`, pass: contained });
+            }
+          }
+          const levelRadio = page.locator('[name="rosterSort"][value="level"]');
+          if (await levelRadio.count()) {
+            await levelRadio.focus();
+            const sortFocusVisible = await levelRadio.evaluate((element) => globalThis.getComputedStyle(element).outlineStyle !== "none");
+            await levelRadio.press("ArrowDown");
+            await page.waitForFunction(() => globalThis.document.querySelector('[name="rosterSort"][value="name"]').checked);
+            const sortKeyboard = await page.evaluate(
+              () => globalThis.document.activeElement === globalThis.document.querySelector('[name="rosterSort"][value="name"]')
+            );
+            result.checks.push({ name: "roster-sort-keyboard-radio", pass: sortFocusVisible && sortKeyboard });
+          } else result.checks.push({ name: "roster-sort-keyboard-radio", pass: false });
+          for (const width of [1100, 600, 380]) {
+            await page.setViewportSize({ width, height: 950 });
+            for (const theme of ["dark", "light"]) {
+              const measurement = await page.evaluate((theme) => {
+                globalThis.document.querySelector("main.application").setAttribute("data-sheet-theme", theme);
+                return globalThis.measureRosterSort();
+              }, theme);
+              result.checks.push(...measurement.checks.map((check) => ({ ...check, name: `${check.name}-${width}-${theme}` })));
+              await page.screenshot({ path: path.join(out, folder, name.replace(/\.html$/, `-roster-sort-${width}-${theme}.png`)) });
             }
           }
           result.passed = result.checks.every((check) => check.pass);

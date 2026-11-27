@@ -34,7 +34,7 @@ import { normalizeMapAppearance, safeImagePath, resolveArrowAppearance, visualTr
 import { objectTypeView, wireObjectType } from "./object-type-control.mjs";
 import { can } from "../crew/permissions.mjs";
 import { registerSensorHandlers as registerBaseSensorHandlers } from "../sensor/map-handlers.mjs";
-import { gmActionSelection, openGmEffectManager, selectGmActionObject, wireGmActionObject } from "./sensor-gm-ui.mjs";
+import { gmActionSelection, openGmEffectManager, selectGmActionObject, wireGmActionControls } from "./sensor-gm-ui.mjs";
 
 export { PLAYER_SENSOR_OPS, userControlsShip, canMoveKey, observerKeys, applySensorOp } from "../sensor/map-model.mjs";
 
@@ -240,7 +240,12 @@ export class SensorMapApplication extends TscApp {
       ownKeys: own,
       resolve: (uuid) => resolveSensorActorSync(combat, uuid)
     });
-    const { actionObjects, actionSelection, actionObjectKey } = gmActionSelection(view, this.actionObjectKey, isGM);
+    const { actionObjects, actionSelection, actionObjectKey, autoActionSelection } = gmActionSelection(
+      view,
+      this.actionObjectKey,
+      isGM,
+      this
+    );
     this.actionObjectKey = actionObjectKey;
     this.actorCache.setVisible(view, game.user);
     const resolved = new Map();
@@ -286,6 +291,7 @@ export class SensorMapApplication extends TscApp {
       isGM,
       actionObjects,
       actionSelection,
+      autoActionSelection,
       rangeMode: rangePresentation.rangeMode,
       showRanges: this.showRanges,
       sensorRanges: rangePresentation.ranges,
@@ -586,7 +592,7 @@ export class SensorMapApplication extends TscApp {
     paintMapAppearance(this.element, context);
     wireObjectType(this.element, context.combatId);
     this.#syncTargetingControls();
-    wireGmActionObject(this, (event, select) => SensorMapApplication.#selectActionObject.call(this, event, select));
+    wireGmActionControls(this);
     this.#wireGmEdit();
     this.#wirePrivateZone();
     this.element.querySelectorAll("details.tsc-gm-tools").forEach((d) => {
@@ -629,15 +635,11 @@ export class SensorMapApplication extends TscApp {
   /* ---------------------------------------------------------------- actions */
   static #select(event, target) {
     const key = target.dataset.objectKey;
-    if (Targeting.current || !game.user.isGM) {
-      const session = Targeting.current;
-      if (!session) this.selected = key;
-      const picked = pickSensorMapObject(key, { additive: !!event.shiftKey, privateObjects: this._privateObjects });
-      if (!session) this.render({ parts: sensorPartsFor("select") });
-      return picked;
-    }
-    this.selected = this.selected === key ? null : key;
-    this.render({ parts: sensorPartsFor("select") });
+    const session = Targeting.current;
+    if (!session) this.selected = key;
+    const picked = pickSensorMapObject(key, { additive: !!event.shiftKey, privateObjects: this._privateObjects });
+    if (!session) this.render({ parts: sensorPartsFor("select") });
+    return picked;
   }
   static async #selectActionObject(_event, target) {
     return selectGmActionObject(this, target);
@@ -855,7 +857,7 @@ export class SensorMapApplication extends TscApp {
     const obj = this._privateObjects?.find((o) => o.key === t.dataset.key);
     if (!obj) return;
     const actor = await resolveSensorActor(activeStarshipCombat(), obj.actorUuid);
-    actor?.sheet?.render(true, actor.mapOnly ? { editable: false } : undefined);
+    actor?.sheet?.render(true);
   }
   static async #remove(e, t) {
     await request("sensorUpdate", { op: "remove", combatId: activeStarshipCombat().id, key: t.dataset.key });
@@ -883,7 +885,7 @@ export class SensorMapApplication extends TscApp {
   }
   static async #openSheet(e, t) {
     const actor = await resolveSensorActor(activeStarshipCombat(), t.dataset.key);
-    actor?.sheet?.render(true, actor.mapOnly ? { editable: false } : undefined);
+    actor?.sheet?.render(true);
   }
   static async #trigger(e, t) {
     await HazardEngine.trigger(t.dataset.key, { reason: T("SF2eTSC.hazards.manualTrigger") });

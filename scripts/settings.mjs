@@ -54,6 +54,13 @@ export function registerSettings() {
     default: true,
     scope: "client"
   });
+  reg("showOnboarding", {
+    name: L("showOnboarding.name"),
+    hint: L("showOnboarding.hint"),
+    type: Boolean,
+    default: true,
+    scope: "user"
+  });
   reg("autoRoutine", {
     name: L("autoRoutine.name"),
     hint: L("autoRoutine.hint"),

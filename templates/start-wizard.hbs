@@ -47,8 +47,19 @@
       </div>
     </details>
     <div class="tsc-wizard-roster">
+      <fieldset class="tsc-wizard-roster-sort">
+        <legend>{{localize "SF2eTSC.wizard.rosterSort"}}</legend>
+        <div class="tsc-row-inputs">
+          {{#each rosterSortOptions}}
+            <div class="tsc-wizard-roster-sort-option">
+              <input id="sf2e-tsc-roster-sort-{{id}}" type="radio" name="rosterSort" value="{{id}}" data-roster-sort {{#if selected}}checked{{/if}}>
+              <label for="sf2e-tsc-roster-sort-{{id}}">{{label}}</label>
+            </div>
+          {{/each}}
+        </div>
+      </fieldset>
       {{#each roster}}
-        <article class="tsc-wizard-roster-row" data-roster-row data-row-id="{{id}}">
+        <article class="tsc-wizard-roster-row" data-roster-row data-row-id="{{id}}" data-uuid="{{uuid}}" data-kind="{{kind}}">
           <header><div><h4>{{name}}</h4><small class="tsc-dim">{{sourceLabel}} · {{uuid}}</small></div><button type="button" data-action="removeRoster" aria-label="{{localize 'SF2eTSC.ui.remove'}}: {{name}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
           {{#if missing}}<p class="tsc-warn-box">{{localize "SF2eTSC.wizard.missingSource"}}: {{uuid}}</p>{{/if}}
           <div class="tsc-row-inputs">
