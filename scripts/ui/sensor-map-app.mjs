@@ -635,15 +635,11 @@ export class SensorMapApplication extends TscApp {
   /* ---------------------------------------------------------------- actions */
   static #select(event, target) {
     const key = target.dataset.objectKey;
-    if (Targeting.current || !game.user.isGM) {
-      const session = Targeting.current;
-      if (!session) this.selected = key;
-      const picked = pickSensorMapObject(key, { additive: !!event.shiftKey, privateObjects: this._privateObjects });
-      if (!session) this.render({ parts: sensorPartsFor("select") });
-      return picked;
-    }
-    this.selected = this.selected === key ? null : key;
-    this.render({ parts: sensorPartsFor("select") });
+    const session = Targeting.current;
+    if (!session) this.selected = key;
+    const picked = pickSensorMapObject(key, { additive: !!event.shiftKey, privateObjects: this._privateObjects });
+    if (!session) this.render({ parts: sensorPartsFor("select") });
+    return picked;
   }
   static async #selectActionObject(_event, target) {
     return selectGmActionObject(this, target);

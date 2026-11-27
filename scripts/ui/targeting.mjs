@@ -92,7 +92,6 @@ function targetHoveredSensorMap(context) {
   const combat = activeStarshipCombat();
   if (!combat) return false;
   if (!session) {
-    if (game.user.isGM) return false;
     Targeting.pick(key, getTsc(combat), { additive: !!context.isShift });
     return true;
   }
@@ -105,7 +104,6 @@ export function pickSensorMapObject(key, { additive = false, privateObjects = []
   const session = Targeting.current;
   const combat = activeStarshipCombat();
   if (session) return Targeting.pick(key, targetingState(getTsc(combat), session.shipUuid, privateObjects), { additive });
-  if (game.user.isGM) return false;
   return Targeting.pick(key, getTsc(combat), { additive });
 }
 
@@ -178,7 +176,6 @@ export const Targeting = {
   },
   pick(key, tsc = null, { additive = false } = {}) {
     const session = this.current;
-    if (!session && game.user.isGM) return false;
     const obj = tsc ? findTargetObject(tsc, key) : null;
     if (tsc && !obj) {
       warn("notPlaced");
