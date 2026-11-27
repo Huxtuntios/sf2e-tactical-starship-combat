@@ -1293,7 +1293,7 @@
         "hint": "Open the review dialog automatically when previewing a combat. Validation always runs; the review can also be opened manually."
       },
       "showOnboarding": {
-        "name": "Show the module guide on future launches (this client)",
+        "name": "Show the module guide on future launches (this user)",
         "hint": "When disabled, the guide stays available from the Token scene controls but does not open automatically."
       }
     },

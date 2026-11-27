@@ -41,7 +41,7 @@ async function openGuide() {
   return activeGuide;
 }
 
-test("onboarding auto-open preference is a client Boolean setting enabled by default", async () => {
+test("onboarding auto-open preference is a user Boolean setting enabled by default", async () => {
   installFoundryMock();
   const registrations = [];
   game.settings.register = (module, key, config) => registrations.push({ module, key, config });
@@ -49,7 +49,7 @@ test("onboarding auto-open preference is a client Boolean setting enabled by def
   registerSettings();
   const registration = registrations.find((entry) => entry.module === MODULE_ID && entry.key === "showOnboarding");
   assert.ok(registration);
-  assert.equal(registration.config.scope, "client");
+  assert.equal(registration.config.scope, "user");
   assert.equal(registration.config.type, Boolean);
   assert.equal(registration.config.default, true);
 });
@@ -148,28 +148,38 @@ test("close and skip never enable permanent suppression", async () => {
   }
 });
 
-test("the don't-show-again toggle changes only the current user's client preference", async () => {
+test("the don't-show-again toggle changes only the current user's preference", async () => {
   const gm = new MockUser({ id: "gm", name: "GM", isGM: true });
   const player = new MockUser({ id: "p1", name: "Player" });
   const mock = installFoundryMock({ users: [gm, player] });
-  const stores = new Map([
-    ["gm", { showOnboarding: true }],
-    ["p1", { showOnboarding: true }]
-  ]);
-  game.settings.get = (_module, key) => stores.get(game.user.id)?.[key];
-  game.settings.set = async (_module, key, value) => {
-    stores.get(game.user.id)[key] = value;
+  const registrations = [];
+  game.settings.register = (module, key, config) => registrations.push({ module, key, config });
+  const { registerSettings } = await import("../../scripts/settings.mjs");
+  registerSettings();
+  const registration = registrations.find((entry) => entry.module === MODULE_ID && entry.key === "showOnboarding");
+  const clientStore = new Map();
+  const userStores = new Map();
+  const settingId = `${MODULE_ID}.showOnboarding`;
+  game.settings.get = () => {
+    const store = registration.config.scope === "user" ? userStores.get(game.user.id) : clientStore;
+    return store?.has(settingId) ? store.get(settingId) : registration.config.default;
+  };
+  game.settings.set = async (_module, _key, value) => {
+    if (registration.config.scope === "user" && !userStores.has(game.user.id)) userStores.set(game.user.id, new Map());
+    const store = registration.config.scope === "user" ? userStores.get(game.user.id) : clientStore;
+    store.set(settingId, value);
   };
   const OnboardingGuide = await loadGuide();
   const app = new OnboardingGuide();
   app.render = async () => app;
   await OnboardingGuide.DEFAULT_OPTIONS.actions.toggleAutoOpen.call(app, {}, { checked: true });
-  assert.equal(stores.get("gm").showOnboarding, false);
+  assert.equal(game.settings.get(), false);
   mock.setUser("p1");
   assert.equal((await app._prepareContext()).disableAutoOpen, false);
   await OnboardingGuide.DEFAULT_OPTIONS.actions.toggleAutoOpen.call(app, {}, { checked: false });
-  assert.equal(stores.get("p1").showOnboarding, true);
-  assert.equal(stores.get("gm").showOnboarding, false);
+  assert.equal(game.settings.get(), true);
+  mock.setUser("gm");
+  assert.equal(game.settings.get(), false);
 });
 
 test("suppressed auto-open stays closed until the preference is re-enabled", async () => {

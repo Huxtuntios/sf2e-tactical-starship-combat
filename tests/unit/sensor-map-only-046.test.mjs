@@ -15,7 +15,7 @@ import {
 } from "../helpers/foundry-mock.mjs";
 import { MODULE_ID } from "../../scripts/constants.mjs";
 import { addSensorContact } from "../../scripts/sensor/contact-service.mjs";
-import { privateContacts, changePrivateContact } from "../../scripts/sensor/private-contacts.mjs";
+import { privateContacts, changePrivateContact, pendingPrivateReveals } from "../../scripts/sensor/private-contacts.mjs";
 import { getTsc } from "../../scripts/combat/tsc-state.mjs";
 import { loadStarship, patchStarship, readStarship, replaceStarshipMap } from "../../scripts/starship/starship-state.mjs";
 import { executeAction } from "../../scripts/actions/action-engine.mjs";
@@ -561,10 +561,12 @@ function installPreparedSnapshotMock() {
       this.flags.sf2e.rollOptions.all ??= {};
       this.flags.sf2e.rollOptions.all[`self:type:${this.type}`] = true;
       this.items = new Map();
+      this.itemTypes = {};
       this.synthetics = { modifiers: {} };
       for (const source of this._source.items ?? []) {
         const item = {
           ...structuredClone(source),
+          _source: structuredClone(source),
           id: source._id,
           uuid: `${this.uuid}.Item.${source._id}`,
           parent: this,
@@ -574,6 +576,7 @@ function installPreparedSnapshotMock() {
           getRollOptions: () => [`item:type:${source.type}`, `item:slug:${source.system?.slug ?? source.slug}`]
         };
         this.items.set(item.id, item);
+        (this.itemTypes[item.type] ??= []).push(item);
         if (item.type !== "condition") continue;
         for (const rule of item.system.rules ?? []) {
           if (rule.key !== "FlatModifier") continue;
@@ -586,6 +589,17 @@ function installPreparedSnapshotMock() {
           }));
         }
       }
+      const valued = new Map();
+      for (const item of this.itemTypes.condition ?? []) {
+        if (typeof item.system.value?.value !== "number") continue;
+        const values = valued.get(item.slug) ?? [];
+        values.push(item);
+        valued.set(item.slug, values);
+      }
+      for (const items of valued.values()) {
+        const highest = Math.max(...items.map((item) => item.system.value.value));
+        for (const item of items) if (item.system.value.value < highest) item.active = false;
+      }
       const reflexMod = 8 + (this.synthetics.modifiers["dex-based"] ?? []).reduce((total, factory) => total + factory().modifier, 0);
       this.saves = {
         fortitude: new PreparedStatistic(this, "fortitude", 8),
@@ -597,9 +611,11 @@ function installPreparedSnapshotMock() {
       this.armorClass = { value: 10, modifiers: [], dc: { value: 10, modifiers: [] } };
       this.attributes = {
         ...this.system.attributes,
-        immunities: (this.system.attributes?.immunities ?? []).map((entry) =>
-          typeof entry === "string" ? { test: (options) => options.has(`item:slug:${entry}`) } : entry
-        )
+        immunities: (this.system.attributes?.immunities ?? []).map((entry) => {
+          if (typeof entry === "string") return { test: (options) => options.has(`item:slug:${entry}`) };
+          if (typeof entry.test === "function") return entry;
+          return { test: (options) => options.has(entry.rollOption) };
+        })
       };
     }
 
@@ -624,8 +640,11 @@ function installPreparedSnapshotMock() {
     }
 
     isImmuneTo(condition) {
-      const slug = typeof condition === "string" ? condition : condition.slug;
-      const options = new Set([`item:type:condition`, `item:slug:${slug}`]);
+      const options = new Set(
+        typeof condition === "string"
+          ? [`item:type:condition`, `item:slug:${condition}`]
+          : (condition.getRollOptions?.("item") ?? [`item:type:${condition.type}`, `item:slug:${condition.slug}`])
+      );
       return this.attributes.immunities.some((immunity) => immunity.test(options));
     }
 
@@ -721,12 +740,18 @@ test("GM can save map-only sheet edits to the snapshot and refresh the open shee
 
 test("map-only sheet writes reject non-GM users even when they own the public projection", async () => {
   const combat = setup();
-  const source = ship("sheet-permission-source", { owners: ["p1"] });
-  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "identified" });
+  const source = ship("sheet-permission-source", { role: "player", owners: ["p1"] });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
   installSnapshotSheetMock();
+  game.user = game.users.get("p1");
   const actor = resolveSensorActorSync(combat, placement.key);
   const sheet = actor.sheet;
-  game.user = game.users.get("p1");
 
   assert.equal(sheet.isEditable, false);
   assert.deepEqual(await sheet.submit({ "system.attributes.hp.value": 1 }), {});
@@ -825,6 +850,123 @@ test("direct snapshot store updates refresh an open sheet and deletion closes it
   await deleteMapObjectSource(combat.id, placement.key);
   assert.equal(refreshed.rendered, false);
   assert.equal(resolveSensorActorSync(combat, placement.key), null);
+});
+
+test("private contact removal finishes when its snapshot sheet close fails", async () => {
+  const combat = setup();
+  const source = ship("sheet-close-failure-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  installSnapshotSheetMock();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  sheet.close = async () => {
+    sheet.rendered = false;
+    throw new Error("injected sheet close failure");
+  };
+
+  await changePrivateContact(combat, placement.key, "remove");
+
+  assert.equal(privateContacts(combat.id).length, 0);
+  assert.deepEqual(getTsc(combat).objects, []);
+  assert.equal(mapObjectSources(combat.id)[placement.key], undefined);
+  assert.equal(resolveSensorActorSync(combat, placement.key), null);
+});
+
+test("a snapshot refresh does not reopen a sheet removed while close was pending", async () => {
+  const combat = setup();
+  const source = ship("sheet-refresh-race-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  let releaseClose;
+  let closeStarted;
+  const blocked = new Promise((resolve) => (releaseClose = resolve));
+  const entered = new Promise((resolve) => (closeStarted = resolve));
+  const close = sheet.close.bind(sheet);
+  let first = true;
+  sheet.close = async () => {
+    if (first) {
+      first = false;
+      closeStarted();
+      await blocked;
+    }
+    return close();
+  };
+  const journal = game.journal.contents[0];
+  installFoundryJournalUpdateMock(journal);
+  const record = mapObjectSources(combat.id)[placement.key];
+  record.data.system.attributes.hp.value = 6;
+  await journal.update({
+    [`flags.${MODULE_ID}.privateSensor.mapObjects.${placement.key}`]: new foundry.data.operators.ForcedReplacement(record)
+  });
+  await entered;
+
+  await Hooks.callAll("deleteCombat", combat);
+  releaseClose();
+  await new Promise(setImmediate);
+
+  assert.equal(renders.length, 1);
+  assert.equal(sheet.rendered, false);
+});
+
+test("an unchanged combat update preserves unsaved snapshot sheet input", async () => {
+  const combat = setup();
+  const source = ship("sheet-unchanged-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const { renders } = installSnapshotSheetMock();
+  const { registerSnapshotSheetRegistry } = await import("../../scripts/sensor/map-object.mjs");
+  registerSnapshotSheetRegistry();
+  const sheet = resolveSensorActorSync(combat, placement.key).sheet;
+  await sheet.render(true);
+  sheet.document.name = "Unsaved name";
+
+  await Hooks.callAll("updateCombat", combat);
+  await new Promise(setImmediate);
+
+  assert.strictEqual(resolveSensorActorSync(combat, placement.key).sheet, sheet);
+  assert.equal(sheet.document.name, "Unsaved name");
+  assert.equal(renders.length, 1);
+});
+
+test("a rejected stale write cannot replace the actor used by an in-flight sheet refresh", async () => {
+  const combat = setup();
+  const source = ship("sheet-write-race-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  installSnapshotSheetMock();
+  const first = await loadStarship(placement.key);
+  const second = await loadStarship(placement.key);
+  const sheet = first.sheet;
+  await sheet.render(true);
+  let releaseClose;
+  let closeStarted;
+  const blocked = new Promise((resolve) => (releaseClose = resolve));
+  const entered = new Promise((resolve) => (closeStarted = resolve));
+  const close = sheet.close.bind(sheet);
+  let firstClose = true;
+  sheet.close = async () => {
+    if (firstClose) {
+      firstClose = false;
+      closeStarted();
+      await blocked;
+    }
+    return close();
+  };
+
+  const saving = first.update({ "system.attributes.hp.value": 5 });
+  await entered;
+  const rejected = assert.rejects(
+    second.update({ [`flags.${MODULE_ID}.starship.sp.value`]: 2 }, { expectedSource: structuredClone(second._source) }),
+    /undoConflict|конфликт|Undo refused/i
+  );
+  releaseClose();
+  await saving;
+  await rejected;
+
+  assert.equal(first.sheet.document.system.attributes.hp.value, 5);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.system.attributes.hp.value, 5);
 });
 
 test("map-only actors delegate prepared statistics, roll options and immunity without persisting derived data", async () => {
@@ -959,6 +1101,147 @@ test("map-only native conditions add, increment, persist and remove through embe
   );
   assert.deepEqual(source.toObject(), before);
   assert.equal(game.actors.size, 1);
+});
+
+test("condition increments select the active prepared value instead of a lower raw duplicate", async () => {
+  const combat = setup();
+  installPreparedSnapshotMock();
+  installSnapshotConditionFixture();
+  const source = ship("prepared-condition-selection", { role: "player" });
+  source.items.set("clumsy-low", {
+    _id: "clumsy-low",
+    type: "condition",
+    slug: "clumsy",
+    name: "Clumsy 1",
+    active: true,
+    system: { value: { isValued: true, value: 1 }, rules: [] }
+  });
+  source.items.set("clumsy-high", {
+    _id: "clumsy-high",
+    type: "condition",
+    slug: "clumsy",
+    name: "Clumsy 3",
+    active: true,
+    system: { value: { isValued: true, value: 3 }, rules: [] }
+  });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  const increased = await actor.increaseCondition("clumsy");
+
+  assert.equal(increased.id, "clumsy-high");
+  assert.equal(actor.items.get("clumsy-high").system.value.value, 4);
+  assert.equal(actor.items.get("clumsy-low").system.value.value, 1);
+});
+
+test("vehicle snapshot conditions persist computed valued changes", async () => {
+  const combat = setup();
+  installSnapshotConditionFixture();
+  const source = ship("vehicle-condition-source", { role: "player", owners: ["p1"] });
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  const actor = resolveSensorActorSync(combat, placement.key);
+  const clumsy = await actor.increaseCondition("clumsy", { value: 2 });
+
+  const increased = await actor.increaseCondition("clumsy", { value: 3 });
+
+  assert.equal(increased.id, clumsy.id);
+  assert.equal(increased.system.value.value, 5);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value.value, 5);
+
+  await actor.decreaseCondition("clumsy");
+  assert.equal(actor.items.get(clumsy.id).system.value.value, 4);
+  assert.equal(mapObjectSources(combat.id)[placement.key].data.items[0].system.value.value, 4);
+});
+
+test("persistent damage recovery removes only the selected damage type", async () => {
+  const combat = setup();
+  const source = ship("persistent-type-source");
+  for (const [id, damageType] of [
+    ["pd-fire", "fire"],
+    ["pd-bleed", "bleed"]
+  ]) {
+    source.items.set(id, {
+      _id: id,
+      type: "condition",
+      slug: "persistent-damage",
+      name: `Persistent ${damageType}`,
+      active: true,
+      system: { persistent: { damageType }, value: { isValued: false, value: null } }
+    });
+  }
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 2, detection: "hidden" });
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  await actor.decreaseCondition("persistent-damage-fire");
+
+  assert.equal(actor.items.has("pd-fire"), false);
+  assert.equal(actor.items.has("pd-bleed"), true);
+  assert.deepEqual(
+    mapObjectSources(combat.id)[placement.key].data.items.map((item) => item.system.persistent.damageType),
+    ["bleed"]
+  );
+});
+
+test("candidate persistent damage immunity uses native damage-type roll options", async () => {
+  const combat = setup();
+  installPreparedSnapshotMock();
+  class NativeCondition {
+    constructor(data, { parent } = {}) {
+      this._source = structuredClone(data);
+      this.type = data.type;
+      this.slug = data.system.slug;
+      this.system = structuredClone(data.system);
+      this.parent = parent;
+    }
+
+    getRollOptions(domain) {
+      const options = [`item:type:${this.type}`, `item:slug:${this.slug}`];
+      if (this.system.persistent) {
+        options.push(`damage:type:${this.system.persistent.damageType}`, `${domain}:damage:type:${this.system.persistent.damageType}`);
+      }
+      return options;
+    }
+
+    toObject() {
+      return structuredClone(this._source);
+    }
+  }
+  CONFIG.PF2E ??= {};
+  CONFIG.PF2E.Item = { documentClasses: { condition: NativeCondition } };
+  const source = ship("candidate-immunity-source", { role: "player" });
+  source.system.attributes.immunities = [{ rollOption: "damage:type:fire" }];
+  const placement = await addSensorContact(combat, {
+    source: "world",
+    uuid: source.uuid,
+    zone: 2,
+    detection: "identified",
+    publicActor: true
+  });
+  const actor = resolveSensorActorSync(combat, placement.key);
+
+  const created = await actor.createEmbeddedDocuments("Item", [
+    {
+      type: "condition",
+      slug: "persistent-damage",
+      name: "Persistent Fire",
+      system: { persistent: { damageType: "fire" }, value: { isValued: false, value: null } }
+    }
+  ]);
+
+  assert.deepEqual(created, []);
+  assert.deepEqual(mapObjectSources(combat.id)[placement.key].data.items ?? [], []);
 });
 
 test("open map-only effect manager reads conditions saved through another handle", async () => {
@@ -1281,6 +1564,33 @@ test("dragging a selected map-only record moves only that record", async () => {
     ]
   );
   assert.equal(game.actors.size, 1);
+});
+
+test("pending reveal pins snapshot name and portrait against direct sheet writes", async () => {
+  const combat = setup();
+  const source = ship("pending-reveal-source");
+  const placement = await addSensorContact(combat, { source: "world", uuid: source.uuid, zone: 3, detection: "hidden" });
+  const update = combat.update.bind(combat);
+  let fail = true;
+  combat.update = async (...args) => {
+    if (fail) {
+      fail = false;
+      throw new Error("injected reveal publication failure");
+    }
+    return update(...args);
+  };
+  await assert.rejects(changePrivateContact(combat, placement.key, "reveal"), /injected reveal publication failure/);
+  combat.update = update;
+  assert.equal(pendingPrivateReveals(combat.id).length, 1);
+  const actor = await loadStarship(placement.key);
+  const before = mapObjectSources(combat.id)[placement.key].data;
+
+  await assert.rejects(actor.update({ name: "Changed while pending" }), /unfinished identification|recoveryRequired/i);
+  await assert.rejects(actor.update({ img: "changed.webp" }), /unfinished identification|recoveryRequired/i);
+
+  const after = mapObjectSources(combat.id)[placement.key].data;
+  assert.equal(after.name, before.name);
+  assert.equal(after.img, before.img);
 });
 
 test("private map-only initiative and reveal preserve the map identity without an Actor", async () => {

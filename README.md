@@ -13,7 +13,7 @@ Each character keeps their own initiative and spends their normal actions. By de
 
 > **AI-assisted project.** Automated checks and local browser fixtures are available. Back up your world and test a copy before using it in a campaign. No system files are modified.
 
-> **1.5.1 tactical enhancements.** Adds automatic/right-click Sensor Map action-object selection, combat-roster sorting, interactive onboarding and GM-editable map-only snapshot sheets with native conditions and prepared statistics. The A–K live matrix passed 47/47 in Foundry 14.370.0 / SF2e 1.7.1 with an independent GM and player client; see [1.5.1 release notes](docs/releases/1.5.1.md) for evidence and limitations. This preparation does not tag, publish or merge a release.
+> **1.5.1 tactical enhancements.** Adds automatic/right-click Sensor Map action-object selection, combat-roster sorting, interactive onboarding and GM-editable map-only snapshot sheets with native conditions and prepared statistics. The A–K live matrix passed 47/47 in Foundry 14.370.0 / SF2e 1.7.1 with an independent GM and player client on integration head `2849e2a`; later CodeRabbit fixes are covered by automated regressions and were not live-retested. See [1.5.1 release notes](docs/releases/1.5.1.md) for evidence and limitations. This preparation does not tag, publish or merge a release.
 
 ## Requirements
 

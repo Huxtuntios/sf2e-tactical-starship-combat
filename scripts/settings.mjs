@@ -59,7 +59,7 @@ export function registerSettings() {
     hint: L("showOnboarding.hint"),
     type: Boolean,
     default: true,
-    scope: "client"
+    scope: "user"
   });
   reg("autoRoutine", {
     name: L("autoRoutine.name"),
